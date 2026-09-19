@@ -11,6 +11,7 @@ async fn main() -> anyhow::Result<()> {
         session: _session,
         kernel: _kernel,
         files: _files,
+        media: _media,
     } = ApplicationStorage::open(configured_root()?).await?;
     println!("File backend initialized.");
     Ok(())

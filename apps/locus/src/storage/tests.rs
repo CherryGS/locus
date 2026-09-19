@@ -30,3 +30,52 @@ async fn injected_root_composes_real_file_admission_and_reopen() {
     assert_eq!(input.id(), record.id);
     assert_eq!(std::fs::read(source).unwrap(), bytes);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn injected_root_registers_independent_media_kinds_without_decoders() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut app = ApplicationStorage::open(directory.path()).await.unwrap();
+    let image = app
+        .media
+        .create_image(&app.kernel, &mut app.session)
+        .await
+        .unwrap();
+    let video = app
+        .media
+        .create_video(&app.kernel, &mut app.session)
+        .await
+        .unwrap();
+    assert_ne!(image.component(), video.component());
+    assert_eq!(
+        app.kernel
+            .component_kind(&mut app.session, image.component())
+            .await
+            .unwrap(),
+        locus_media::IMAGE_KIND
+    );
+    assert_eq!(
+        app.kernel
+            .component_kind(&mut app.session, video.component())
+            .await
+            .unwrap(),
+        locus_media::VIDEO_KIND
+    );
+    drop(app);
+    let mut app = ApplicationStorage::open(directory.path()).await.unwrap();
+    assert!(
+        app.media
+            .read(&mut app.session, image)
+            .await
+            .unwrap()
+            .facts
+            .is_none()
+    );
+    assert!(
+        app.media
+            .read(&mut app.session, video)
+            .await
+            .unwrap()
+            .facts
+            .is_none()
+    );
+}

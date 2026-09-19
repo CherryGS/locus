@@ -1,6 +1,7 @@
 use anyhow::{Context, anyhow};
 use locus_core::Kernel;
 use locus_file::{FileOwner, FileStorage};
+use locus_media::{ImageOwner, MediaConfig, MediaStorage, VideoOwner};
 use locus_store::Session;
 use std::{
     path::{Path, PathBuf},
@@ -24,6 +25,7 @@ pub struct ApplicationStorage {
     pub session: Session,
     pub kernel: Kernel,
     pub files: FileStorage,
+    pub media: MediaStorage,
 }
 impl ApplicationStorage {
     pub async fn open(root: impl AsRef<Path>) -> anyhow::Result<Self> {
@@ -34,6 +36,25 @@ impl ApplicationStorage {
             .await
             .context("open metadata.sqlite")?;
         let mut kernel = Kernel::new();
+        let media = MediaStorage::new(
+            files.root(),
+            MediaConfig {
+                ffprobe: std::env::var_os("LOCUS_FFPROBE")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| "ffprobe".into()),
+                ffmpeg: std::env::var_os("LOCUS_FFMPEG")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| "ffmpeg".into()),
+                ..MediaConfig::default()
+            },
+        )
+        .context("configure Media")?;
+        kernel
+            .register(Arc::new(ImageOwner))
+            .context("register Image owner")?;
+        kernel
+            .register(Arc::new(VideoOwner))
+            .context("register Video owner")?;
         kernel
             .register(Arc::new(FileOwner))
             .context("register File owner")?;
@@ -45,10 +66,15 @@ impl ApplicationStorage {
             .initialize(&mut session)
             .await
             .context("initialize File schema")?;
+        media
+            .initialize(&mut session)
+            .await
+            .context("initialize Media schema")?;
         Ok(Self {
             session,
             kernel,
             files,
+            media,
         })
     }
 }

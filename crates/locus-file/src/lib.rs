@@ -8,7 +8,7 @@ mod record;
 mod schema;
 mod storage;
 
-pub use access::FileInput;
+pub use access::{FileInput, LocalFile};
 pub use admission::{AdmissionFailure, CopyProgress, PreparedFile};
 pub use error::{AccessCause, FileError};
 pub use identity::{FILE_KIND, FileId};

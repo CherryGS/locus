@@ -1,0 +1,58 @@
+use crate::MediaId;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FailureCode {
+    MissingInput,
+    FileAccess,
+    UnsupportedInput,
+    Decode,
+    Limit,
+    Timeout,
+    ToolUnavailable,
+    ToolFailure,
+    MalformedOutput,
+    NoFrame,
+    Worker,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Error)]
+#[serde(deny_unknown_fields)]
+#[error("{code:?}: {detail}")]
+pub struct AttemptFailure {
+    pub code: FailureCode,
+    pub detail: String,
+}
+impl AttemptFailure {
+    pub(crate) fn new(code: FailureCode, detail: impl ToString) -> Self {
+        Self {
+            code,
+            detail: detail.to_string().chars().take(4096).collect(),
+        }
+    }
+}
+#[derive(Debug, Error)]
+pub enum MediaError {
+    #[error(transparent)]
+    Store(#[from] locus_store::StoreError),
+    #[error(transparent)]
+    Core(#[from] locus_core::CoreError),
+    #[error(transparent)]
+    File(#[from] locus_file::FileError),
+    #[error(transparent)]
+    Database(#[from] diesel::result::Error),
+    #[error(transparent)]
+    Identity(#[from] locus_core::IdentityError),
+    #[error("Media record is missing: {0:?}")]
+    MissingRecord(MediaId),
+    #[error("invalid Media record: {0}")]
+    Corrupt(String),
+    #[error("unsupported Media schema version {0}")]
+    SchemaVersion(i32),
+    #[error("Media configuration: {0}")]
+    Configuration(String),
+    #[error("cache: {0}")]
+    Cache(String),
+    #[error(transparent)]
+    Attempt(#[from] AttemptFailure),
+}

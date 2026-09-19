@@ -2,12 +2,13 @@
 
 A personal local CMS intended to unify management of media, AI model weights, AIGC metadata, relationships, and commonly used Sources.
 
-The Rust workspace contains a persistent identity, attachment and managed File backend:
+The Rust workspace contains persistent identity, attachment, managed File, Image and Video backends:
 
 - `locus-store` owns domain-neutral SQLite sessions and transaction boundaries through Diesel 2.3.13 and diesel-async 0.9.2, with bundled SQLite linkage.
 - `locus-core` owns UUIDv7 entity/component identities, stable assigned kind IDs, owner-verified component admission, exclusive membership, and guarded lifecycle operations. Domain payloads stay in domain-owned tables.
 - `locus-file` owns UUIDv7 File records, managed copies, identified input access, and current entity/File input comparison.
-- `apps/locus` owns the native GPUI Kit shell and a separate File backend composition example. The default shell uses in-memory fixtures; the example owns a multithread Tokio runtime and initializes persistent kernel/File storage.
+- `locus-media` owns separate Image/Video kinds, retained interpretations and warnings, explicit retry, derived previews/covers, and a common per-component read view.
+- `apps/locus` owns the native GPUI Kit shell and separate File/Media backend examples. The default shell uses in-memory fixtures; examples own a multithread Tokio runtime and initialize persistent kernel/File/Media storage.
 
 Intent discovery was deferred at the user's request so bootstrap could proceed. The current intent snapshot and its confirmation state are maintained in the independent local `project-doc` repository.
 
@@ -48,8 +49,8 @@ Cancellation discards an in-flight transaction's connection. A discarded session
 The backend composition defaults to `%LOCALAPPDATA%\Locus` on Windows (the local data
 location plus `Locus` on other platforms). Set `LOCUS_DATA_DIR` to use an isolated
 root. `ApplicationStorage::open(root)` accepts an injected root for composition
-and tests. It opens `metadata.sqlite`, registers the File owner and initializes
-both domain-owned schema versions. Run `just rust-run-backend` for the explicit
+and tests. It opens `metadata.sqlite`, registers File/Image/Video owners and initializes
+their domain-owned schema versions. Run `just rust-run-backend` for the explicit
 console example; the default native shell does not open this database. Core schema
 2 upgrades unshared version-1 data
 atomically; a shared component produces `MigrationSharedComponent` without changing
@@ -103,11 +104,101 @@ consumers coordinating an acceptance boundary. `compare_input(basis, observation
 compares an optional caller-owned basis with current identity; missing basis and
 missing current context remain visible together. Observation/comparison do not
 probe bytes or change any consumer basis. A prior observation is not a later-commit
-certificate. No Image, Source, model or AIGC behavior is implemented here.
+certificate. `local_path` also supplies a validated regular managed path, FileId,
+and retained open handle for adapters such as external decoders.
 
 Detach and entity deletion retain File records and bytes. The File owner explicitly
 vetoes even unmounted component removal until the record/byte removal effects are
 selected; this backend publishes no File removal operation.
+
+## Image and Video backend
+
+The application composes `MediaStorage` into the same `metadata.sqlite`. Image
+and Video use distinct stable kinds and separate payload tables, with UUIDv7
+component IDs and versioned validated JSON. Each may be created unparsed and
+attached independently. `read` reads only the retained record; `view` adds actual
+host/File applicability, and `entity_view` preserves each supported membership's
+independent result or record error. Metadata reads never probe source bytes.
+
+`create_in`, `read_in`, `view_in` and `apply_in` participate in the caller's
+transaction. Creation uses a savepoint even when the caller catches rejection.
+`prepare` resolves the component's actual host and File slot, then performs byte
+inspection outside SQLite's write transaction. Its opaque token holds the observed
+component, host/File and revision. `apply` checks those observations inside one
+write boundary; changed context or newer attempts reject stale work. Successful
+attempts replace facts and basis together. Failed attempts retain prior facts and
+basis with a typed diagnostic. `interpret` composes preparation and acceptance;
+retry is explicit and uses the same component. Dropped preparation writes nothing;
+acceptance retains the store's provisional/cancellation/uncertain-commit rules.
+Detached Media can be deleted through the kernel without deleting File, other
+kinds, cached artifacts or original files.
+
+Image detects PNG/JPEG/WebP/GIF from content through Rust `image`, retaining format
+and intrinsic raster dimensions. Preview generation decodes a still image and
+emits PNG; animated Image previews use the initial still. Basic facts may succeed
+while pixel decoding fails. Cargo feature unification does not expand the runtime
+format allowlist.
+
+Video uses explicitly configured `ffprobe` and `ffmpeg`. It first accepts only a
+bounded movie-family BMFF `ftyp` with every brand on the implementation allowlist,
+or EBML with WebM/Matroska DocType. AVIF/HEIF/image brands, unknown brands, ordinary
+image signatures and legacy MOV without the recognized header fail as unsupported.
+The selected demuxer and local-file protocol are forced; MOV external references
+stay disabled. The first temporal stream in observed order is selected, excluding
+attached pictures, timed thumbnails and still-image dispositions. A codec such
+as PNG may encode temporal frames inside a movie. Incomplete properties remain
+unknown without selecting a later stream. Duration belongs to the selected video
+stream and has unknown precision; container/audio duration never fills it in.
+Covers map exactly that stream, disable autorotation, and request its first
+decodable frame from the beginning. Missing tools, failed decode, malformed output,
+unsupported input, no frame, timeout and resource limits are distinct outcomes.
+
+Default `MediaConfig` budgets are 512 MiB input, 32,768 pixels per known source
+dimension, 40 million source pixels, a 320 MB image allocation budget, 8 MiB PNG
+output, two concurrent workers/processes, and a 30-second external-process deadline.
+Image validates dimensions/pixels and conservative allocation arithmetic before
+full decode. Renditions have an edge of 1–2048. Video cover decoding also supplies
+FFmpeg's `max_pixels`; known source rasters are checked before extraction. Probe
+output is capped at 1 MiB and stderr at 64 KiB; probing analyzes up to 5 MB/5 seconds
+with one decoder thread. FFmpeg `max_alloc` limits individual allocations.
+These are work budgets, not a hostile-process sandbox or total-memory ceiling.
+Running Rust blocking decoders cannot be forcibly canceled; their semaphore permit
+is held until completion. External work has an owned supervisor that kills and
+awaits its direct child on cancellation, timeout or output overflow. Keep the
+application's Tokio runtime alive for cleanup; runtime shutdown is not awaited
+request cancellation. No process-tree sandbox or decoder availability guarantee
+is implied.
+
+`preview` returns File/kind/rendition/stream evidence and `Hit` or `Generated`.
+The flat `media-cache-v1` subtree keys outputs by FileId, kind, size and policy,
+including Video stream/frame policy. A small derived stream-selection marker allows
+a matching cover hit without source bytes or tools, even before facts are saved.
+Cache hits validate the complete PNG within budgets. Misses may inspect/decode but
+never save facts or clear warnings. Complete files are published atomically.
+`clear_cache` removes this subtree's regular `media-*` and `pending-*` artifacts
+after checking boundaries and redirects; it performs no recursive deletion and
+preserves metadata, memberships, managed objects and originals. Rebuilding still
+requires usable source input and decoders. Checks retain File's assumption against
+silent modification; hostile concurrent filesystem replacement is outside scope.
+
+Run the named example from PowerShell using a disposable root when experimenting:
+
+```powershell
+$env:LOCUS_DATA_DIR = 'E:\Temp\locus-media-demo'
+$env:LOCUS_FFPROBE = 'E:\Library\ffmpeg-essentials\bin\ffprobe.exe'
+$env:LOCUS_FFMPEG = 'E:\Library\ffmpeg-essentials\bin\ffmpeg.exe'
+just rust-run-media image 'E:\Inputs\photo.png'
+just rust-run-media video 'E:\Inputs\clip.mp4'
+just rust-test-video
+```
+
+The app alone reads these environment variables, defaulting the tools to explicit
+program names `ffprobe`/`ffmpeg`. Each example run creates an entity, admits a new
+copy, attaches the intended kind, interprets it, requests a 320-pixel preview and
+prints actual IDs and separate stage outcomes. Copies and earlier committed stages
+remain if later interpretation fails. The regular File example remains usable.
+Source persistence/import transport, playback, native UI integration, model and
+AIGC behavior are deferred; the default GPUI shell continues using fixtures.
 
 ## Development
 
@@ -118,11 +209,13 @@ just rust-validate
 just rust-test-code locus-store
 just rust-test-code locus-core
 just rust-test-code locus-file
+just rust-test-code locus-media
+just rust-test-video
 just rust-test-code locus --example file-backend
 just rust-run
 just rust-run-backend
 ```
 
-`rust-validate` applies Clippy fixes and formatting, then checks lint, all code tests, metadata, dependencies, and the build. Contract tests cover real payload tables, file reopen, constraints, domain vetoes, grouped rollback/cancellation, and deterministically ordered races between separate SQLite connections. Use `just rust-lock` when dependency changes require regenerating the lockfile; all Cargo arguments live in the root `justfile`.
+`rust-validate` applies Clippy fixes and formatting, then checks lint, all code tests, metadata, dependencies, and the build. Contract tests cover real payload tables, file reopen, constraints, domain vetoes, grouped rollback/cancellation, and deterministically ordered races between separate SQLite connections. External Video integration tests are explicitly ignored by the generic suite and must be run through `rust-test-video` with provisioned tools; they do not silently skip missing tools. Private subprocess fixtures are ignored tests launched by their supervision tests. Use `just rust-lock` for full lockfile regeneration or `just rust-lock-media` for the scoped offline Media resolution; all Cargo arguments live in the root `justfile`.
 
 See `rules/implementation.md` for repository implementation guidance.

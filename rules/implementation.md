@@ -17,6 +17,9 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 - `just rust-build`: build all workspace targets.
 - `just rust-run`: run the provisional application entry point.
 - `just rust-run-backend`: run the explicit File backend composition example without starting the native UI.
+- `just rust-run-media image|video path`: copy/admit a supplied local input and exercise the intended Media component, interpretation and preview.
+- `just rust-test-video`: run the explicitly provisioned ffprobe/ffmpeg integration tests (configure `LOCUS_FFPROBE` and `LOCUS_FFMPEG` as needed).
+- `just rust-lock-media`: resolve the Media workspace edges offline while retaining locked dependency versions.
 
 ## General rules
 

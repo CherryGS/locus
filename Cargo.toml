@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["apps/locus", "crates/locus-store", "crates/locus-core", "crates/locus-file"]
+members = ["apps/locus", "crates/locus-store", "crates/locus-core", "crates/locus-file", "crates/locus-media"]
 
 [workspace.dependencies]
 anyhow = "1"
@@ -8,10 +8,14 @@ directories = "6"
 diesel = { version = "=2.3.13", default-features = false, features = ["sqlite"] }
 diesel-async = { version = "=0.9.2", default-features = false, features = ["sqlite"] }
 libsqlite3-sys = { version = "0.37", features = ["bundled"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "process", "io-util"] }
 thiserror = "2"
 uuid = { version = "1", features = ["v7"] }
 tempfile = "3"
 locus-store = { path = "crates/locus-store" }
 locus-core = { path = "crates/locus-core" }
 locus-file = { path = "crates/locus-file" }
+locus-media = { path = "crates/locus-media" }
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -37,6 +37,16 @@ rust-run:
 rust-run-backend:
     cargo run --package locus --example file-backend --locked
 
+rust-run-media kind path:
+    cargo run --package locus --example media-backend --locked -- '{{ replace(kind, "'", "''") }}' '{{ replace(path, "'", "''") }}'
+
+rust-test-video:
+    cargo nextest run --package locus-media {{ nextest_args }} --run-ignored only -E 'test(real_video)'
+
+# Resolve new workspace edges while retaining the existing dependency selection.
+rust-lock-media:
+    cargo check --package locus-media --offline
+
 rust-finalize: rust-clippy-fix rust-fmt rust-fmt-check rust-lint rust-test-all
 
 rust-validate: rust-finalize rust-metadata rust-deps rust-build

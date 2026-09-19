@@ -29,6 +29,36 @@ impl<R: Seek> Seek for FileInput<R> {
     }
 }
 impl FileStorage {
+    /// Validated identified local input for adapters requiring a filesystem path.
+    /// The open handle is retained; this is not protection from hostile path replacement.
+    pub async fn local_path(
+        &self,
+        session: &mut Session,
+        id: FileId,
+    ) -> Result<LocalFile, FileError> {
+        let record = self.lookup(session, id).await?;
+        let storage = self.clone();
+        tokio::task::spawn_blocking(move || {
+            let path = storage.record_path(&record)?;
+            let handle = File::open(&path).map_err(|error| FileError::Access {
+                id,
+                cause: error.into(),
+            })?;
+            if !handle
+                .metadata()
+                .map_err(|error| FileError::Access {
+                    id,
+                    cause: error.into(),
+                })?
+                .is_file()
+            {
+                return Err(FileError::NotRegularFile);
+            }
+            Ok(LocalFile { id, path, handle })
+        })
+        .await
+        .map_err(|error| FileError::Worker(error.to_string()))?
+    }
     pub async fn open(&self, session: &mut Session, id: FileId) -> Result<FileInput, FileError> {
         let record = self.lookup(session, id).await?;
         let storage = self.clone();
@@ -50,6 +80,30 @@ impl FileStorage {
             id: record.id,
             reader,
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct LocalFile {
+    id: FileId,
+    path: std::path::PathBuf,
+    handle: File,
+}
+impl LocalFile {
+    pub fn id(&self) -> FileId {
+        self.id
+    }
+    pub fn path(&self) -> &std::path::Path {
+        &self.path
+    }
+    pub fn handle(&self) -> &File {
+        &self.handle
+    }
+    pub fn into_reader(self) -> FileInput {
+        FileInput {
+            id: self.id,
+            reader: self.handle,
+        }
     }
 }
 

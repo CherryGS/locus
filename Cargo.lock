@@ -3857,6 +3857,7 @@ dependencies = [
  "gpui-kit",
  "locus-core",
  "locus-file",
+ "locus-media",
  "locus-store",
  "tempfile",
  "tokio",
@@ -3883,6 +3884,24 @@ dependencies = [
  "diesel-async",
  "locus-core",
  "locus-store",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "locus-media"
+version = "0.1.0"
+dependencies = [
+ "diesel",
+ "diesel-async",
+ "image",
+ "locus-core",
+ "locus-file",
+ "locus-store",
+ "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
@@ -7013,6 +7032,7 @@ dependencies = [
  "libc",
  "mio",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",

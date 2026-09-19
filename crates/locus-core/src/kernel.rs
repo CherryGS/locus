@@ -57,6 +57,43 @@ struct MembershipRow {
 }
 
 impl Kernel {
+    /// Resolve a component's actual host without requiring its concrete owner.
+    /// Unknown components are errors; admitted detached components return None.
+    pub async fn attachment(
+        &self,
+        session: &mut Session,
+        component: ComponentId,
+    ) -> Result<Option<Membership>, CoreError> {
+        let kernel = self.clone();
+        session
+            .transaction(move |context| {
+                Box::pin(async move { kernel.attachment_in(context, component).await })
+            })
+            .await
+    }
+
+    pub async fn attachment_in(
+        &self,
+        context: &mut Context,
+        component: ComponentId,
+    ) -> Result<Option<Membership>, CoreError> {
+        self.component_kind_in(context, component).await?;
+        let row =
+            sql_query("SELECT entity, kind, component FROM locus_memberships WHERE component = ?")
+                .bind::<Binary, _>(component.as_bytes().as_slice())
+                .get_result::<MembershipRow>(context.connection())
+                .await
+                .optional()?;
+        row.map(|row| {
+            Ok(Membership {
+                entity: EntityId::from_bytes(&row.entity)?,
+                kind: KindId::from_bytes(&row.kind)?,
+                component: ComponentId::from_bytes(&row.component)?,
+            })
+        })
+        .transpose()
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
