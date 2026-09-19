@@ -1,0 +1,10 @@
+# Keep directory patterns slashless so symlinks and junctions match too.
+/project-doc
+/.agents
+/.claude
+/.codegraph
+
+node_modules
+dist
+coverage
+target
