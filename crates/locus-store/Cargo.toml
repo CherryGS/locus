@@ -1,0 +1,14 @@
+[package]
+name = "locus-store"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+diesel.workspace = true
+diesel-async.workspace = true
+libsqlite3-sys.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

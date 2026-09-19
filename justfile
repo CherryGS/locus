@@ -37,3 +37,6 @@ rust-run:
 rust-finalize: rust-clippy-fix rust-fmt rust-fmt-check rust-lint rust-test-all
 
 rust-validate: rust-finalize rust-metadata rust-deps rust-build
+
+rust-lock:
+    cargo generate-lockfile

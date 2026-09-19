@@ -1,3 +1,6 @@
-fn main() {
-    println!("Hello, world!");
+mod startup;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    startup::run().await
 }

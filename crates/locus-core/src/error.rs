@@ -1,0 +1,36 @@
+use locus_store::StoreError;
+use thiserror::Error;
+
+use crate::{ComponentId, EntityId, IdentityError, KindId, OwnerError};
+
+#[derive(Debug, Error)]
+pub enum CoreError {
+    #[error(transparent)]
+    Store(#[from] StoreError),
+    #[error("core database operation failed: {0}")]
+    Database(#[from] diesel::result::Error),
+    #[error("invalid persisted identity: {0}")]
+    Identity(#[from] IdentityError),
+    #[error("unsupported core schema version {0}")]
+    SchemaVersion(i32),
+    #[error("kind {0} is already registered")]
+    DuplicateKind(KindId),
+    #[error("kind {0} has no available owner")]
+    UnavailableKind(KindId),
+    #[error("entity {0} does not exist")]
+    MissingEntity(EntityId),
+    #[error("component {0} does not exist")]
+    MissingComponent(ComponentId),
+    #[error("component {component} belongs to {actual}, not {requested}")]
+    KindMismatch {
+        component: ComponentId,
+        actual: KindId,
+        requested: KindId,
+    },
+    #[error("entity/kind slot is occupied by {0}")]
+    SlotOccupied(ComponentId),
+    #[error("component {0} is still attached")]
+    ComponentAttached(ComponentId),
+    #[error(transparent)]
+    Owner(#[from] OwnerError),
+}

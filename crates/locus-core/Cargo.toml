@@ -1,0 +1,15 @@
+[package]
+name = "locus-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+locus-store.workspace = true
+diesel.workspace = true
+diesel-async.workspace = true
+uuid.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+tempfile.workspace = true
