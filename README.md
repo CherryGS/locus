@@ -6,9 +6,15 @@ The Rust workspace contains an initial persistent identity and attachment founda
 
 - `locus-store` owns domain-neutral SQLite sessions and transaction boundaries through Diesel 2.3.13 and diesel-async 0.9.2, with bundled SQLite linkage.
 - `locus-core` owns UUIDv7 entity/component identities, stable assigned kind IDs, owner-verified component admission, shared membership, and guarded lifecycle operations. Domain payloads stay in domain-owned tables.
-- `apps/locus` owns the Tokio runtime and initializes a real kernel in an ephemeral SQLite session before printing the original `Hello, world!` greeting. This is bootstrap integration; product storage locations, GPUI, and media workflows remain deferred.
+- `apps/locus` owns a native GPUI Kit application with a three-column resource browser and component inspector. Its twelve fixtures, notes, tags and favorites stay in memory. Startup does not initialize the kernel or open a database.
 
 Intent discovery was deferred at the user's request so bootstrap could proceed. The current intent snapshot and its confirmation state are maintained in the independent local `project-doc` repository.
+
+## Native UI preview
+
+Run `just rust-run` to open the native window. The left navigation, search, status filter and sorting combine to select resources in the center grid or list. The right inspector separates common information and library issues, individually collapsible component panels, and editable notes/tags. Press Enter or use Add to create a tag; click a tag to remove it. Notes, unfinished tag drafts and favorites remain associated with each resource while switching selections, but are cleared when the app closes. Drag the column dividers to adjust widths.
+
+The preview includes six original embedded SVG illustrations and bundled GPUI Kit icons, so it needs no network access or media directory. It does not scan files, download models, persist edits or register domain kinds. Displayed file paths and metadata are illustrative fixtures, not real files or settled schemas. The future GPUI/Tokio/database integration remains unverified. See [UI reference research](docs/ui-shell-research.md) for the source patterns behind the shell.
 
 ## Using the foundation
 
@@ -38,7 +44,7 @@ Cancellation discards an in-flight transaction's connection. A discarded session
 
 ## Development
 
-The workspace is validated on Windows with Rust/Cargo 1.97.0 stable MSVC, Rustfmt, Clippy, cargo-nextest 0.9.140, and Just 1.57.0.
+The workspace is validated on Windows with Rust/Cargo 1.97.0 stable MSVC, Rustfmt, Clippy, cargo-nextest 0.9.140, and Just 1.57.0. The native GPUI Kit build uses the installed Visual C++ toolchain, Windows SDK (10.0.26100.0 on the development host), CMake and Ninja. No additional broad toolkit installation was needed on this host.
 
 ```text
 just rust-validate

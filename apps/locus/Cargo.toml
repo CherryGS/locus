@@ -5,6 +5,4 @@ edition = "2024"
 
 [dependencies]
 anyhow.workspace = true
-locus-core.workspace = true
-locus-store.workspace = true
-tokio.workspace = true
+gpui-kit = "=0.6.4"
