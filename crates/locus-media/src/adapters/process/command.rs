@@ -45,6 +45,7 @@ pub(super) async fn supervise(
     timeout: Duration,
     output_limit: usize,
     _permit: OwnedSemaphorePermit,
+    stage: Option<locus_task::api::Stage>,
 ) -> std::io::Result<ExitStatus> {
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
@@ -68,6 +69,10 @@ pub(super) async fn supervise(
     }
     // Tokio caches status, so this also confirms successful children were reaped.
     let disposition = child.wait().await;
+    // Actual disposition precedes release; release precedes waking the caller,
+    // so its next stage cannot race a lingering supervisor lease.
+    drop(stage);
+    drop(_permit);
     if let Err(error) = &disposition {
         let _ = sender.send(Err(AttemptFailure::new(
             FailureCode::ToolFailure,
@@ -118,6 +123,7 @@ pub(crate) async fn run(
         storage.config.process_timeout,
         output_limit,
         permit,
+        storage.stage.clone(),
     ));
     receiver
         .await

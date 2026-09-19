@@ -107,27 +107,28 @@ pub(super) async fn family(
         .try_clone()
         .map_err(|e| AttemptFailure::new(FailureCode::FileAccess, e))?;
     let max = storage.config.max_input_bytes;
-    tokio::task::spawn_blocking(move || {
-        let _permit = permit;
-        if file
-            .metadata()
-            .map_err(|e| AttemptFailure::new(FailureCode::FileAccess, e))?
-            .len()
-            > max
-        {
-            return Err(AttemptFailure::new(
-                FailureCode::Limit,
-                "video input byte budget",
-            ));
-        }
-        file.rewind()
-            .map_err(|e| AttemptFailure::new(FailureCode::FileAccess, e))?;
-        let mut bytes = Vec::new();
-        file.take(64 * 1024)
-            .read_to_end(&mut bytes)
-            .map_err(|e| AttemptFailure::new(FailureCode::FileAccess, e))?;
-        classify(&bytes)
-    })
-    .await
-    .map_err(|e| AttemptFailure::new(FailureCode::Worker, e))?
+    storage
+        .blocking(move || {
+            let _permit = permit;
+            if file
+                .metadata()
+                .map_err(|e| AttemptFailure::new(FailureCode::FileAccess, e))?
+                .len()
+                > max
+            {
+                return Err(AttemptFailure::new(
+                    FailureCode::Limit,
+                    "video input byte budget",
+                ));
+            }
+            file.rewind()
+                .map_err(|e| AttemptFailure::new(FailureCode::FileAccess, e))?;
+            let mut bytes = Vec::new();
+            file.take(64 * 1024)
+                .read_to_end(&mut bytes)
+                .map_err(|e| AttemptFailure::new(FailureCode::FileAccess, e))?;
+            classify(&bytes)
+        })
+        .await
+        .map_err(|e| AttemptFailure::new(FailureCode::Worker, e))?
 }

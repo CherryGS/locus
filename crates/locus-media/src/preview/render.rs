@@ -30,7 +30,7 @@ impl MediaService {
         let id = id.into();
         let kernel = kernel.clone();
         let (record, observed) = session
-            .transaction(move |c| {
+            .transaction_named("Media preview input", move |c| {
                 Box::pin(async move {
                     let observed = Self::context_in(&kernel, c, id).await?;
                     if let Some(file) = observed.file() {
@@ -54,7 +54,7 @@ impl MediaService {
             if stream.is_none() {
                 let marker = marker.clone();
                 stream = self
-                    .cache_work(move |storage| {
+                    .cache_task(session.task_context(), move |storage| {
                         Ok(storage
                             .read_artifact(&marker, 32)?
                             .and_then(|bytes| serde_json::from_slice::<u32>(&bytes).ok()))
@@ -65,7 +65,7 @@ impl MediaService {
         if id.kind() == MediaKind::Image || stream.is_some() {
             let name = name(file, id.kind(), rendition, stream);
             let hit = self
-                .cache_work(move |storage| {
+                .cache_task(session.task_context(), move |storage| {
                     if let Some(bytes) =
                         storage.read_artifact(&name, storage.config.max_output_bytes)?
                         && image_adapter::validate_png(&bytes, rendition.edge, &storage.config)
@@ -89,28 +89,40 @@ impl MediaService {
         }
         let bytes = match id.kind() {
             MediaKind::Image => {
-                image_adapter::thumbnail(
-                    self,
-                    files.local_path(session, file).await?,
-                    rendition.edge,
+                let input = files.local_path(session, file).await?;
+                self.task_work(
+                    session.task_context(),
+                    "Image preview",
+                    move |storage| async move {
+                        Ok(image_adapter::thumbnail(&storage, input, rendition.edge).await?)
+                    },
                 )
                 .await?
             }
             MediaKind::Video => {
                 // Selection is re-established on misses, never borrowed from stale facts.
-                let facts = video::inspect(self, files.local_path(session, file).await?).await?;
+                let input = files.local_path(session, file).await?;
+                let facts = self
+                    .task_work(
+                        session.task_context(),
+                        "Video preview inspection",
+                        move |storage| async move { Ok(video::inspect(&storage, input).await?) },
+                    )
+                    .await?;
                 stream = Some(facts.stream_index);
-                video::cover(
-                    self,
-                    files.local_path(session, file).await?,
-                    &facts,
-                    rendition.edge,
+                let input = files.local_path(session, file).await?;
+                self.task_work(
+                    session.task_context(),
+                    "Video cover",
+                    move |storage| async move {
+                        Ok(video::cover(&storage, input, &facts, rendition.edge).await?)
+                    },
                 )
                 .await?
             }
         };
         let path = self
-            .cache_work(move |storage| {
+            .cache_task(session.task_context(), move |storage| {
                 let path = storage.publish(&name(file, id.kind(), rendition, stream), &bytes)?;
                 if let Some(index) = stream {
                     storage.publish(&marker, index.to_string().as_bytes())?;

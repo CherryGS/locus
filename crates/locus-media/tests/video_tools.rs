@@ -15,6 +15,35 @@ fn tools() -> MediaConfig {
         ..MediaConfig::default()
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "requires explicit provisioned ffprobe/ffmpeg; run just rust-test-video"]
+async fn real_video_task_stages_return_typed_interpretation_and_cover() {
+    use locus_store::api::TaskDatabase;
+    use locus_task::api::TaskQueue;
+    tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        let config = tools();
+        let mut fixture = Fixture::configured(config.clone()).await;
+        let path = fixture.directory.path().join("task-video.mp4");
+        let output = Command::new(&config.ffmpeg)
+            .args(["-v", "error", "-nostdin", "-f", "lavfi", "-i", "color=c=blue:s=64x40:r=5:d=1", "-c:v", "mpeg4", "-threads", "1", "-y"])
+            .arg(&path).output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        let (entity, id) = fixture.component(MediaKind::Video).await;
+        fixture.admit(&path, entity).await;
+        let queue = TaskQueue::new();
+        let database = TaskDatabase::open(&queue, &fixture.database).await.unwrap();
+        let (kernel, files, media) = (fixture.kernel.clone(), fixture.files.clone(), fixture.media.clone());
+        let (interpretation, preview) = queue.submit("real video", move |task| async move {
+            let mut session = database.session(&task).await.unwrap();
+            let interpretation = media.interpret(&kernel, &files, &mut session, id).await.unwrap();
+            let preview = media.preview(&kernel, &files, &mut session, id, Rendition { edge: 32 }).await.unwrap();
+            (interpretation, preview)
+        }).unwrap().result().await.unwrap();
+        assert!(matches!(interpretation, ApplyOutcome::Accepted(record) if record.last_failure.is_none() && matches!(record.facts, Some(Facts::Video(_)))));
+        assert!(preview.path.is_file());
+    }).await.unwrap();
+}
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "requires explicit provisioned ffprobe/ffmpeg; run just rust-test-video"]
 async fn real_video_audio_multiple_streams_cover_cache_and_retry() {

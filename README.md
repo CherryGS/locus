@@ -4,6 +4,7 @@ A personal local CMS intended to unify management of media, AI model weights, AI
 
 The Rust workspace contains persistent identity, attachment, managed File, Image/Video and Twitter snapshot backends:
 
+- `locus-task` owns in-memory task observation, typed completion and atomic binary resource stages on the caller's Tokio runtime.
 - `locus-store` owns domain-neutral SQLite sessions and transaction boundaries through Diesel 2.3.13 and diesel-async 0.9.2, with bundled SQLite linkage.
 - `locus-core` owns UUIDv7 entity/component identities, stable assigned kind IDs, owner-verified component admission, exclusive membership, and guarded lifecycle operations. Domain payloads stay in domain-owned tables.
 - `locus-file` owns UUIDv7 File records, managed copies, identified input access, and current entity/File input comparison.
@@ -283,6 +284,49 @@ The example prints committed entity/Source IDs before optional File admission an
 association. A failed File step returns an error while the printed Source record
 remains saved. This consumer uses supplied observations and bytes; the Chrome
 extension receiving protocol and full import workflow remain separate work.
+
+## In-memory task backend
+
+Run `just rust-run-tasks` for the real `task-backend` consumer. It creates a
+temporary library and synthetic PNG, runs two independent File/Image/Twitter
+operations, prints waiting/running stages and live progress, then retrieves typed
+File, interpretation, preview and snapshot results. It does not open user data or
+change the normal GPUI fixture startup. The temporary library is removed on exit.
+
+Compose `locus_task::api::TaskQueue` with `locus_store::api::TaskDatabase::open`.
+Within each submitted body, obtain `database.session(&task)` and call the ordinary
+domain APIs. Canonical configured paths in the same queue share one DB resource,
+even across independent capabilities/connections. Each `TaskDatabase::memory`
+call creates a distinct database. Standalone `Session` remains available and
+does not participate in queue exclusion; hard-link aliases and external processes
+are outside this cooperative identity scope.
+
+Store acquires the DB stage before BEGIN and holds it through commit/rollback or
+discarded connection disposition. `_in` calls and savepoints reuse that context.
+File copy/access and Media inspection/preview stages run outside DB transactions;
+existing Media execution limits remain decoder details. Explicit preparation
+without a Session can use `FileService::prepare_task(&task, path)`.
+
+For other resource owners, `TaskContext::enter` admits a deduplicated complete
+resource set; empty sets are valid. Nested acquisition and foreign resources
+return errors. Submitted eligible continuations take preference over fresh work,
+without reserving future needs or promising starvation freedom. Owned work uses
+`TaskContext::run` or the Stage worker helpers so its lease follows actual workers.
+`run` returns after all leases for that stage are released, so the next stage can
+start immediately; operation results must not retain a Stage guard.
+Borrowed stages require protected objects to be dropped before their guard.
+
+Dropping a task handle stops observation only. Its typed result is retained until
+consumed/dropped, and task completion waits for outstanding stage leases. Snapshot
+`Completed` describes operation completion, including a returned domain rejection,
+warning or error; inspect the typed result for its meaning. Observation is
+coalesced, totals can be unknown, and no durable task journal, replay, public task
+cancellation or application shutdown protocol is provided. Keep the owning
+runtime alive until work finishes.
+
+Use `just rust-test-code locus-task` for scheduler/lifetime tests and
+`just rust-lock-tasks` to resolve the task workspace edges offline without changing
+the selected external versions.
 
 ## Development
 

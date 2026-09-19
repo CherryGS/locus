@@ -118,3 +118,74 @@ async fn canceled_awaiter_does_not_stop_blocking_copy_or_autonomously_admit() {
         assert!(matches!(storage.read(&mut session, id).await, Err(FileError::MissingRecord(actual)) if actual == id));
     }).await.unwrap();
 }
+
+struct PauseAfterChunk {
+    bytes: std::io::Cursor<Vec<u8>>,
+    reads: usize,
+    started: Option<tokio::sync::oneshot::Sender<()>>,
+    release: std::sync::mpsc::Receiver<()>,
+}
+impl Read for PauseAfterChunk {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        if self.reads == 1 {
+            self.started.take().unwrap().send(()).unwrap();
+            self.release.recv().unwrap();
+        }
+        self.reads += 1;
+        self.bytes.read(buffer)
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn task_copy_reports_bytes_while_database_is_available() {
+    use locus_store::api::TaskDatabase;
+    use locus_task::api::{TaskQueue, TaskState};
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        let directory = tempfile::tempdir().unwrap();
+        let storage = FileService::new(directory.path()).await.unwrap();
+        let queue = TaskQueue::new();
+        let database = TaskDatabase::open(&queue, directory.path().join("metadata.sqlite")).await.unwrap();
+        let mut kernel = locus_core::api::Kernel::new();
+        kernel.register(std::sync::Arc::new(crate::owner::FileOwner)).unwrap();
+        let (init_database, init_storage, init_kernel) = (database.clone(), storage.clone(), kernel.clone());
+        queue.submit("initialize", move |task| async move {
+            let mut session = init_database.session(&task).await.unwrap();
+            init_kernel.initialize(&mut session).await.unwrap();
+            init_storage.initialize(&mut session).await.unwrap();
+        }).unwrap().result().await.unwrap();
+        let worker_storage = storage.clone();
+        let copy_database = database.clone();
+        let (started, ready) = tokio::sync::oneshot::channel();
+        let (identified, identity) = tokio::sync::oneshot::channel();
+        let (release, released) = std::sync::mpsc::channel();
+        let copying = queue.submit("controlled File admission", move |task| async move {
+            let mut session = copy_database.session(&task).await.unwrap();
+            let prepared = worker_storage.prepare_work(session.task_context(), move |storage, initial, stage| {
+                identified.send(initial.id).unwrap();
+                storage.copy_reader_progress(
+                    PauseAfterChunk { bytes: std::io::Cursor::new(vec![7; 100_000]), reads: 0, started: Some(started), release: released },
+                    initial, stage.as_ref(), Some(100_000),
+                )
+            }).await.unwrap();
+            worker_storage.register(&kernel, &mut session, &prepared).await.unwrap()
+        }).unwrap();
+        let id = identity.await.unwrap();
+        ready.await.unwrap();
+        let snapshot = copying.snapshot();
+        assert_eq!(snapshot.state, TaskState::Running);
+        assert_eq!(snapshot.completed, Some(64 * 1024));
+        assert_eq!(snapshot.total, Some(100_000));
+        let db_storage = storage.clone();
+        queue.submit("DB during copy", move |task| async move {
+            let mut session = database.session(&task).await.unwrap();
+            db_storage.initialize(&mut session).await.unwrap();
+            assert!(matches!(db_storage.read(&mut session, id).await, Err(FileError::MissingRecord(actual)) if actual == id));
+        }).unwrap().result().await.unwrap();
+        assert_eq!(copying.snapshot().state, TaskState::Running);
+        release.send(()).unwrap();
+        let record = copying.result().await.unwrap();
+        assert_eq!(record.id, id);
+        assert_eq!(record.byte_count, 100_000);
+        assert_eq!(std::fs::read(storage.root.join(record.relative_path)).unwrap(), vec![7; 100_000]);
+    }).await.unwrap();
+}

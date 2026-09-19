@@ -26,6 +26,8 @@ impl From<io::Error> for AccessCause {
 #[derive(Debug, Error)]
 pub enum FileError {
     #[error(transparent)]
+    Task(#[from] locus_task::api::TaskError),
+    #[error(transparent)]
     Store(#[from] StoreError),
     #[error(transparent)]
     Core(#[from] CoreError),

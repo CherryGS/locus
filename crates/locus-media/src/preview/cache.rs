@@ -9,6 +9,17 @@ fn cache_error(error: impl ToString) -> MediaError {
     MediaError::Cache(error.to_string())
 }
 impl MediaService {
+    pub(super) async fn cache_task<T: Send + 'static>(
+        &self,
+        task: Option<&locus_task::api::TaskContext>,
+        operation: impl FnOnce(Self) -> Result<T, MediaError> + Send + 'static,
+    ) -> Result<T, MediaError> {
+        self.task_work(task, "Media preview cache", move |storage| async move {
+            storage.cache_work(operation).await
+        })
+        .await
+    }
+
     pub(super) async fn cache_work<T: Send + 'static>(
         &self,
         operation: impl FnOnce(Self) -> Result<T, MediaError> + Send + 'static,
@@ -20,7 +31,7 @@ impl MediaService {
             .await
             .map_err(cache_error)?;
         let storage = self.clone();
-        tokio::task::spawn_blocking(move || {
+        self.blocking(move || {
             let _permit = permit;
             operation(storage)
         })

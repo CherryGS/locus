@@ -15,15 +15,17 @@ pub type TransactionFuture<'a, T, E> = Pin<Box<dyn Future<Output = Result<T, E>>
 /// their guarded core facade; raw access is not a sandbox against malicious owners.
 pub struct Context {
     connection: Connection,
+    stage: Option<locus_task::api::Stage>,
     poisoned: bool,
     next_savepoint: u64,
     open_savepoints: u64,
 }
 
 impl Context {
-    pub(crate) fn new(connection: Connection) -> Self {
+    pub(crate) fn new(connection: Connection, stage: Option<locus_task::api::Stage>) -> Self {
         Self {
             connection,
+            stage,
             poisoned: false,
             next_savepoint: 0,
             open_savepoints: 0,
@@ -38,8 +40,25 @@ impl Context {
         self.connection
     }
 
+    /// Retain this transaction's stage through actual auxiliary blocking work.
+    pub fn spawn_blocking<T, F>(&self, operation: F) -> tokio::task::JoinHandle<T>
+    where
+        T: Send + 'static,
+        F: FnOnce() -> T + Send + 'static,
+    {
+        match &self.stage {
+            Some(stage) => stage.spawn_blocking(move |_| operation()),
+            None => tokio::task::spawn_blocking(operation),
+        }
+    }
+
     pub fn connection(&mut self) -> &mut Connection {
         &mut self.connection
+    }
+
+    /// Participants can report their domain phase without entering another stage.
+    pub fn task_stage(&self) -> Option<&locus_task::api::Stage> {
+        self.stage.as_ref()
     }
 
     /// Keep a multi-write participant atomic even if its caller catches the error.

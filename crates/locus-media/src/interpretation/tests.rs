@@ -127,3 +127,73 @@ async fn video_partial_success_replaces_old_fields_and_cancelled_apply_discards_
     let mut reopened = Session::open(&database).await.unwrap();
     assert_eq!(media.read(&mut reopened, id).await.unwrap(), record);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn task_interpretation_releases_database_and_rejects_intervening_context_and_revision() {
+    use super::attempt::ApplyOutcome;
+    use locus_store::api::TaskDatabase;
+    use locus_task::api::{TaskQueue, TaskState};
+    tokio::time::timeout(std::time::Duration::from_secs(15), async {
+        let directory = tempfile::tempdir().unwrap();
+        let files = FileService::new(directory.path()).await.unwrap();
+        let media = MediaService::new(files.root(), MediaConfig { max_parallel: 1, ..Default::default() }).unwrap();
+        let mut kernel = Kernel::new();
+        kernel.register(Arc::new(FileOwner)).unwrap(); kernel.register(Arc::new(ImageOwner)).unwrap();
+        let queue = TaskQueue::new();
+        let database = TaskDatabase::open(&queue, directory.path().join("metadata.sqlite")).await.unwrap();
+        let input = directory.path().join("synthetic.png");
+        image::RgbaImage::from_pixel(20, 30, image::Rgba([10, 30, 50, 255])).save(&input).unwrap();
+        let (db, k, f, m) = (database.clone(), kernel.clone(), files.clone(), media.clone());
+        let (entity, id, membership) = queue.submit("setup", move |task| async move {
+            let mut session = db.session(&task).await.unwrap();
+            k.initialize(&mut session).await.unwrap(); f.initialize(&mut session).await.unwrap(); m.initialize(&mut session).await.unwrap();
+            let file = f.admit(&k, &mut session, input).await.unwrap();
+            let entity = k.create_entity(&mut session).await.unwrap();
+            let membership = Membership { entity, kind: FILE_KIND, component: file.id.component() };
+            k.attach(&mut session, membership).await.unwrap();
+            let id = m.create(&k, &mut session, MediaKind::Image).await.unwrap();
+            k.attach(&mut session, Membership { entity, kind: id.kind().kind(), component: id.component() }).await.unwrap();
+            (entity, id, membership)
+        }).unwrap().result().await.unwrap();
+
+        // Hold the real decoder admission permit. Preparation has already observed
+        // File/revision when it reaches its inspection stage, outside a transaction.
+        let permit = media.workers.clone().acquire_owned().await.unwrap();
+        let (db, k, f, m) = (database.clone(), kernel.clone(), files.clone(), media.clone());
+        let interpretation = queue.submit("interpret", move |task| async move {
+            let mut session = db.session(&task).await.unwrap();
+            m.interpret(&k, &f, &mut session, id).await.unwrap()
+        }).unwrap();
+        let mut changes = interpretation.subscribe();
+        loop {
+            let snapshot = changes.borrow_and_update().clone();
+            if snapshot.state == TaskState::Running && snapshot.stage.as_deref() == Some("Media inspection") { break; }
+            changes.changed().await.unwrap();
+        }
+        let (db, k) = (database.clone(), kernel.clone());
+        queue.submit("change File during inspection", move |task| async move {
+            let mut session = db.session(&task).await.unwrap();
+            assert!(k.entity_exists(&mut session, entity).await.unwrap());
+            k.detach(&mut session, membership).await.unwrap();
+        }).unwrap().result().await.unwrap();
+        assert_eq!(interpretation.snapshot().state, TaskState::Running);
+        drop(permit);
+        assert!(matches!(interpretation.result().await.unwrap(), ApplyOutcome::RejectedContextChanged));
+
+        let (db, k, f, m) = (database.clone(), kernel.clone(), files.clone(), media.clone());
+        let (prepared, newer) = queue.submit("prepare two revisions", move |task| async move {
+            let mut session = db.session(&task).await.unwrap();
+            k.attach(&mut session, membership).await.unwrap();
+            (m.prepare(&k, &f, &mut session, id).await.unwrap(), m.prepare(&k, &f, &mut session, id).await.unwrap())
+        }).unwrap().result().await.unwrap();
+        let (db, k, m, f) = (database.clone(), kernel.clone(), media.clone(), files.clone());
+        queue.submit("apply newer then stale", move |task| async move {
+            let mut session = db.session(&task).await.unwrap();
+            assert!(matches!(m.apply(&k, &mut session, newer).await.unwrap(), ApplyOutcome::Accepted(record) if record.last_failure.is_none() && record.facts.is_some()));
+            assert!(matches!(m.apply(&k, &mut session, prepared).await.unwrap(), ApplyOutcome::RejectedNewerAttempt));
+            k.detach(&mut session, membership).await.unwrap();
+            let warning = m.interpret(&k, &f, &mut session, id).await.unwrap();
+            assert!(matches!(warning, ApplyOutcome::Accepted(record) if record.last_failure.is_some() && record.facts.is_some()));
+        }).unwrap().result().await.unwrap();
+    }).await.unwrap();
+}

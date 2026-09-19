@@ -13,7 +13,7 @@ impl FileService {
     ) -> Result<LocalFile, FileError> {
         let record = self.read(session, id).await?;
         let storage = self.clone();
-        tokio::task::spawn_blocking(move || {
+        self.access_work(session.task_context(), move || {
             let path = storage.record_path(&record)?;
             let handle = File::open(&path).map_err(|error| FileError::Access {
                 id,
@@ -32,15 +32,37 @@ impl FileService {
             Ok(LocalFile { id, path, handle })
         })
         .await
-        .map_err(|error| FileError::Worker(error.to_string()))?
     }
     pub async fn open(&self, session: &mut Session, id: FileId) -> Result<FileInput, FileError> {
         let record = self.read(session, id).await?;
         let storage = self.clone();
-        tokio::task::spawn_blocking(move || storage.open_with(&record, |path| File::open(path)))
+        self.access_work(session.task_context(), move || {
+            storage.open_with(&record, |path| File::open(path))
+        })
+        .await
+    }
+    async fn access_work<T, F>(
+        &self,
+        task: Option<&locus_task::api::TaskContext>,
+        operation: F,
+    ) -> Result<T, FileError>
+    where
+        T: Send + 'static,
+        F: FnOnce() -> Result<T, FileError> + Send + 'static,
+    {
+        let stage = match task {
+            Some(task) => Some(task.enter("File input access", &[]).await?),
+            None => None,
+        };
+        let worker = match &stage {
+            Some(stage) => stage.spawn_blocking(move |_| operation()),
+            None => tokio::task::spawn_blocking(operation),
+        };
+        worker
             .await
             .map_err(|error| FileError::Worker(error.to_string()))?
     }
+
     pub(super) fn open_with<R>(
         &self,
         record: &FileRecord,

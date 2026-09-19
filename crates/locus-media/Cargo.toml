@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+locus-task.workspace = true
 locus-core.workspace = true
 locus-file.workspace = true
 locus-store.workspace = true

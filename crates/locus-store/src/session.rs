@@ -20,6 +20,7 @@ pub type Connection = SyncConnectionWrapper<SqliteConnection>;
 /// rollback: reopen and reconcile using durable identities before retrying.
 pub struct Session {
     connection: Option<Connection>,
+    pub(crate) binding: Option<(locus_task::api::TaskContext, locus_task::api::Resource)>,
 }
 
 impl Session {
@@ -40,11 +41,16 @@ impl Session {
             .await?;
         Ok(Self {
             connection: Some(connection),
+            binding: None,
         })
     }
 
     pub fn is_usable(&self) -> bool {
         self.connection.is_some()
+    }
+
+    pub fn task_context(&self) -> Option<&locus_task::api::TaskContext> {
+        self.binding.as_ref().map(|(task, _)| task)
     }
 
     /// Execute a standalone unit or compose domain and core writes. Propagate a
@@ -56,12 +62,33 @@ impl Session {
         E: From<StoreError> + std::fmt::Display,
         F: for<'a> FnOnce(&'a mut Context) -> TransactionFuture<'a, T, E>,
     {
+        self.transaction_named("Database transaction", operation)
+            .await
+    }
+
+    /// Domains may name their DB phase without reconstructing its resource set.
+    pub async fn transaction_named<T, E, F>(&mut self, label: &str, operation: F) -> Result<T, E>
+    where
+        E: From<StoreError> + std::fmt::Display,
+        F: for<'a> FnOnce(&'a mut Context) -> TransactionFuture<'a, T, E>,
+    {
         require_runtime()?;
+        // Declared BEFORE the connection/context: Rust drops the DB future and
+        // connection first on cancellation/unwind. Diesel's CancelWrapper waits
+        // for its actual blocking work, retaining exclusion through disposition.
+        let _stage = match &self.binding {
+            Some((task, resource)) => Some(
+                task.enter(label, std::slice::from_ref(resource))
+                    .await
+                    .map_err(StoreError::from)?,
+            ),
+            None => None,
+        };
         // Ownership, rather than Drop issuing async rollback, makes cancellation safe.
         // The wrapper can leave BEGIN open when its future is canceled. Never put its
         // connection back into the session until a complete clean boundary is known.
         let connection = self.connection.take().ok_or(StoreError::Discarded)?;
-        let mut context = Context::new(connection);
+        let mut context = Context::new(connection, _stage.clone());
         context
             .connection()
             .batch_execute("BEGIN IMMEDIATE")

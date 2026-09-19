@@ -17,7 +17,7 @@ impl TwitterService {
     ) -> Result<PreparedAssociation, TwitterError> {
         let kernel = kernel.clone();
         session
-            .transaction(move |c| {
+            .transaction_named("Twitter association observation", move |c| {
                 Box::pin(async move { Self::prepare_association_in(&kernel, c, id, file).await })
             })
             .await
@@ -55,7 +55,7 @@ impl TwitterService {
     ) -> Result<WriteOutcome, TwitterError> {
         let kernel = kernel.clone();
         session
-            .transaction(move |c| {
+            .transaction_named("Twitter association acceptance", move |c| {
                 Box::pin(async move { Self::associate_in(&kernel, c, prepared).await })
             })
             .await
@@ -77,7 +77,7 @@ impl TwitterService {
     ) -> Result<WriteOutcome, TwitterError> {
         let kernel = kernel.clone();
         session
-            .transaction(move |c| {
+            .transaction_named("Twitter replacement and association", move |c| {
                 Box::pin(async move {
                     Self::replace_and_associate_in(&kernel, c, prepared, snapshot).await
                 })

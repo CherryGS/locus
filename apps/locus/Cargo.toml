@@ -8,6 +8,8 @@ anyhow.workspace = true
 gpui-kit = "=0.6.4"
 
 [dev-dependencies]
+locus-task.workspace = true
+image.workspace = true
 locus-core.workspace = true
 locus-store.workspace = true
 tokio.workspace = true
@@ -27,4 +29,8 @@ test = true
 
 [[example]]
 name = "twitter-backend"
+test = true
+
+[[example]]
+name = "task-backend"
 test = true

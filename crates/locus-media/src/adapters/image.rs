@@ -82,31 +82,32 @@ pub(crate) async fn inspect(
         .await
         .map_err(fail)?;
     let config = storage.config.clone();
-    tokio::task::spawn_blocking(move || {
-        let _permit = permit;
-        let reader = reader(input, &config)?;
-        let format = match reader.format() {
-            Some(image::ImageFormat::Png) => ImageFormat::Png,
-            Some(image::ImageFormat::Jpeg) => ImageFormat::Jpeg,
-            Some(image::ImageFormat::WebP) => ImageFormat::WebP,
-            Some(image::ImageFormat::Gif) => ImageFormat::Gif,
-            _ => {
-                return Err(AttemptFailure::new(
-                    FailureCode::UnsupportedInput,
-                    "unsupported format",
-                ));
-            }
-        };
-        let (width, height) = reader.into_dimensions().map_err(image_failure)?;
-        dimensions(&config, width, height)?;
-        Ok(ImageFacts {
-            format,
-            width,
-            height,
+    storage
+        .blocking(move || {
+            let _permit = permit;
+            let reader = reader(input, &config)?;
+            let format = match reader.format() {
+                Some(image::ImageFormat::Png) => ImageFormat::Png,
+                Some(image::ImageFormat::Jpeg) => ImageFormat::Jpeg,
+                Some(image::ImageFormat::WebP) => ImageFormat::WebP,
+                Some(image::ImageFormat::Gif) => ImageFormat::Gif,
+                _ => {
+                    return Err(AttemptFailure::new(
+                        FailureCode::UnsupportedInput,
+                        "unsupported format",
+                    ));
+                }
+            };
+            let (width, height) = reader.into_dimensions().map_err(image_failure)?;
+            dimensions(&config, width, height)?;
+            Ok(ImageFacts {
+                format,
+                width,
+                height,
+            })
         })
-    })
-    .await
-    .map_err(|e| AttemptFailure::new(FailureCode::Worker, e))?
+        .await
+        .map_err(|e| AttemptFailure::new(FailureCode::Worker, e))?
 }
 pub(crate) async fn thumbnail(
     storage: &MediaService,
@@ -120,52 +121,55 @@ pub(crate) async fn thumbnail(
         .await
         .map_err(fail)?;
     let config = storage.config.clone();
-    tokio::task::spawn_blocking(move || {
-        let _permit = permit;
-        // Inspect dimensions before allocating the raster, then rewind the input.
-        let mut reader = reader(input, &config)?;
-        let format = reader.format();
-        let mut stream = reader.into_inner();
-        let (width, height) =
-            ImageReader::with_format(&mut stream, format.ok_or_else(|| fail("format missing"))?)
-                .into_dimensions()
-                .map_err(image_failure)?;
-        dimensions(&config, width, height)?;
-        std::io::Seek::rewind(&mut stream).map_err(io_failure)?;
-        reader = ImageReader::new(stream);
-        reader.set_format(format.ok_or_else(|| fail("format missing"))?);
-        let mut limits = Limits::default();
-        limits.max_image_width = Some(config.max_dimension);
-        limits.max_image_height = Some(config.max_dimension);
-        limits.max_alloc = Some(config.max_allocation);
-        reader.limits(limits);
-        let raster = reader
-            .decode()
-            .map_err(image_failure)?
-            .thumbnail(edge, edge)
-            .to_rgba8();
-        let mut output = BoundedOutput {
-            bytes: Vec::new(),
-            limit: config.max_output_bytes,
-            exceeded: false,
-        };
-        let encoded = PngEncoder::new(&mut output).write_image(
-            &raster,
-            raster.width(),
-            raster.height(),
-            image::ExtendedColorType::Rgba8,
-        );
-        if output.exceeded {
-            return Err(AttemptFailure::new(
-                FailureCode::Limit,
-                "PNG output byte budget",
-            ));
-        }
-        encoded.map_err(fail)?;
-        Ok(output.bytes)
-    })
-    .await
-    .map_err(|e| AttemptFailure::new(FailureCode::Worker, e))?
+    storage
+        .blocking(move || {
+            let _permit = permit;
+            // Inspect dimensions before allocating the raster, then rewind the input.
+            let mut reader = reader(input, &config)?;
+            let format = reader.format();
+            let mut stream = reader.into_inner();
+            let (width, height) = ImageReader::with_format(
+                &mut stream,
+                format.ok_or_else(|| fail("format missing"))?,
+            )
+            .into_dimensions()
+            .map_err(image_failure)?;
+            dimensions(&config, width, height)?;
+            std::io::Seek::rewind(&mut stream).map_err(io_failure)?;
+            reader = ImageReader::new(stream);
+            reader.set_format(format.ok_or_else(|| fail("format missing"))?);
+            let mut limits = Limits::default();
+            limits.max_image_width = Some(config.max_dimension);
+            limits.max_image_height = Some(config.max_dimension);
+            limits.max_alloc = Some(config.max_allocation);
+            reader.limits(limits);
+            let raster = reader
+                .decode()
+                .map_err(image_failure)?
+                .thumbnail(edge, edge)
+                .to_rgba8();
+            let mut output = BoundedOutput {
+                bytes: Vec::new(),
+                limit: config.max_output_bytes,
+                exceeded: false,
+            };
+            let encoded = PngEncoder::new(&mut output).write_image(
+                &raster,
+                raster.width(),
+                raster.height(),
+                image::ExtendedColorType::Rgba8,
+            );
+            if output.exceeded {
+                return Err(AttemptFailure::new(
+                    FailureCode::Limit,
+                    "PNG output byte budget",
+                ));
+            }
+            encoded.map_err(fail)?;
+            Ok(output.bytes)
+        })
+        .await
+        .map_err(|e| AttemptFailure::new(FailureCode::Worker, e))?
 }
 struct BoundedOutput {
     bytes: Vec<u8>,

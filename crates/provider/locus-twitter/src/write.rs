@@ -18,7 +18,7 @@ impl TwitterService {
     ) -> Result<TwitterId, TwitterError> {
         let kernel = kernel.clone();
         session
-            .transaction(move |c| {
+            .transaction_named("Twitter snapshot creation", move |c| {
                 Box::pin(async move { Self::create_in(&kernel, c, snapshot).await })
             })
             .await
@@ -29,6 +29,9 @@ impl TwitterService {
         context: &mut Context,
         snapshot: TwitterSnapshot,
     ) -> Result<TwitterId, TwitterError> {
+        if let Some(stage) = context.task_stage() {
+            snapshot_progress(stage, "Validating and saving Twitter snapshot");
+        }
         snapshot.validate()?;
         let kernel = kernel.clone();
         context
@@ -61,7 +64,9 @@ impl TwitterService {
         snapshot: TwitterSnapshot,
     ) -> Result<WriteOutcome, TwitterError> {
         session
-            .transaction(move |c| Box::pin(Self::replace_in(c, id, expected_revision, snapshot)))
+            .transaction_named("Twitter snapshot replacement", move |c| {
+                Box::pin(Self::replace_in(c, id, expected_revision, snapshot))
+            })
             .await
     }
     /// Replaces the entire snapshot and clears association; never merges old fields.
@@ -72,6 +77,9 @@ impl TwitterService {
         expected_revision: i64,
         snapshot: TwitterSnapshot,
     ) -> Result<WriteOutcome, TwitterError> {
+        if let Some(stage) = context.task_stage() {
+            snapshot_progress(stage, "Validating and replacing Twitter snapshot");
+        }
         snapshot.validate()?;
         let mut record = Self::read_in(context, id).await?;
         if record.revision != expected_revision {
@@ -86,4 +94,8 @@ impl TwitterService {
         persistence::update(context, &record).await?;
         Ok(WriteOutcome::Accepted(Box::new(record)))
     }
+}
+
+fn snapshot_progress(stage: &locus_task::api::Stage, message: &str) {
+    stage.progress(None, None, message);
 }

@@ -85,12 +85,13 @@ pub(crate) async fn cover(
         .await
         .map_err(|e| AttemptFailure::new(FailureCode::Worker, e))?;
     let config = storage.config.clone();
-    let bytes = tokio::task::spawn_blocking(move || {
-        let _permit = permit;
-        crate::adapters::image::validate_png(&bytes, edge, &config)?;
-        Ok::<_, AttemptFailure>(bytes)
-    })
-    .await
-    .map_err(|e| AttemptFailure::new(FailureCode::Worker, e))??;
+    let bytes = storage
+        .blocking(move || {
+            let _permit = permit;
+            crate::adapters::image::validate_png(&bytes, edge, &config)?;
+            Ok::<_, AttemptFailure>(bytes)
+        })
+        .await
+        .map_err(|e| AttemptFailure::new(FailureCode::Worker, e))??;
     Ok(bytes)
 }

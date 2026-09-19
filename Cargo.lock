@@ -3855,10 +3855,12 @@ dependencies = [
  "anyhow",
  "directories",
  "gpui-kit",
+ "image",
  "locus-core",
  "locus-file",
  "locus-media",
  "locus-store",
+ "locus-task",
  "locus-twitter",
  "tempfile",
  "tokio",
@@ -3885,6 +3887,7 @@ dependencies = [
  "diesel-async",
  "locus-core",
  "locus-store",
+ "locus-task",
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
@@ -3901,6 +3904,7 @@ dependencies = [
  "locus-core",
  "locus-file",
  "locus-store",
+ "locus-task",
  "serde",
  "serde_json",
  "tempfile",
@@ -3916,9 +3920,19 @@ dependencies = [
  "diesel",
  "diesel-async",
  "libsqlite3-sys",
+ "locus-task",
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
+]
+
+[[package]]
+name = "locus-task"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.20",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -3932,6 +3946,7 @@ dependencies = [
  "locus-file",
  "locus-media",
  "locus-store",
+ "locus-task",
  "serde",
  "serde_json",
  "tempfile",

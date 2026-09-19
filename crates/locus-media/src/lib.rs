@@ -4,6 +4,7 @@ mod adapters;
 mod config;
 mod creation;
 mod error;
+mod execution;
 mod facts;
 mod identity;
 mod input;

@@ -8,6 +8,7 @@ pub struct MediaService {
     pub(crate) cache: PathBuf,
     pub(crate) config: Arc<MediaConfig>,
     pub(crate) workers: Arc<Semaphore>,
+    pub(crate) stage: Option<locus_task::api::Stage>,
 }
 impl MediaService {
     /// The supplied root is the application's canonical data root. Only its
@@ -30,6 +31,7 @@ impl MediaService {
             cache: root.join("media-cache-v1"),
             workers: Arc::new(Semaphore::new(config.max_parallel)),
             config: Arc::new(config),
+            stage: None,
         };
         storage.check_cache()?;
         Ok(storage)

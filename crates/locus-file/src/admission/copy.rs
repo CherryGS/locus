@@ -1,5 +1,6 @@
 use super::prepared::{AdmissionFailure, CopyProgress, PreparedFile};
 use crate::{error::FileError, identity::FileId, service::FileService};
+use locus_task::api::{Stage, TaskContext};
 use std::{
     fs::{File, OpenOptions},
     io::{Read, Write},
@@ -14,7 +15,42 @@ impl FileService {
         &self,
         source: impl AsRef<Path>,
     ) -> Result<PreparedFile, AdmissionFailure> {
-        let source = source.as_ref().to_path_buf();
+        self.prepare_with_task(source.as_ref(), None).await
+    }
+
+    /// Copy with task progress and a lease retained by the actual blocking worker.
+    pub async fn prepare_task(
+        &self,
+        task: &TaskContext,
+        source: impl AsRef<Path>,
+    ) -> Result<PreparedFile, AdmissionFailure> {
+        self.prepare_with_task(source.as_ref(), Some(task)).await
+    }
+
+    async fn prepare_with_task(
+        &self,
+        source: &Path,
+        task: Option<&TaskContext>,
+    ) -> Result<PreparedFile, AdmissionFailure> {
+        let source = source.to_path_buf();
+        self.prepare_work(task, move |storage, progress, stage| {
+            storage.prepare_blocking_progress(&source, progress, stage.as_ref())
+        })
+        .await
+    }
+
+    // One admission/worker boundary for real file input and controlled reader tests.
+    // Preparation tokens still come only from the checked copy/flush implementation.
+    pub(super) async fn prepare_work<F>(
+        &self,
+        task: Option<&TaskContext>,
+        operation: F,
+    ) -> Result<PreparedFile, AdmissionFailure>
+    where
+        F: FnOnce(Self, CopyProgress, Option<Stage>) -> Result<PreparedFile, AdmissionFailure>
+            + Send
+            + 'static,
+    {
         let storage = self.clone();
         let progress = CopyProgress {
             id: FileId::fresh(),
@@ -29,22 +65,49 @@ impl FileService {
             ..progress
         };
         let worker_progress = progress.clone();
-        tokio::task::spawn_blocking(move || storage.prepare_blocking(&source, worker_progress))
-            .await
-            .map_err(|error| AdmissionFailure {
-                // A worker panic can occur after creating/writing the destination.
-                progress: Box::new(CopyProgress {
-                    managed_bytes_may_exist: true,
-                    ..progress
-                }),
-                source: FileError::Worker(error.to_string()),
-            })?
+        let stage = match task {
+            Some(task) => {
+                Some(
+                    task.enter("File copy", &[])
+                        .await
+                        .map_err(|source| AdmissionFailure {
+                            progress: Box::new(progress.clone()),
+                            source: FileError::Task(source),
+                        })?,
+                )
+            }
+            None => None,
+        };
+        let worker = match &stage {
+            Some(stage) => {
+                stage.spawn_blocking(move |stage| operation(storage, worker_progress, Some(stage)))
+            }
+            None => tokio::task::spawn_blocking(move || operation(storage, worker_progress, None)),
+        };
+        worker.await.map_err(|error| AdmissionFailure {
+            // A worker panic can occur after creating/writing the destination.
+            progress: Box::new(CopyProgress {
+                managed_bytes_may_exist: true,
+                ..progress
+            }),
+            source: FileError::Worker(error.to_string()),
+        })?
     }
 
+    #[cfg(test)]
     pub(super) fn prepare_blocking(
         &self,
         source: &Path,
         progress: CopyProgress,
+    ) -> Result<PreparedFile, AdmissionFailure> {
+        self.prepare_blocking_progress(source, progress, None)
+    }
+
+    fn prepare_blocking_progress(
+        &self,
+        source: &Path,
+        progress: CopyProgress,
+        stage: Option<&Stage>,
     ) -> Result<PreparedFile, AdmissionFailure> {
         let open = || -> Result<File, FileError> {
             let file = File::open(source).map_err(|source_error| FileError::Io {
@@ -67,16 +130,31 @@ impl FileService {
             progress: Box::new(progress.clone()),
             source,
         })?;
-        self.copy_reader(file, progress)
+        let total = file.metadata().ok().map(|m| m.len());
+        self.copy_reader_progress(file, progress, stage, total)
     }
 
     // The generic reader is a small deterministic test seam for mid-copy failures;
     // production always supplies the regular file checked above.
+    #[cfg(test)]
     pub(super) fn copy_reader(
+        &self,
+        source: impl Read,
+        progress: CopyProgress,
+    ) -> Result<PreparedFile, AdmissionFailure> {
+        self.copy_reader_progress(source, progress, None, None)
+    }
+
+    pub(super) fn copy_reader_progress(
         &self,
         mut source: impl Read,
         mut progress: CopyProgress,
+        stage: Option<&Stage>,
+        total: Option<u64>,
     ) -> Result<PreparedFile, AdmissionFailure> {
+        if let Some(stage) = stage {
+            stage.progress(Some(0), total, "Copying managed bytes");
+        }
         let copy = || -> Result<(), FileError> {
             let destination = self.checked_path(progress.id)?;
             let parent = destination
@@ -117,6 +195,9 @@ impl FileService {
                     .checked_add(length as u64)
                     .filter(|size| *size <= i64::MAX as u64)
                     .ok_or(FileError::ByteCountOverflow)?;
+                if let Some(stage) = stage {
+                    stage.progress(Some(progress.bytes_written), total, "Copying managed bytes");
+                }
             }
             output.flush().map_err(|source| FileError::Io {
                 path: destination,

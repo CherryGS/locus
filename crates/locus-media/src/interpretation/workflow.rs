@@ -22,7 +22,7 @@ impl MediaService {
         let id = id.into();
         let kernel = kernel.clone();
         let (record, observed) = session
-            .transaction(move |c| {
+            .transaction_named("Media input observation", move |c| {
                 Box::pin(async move {
                     Ok::<_, MediaError>((
                         Self::read_in(c, id).await?,
@@ -39,13 +39,27 @@ impl MediaService {
             Some(file) => match files.local_path(session, file).await {
                 Err(
                     error @ (locus_file::api::FileError::Store(_)
-                    | locus_file::api::FileError::Database(_)),
+                    | locus_file::api::FileError::Database(_)
+                    | locus_file::api::FileError::Task(_)),
                 ) => return Err(error.into()),
                 Err(error) => Err(AttemptFailure::new(FailureCode::FileAccess, error)),
-                Ok(input) => match id.kind() {
-                    MediaKind::Image => image_adapter::inspect(self, input).await.map(Facts::Image),
-                    MediaKind::Video => video::inspect(self, input).await.map(Facts::Video),
-                },
+                Ok(input) => {
+                    self.task_work(
+                        session.task_context(),
+                        "Media inspection",
+                        move |storage| async move {
+                            Ok(match id.kind() {
+                                MediaKind::Image => image_adapter::inspect(&storage, input)
+                                    .await
+                                    .map(Facts::Image),
+                                MediaKind::Video => {
+                                    video::inspect(&storage, input).await.map(Facts::Video)
+                                }
+                            })
+                        },
+                    )
+                    .await?
+                }
             },
         };
         Ok(PreparedInterpretation {
@@ -63,7 +77,7 @@ impl MediaService {
     ) -> Result<ApplyOutcome, MediaError> {
         let kernel = kernel.clone();
         session
-            .transaction(move |c| {
+            .transaction_named("Media interpretation acceptance", move |c| {
                 Box::pin(async move { Self::apply_in(&kernel, c, prepared).await })
             })
             .await

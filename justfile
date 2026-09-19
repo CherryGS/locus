@@ -59,6 +59,12 @@ rust-lock-media:
 rust-lock-twitter:
     cargo check --package locus-twitter --offline
 
+rust-lock-tasks:
+    cargo check --package locus-task --package locus-store --package locus-file --package locus-media --package locus-twitter --offline
+
+rust-run-tasks:
+    cargo run --package locus --example task-backend --locked
+
 rust-finalize: rust-clippy-fix rust-fmt rust-fmt-check rust-lint rust-test-all
 
 rust-validate: rust-finalize rust-metadata rust-deps rust-build

@@ -51,7 +51,7 @@ async fn timeout_and_output_limit_kill_and_reap_owned_child() {
         let semaphore = Arc::new(Semaphore::new(1));
         let permit = semaphore.clone().acquire_owned().await.unwrap();
         let (sender, receiver) = oneshot::channel();
-        let supervisor = tokio::spawn(supervise(helper(name), sender, timeout, 1024, permit));
+        let supervisor = tokio::spawn(supervise(helper(name), sender, timeout, 1024, permit, None));
         assert_eq!(receiver.await.unwrap().unwrap_err().code, expected);
         assert!(!supervisor.await.unwrap().unwrap().success());
         assert_eq!(semaphore.available_permits(), 1);
@@ -68,6 +68,7 @@ async fn cancelled_request_supervisor_finishes_reaping() {
         Duration::from_secs(30),
         1024,
         permit,
+        None,
     ));
     drop(receiver);
     let status = tokio::time::timeout(Duration::from_secs(10), supervisor)
@@ -77,4 +78,61 @@ async fn cancelled_request_supervisor_finishes_reaping() {
         .unwrap();
     assert!(!status.success());
     assert_eq!(semaphore.available_permits(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn task_observer_drop_preserves_child_lease_through_reaping() {
+    use locus_task::api::{TaskQueue, TaskState};
+    tokio::time::timeout(Duration::from_secs(10), async {
+        let queue = TaskQueue::new();
+        let resource = queue.resource();
+        let held = resource.clone();
+        let (started, ready) = oneshot::channel();
+        let (cancel, canceled) = oneshot::channel();
+        let (finished, reaped) = oneshot::channel();
+        let task = queue
+            .submit("child", move |task| async move {
+                let stage = task.enter("child supervisor", &[held]).await.unwrap();
+                let semaphore = Arc::new(Semaphore::new(1));
+                let permit = semaphore.clone().acquire_owned().await.unwrap();
+                let (sender, receiver) = oneshot::channel();
+                let supervisor = tokio::spawn(supervise(
+                    helper(concat!(module_path!(), "::helper_wait")),
+                    sender,
+                    Duration::from_secs(30),
+                    1024,
+                    permit,
+                    Some(stage.clone()),
+                ));
+                drop(stage);
+                started.send(()).unwrap();
+                canceled.await.unwrap();
+                drop(receiver);
+                let status = supervisor.await.unwrap().unwrap();
+                assert!(!status.success());
+                assert_eq!(semaphore.available_permits(), 1);
+                finished.send(()).unwrap();
+            })
+            .unwrap();
+        ready.await.unwrap();
+        let next = queue
+            .submit("after child", move |task| async move {
+                task.enter("resource", &[resource]).await.unwrap();
+            })
+            .unwrap();
+        let mut changes = next.subscribe();
+        loop {
+            if changes.borrow_and_update().state == TaskState::Waiting {
+                break;
+            }
+            changes.changed().await.unwrap();
+        }
+        assert_eq!(task.snapshot().state, TaskState::Running);
+        drop(task);
+        cancel.send(()).unwrap();
+        reaped.await.unwrap();
+        next.result().await.unwrap();
+    })
+    .await
+    .unwrap();
 }

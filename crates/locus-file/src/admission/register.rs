@@ -15,7 +15,10 @@ impl FileService {
         session: &mut Session,
         source: impl AsRef<Path>,
     ) -> Result<FileRecord, AdmissionFailure> {
-        let prepared = self.prepare(source).await?;
+        let prepared = match session.task_context() {
+            Some(task) => self.prepare_task(task, source).await?,
+            None => self.prepare(source).await?,
+        };
         self.register(kernel, session, &prepared)
             .await
             .map_err(|source| AdmissionFailure {
@@ -36,7 +39,7 @@ impl FileService {
         let kernel = kernel.clone();
         let prepared = prepared.clone();
         session
-            .transaction(move |context| {
+            .transaction_named("File registration", move |context| {
                 Box::pin(async move { storage.register_in(&kernel, context, &prepared).await })
             })
             .await
@@ -57,23 +60,24 @@ impl FileService {
         let record = prepared.record();
         let storage = self.clone();
         let check_record = record.clone();
-        tokio::task::spawn_blocking(move || -> Result<(), FileError> {
-            let path = storage.record_path(&check_record)?;
-            let file = File::open(path).map_err(|error| FileError::Access {
-                id: check_record.id,
-                cause: error.into(),
-            })?;
-            let metadata = file.metadata().map_err(|error| FileError::Access {
-                id: check_record.id,
-                cause: error.into(),
-            })?;
-            if !metadata.is_file() || metadata.len() != check_record.byte_count {
-                return Err(FileError::PreparedCopyChanged(check_record.id));
-            }
-            Ok(())
-        })
-        .await
-        .map_err(|error| FileError::Worker(error.to_string()))??;
+        context
+            .spawn_blocking(move || -> Result<(), FileError> {
+                let path = storage.record_path(&check_record)?;
+                let file = File::open(path).map_err(|error| FileError::Access {
+                    id: check_record.id,
+                    cause: error.into(),
+                })?;
+                let metadata = file.metadata().map_err(|error| FileError::Access {
+                    id: check_record.id,
+                    cause: error.into(),
+                })?;
+                if !metadata.is_file() || metadata.len() != check_record.byte_count {
+                    return Err(FileError::PreparedCopyChanged(check_record.id));
+                }
+                Ok(())
+            })
+            .await
+            .map_err(|error| FileError::Worker(error.to_string()))??;
         let kernel = kernel.clone();
         context
             .savepoint(move |context| {

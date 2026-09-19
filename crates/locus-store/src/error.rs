@@ -2,6 +2,10 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum StoreError {
+    #[error(transparent)]
+    Task(#[from] locus_task::api::TaskError),
+    #[error("database identity could not be established: {0}")]
+    Identity(#[from] std::io::Error),
     #[error("an entered caller-owned multi-thread Tokio runtime is required")]
     UnsupportedRuntime,
     #[error("could not open SQLite: {0}")]

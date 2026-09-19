@@ -24,6 +24,8 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 - `just rust-lock-media`: resolve the Media workspace edges offline while retaining locked dependency versions.
 - `just rust-run-twitter locator [path]`: save a Twitter snapshot from a post ID/URL and optionally copy/admit and explicitly associate a supplied local file.
 - `just rust-lock-twitter`: resolve the Twitter workspace edges offline while retaining locked dependency versions.
+- `just rust-run-tasks`: run concurrent real File/Media/Twitter tasks using a temporary library and synthetic input.
+- `just rust-lock-tasks`: resolve task workspace edges offline while retaining locked dependency versions.
 
 ## General rules
 

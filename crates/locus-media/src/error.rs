@@ -34,6 +34,8 @@ impl AttemptFailure {
 #[derive(Debug, Error)]
 pub enum MediaError {
     #[error(transparent)]
+    Task(#[from] locus_task::api::TaskError),
+    #[error(transparent)]
     Store(#[from] locus_store::api::StoreError),
     #[error(transparent)]
     Core(#[from] locus_core::api::CoreError),
