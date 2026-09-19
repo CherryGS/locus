@@ -288,6 +288,15 @@ extension receiving protocol and full import workflow remain separate work.
 
 The workspace is validated on Windows with Rust/Cargo 1.97.0 stable MSVC, Rustfmt, Clippy, cargo-nextest 0.9.140, and Just 1.57.0. The native GPUI Kit build uses the installed Visual C++ toolchain, Windows SDK (10.0.26100.0 on the development host), CMake and Ninja.
 
+Build profiles are set in the workspace root. `dev` uses optimization level 1,
+line-table debug information, assertions/overflow checks and incremental builds;
+non-workspace dependencies use optimization level 3 without debug information.
+`release` uses thin LTO with 8 codegen units. `dist` inherits release and uses one
+codegen unit. Both retain line-table debug information and unwind panics without
+stripping symbols. The default `just rust-run` uses the development profile.
+Use `just rust-build-release` or `just rust-build-dist` for the application binary;
+the latter writes to `target/dist`. A changed profile can rebuild dependencies.
+
 ```text
 just rust-validate
 just rust-test-code locus-store

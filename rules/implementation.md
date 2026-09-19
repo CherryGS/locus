@@ -15,6 +15,8 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 - `just rust-metadata`: validate and inspect workspace metadata.
 - `just rust-deps`: inspect the resolved dependency tree.
 - `just rust-build`: build all workspace targets.
+- `just rust-build-release`: build the native application with the release profile.
+- `just rust-build-dist`: build the native application with the dist profile.
 - `just rust-run`: run the provisional application entry point.
 - `just rust-run-backend`: run the explicit File backend composition example without starting the native UI.
 - `just rust-run-media image|video path`: copy/admit a supplied local input and exercise the intended Media component, interpretation and preview.

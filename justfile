@@ -31,6 +31,12 @@ rust-deps:
 rust-build:
     cargo build --workspace --all-targets --all-features --locked
 
+rust-build-release:
+    cargo build --package locus --bin locus --release --locked
+
+rust-build-dist:
+    cargo build --package locus --bin locus --profile dist --locked
+
 rust-run:
     cargo run --package locus --locked
 
