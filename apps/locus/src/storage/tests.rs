@@ -79,3 +79,64 @@ async fn injected_root_registers_independent_media_kinds_without_decoders() {
             .is_none()
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn twitter_snapshot_survives_failed_file_admission_and_reopen() {
+    use locus_core::api::Membership;
+    use locus_twitter::api::{TWITTER_KIND, TwitterSnapshot};
+
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path().join("library");
+    let mut app = ApplicationStorage::open(&root).await.unwrap();
+    let entity = app.kernel.create_entity(&mut app.session).await.unwrap();
+    let id = app
+        .twitter
+        .create(
+            &app.kernel,
+            &mut app.session,
+            TwitterSnapshot {
+                post_id: Some("1234567890123456789".into()),
+                text: Some(String::new()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    app.kernel
+        .attach(
+            &mut app.session,
+            Membership {
+                entity,
+                kind: TWITTER_KIND,
+                component: id.component(),
+            },
+        )
+        .await
+        .unwrap();
+    let saved = app.twitter.read(&mut app.session, id).await.unwrap();
+    assert!(saved.basis.is_none());
+    assert!(
+        app.files
+            .admit(
+                &app.kernel,
+                &mut app.session,
+                directory.path().join("missing")
+            )
+            .await
+            .is_err()
+    );
+    drop(app);
+    let mut app = ApplicationStorage::open(&root).await.unwrap();
+    assert_eq!(app.twitter.read(&mut app.session, id).await.unwrap(), saved);
+    assert_eq!(
+        app.kernel
+            .memberships(&mut app.session, entity)
+            .await
+            .unwrap(),
+        vec![Membership {
+            entity,
+            kind: TWITTER_KIND,
+            component: id.component(),
+        }]
+    );
+}

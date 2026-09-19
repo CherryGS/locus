@@ -2,13 +2,14 @@
 
 A personal local CMS intended to unify management of media, AI model weights, AIGC metadata, relationships, and commonly used Sources.
 
-The Rust workspace contains persistent identity, attachment, managed File, Image and Video backends:
+The Rust workspace contains persistent identity, attachment, managed File, Image/Video and Twitter snapshot backends:
 
 - `locus-store` owns domain-neutral SQLite sessions and transaction boundaries through Diesel 2.3.13 and diesel-async 0.9.2, with bundled SQLite linkage.
 - `locus-core` owns UUIDv7 entity/component identities, stable assigned kind IDs, owner-verified component admission, exclusive membership, and guarded lifecycle operations. Domain payloads stay in domain-owned tables.
 - `locus-file` owns UUIDv7 File records, managed copies, identified input access, and current entity/File input comparison.
 - `locus-media` owns separate Image/Video kinds, retained interpretations and warnings, explicit retry, derived previews/covers, and a common per-component read view.
-- `apps/locus` owns the native GPUI Kit shell and separate File/Media backend examples. The default shell uses in-memory fixtures; examples own a multithread Tokio runtime and initialize persistent kernel/File/Media storage.
+- `locus-twitter`, under `crates/provider`, owns independent Twitter snapshots, local validation, guarded File association and provider-specific reads.
+- `apps/locus` owns the native GPUI Kit shell and separate File/Media/Twitter backend examples. The default shell uses in-memory fixtures; examples own a multithread Tokio runtime and initialize persistent kernel/File/Media/Twitter storage.
 
 Intent discovery was deferred at the user's request so bootstrap could proceed. The current intent snapshot and its confirmation state are maintained in the independent local `project-doc` repository.
 
@@ -23,7 +24,8 @@ The preview includes six original embedded SVG illustrations and bundled GPUI Ki
 All library APIs use a single public `api` module, for example
 `locus_core::api::{Kernel, EntityId}`, `locus_store::api::{Session, Context}`,
 `locus_file::api::{FileService, FileId}` and
-`locus_media::api::{MediaService, MediaConfig}`. Internal module layout is private.
+`locus_media::api::{MediaService, MediaConfig}` and
+`locus_twitter::api::{TwitterService, TwitterId}`. Internal module layout is private.
 Domain IDs, records and errors keep their domain names; the operation entry objects
 use the `Service` suffix. Older root imports and `FileStorage`/`MediaStorage` names
 are replaced by these paths and names; File record `lookup`/`lookup_in` are now
@@ -58,7 +60,7 @@ Cancellation discards an in-flight transaction's connection. A discarded session
 The backend composition defaults to `%LOCALAPPDATA%\Locus` on Windows (the local data
 location plus `Locus` on other platforms). Set `LOCUS_DATA_DIR` to use an isolated
 root. `ApplicationStorage::open(root)` accepts an injected root for composition
-and tests. It opens `metadata.sqlite`, registers File/Image/Video owners and initializes
+and tests. It opens `metadata.sqlite`, registers File/Image/Video/Twitter owners and initializes
 their domain-owned schema versions. Run `just rust-run-backend` for the explicit
 console example; the default native shell does not open this database. Core schema
 2 upgrades unshared version-1 data
@@ -211,8 +213,76 @@ program names `ffprobe`/`ffmpeg`. Each example run creates an entity, admits a n
 copy, attaches the intended kind, interprets it, requests a 320-pixel preview and
 prints actual IDs and separate stage outcomes. Copies and earlier committed stages
 remain if later interpretation fails. The regular File example remains usable.
-Source persistence/import transport, playback, native UI integration, model and
+Extension delivery/import transport, playback, native UI integration, model and
 AIGC behavior are deferred; the default GPUI shell continues using fixtures.
+
+## Twitter provider backend
+
+`crates/provider/locus-twitter` is an independent provider package. It consumes
+core, File and store; Media is not a production dependency. Provider directories
+are simple workspace organization. There is no common Source crate or read DTO.
+
+`TwitterService` persists one submitted snapshot per `TwitterId`, with a stable
+`TWITTER_KIND` shared by image and video captures. Post/media IDs are external
+locators; identical locators do not merge local components. Snapshot fields keep
+post context, the selected media occurrence, its chosen representation and remote
+preview separate. These are submitted claims, not intrinsic Media facts or proof
+of remote authenticity. Missing optional values remain missing; an observed empty
+string or list remains distinct from information not captured. Producer-reported
+capture issues do not erase unrelated valid observations.
+
+Local validation accepts positive canonical decimal `u64` post/user/media IDs.
+Post URLs use HTTP(S), an `x.com` or `twitter.com` host (including `www`, `mobile`
+and `m` aliases), and `/<handle>/status/<id>`, `/i/status/<id>` or
+`/i/web/status/<id>`, optionally with `/photo/<index>` or `/video/<index>`.
+Supplied subject ID and page URL must agree; a URL suffix does not populate the
+occurrence fields. Requested and descriptive resource URLs remain separate
+HTTP(S) claims. Credentials, whitespace/controls and backslashes in URLs are
+rejected; URLs also require explicit `http://` or `https://` and valid percent
+escapes. Original supplied strings are retained after validation.
+
+UTF-8 limits are 64 KiB per text field, 1 KiB per label, 8 KiB per URL and 128
+entries per collection. A snapshot reserves 256 bytes below the 256 KiB persisted
+payload limit for its version and File basis. Oversized submissions are rejected
+without truncation. Handles use 1–15 ASCII letters, digits or underscores;
+publication/observation times use nonnegative Unix milliseconds through year 9999.
+Known dimensions and bitrates must be positive; duration may be zero. Duration
+and bitrate must fit `i64`; MIME claims use type/subtype without parameters.
+These are this backend's accepted representations, not remote-state verification.
+
+`create` / `create_in` validate and save a snapshot without requiring a File or
+entity; payload creation and core admission share a savepoint. `read` / `read_in`
+return retained data. Explicit replacement preserves the component ID, checks the
+expected revision, replaces the whole observation and clears its previous File
+basis. Invalid or stale writes preserve the accepted state.
+
+`prepare_association` observes the intended snapshot revision, actual host and
+caller-named current File. Its opaque token is accepted only after those facts and
+the File record are checked again inside the write transaction. Association and
+combined replacement/association keep snapshot, basis and revision consistent.
+Successful `_in` operations remain provisional until their caller commits.
+Independent commits survive later failures; there is no automatic retry or cleanup.
+
+Provider views retain the snapshot while describing unassociated, missing or
+changed input and observation errors. Reads and association do not probe bytes,
+contact Twitter, refresh captures or adopt a later File automatically. A matching
+File identity does not certify readable bytes, successful Media parsing or source
+authenticity. Detached Twitter components can be deleted through the guarded
+kernel; that deletes only their own records and does not pin or remove File data.
+
+The local example accepts a post ID/URL and an optional local file. Use an isolated
+root when experimenting:
+
+```powershell
+$env:LOCUS_DATA_DIR = 'E:\Temp\locus-twitter-demo'
+just rust-run-twitter '1234567890123456789'
+just rust-run-twitter 'https://x.com/example/status/1234567890123456789' 'E:\Inputs\clip.mp4'
+```
+
+The example prints committed entity/Source IDs before optional File admission and
+association. A failed File step returns an error while the printed Source record
+remains saved. This consumer uses supplied observations and bytes; the Chrome
+extension receiving protocol and full import workflow remain separate work.
 
 ## Development
 
@@ -224,6 +294,7 @@ just rust-test-code locus-store
 just rust-test-code locus-core
 just rust-test-code locus-file
 just rust-test-code locus-media
+just rust-test-code locus-twitter
 just rust-test-video
 just rust-test-code locus --example file-backend
 just rust-run

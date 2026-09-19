@@ -13,6 +13,7 @@ locus-store.workspace = true
 tokio.workspace = true
 locus-file.workspace = true
 locus-media.workspace = true
+locus-twitter.workspace = true
 directories.workspace = true
 tempfile.workspace = true
 
@@ -22,4 +23,8 @@ test = true
 
 [[example]]
 name = "media-backend"
+test = true
+
+[[example]]
+name = "twitter-backend"
 test = true

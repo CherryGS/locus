@@ -3,6 +3,7 @@ use locus_core::api::Kernel;
 use locus_file::api::{FileOwner, FileService};
 use locus_media::api::{ImageOwner, MediaConfig, MediaService, VideoOwner};
 use locus_store::api::Session;
+use locus_twitter::api::{TwitterOwner, TwitterService};
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -13,6 +14,7 @@ pub struct ApplicationStorage {
     pub kernel: Kernel,
     pub files: FileService,
     pub media: MediaService,
+    pub twitter: TwitterService,
 }
 impl ApplicationStorage {
     pub async fn open(root: impl AsRef<Path>) -> anyhow::Result<Self> {
@@ -23,6 +25,7 @@ impl ApplicationStorage {
             .await
             .context("open metadata.sqlite")?;
         let mut kernel = Kernel::new();
+        let twitter = TwitterService::new();
         let media = MediaService::new(
             files.root(),
             MediaConfig {
@@ -46,6 +49,9 @@ impl ApplicationStorage {
             .register(Arc::new(FileOwner))
             .context("register File owner")?;
         kernel
+            .register(Arc::new(TwitterOwner))
+            .context("register Twitter owner")?;
+        kernel
             .initialize(&mut session)
             .await
             .context("initialize identity kernel")?;
@@ -57,11 +63,16 @@ impl ApplicationStorage {
             .initialize(&mut session)
             .await
             .context("initialize Media schema")?;
+        twitter
+            .initialize(&mut session)
+            .await
+            .context("initialize Twitter schema")?;
         Ok(Self {
             session,
             kernel,
             files,
             media,
+            twitter,
         })
     }
 }

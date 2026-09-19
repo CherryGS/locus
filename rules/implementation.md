@@ -20,6 +20,8 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 - `just rust-run-media image|video path`: copy/admit a supplied local input and exercise the intended Media component, interpretation and preview.
 - `just rust-test-video`: run the explicitly provisioned ffprobe/ffmpeg integration tests (configure `LOCUS_FFPROBE` and `LOCUS_FFMPEG` as needed).
 - `just rust-lock-media`: resolve the Media workspace edges offline while retaining locked dependency versions.
+- `just rust-run-twitter locator [path]`: save a Twitter snapshot from a post ID/URL and optionally copy/admit and explicitly associate a supplied local file.
+- `just rust-lock-twitter`: resolve the Twitter workspace edges offline while retaining locked dependency versions.
 
 ## General rules
 

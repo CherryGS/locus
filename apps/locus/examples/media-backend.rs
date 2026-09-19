@@ -19,17 +19,22 @@ async fn main() -> anyhow::Result<()> {
     if args.next().is_some() {
         bail!("unexpected extra arguments");
     }
-    let mut app = ApplicationStorage::open(configured_root()?).await?;
-    let entity = app.kernel.create_entity(&mut app.session).await?;
-    let file = app
-        .files
-        .admit(&app.kernel, &mut app.session, &path)
+    let ApplicationStorage {
+        mut session,
+        kernel,
+        files,
+        media: media_service,
+        twitter: _twitter,
+    } = ApplicationStorage::open(configured_root()?).await?;
+    let entity = kernel.create_entity(&mut session).await?;
+    let file = files
+        .admit(&kernel, &mut session, &path)
         .await
         .context("copy and admit File")?;
     println!("File admitted: {file:?}");
-    app.kernel
+    kernel
         .attach(
-            &mut app.session,
+            &mut session,
             Membership {
                 entity,
                 kind: FILE_KIND,
@@ -37,13 +42,10 @@ async fn main() -> anyhow::Result<()> {
             },
         )
         .await?;
-    let media = app
-        .media
-        .create(&app.kernel, &mut app.session, kind)
-        .await?;
-    app.kernel
+    let media = media_service.create(&kernel, &mut session, kind).await?;
+    kernel
         .attach(
-            &mut app.session,
+            &mut session,
             Membership {
                 entity,
                 kind: kind.kind(),
@@ -54,16 +56,15 @@ async fn main() -> anyhow::Result<()> {
     println!("Entity: {entity}; component: {media:?}");
     println!(
         "Interpretation: {:?}",
-        app.media
-            .interpret(&app.kernel, &app.files, &mut app.session, media)
+        media_service
+            .interpret(&kernel, &files, &mut session, media)
             .await?
     );
-    match app
-        .media
+    match media_service
         .preview(
-            &app.kernel,
-            &app.files,
-            &mut app.session,
+            &kernel,
+            &files,
+            &mut session,
             media,
             Rendition { edge: 320 },
         )

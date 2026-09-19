@@ -40,12 +40,18 @@ rust-run-backend:
 rust-run-media kind path:
     cargo run --package locus --example media-backend --locked -- '{{ replace(kind, "'", "''") }}' '{{ replace(path, "'", "''") }}'
 
+rust-run-twitter locator path="":
+    cargo run --package locus --example twitter-backend --locked -- '{{ replace(locator, "'", "''") }}' '{{ replace(path, "'", "''") }}'
+
 rust-test-video:
     cargo nextest run --package locus-media {{ nextest_args }} --run-ignored only -E 'test(real_video)'
 
 # Resolve new workspace edges while retaining the existing dependency selection.
 rust-lock-media:
     cargo check --package locus-media --offline
+
+rust-lock-twitter:
+    cargo check --package locus-twitter --offline
 
 rust-finalize: rust-clippy-fix rust-fmt rust-fmt-check rust-lint rust-test-all
 

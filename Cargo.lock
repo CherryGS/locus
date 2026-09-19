@@ -3859,6 +3859,7 @@ dependencies = [
  "locus-file",
  "locus-media",
  "locus-store",
+ "locus-twitter",
  "tempfile",
  "tokio",
 ]
@@ -3918,6 +3919,26 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
+]
+
+[[package]]
+name = "locus-twitter"
+version = "0.1.0"
+dependencies = [
+ "diesel",
+ "diesel-async",
+ "image",
+ "locus-core",
+ "locus-file",
+ "locus-media",
+ "locus-store",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tokio",
+ "url",
+ "uuid",
 ]
 
 [[package]]
