@@ -1,7 +1,7 @@
 use locus_store::StoreError;
 use thiserror::Error;
 
-use crate::{ComponentId, EntityId, IdentityError, KindId, OwnerError};
+use crate::{ComponentId, EntityId, IdentityError, KindId, Membership, OwnerError};
 
 #[derive(Debug, Error)]
 pub enum CoreError {
@@ -13,6 +13,10 @@ pub enum CoreError {
     Identity(#[from] IdentityError),
     #[error("unsupported core schema version {0}")]
     SchemaVersion(i32),
+    #[error("core v1 migration requires resolving shared component {0}")]
+    MigrationSharedComponent(ComponentId),
+    #[error("component is already attached: {0:?}")]
+    AttachmentOccupied(Membership),
     #[error("kind {0} is already registered")]
     DuplicateKind(KindId),
     #[error("kind {0} has no available owner")]

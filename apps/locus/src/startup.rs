@@ -1,15 +1,11 @@
-use anyhow::Context;
-use locus_core::Kernel;
-use locus_store::Session;
+use crate::storage::{ApplicationStorage, configured_root};
 
 pub async fn run() -> anyhow::Result<()> {
-    let mut session = Session::memory()
-        .await
-        .context("open bootstrap SQLite session")?;
-    Kernel::new()
-        .initialize(&mut session)
-        .await
-        .context("initialize identity kernel")?;
+    let ApplicationStorage {
+        session: _session,
+        kernel: _kernel,
+        files: _files,
+    } = ApplicationStorage::open(configured_root()?).await?;
     println!("Hello, world!");
     Ok(())
 }

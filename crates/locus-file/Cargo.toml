@@ -1,15 +1,16 @@
 [package]
-name = "locus"
+name = "locus-file"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow.workspace = true
 locus-core.workspace = true
 locus-store.workspace = true
+diesel.workspace = true
+diesel-async.workspace = true
 tokio.workspace = true
-locus-file.workspace = true
-directories.workspace = true
+uuid.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

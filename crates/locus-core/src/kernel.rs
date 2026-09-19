@@ -288,6 +288,19 @@ impl Kernel {
                 Err(CoreError::SlotOccupied(existing))
             };
         }
+        let attached =
+            sql_query("SELECT entity, kind, component FROM locus_memberships WHERE component = ?")
+                .bind::<Binary, _>(component.as_bytes().as_slice())
+                .get_result::<MembershipRow>(context.connection())
+                .await
+                .optional()?;
+        if let Some(attached) = attached {
+            return Err(CoreError::AttachmentOccupied(Membership {
+                entity: EntityId::from_bytes(&attached.entity)?,
+                kind: KindId::from_bytes(&attached.kind)?,
+                component: ComponentId::from_bytes(&attached.component)?,
+            }));
+        }
         sql_query("INSERT INTO locus_memberships (entity, kind, component) VALUES (?, ?, ?)")
             .bind::<Binary, _>(entity.as_bytes().as_slice())
             .bind::<Binary, _>(kind.as_bytes().as_slice())
