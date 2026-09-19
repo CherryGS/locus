@@ -5,8 +5,8 @@ use diesel::{
     sql_types::{Binary, Text},
 };
 use diesel_async::RunQueryDsl;
-use locus_core::{ComponentId, CoreError, Membership, OwnerError};
-use locus_file::{AccessCause, FILE_KIND, FileError, FileId};
+use locus_core::api::{ComponentId, CoreError, Membership, OwnerError};
+use locus_file::api::{AccessCause, FILE_KIND, FileError, FileId};
 use support::*;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -36,7 +36,7 @@ async fn missing_rows_missing_bytes_and_lifecycle_preserve_known_records() {
     ));
     f.kernel.detach(&mut f.session, membership).await.unwrap();
     assert_eq!(
-        f.files.lookup(&mut f.session, record.id).await.unwrap(),
+        f.files.read(&mut f.session, record.id).await.unwrap(),
         record
     );
     assert!(matches!(
@@ -51,7 +51,7 @@ async fn missing_rows_missing_bytes_and_lifecycle_preserve_known_records() {
         .await
         .unwrap();
     assert_eq!(
-        f.files.lookup(&mut f.session, record.id).await.unwrap(),
+        f.files.read(&mut f.session, record.id).await.unwrap(),
         record
     );
     let object = f.files.root().join(&record.relative_path);
@@ -65,7 +65,7 @@ async fn missing_rows_missing_bytes_and_lifecycle_preserve_known_records() {
         matches!(f.files.open(&mut f.session, record.id).await, Err(FileError::Access { id, cause: AccessCause::MissingBytes(_) }) if id == record.id)
     );
     assert_eq!(
-        f.files.lookup(&mut f.session, record.id).await.unwrap(),
+        f.files.read(&mut f.session, record.id).await.unwrap(),
         record
     );
     assert_eq!(

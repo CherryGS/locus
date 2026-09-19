@@ -1,7 +1,15 @@
-use super::*;
-use crate::{AccessCause, FileOwner};
-use locus_core::Kernel;
+use crate::{
+    error::{AccessCause, FileError},
+    owner::FileOwner,
+    service::FileService,
+};
+use locus_core::api::Kernel;
+use locus_store::api::Session;
 use std::sync::Arc;
+use std::{
+    fs::File,
+    io::{self, Read},
+};
 
 struct FailingReader;
 impl Read for FailingReader {
@@ -15,7 +23,7 @@ async fn denied_open_and_later_read_failure_keep_identity_and_accepted_state() {
     let directory = tempfile::tempdir().unwrap();
     let source = directory.path().join("original");
     std::fs::write(&source, b"retained bytes").unwrap();
-    let storage = FileStorage::new(directory.path().join("library"))
+    let storage = FileService::new(directory.path().join("library"))
         .await
         .unwrap();
     let mut session = Session::memory().await.unwrap();
@@ -40,10 +48,7 @@ async fn denied_open_and_later_read_failure_keep_identity_and_accepted_state() {
     assert_eq!(error.kind(), io::ErrorKind::Other);
     assert_eq!(error.to_string(), "late reader failure");
     assert_eq!(input.id(), record.id);
-    assert_eq!(
-        storage.lookup(&mut session, record.id).await.unwrap(),
-        record
-    );
+    assert_eq!(storage.read(&mut session, record.id).await.unwrap(), record);
     assert_eq!(
         std::fs::read(storage.root.join(&record.relative_path)).unwrap(),
         b"retained bytes"

@@ -1,14 +1,14 @@
 use diesel::{QueryableByName, sql_query, sql_types::BigInt};
 use diesel_async::{RunQueryDsl, SimpleAsyncConnection};
-use locus_core::Kernel;
-use locus_file::{FileError, FileOwner, FileStorage};
-use locus_store::Session;
+use locus_core::api::Kernel;
+use locus_file::api::{FileError, FileOwner, FileService};
+use locus_store::api::Session;
 use std::{path::PathBuf, sync::Arc};
 
 pub struct Fixture {
     pub source: PathBuf,
     pub database: PathBuf,
-    pub files: FileStorage,
+    pub files: FileService,
     pub kernel: Kernel,
     pub session: Session,
     // Drop the SQLite connection before removing its directory on Windows.
@@ -19,7 +19,7 @@ impl Fixture {
         let directory = tempfile::tempdir().unwrap();
         let source = directory.path().join("incoming.dat");
         std::fs::write(&source, b"input bytes\0\xff").unwrap();
-        let files = FileStorage::new(directory.path().join("library"))
+        let files = FileService::new(directory.path().join("library"))
             .await
             .unwrap();
         let database = files.root().join("metadata.sqlite");

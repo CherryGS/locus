@@ -1,4 +1,4 @@
-use locus_core::{ComponentId, IdentityError, KindId};
+use locus_core::api::{ComponentId, IdentityError, KindId};
 use uuid::Uuid;
 
 /// Assigned identity for the File contract; independent of module/type names.
@@ -23,10 +23,6 @@ impl FileId {
     }
     pub(crate) fn fresh() -> Self {
         Self(ComponentId::new())
-    }
-    pub(crate) fn relative_path(self) -> String {
-        let hex = self.0.as_uuid().simple().to_string();
-        format!("object/{}/{hex}", &hex[28..])
     }
 }
 

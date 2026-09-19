@@ -1,6 +1,6 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 mod support;
-use locus_file::{AccessCause, FileError};
+use locus_file::api::{AccessCause, FileError};
 use std::io::Read;
 use support::*;
 

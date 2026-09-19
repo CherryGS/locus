@@ -24,6 +24,11 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 ## General rules
 
 - Keep files that serve as module indexes or aggregation roots limited to module declarations, API re-exports, and dependency or composition wiring. Put product and domain behavior in the modules they expose.
+- Rust directory modules use `mod.rs`. Keep `lib.rs` and every `mod.rs` limited to module declarations, visibility, and re-exports (with relevant documentation or attributes). Put types, functions, implementations, constants, and behavior in leaf files. A simple leaf does not need its own directory.
+- Each library exposes its supported public surface through `api/mod.rs`; do not duplicate those exports at the crate root. Cross-crate consumers import through `crate_name::api`. Within a crate, reference the owning modules directly instead of routing through its public facade.
+- Use consistent names where the responsibility exists: `identity` for IDs and kinds, `error` for errors, `record` for retained domain values, `view` for contextual read projections, `persistence` for database rows/queries/schema, and `adapters` for external libraries or tools. Add only useful modules, not empty template layers. Split by responsibility rather than an arbitrary line limit.
+- Domain operation entry objects use the `Service` suffix (`FileService`, `MediaService`). Keep distinct capability names such as `Kernel`, `Session`, and `Context`. Use `read` for retained-record reads, `view` for contextual projections, `open` for resource access, and `_in` for participation in an existing transaction. Preserve domain-specific verbs when their meanings differ.
+- Keep preparation tokens and implementation helpers private to their owning modules; reorganizing files must not make internal constructors or state public. Organize related unit tests under the same directory module and keep its `mod.rs` free of test behavior.
 
 ## Domain rules
 

@@ -1,8 +1,8 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 mod support;
-use locus_core::Membership;
-use locus_file::FILE_KIND;
-use locus_media::*;
+use locus_core::api::Membership;
+use locus_file::api::FILE_KIND;
+use locus_media::api::*;
 use support::*;
 
 #[tokio::test(flavor = "multi_thread")]

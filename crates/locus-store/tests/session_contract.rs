@@ -2,7 +2,7 @@
 
 use diesel::{QueryableByName, sql_query, sql_types::BigInt};
 use diesel_async::{RunQueryDsl, SimpleAsyncConnection};
-use locus_store::{Context, Session, StoreError};
+use locus_store::api::{Context, Session, StoreError};
 use std::{future::pending, time::Duration};
 use tokio::{sync::oneshot, time::timeout};
 

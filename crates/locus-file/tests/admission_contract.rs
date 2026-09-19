@@ -1,8 +1,8 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 mod support;
-use locus_core::{CoreError, Kernel};
-use locus_file::{FILE_KIND, FileError, FileStorage};
-use locus_store::{Session, StoreError};
+use locus_core::api::{CoreError, Kernel};
+use locus_file::api::{FILE_KIND, FileError, FileService};
+use locus_store::api::{Session, StoreError};
 use std::io::Read;
 use support::*;
 
@@ -43,10 +43,10 @@ async fn real_copy_reopens_binary_identity_exact_bytes_and_original() {
         .unwrap();
     assert_ne!(record.id, second.id); // Equal contents do not deduplicate.
     drop(f.session);
-    let files = FileStorage::new(f.files.root()).await.unwrap();
+    let files = FileService::new(f.files.root()).await.unwrap();
     let mut session = Session::open(f.database).await.unwrap();
     files.initialize(&mut session).await.unwrap();
-    assert_eq!(files.lookup(&mut session, record.id).await.unwrap(), record);
+    assert_eq!(files.read(&mut session, record.id).await.unwrap(), record);
     let mut input = files.open(&mut session, record.id).await.unwrap();
     let mut bytes = Vec::new();
     input.read_to_end(&mut bytes).unwrap();
@@ -68,7 +68,7 @@ async fn missing_source_and_different_root_never_register_a_file() {
         matches!(missing.source, FileError::Io { source, .. } if source.kind() == std::io::ErrorKind::NotFound)
     );
     let prepared = f.files.prepare(&f.source).await.unwrap();
-    let other = FileStorage::new(f.directory.path().join("other"))
+    let other = FileService::new(f.directory.path().join("other"))
         .await
         .unwrap();
     assert!(matches!(
@@ -121,7 +121,7 @@ async fn caught_registration_error_rolls_back_payload_but_commits_unrelated_oute
             .unwrap()
     );
     assert!(matches!(
-        f.files.lookup(&mut f.session, prepared.id()).await,
+        f.files.read(&mut f.session, prepared.id()).await,
         Err(FileError::MissingRecord(_))
     ));
     assert!(matches!(
@@ -159,7 +159,7 @@ async fn group_rollback_and_standalone_commit_error_keep_completed_copy_progress
         .await;
     assert!(matches!(rollback, Err(FileError::NotRegularFile)));
     assert!(matches!(
-        f.files.lookup(&mut f.session, prepared.id()).await,
+        f.files.read(&mut f.session, prepared.id()).await,
         Err(FileError::MissingRecord(_))
     ));
     assert!(matches!(

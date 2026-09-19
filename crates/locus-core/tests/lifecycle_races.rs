@@ -4,8 +4,8 @@ mod support;
 
 use diesel::{connection::InstrumentationEvent, sql_query, sql_types::Binary};
 use diesel_async::{AsyncConnection, RunQueryDsl};
-use locus_core::{AttachOutcome, CoreError, Membership};
-use locus_store::Session;
+use locus_core::api::{AttachOutcome, CoreError, Membership};
+use locus_store::api::Session;
 use std::time::Duration;
 use support::domain::*;
 use tokio::{sync::oneshot, time::timeout};

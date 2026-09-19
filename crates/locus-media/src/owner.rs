@@ -1,8 +1,6 @@
-use crate::{MediaError, MediaKind, MediaStorage};
-use diesel::{sql_query, sql_types::Binary};
-use diesel_async::RunQueryDsl;
-use locus_core::{ComponentId, KindId, KindOwner, OwnerError, OwnerFuture};
-use locus_store::Context;
+use crate::{error::MediaError, identity::MediaKind, persistence, service::MediaService};
+use locus_core::api::{ComponentId, KindId, KindOwner, OwnerError, OwnerFuture};
+use locus_store::api::Context;
 
 pub struct ImageOwner;
 pub struct VideoOwner;
@@ -18,7 +16,7 @@ macro_rules! owner {
                 component: ComponentId,
             ) -> OwnerFuture<'a, bool> {
                 Box::pin(async move {
-                    match MediaStorage::read_in(context, MediaKind::$kind.id(component)).await {
+                    match MediaService::read_in(context, MediaKind::$kind.id(component)).await {
                         Ok(_) => Ok(true),
                         Err(MediaError::MissingRecord(_)) => Ok(false),
                         Err(e) => Err(OwnerError::Other(e.to_string())),
@@ -31,13 +29,7 @@ macro_rules! owner {
                 component: ComponentId,
             ) -> OwnerFuture<'a, ()> {
                 Box::pin(async move {
-                    sql_query(format!(
-                        "DELETE FROM {} WHERE id = ?",
-                        MediaKind::$kind.table()
-                    ))
-                    .bind::<Binary, _>(component.as_bytes().as_slice())
-                    .execute(context.connection())
-                    .await?;
+                    persistence::delete(context, MediaKind::$kind.id(component)).await?;
                     Ok(())
                 })
             }

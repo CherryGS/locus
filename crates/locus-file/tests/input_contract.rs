@@ -2,12 +2,12 @@
 mod support;
 use diesel::connection::InstrumentationEvent;
 use diesel_async::AsyncConnection;
-use locus_core::{CoreError, EntityId, Membership};
-use locus_file::{
+use locus_core::api::{CoreError, EntityId, Membership};
+use locus_file::api::{
     CurrentInput, FILE_KIND, FileError, InputComparison, compare_input, observe_input,
     observe_input_in,
 };
-use locus_store::Session;
+use locus_store::api::Session;
 use std::time::Duration;
 use support::*;
 use tokio::{sync::oneshot, time::timeout};
@@ -103,7 +103,7 @@ async fn independent_bases_missing_context_and_unavailable_payloads_remain_disti
         }
     );
     // Damage the accepted input to prove observation neither checks bytes nor
-    // treats its known membership as absent when payload lookup fails.
+    // treats its known membership as absent when payload read fails.
     std::fs::remove_file(f.files.root().join(&second.relative_path)).unwrap();
     assert_eq!(
         observe_input(&f.kernel, &mut f.session, entity)
@@ -123,7 +123,7 @@ async fn independent_bases_missing_context_and_unavailable_payloads_remain_disti
         observed
     );
     assert!(matches!(
-        f.files.lookup(&mut f.session, second.id).await,
+        f.files.read(&mut f.session, second.id).await,
         Err(FileError::MissingRecord(_))
     ));
     assert_eq!(

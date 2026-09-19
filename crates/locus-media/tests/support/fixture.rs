@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 use diesel::{QueryableByName, sql_query, sql_types::BigInt};
 use diesel_async::{RunQueryDsl, SimpleAsyncConnection};
-use locus_core::{EntityId, Kernel, Membership};
-use locus_file::{FILE_KIND, FileId, FileOwner, FileStorage};
-use locus_media::{
-    ImageOwner, MediaConfig, MediaError, MediaId, MediaKind, MediaStorage, VideoOwner,
+use locus_core::api::{EntityId, Kernel, Membership};
+use locus_file::api::{FILE_KIND, FileId, FileOwner, FileService};
+use locus_media::api::{
+    ImageOwner, MediaConfig, MediaError, MediaId, MediaKind, MediaService, VideoOwner,
 };
-use locus_store::Session;
+use locus_store::api::Session;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -14,8 +14,8 @@ use std::{
 pub struct Fixture {
     pub session: Session,
     pub kernel: Kernel,
-    pub files: FileStorage,
-    pub media: MediaStorage,
+    pub files: FileService,
+    pub media: MediaService,
     pub database: PathBuf,
     pub directory: tempfile::TempDir,
 }
@@ -25,7 +25,7 @@ impl Fixture {
     }
     pub async fn configured(config: MediaConfig) -> Self {
         let directory = tempfile::tempdir().unwrap();
-        let files = FileStorage::new(directory.path().join("library"))
+        let files = FileService::new(directory.path().join("library"))
             .await
             .unwrap();
         let database = files.root().join("metadata.sqlite");
@@ -36,7 +36,7 @@ impl Fixture {
         kernel.register(Arc::new(VideoOwner)).unwrap();
         kernel.initialize(&mut session).await.unwrap();
         files.initialize(&mut session).await.unwrap();
-        let media = MediaStorage::new(files.root(), config).unwrap();
+        let media = MediaService::new(files.root(), config).unwrap();
         media.initialize(&mut session).await.unwrap();
         Self {
             session,

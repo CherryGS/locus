@@ -1,4 +1,4 @@
-use crate::MediaId;
+use crate::identity::MediaId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -34,15 +34,15 @@ impl AttemptFailure {
 #[derive(Debug, Error)]
 pub enum MediaError {
     #[error(transparent)]
-    Store(#[from] locus_store::StoreError),
+    Store(#[from] locus_store::api::StoreError),
     #[error(transparent)]
-    Core(#[from] locus_core::CoreError),
+    Core(#[from] locus_core::api::CoreError),
     #[error(transparent)]
-    File(#[from] locus_file::FileError),
+    File(#[from] locus_file::api::FileError),
     #[error(transparent)]
     Database(#[from] diesel::result::Error),
     #[error(transparent)]
-    Identity(#[from] locus_core::IdentityError),
+    Identity(#[from] locus_core::api::IdentityError),
     #[error("Media record is missing: {0:?}")]
     MissingRecord(MediaId),
     #[error("invalid Media record: {0}")]

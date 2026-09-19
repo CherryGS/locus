@@ -1,5 +1,8 @@
-use super::*;
+use super::prepared::CopyProgress;
+use crate::{error::FileError, identity::FileId, service::FileService};
+use locus_store::api::Session;
 use std::io;
+use std::{fs::File, io::Read};
 
 struct FailAfterChunk {
     file: File,
@@ -16,7 +19,7 @@ impl Read for FailAfterChunk {
         Ok(count)
     }
 }
-fn progress(storage: &FileStorage, id: FileId) -> CopyProgress {
+fn progress(storage: &FileService, id: FileId) -> CopyProgress {
     CopyProgress {
         id,
         root: storage.root.clone(),
@@ -33,7 +36,7 @@ async fn partial_copy_is_retained_and_collision_never_overwrites() {
     let source = directory.path().join("original");
     let bytes = vec![7_u8; 100_000];
     std::fs::write(&source, &bytes).unwrap();
-    let storage = FileStorage::new(directory.path().join("library"))
+    let storage = FileService::new(directory.path().join("library"))
         .await
         .unwrap();
     let id = FileId::fresh();
@@ -63,7 +66,7 @@ async fn partial_copy_is_retained_and_collision_never_overwrites() {
     let mut session = Session::memory().await.unwrap();
     storage.initialize(&mut session).await.unwrap();
     assert!(
-        matches!(storage.lookup(&mut session, id).await, Err(FileError::MissingRecord(actual)) if actual == id)
+        matches!(storage.read(&mut session, id).await, Err(FileError::MissingRecord(actual)) if actual == id)
     );
 }
 
@@ -88,7 +91,7 @@ async fn canceled_awaiter_does_not_stop_blocking_copy_or_autonomously_admit() {
         let directory = tempfile::tempdir().unwrap();
         let source = directory.path().join("original");
         std::fs::write(&source, b"copy continues").unwrap();
-        let storage = FileStorage::new(directory.path().join("library")).await.unwrap();
+        let storage = FileService::new(directory.path().join("library")).await.unwrap();
         let mut session = Session::memory().await.unwrap();
         storage.initialize(&mut session).await.unwrap();
         let id = FileId::fresh();
@@ -112,6 +115,6 @@ async fn canceled_awaiter_does_not_stop_blocking_copy_or_autonomously_admit() {
         assert_eq!(prepared.id(), id);
         assert!(prepared.progress().copy_complete);
         assert_eq!(std::fs::read(storage.root.join(&prepared.progress().relative_path)).unwrap(), std::fs::read(source).unwrap());
-        assert!(matches!(storage.lookup(&mut session, id).await, Err(FileError::MissingRecord(actual)) if actual == id));
+        assert!(matches!(storage.read(&mut session, id).await, Err(FileError::MissingRecord(actual)) if actual == id));
     }).await.unwrap();
 }

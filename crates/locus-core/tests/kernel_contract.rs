@@ -4,11 +4,11 @@ mod support;
 
 use diesel::{sql_query, sql_types::Binary};
 use diesel_async::{RunQueryDsl, SimpleAsyncConnection};
-use locus_core::{
+use locus_core::api::{
     AttachOutcome, ComponentId, CoreError, EntityId, IdentityError, Kernel, KindId, Membership,
     OwnerError,
 };
-use locus_store::{Session, StoreError};
+use locus_store::api::{Session, StoreError};
 use std::{future::pending, sync::Arc, time::Duration};
 use support::domain::*;
 use tokio::{sync::oneshot, time::timeout};

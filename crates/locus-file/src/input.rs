@@ -1,6 +1,9 @@
-use crate::{FILE_KIND, FileError, FileId};
-use locus_core::{CoreError, EntityId, Kernel};
-use locus_store::{Context, Session};
+use crate::{
+    error::FileError,
+    identity::{FILE_KIND, FileId},
+};
+use locus_core::api::{CoreError, EntityId, Kernel};
+use locus_store::api::{Context, Session};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CurrentInput {

@@ -1,22 +1,16 @@
-mod cache;
-mod config;
-mod error;
-mod identity;
-mod image_adapter;
-mod operations;
-mod owner;
-mod process;
-mod record;
-mod schema;
-mod video;
+pub mod api;
 
-pub use cache::{Preview, PreviewOrigin, Rendition};
-pub use config::{MediaConfig, MediaStorage};
-pub use error::{AttemptFailure, FailureCode, MediaError};
-pub use identity::{IMAGE_KIND, ImageId, MediaId, MediaKind, VIDEO_KIND, VideoId};
-pub use operations::{ApplyOutcome, PreparedInterpretation};
-pub use owner::{ImageOwner, VideoOwner};
-pub use record::{
-    Applicability, DurationPrecision, Facts, ImageFacts, ImageFormat, InputContext, MediaEntry,
-    MediaRecord, MediaView, StreamDuration, VideoFacts,
-};
+mod adapters;
+mod config;
+mod creation;
+mod error;
+mod facts;
+mod identity;
+mod input;
+mod interpretation;
+mod owner;
+mod persistence;
+mod preview;
+mod record;
+mod service;
+mod view;

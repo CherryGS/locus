@@ -20,6 +20,15 @@ The preview includes six original embedded SVG illustrations and bundled GPUI Ki
 
 ## Using the foundation
 
+All library APIs use a single public `api` module, for example
+`locus_core::api::{Kernel, EntityId}`, `locus_store::api::{Session, Context}`,
+`locus_file::api::{FileService, FileId}` and
+`locus_media::api::{MediaService, MediaConfig}`. Internal module layout is private.
+Domain IDs, records and errors keep their domain names; the operation entry objects
+use the `Service` suffix. Older root imports and `FileStorage`/`MediaStorage` names
+are replaced by these paths and names; File record `lookup`/`lookup_in` are now
+`read`/`read_in`. This source migration does not require a data migration.
+
 Call async store/core APIs from an entered **multi-thread Tokio runtime**. The store checks this requirement before opening a connection or starting a transaction. Diesel's default SQLite async adapter uses Tokio blocking tasks and its cancellation guard requires multithread runtime support; the libraries never create their own runtime or connection pool.
 
 Use `Session::open(path)` for an explicit SQLite file or `Session::memory()` for an isolated ephemeral database. Each connection enables foreign keys and a 2-second SQLite busy timeout. The kernel initializes its own version table without claiming SQLite's shared `user_version`; repeat initialization preserves data and rejects unsupported core versions.
@@ -59,7 +68,12 @@ its data/schema. Resolving such legacy sharing requires an explicit decision.
 The File library accepts an explicit root and does not read process environment:
 
 ```rust,ignore
-let files = FileStorage::new(root).await?;
+use locus_core::api::Kernel;
+use locus_file::api::{FileOwner, FileService};
+use locus_store::api::Session;
+use std::sync::Arc;
+
+let files = FileService::new(root).await?;
 let mut kernel = Kernel::new();
 kernel.register(Arc::new(FileOwner))?;
 let mut session = Session::open(files.root().join("metadata.sqlite")).await?;
@@ -90,7 +104,7 @@ rollback, failed or uncertain commit never deletes its bytes. A canceled awaitin
 copy task may leave its blocking worker running; that worker never admits a row.
 There is no automatic cleanup, deduplication, retry or exactly-once guarantee.
 
-`lookup` / `lookup_in` read only metadata. `open` returns a `FileInput` with `id()`
+`read` / `read_in` read only metadata. `open` returns a `FileInput` with `id()`
 and blocking `Read`/`Seek`; perform substantial reads on blocking work. Missing rows,
 missing bytes, permission denial and other I/O causes are distinct. Later reader
 errors propagate through standard I/O while the handle retains its identity.
@@ -113,7 +127,7 @@ selected; this backend publishes no File removal operation.
 
 ## Image and Video backend
 
-The application composes `MediaStorage` into the same `metadata.sqlite`. Image
+The application composes `MediaService` into the same `metadata.sqlite`. Image
 and Video use distinct stable kinds and separate payload tables, with UUIDv7
 component IDs and versioned validated JSON. Each may be created unparsed and
 attached independently. `read` reads only the retained record; `view` adds actual

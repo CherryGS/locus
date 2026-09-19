@@ -3,8 +3,8 @@ use diesel::{
     sql_types::{BigInt, Binary, Integer},
 };
 use diesel_async::{RunQueryDsl, SimpleAsyncConnection};
-use locus_core::{ComponentId, CoreError, Kernel, KindId, KindOwner, OwnerError, OwnerFuture};
-use locus_store::{Context, Session};
+use locus_core::api::{ComponentId, CoreError, Kernel, KindId, KindOwner, OwnerError, OwnerFuture};
+use locus_store::api::{Context, Session};
 use std::sync::Arc;
 use uuid::Uuid;
 

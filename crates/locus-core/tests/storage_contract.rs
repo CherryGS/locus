@@ -7,8 +7,8 @@ use diesel::{
     sql_types::{BigInt, Binary},
 };
 use diesel_async::{RunQueryDsl, SimpleAsyncConnection};
-use locus_core::{CoreError, IdentityError, Membership};
-use locus_store::Session;
+use locus_core::api::{CoreError, IdentityError, Membership};
+use locus_store::api::Session;
 use support::domain::*;
 
 #[tokio::test(flavor = "multi_thread")]

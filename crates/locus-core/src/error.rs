@@ -1,7 +1,11 @@
-use locus_store::StoreError;
+use locus_store::api::StoreError;
 use thiserror::Error;
 
-use crate::{ComponentId, EntityId, IdentityError, KindId, Membership, OwnerError};
+use crate::{
+    identity::{ComponentId, EntityId, IdentityError, KindId},
+    owner::OwnerError,
+    record::Membership,
+};
 
 #[derive(Debug, Error)]
 pub enum CoreError {

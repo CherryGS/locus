@@ -1,7 +1,7 @@
-use locus_store::{Context, TransactionFuture};
+use locus_store::api::{Context, TransactionFuture};
 use thiserror::Error;
 
-use crate::{ComponentId, KindId};
+use crate::identity::{ComponentId, KindId};
 
 #[derive(Debug, Error)]
 pub enum OwnerError {

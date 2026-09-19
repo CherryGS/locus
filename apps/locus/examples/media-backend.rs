@@ -1,10 +1,10 @@
 //! Explicit, app-owned backend consumer. Native startup remains a fixture shell.
-#[path = "../src/storage.rs"]
+#[path = "../src/storage/mod.rs"]
 mod storage;
 use anyhow::{Context, bail};
-use locus_core::Membership;
-use locus_file::FILE_KIND;
-use locus_media::{MediaKind, Rendition};
+use locus_core::api::Membership;
+use locus_file::api::FILE_KIND;
+use locus_media::api::{MediaKind, Rendition};
 use storage::{ApplicationStorage, configured_root};
 
 #[tokio::main]

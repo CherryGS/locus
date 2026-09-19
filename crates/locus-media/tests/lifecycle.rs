@@ -1,9 +1,9 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 mod support;
-use locus_core::{ComponentId, CoreError, Kernel, Membership};
-use locus_file::{FILE_KIND, InputComparison};
-use locus_media::*;
-use locus_store::Session;
+use locus_core::api::{ComponentId, CoreError, Kernel, Membership};
+use locus_file::api::{FILE_KIND, InputComparison};
+use locus_media::api::*;
+use locus_store::api::Session;
 use support::*;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -230,7 +230,7 @@ async fn participant_creation_savepoint_and_apply_rollback() {
         .transaction::<_, MediaError, _>(move |c| {
             Box::pin(async move {
                 assert!(
-                    MediaStorage::create_in(&no_owner, c, MediaKind::Image)
+                    MediaService::create_in(&no_owner, c, MediaKind::Image)
                         .await
                         .is_err()
                 );
@@ -247,7 +247,7 @@ async fn participant_creation_savepoint_and_apply_rollback() {
     assert!(
         f.session
             .transaction::<(), MediaError, _>(move |c| Box::pin(async move {
-                MediaStorage::create_in(&kernel, c, MediaKind::Video).await?;
+                MediaService::create_in(&kernel, c, MediaKind::Video).await?;
                 Err(MediaError::Configuration("rollback".into()))
             }))
             .await
@@ -270,7 +270,7 @@ async fn participant_creation_savepoint_and_apply_rollback() {
         f.session
             .transaction::<(), MediaError, _>(move |c| Box::pin(async move {
                 assert!(matches!(
-                    MediaStorage::apply_in(&kernel, c, prepared).await?,
+                    MediaService::apply_in(&kernel, c, prepared).await?,
                     ApplyOutcome::Accepted(_)
                 ));
                 Err(MediaError::Configuration("rollback apply".into()))
@@ -326,7 +326,7 @@ async fn common_view_retains_corrupt_entry_and_distinguishes_membership_errors()
     );
     assert!(
         f.media
-            .entity_view(&f.kernel, &mut f.session, locus_core::EntityId::new())
+            .entity_view(&f.kernel, &mut f.session, locus_core::api::EntityId::new())
             .await
             .is_err()
     );
@@ -380,7 +380,9 @@ async fn missing_file_payload_is_not_missing_membership_and_invalid_payload_is_n
     assert_eq!(view.record, record);
     assert!(matches!(
         view.applicability,
-        Applicability::Error(MediaError::File(locus_file::FileError::MissingRecord(_)))
+        Applicability::Error(MediaError::File(locus_file::api::FileError::MissingRecord(
+            _
+        )))
     ));
     assert!(matches!(
         f.media

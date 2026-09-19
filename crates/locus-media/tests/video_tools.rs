@@ -1,6 +1,6 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 mod support;
-use locus_media::*;
+use locus_media::api::*;
 use std::{path::PathBuf, process::Command};
 use support::*;
 
@@ -70,9 +70,9 @@ async fn real_video_audio_multiple_streams_cover_cache_and_retry() {
     f.kernel
         .detach(
             &mut f.session,
-            locus_core::Membership {
+            locus_core::api::Membership {
                 entity,
-                kind: locus_file::FILE_KIND,
+                kind: locus_file::api::FILE_KIND,
                 component: old_file.component(),
             },
         )
@@ -108,8 +108,8 @@ async fn real_video_audio_multiple_streams_cover_cache_and_retry() {
         .await
         .unwrap();
     assert_eq!(entries.len(), 2);
-    assert!(entries.iter().any(|entry| matches!(&entry.result,Ok(MediaView{record:MediaRecord{facts:Some(Facts::Image(_)),..},applicability:Applicability::Input(locus_file::InputComparison::Changed{basis,current})}) if *basis==old_file && *current==file)));
-    assert!(entries.iter().any(|entry| matches!(&entry.result,Ok(MediaView{record:MediaRecord{facts:Some(Facts::Video(_)),..},applicability:Applicability::Input(locus_file::InputComparison::Matching(current))}) if *current==file)));
+    assert!(entries.iter().any(|entry| matches!(&entry.result,Ok(MediaView{record:MediaRecord{facts:Some(Facts::Image(_)),..},applicability:Applicability::Input(locus_file::api::InputComparison::Changed{basis,current})}) if *basis==old_file && *current==file)));
+    assert!(entries.iter().any(|entry| matches!(&entry.result,Ok(MediaView{record:MediaRecord{facts:Some(Facts::Video(_)),..},applicability:Applicability::Input(locus_file::api::InputComparison::Matching(current))}) if *current==file)));
     let preview = f
         .media
         .preview(
@@ -123,7 +123,7 @@ async fn real_video_audio_multiple_streams_cover_cache_and_retry() {
         .unwrap();
     assert_eq!(image::image_dimensions(&preview.path).unwrap(), (32, 20));
     assert_eq!(preview.stream_index, Some(0));
-    let unavailable = MediaStorage::new(
+    let unavailable = MediaService::new(
         f.files.root(),
         MediaConfig {
             ffprobe: "certainly-missing-ffprobe".into(),
@@ -297,7 +297,7 @@ async fn real_video_matroska_and_temporal_png_movie() {
         drop(source);
         let moved = source_path.with_extension("temporarily-missing");
         std::fs::rename(&source_path, &moved).unwrap();
-        let no_tools = MediaStorage::new(
+        let no_tools = MediaService::new(
             f.files.root(),
             MediaConfig {
                 ffprobe: "missing-probe".into(),
@@ -348,7 +348,7 @@ async fn real_video_matroska_and_temporal_png_movie() {
             .await
             .unwrap();
         assert_eq!(image::image_dimensions(cover.path).unwrap(), (20, 12));
-        let constrained = MediaStorage::new(
+        let constrained = MediaService::new(
             f.files.root(),
             MediaConfig {
                 max_pixels: 16,

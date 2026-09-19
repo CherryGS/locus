@@ -18,7 +18,7 @@ async fn injected_root_composes_real_file_admission_and_reopen() {
             .component_kind(&mut app.session, record.id.component())
             .await
             .unwrap(),
-        locus_file::FILE_KIND
+        locus_file::api::FILE_KIND
     );
     drop(app);
     assert!(root.join("metadata.sqlite").is_file());
@@ -51,14 +51,14 @@ async fn injected_root_registers_independent_media_kinds_without_decoders() {
             .component_kind(&mut app.session, image.component())
             .await
             .unwrap(),
-        locus_media::IMAGE_KIND
+        locus_media::api::IMAGE_KIND
     );
     assert_eq!(
         app.kernel
             .component_kind(&mut app.session, video.component())
             .await
             .unwrap(),
-        locus_media::VIDEO_KIND
+        locus_media::api::VIDEO_KIND
     );
     drop(app);
     let mut app = ApplicationStorage::open(directory.path()).await.unwrap();

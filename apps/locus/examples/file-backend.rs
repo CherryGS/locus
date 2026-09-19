@@ -1,6 +1,6 @@
 //! Explicit backend composition probe; the native mock shell remains the default.
 
-#[path = "../src/storage.rs"]
+#[path = "../src/storage/mod.rs"]
 mod storage;
 
 use storage::{ApplicationStorage, configured_root};

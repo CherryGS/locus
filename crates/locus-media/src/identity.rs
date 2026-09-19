@@ -1,4 +1,4 @@
-use locus_core::{ComponentId, IdentityError, KindId};
+use locus_core::api::{ComponentId, IdentityError, KindId};
 use uuid::Uuid;
 
 pub const IMAGE_KIND: KindId =
@@ -39,12 +39,6 @@ impl MediaKind {
         match self {
             Self::Image => IMAGE_KIND,
             Self::Video => VIDEO_KIND,
-        }
-    }
-    pub(crate) fn table(self) -> &'static str {
-        match self {
-            Self::Image => "locus_images",
-            Self::Video => "locus_videos",
         }
     }
     pub(crate) fn id(self, component: ComponentId) -> MediaId {

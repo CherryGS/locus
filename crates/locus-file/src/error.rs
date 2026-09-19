@@ -1,6 +1,6 @@
-use crate::FileId;
-use locus_core::{CoreError, IdentityError};
-use locus_store::StoreError;
+use crate::identity::FileId;
+use locus_core::api::{CoreError, IdentityError};
+use locus_store::api::StoreError;
 use std::{io, path::PathBuf};
 use thiserror::Error;
 
