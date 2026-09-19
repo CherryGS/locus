@@ -34,6 +34,9 @@ rust-build:
 rust-run:
     cargo run --package locus --locked
 
+rust-run-backend:
+    cargo run --package locus --example file-backend --locked
+
 rust-finalize: rust-clippy-fix rust-fmt rust-fmt-check rust-lint rust-test-all
 
 rust-validate: rust-finalize rust-metadata rust-deps rust-build

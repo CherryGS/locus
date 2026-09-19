@@ -13,6 +13,7 @@ use tokio::{sync::oneshot, time::timeout};
 #[derive(Clone, Copy)]
 enum First {
     Attach,
+    AttachOther,
     DeleteComponent,
     DeleteEntity,
 }
@@ -25,6 +26,7 @@ async fn race(first: First, against_entity: bool) {
         let mut right = Session::open(&path).await.unwrap();
         let kernel = fixture(&mut left).await;
         let entity = kernel.create_entity(&mut left).await.unwrap();
+        let other_entity = kernel.create_entity(&mut left).await.unwrap();
         let component = saved_component(&kernel, &mut left, KIND).await;
         let link = Membership {
             entity,
@@ -51,7 +53,7 @@ async fn race(first: First, against_entity: bool) {
             left.transaction::<(), CoreError, _>(move |context| {
                 Box::pin(async move {
                     match first {
-                        First::Attach => {
+                        First::Attach | First::AttachOther => {
                             participant.attach_in(context, link).await?;
                         }
                         First::DeleteComponent => {
@@ -73,6 +75,7 @@ async fn race(first: First, against_entity: bool) {
         ready.await.unwrap();
         let contender = async {
             match first {
+                First::AttachOther => kernel.attach(&mut right, Membership { entity: other_entity, ..link }).await.map(Some),
                 First::Attach if against_entity => kernel
                     .delete_entity(&mut right, entity)
                     .await
@@ -99,6 +102,7 @@ async fn race(first: First, against_entity: bool) {
         }
         first_writer.await.unwrap().unwrap();
         match first {
+            First::AttachOther => assert!(matches!(result, Err(CoreError::AttachmentOccupied(existing)) if existing == link)),
             First::Attach if against_entity => assert!(result.unwrap().is_none()),
             First::Attach => {
                 assert!(matches!(result, Err(CoreError::ComponentAttached(id)) if id == component))
@@ -122,7 +126,7 @@ async fn race(first: First, against_entity: bool) {
                 kernel.component_kind(&mut right, component).await.unwrap(),
                 KIND
             );
-        } else if matches!(first, First::Attach) {
+        } else if matches!(first, First::Attach | First::AttachOther) {
             assert_eq!(
                 kernel.memberships(&mut right, entity).await.unwrap(),
                 vec![link]
@@ -166,4 +170,9 @@ async fn attachment_first_is_removed_by_entity_deletion() {
 #[tokio::test(flavor = "multi_thread")]
 async fn entity_deletion_first_prevents_attachment() {
     race(First::DeleteEntity, true).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn competing_exclusive_attachments_have_exactly_one_winner() {
+    race(First::AttachOther, false).await;
 }

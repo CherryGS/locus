@@ -16,6 +16,7 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 - `just rust-deps`: inspect the resolved dependency tree.
 - `just rust-build`: build all workspace targets.
 - `just rust-run`: run the provisional application entry point.
+- `just rust-run-backend`: run the explicit File backend composition example without starting the native UI.
 
 ## General rules
 

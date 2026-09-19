@@ -4,6 +4,7 @@
 
 ## Git conventions
 
+- Work directly on `main` in this checkout by default. Use another branch or worktree only when the user explicitly requests it.
 - Use emoji-prefixed conventional commits: `<emoji> <type>(<scope>): <subject>`.
   - ✨ feat · 🩹 fix · ♻️ refactor · 🔧 chore · 🎨 style · ⚡ perf · ✅ test · 🏗️ build · 🚦 ci · ⏪ revert · 📝 docs
 - Commit when a task goal is achieved, then verify `git status --short` is clean.

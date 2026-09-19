@@ -48,7 +48,7 @@ fn identity_round_trips_preserve_bytes_and_reject_invalid_instances() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn shared_lifecycle_retains_payload_and_exact_detach_does_not_replace() {
+async fn exclusive_lifecycle_retains_payload_and_exact_detach_does_not_replace() {
     let mut session = Session::memory().await.unwrap();
     let kernel = fixture(&mut session).await;
     let first = kernel.create_entity(&mut session).await.unwrap();
@@ -79,7 +79,9 @@ async fn shared_lifecycle_retains_payload_and_exact_detach_does_not_replace() {
         kernel.attach(&mut session, a).await.unwrap(),
         AttachOutcome::AlreadyAttached
     );
-    kernel.attach(&mut session, b).await.unwrap();
+    assert!(
+        matches!(kernel.attach(&mut session, b).await, Err(CoreError::AttachmentOccupied(existing)) if existing == a)
+    );
     assert_eq!(
         kernel.memberships(&mut session, first).await.unwrap(),
         vec![a]
@@ -92,6 +94,7 @@ async fn shared_lifecycle_retains_payload_and_exact_detach_does_not_replace() {
     );
     assert!(payload_exists(&mut session, component).await);
     assert!(kernel.detach(&mut session, a).await.unwrap());
+    kernel.attach(&mut session, b).await.unwrap();
     assert!(payload_exists(&mut session, component).await);
     let replaced = Membership {
         component: replacement,
@@ -124,7 +127,7 @@ async fn shared_lifecycle_retains_payload_and_exact_detach_does_not_replace() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn entity_deletion_keeps_shared_and_last_link_payloads() {
+async fn entity_deletion_keeps_payload_available_for_another_entity() {
     let mut session = Session::memory().await.unwrap();
     let kernel = fixture(&mut session).await;
     let first = kernel.create_entity(&mut session).await.unwrap();
@@ -140,8 +143,8 @@ async fn entity_deletion_keeps_shared_and_last_link_payloads() {
         ..first_link
     };
     kernel.attach(&mut session, first_link).await.unwrap();
-    kernel.attach(&mut session, second_link).await.unwrap();
     kernel.delete_entity(&mut session, first).await.unwrap();
+    kernel.attach(&mut session, second_link).await.unwrap();
     assert_eq!(
         kernel.memberships(&mut session, second).await.unwrap(),
         vec![second_link]
