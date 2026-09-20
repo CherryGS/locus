@@ -43,6 +43,17 @@ reading never regenerates. HTTP transfer retains no database stage.
 
 Use `just client-generate` to export OpenAPI and regenerate TypeScript, `just client-check` for positive/negative type checks, and `just client-drift` to verify deterministic checked-in output. Schema export (`just server-schema [path]`) does not open storage or require bootstrap/authentication. See [client and API usage](packages/locus-client/README.md) for routes, error/status behavior and SSE semantics.
 
+HTTP adapters are grouped by the crate they consume inside `apps/server/src/api`:
+`core` owns entity/membership endpoints, `file` owns imports and original access,
+`media` owns interpretation, contextual Media views and previews, and `task` owns
+task observation/SSE. Each group registers its routes beside its handlers. Store
+error conversion lives in `store.rs`. Cross-domain completion/error envelopes,
+request recovery, admission and shared transport mechanics belong to the server
+level. Runtime domain calls follow the same `core`/`file`/`media` ownership;
+shared supervision remains in `runtime`. Domain crates stay independent of HTTP.
+OpenAPI uses matching `core`, `file`, `media`, `task` and `server` tags; these
+groups do not add URL prefixes.
+
 ## Using the foundation
 
 All library APIs use a single public `api` module, for example

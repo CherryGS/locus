@@ -11,6 +11,9 @@
   "paths": {
     "/api/v1/drain": {
       "post": {
+        "tags": [
+          "server"
+        ],
         "operationId": "drain",
         "parameters": [
           {
@@ -109,6 +112,9 @@
     },
     "/api/v1/entities": {
       "post": {
+        "tags": [
+          "core"
+        ],
         "operationId": "create_entity",
         "parameters": [
           {
@@ -217,6 +223,9 @@
     },
     "/api/v1/entities/{entity_id}/media": {
       "get": {
+        "tags": [
+          "media"
+        ],
         "operationId": "entity_media",
         "parameters": [
           {
@@ -326,6 +335,9 @@
     },
     "/api/v1/entities/{entity_id}/memberships": {
       "get": {
+        "tags": [
+          "core"
+        ],
         "operationId": "memberships",
         "parameters": [
           {
@@ -435,6 +447,9 @@
     },
     "/api/v1/events": {
       "get": {
+        "tags": [
+          "task"
+        ],
         "summary": "SSE `snapshot` events contain complete TaskSnapshot JSON, not a JSON response.",
         "operationId": "events",
         "parameters": [
@@ -534,6 +549,9 @@
     },
     "/api/v1/files/{file_id}": {
       "get": {
+        "tags": [
+          "file"
+        ],
         "operationId": "read",
         "parameters": [
           {
@@ -650,6 +668,9 @@
     },
     "/api/v1/files/{file_id}/bytes": {
       "get": {
+        "tags": [
+          "file"
+        ],
         "operationId": "read_original_bytes",
         "parameters": [
           {
@@ -765,6 +786,9 @@
         }
       },
       "head": {
+        "tags": [
+          "file"
+        ],
         "operationId": "original_head",
         "parameters": [
           {
@@ -874,6 +898,9 @@
     },
     "/api/v1/imports": {
       "post": {
+        "tags": [
+          "file"
+        ],
         "operationId": "import",
         "parameters": [
           {
@@ -982,6 +1009,9 @@
     },
     "/api/v1/interpretations": {
       "post": {
+        "tags": [
+          "media"
+        ],
         "operationId": "interpret",
         "parameters": [
           {
@@ -1090,6 +1120,9 @@
     },
     "/api/v1/media": {
       "post": {
+        "tags": [
+          "media"
+        ],
         "operationId": "create_media",
         "parameters": [
           {
@@ -1198,6 +1231,9 @@
     },
     "/api/v1/media/{kind}/{component_id}": {
       "get": {
+        "tags": [
+          "media"
+        ],
         "operationId": "read_media",
         "parameters": [
           {
@@ -1312,6 +1348,9 @@
     },
     "/api/v1/media/{kind}/{component_id}/view": {
       "get": {
+        "tags": [
+          "media"
+        ],
         "operationId": "view_media",
         "parameters": [
           {
@@ -1426,6 +1465,9 @@
     },
     "/api/v1/memberships/attach": {
       "post": {
+        "tags": [
+          "core"
+        ],
         "operationId": "attach",
         "parameters": [
           {
@@ -1534,6 +1576,9 @@
     },
     "/api/v1/memberships/detach": {
       "post": {
+        "tags": [
+          "core"
+        ],
         "operationId": "detach",
         "parameters": [
           {
@@ -1642,6 +1687,9 @@
     },
     "/api/v1/previews": {
       "post": {
+        "tags": [
+          "media"
+        ],
         "operationId": "generate_preview",
         "parameters": [
           {
@@ -1750,6 +1798,9 @@
     },
     "/api/v1/previews/{locator}/bytes": {
       "get": {
+        "tags": [
+          "media"
+        ],
         "operationId": "read_preview_bytes",
         "parameters": [
           {
@@ -1865,6 +1916,9 @@
         }
       },
       "head": {
+        "tags": [
+          "media"
+        ],
         "operationId": "preview_head",
         "parameters": [
           {
@@ -1974,6 +2028,9 @@
     },
     "/api/v1/requests/{request_id}": {
       "get": {
+        "tags": [
+          "server"
+        ],
         "operationId": "submission",
         "parameters": [
           {
@@ -2090,6 +2147,9 @@
     },
     "/api/v1/server": {
       "get": {
+        "tags": [
+          "server"
+        ],
         "operationId": "status",
         "parameters": [
           {
@@ -2188,6 +2248,9 @@
     },
     "/api/v1/tasks": {
       "get": {
+        "tags": [
+          "task"
+        ],
         "operationId": "tasks",
         "parameters": [
           {
@@ -2286,6 +2349,9 @@
     },
     "/api/v1/tasks/{task_id}": {
       "get": {
+        "tags": [
+          "task"
+        ],
         "operationId": "task",
         "parameters": [
           {
@@ -2402,6 +2468,9 @@
     },
     "/api/v1/tasks/{task_id}/outcome": {
       "get": {
+        "tags": [
+          "server"
+        ],
         "operationId": "outcome",
         "parameters": [
           {

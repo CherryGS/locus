@@ -1,17 +1,22 @@
 mod auth;
 mod bytes;
+pub mod core;
 pub(crate) mod dto;
 pub(crate) mod error;
+pub mod file;
 mod handlers;
 pub(crate) mod mapping;
-pub(crate) mod media_dto;
-mod media_handlers;
-pub(crate) mod media_mapping;
+pub mod media;
+mod request;
 pub(crate) mod routes;
+pub(crate) mod store;
+pub mod task;
 
 pub use crate::runtime::{Bootstrap, Ready, Server, ServerConfig};
+pub use core::dto::*;
 pub use dto::*;
-pub use error::{ApiError, ErrorCode};
+pub use error::{ApiError, Diagnostic, DomainDiagnostic, ErrorCode, FailureKind};
+pub use file::dto::*;
+pub use media::dto::*;
 pub use routes::openapi;
-
-pub use media_dto::*;
+pub use task::dto::*;

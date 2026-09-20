@@ -1,6 +1,7 @@
 use crate::api::{
     dto::*,
     error::{ApiError, ErrorCode},
+    task::dto::*,
 };
 use locus_task::api::{TaskQueue, TaskSnapshot as QueueSnapshot, TaskState};
 use std::{

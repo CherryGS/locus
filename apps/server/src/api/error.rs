@@ -1,3 +1,4 @@
+use super::{core::dto::CoreFailure, media::dto::MediaFailure};
 use axum::{
     Json,
     http::StatusCode,
@@ -32,7 +33,7 @@ pub struct ApiError {
     pub code: ErrorCode,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub diagnostic: Option<super::media_dto::DomainDiagnostic>,
+    pub diagnostic: Option<DomainDiagnostic>,
 }
 
 impl ApiError {
@@ -43,7 +44,7 @@ impl ApiError {
             diagnostic: None,
         }
     }
-    pub(crate) fn domain(diagnostic: super::media_dto::DomainDiagnostic) -> Self {
+    pub(crate) fn domain(diagnostic: DomainDiagnostic) -> Self {
         Self {
             code: ErrorCode::OperationFailed,
             message: "Domain operation failed".into(),
@@ -77,4 +78,32 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         (self.status(), Json(self)).into_response()
     }
+}
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FailureKind {
+    InputMissing,
+    ManagedBytesMissing,
+    AccessDenied,
+    NotRegularFile,
+    Io,
+    CommitOutcomeUnknown,
+    Database,
+    Domain,
+    Executor,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+pub struct Diagnostic {
+    pub kind: FailureKind,
+    pub message: String,
+}
+/// Typed failures retain the owner boundary, including nested commit uncertainty.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(tag = "owner", rename_all = "snake_case")]
+pub enum DomainDiagnostic {
+    Core { error: CoreFailure },
+    File { diagnostic: Diagnostic },
+    Media { error: MediaFailure },
+    Store { diagnostic: Diagnostic },
+    Executor { message: String },
 }

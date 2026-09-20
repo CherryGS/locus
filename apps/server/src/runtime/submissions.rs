@@ -3,9 +3,12 @@ use super::{
     registry::{Binding, Entry, Shared},
 };
 use crate::api::{
+    core::dto::Membership,
     dto::*,
-    error::{ApiError, ErrorCode},
-    media_dto::*,
+    error::{ApiError, DomainDiagnostic, ErrorCode},
+    file::dto::ImportRequest,
+    media::dto::{MediaKind, MediaTarget},
+    task::dto::{PublicTask, PublicTaskState},
 };
 use locus_task::api::{TaskContext, TaskError};
 use std::{future::Future, sync::Arc};

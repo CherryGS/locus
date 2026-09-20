@@ -1,55 +1,7 @@
-use super::{
-    error::{ApiError, ErrorCode},
-    handlers::{canonical_id, path_id},
-};
-use crate::runtime::Shared;
-use axum::{
-    body::Body,
-    extract::{Path, State, rejection::PathRejection},
-    http::{Method, header},
-    response::Response,
-};
-use std::sync::Arc;
-
-#[utoipa::path(operation_id="read_original_bytes", get, path="/api/v1/files/{file_id}/bytes", params(("file_id"=String,Path)),responses((status=200,body=String,content_type="application/octet-stream",description="Complete original attachment. Range is ignored. Length is from the opened file."),(status=404,body=ApiError)))]
-pub(super) async fn original(
-    State(state): State<Arc<Shared>>,
-    path: Result<Path<String>, PathRejection>,
-    method: Method,
-) -> Result<Response, ApiError> {
-    let id = path_id(path)?;
-    let uuid = canonical_id(&id)?;
-    let file = locus_file::api::FileId::from_bytes(uuid.as_bytes())
-        .map_err(|_| ApiError::invalid("file_id must be UUIDv7"))?;
-    response(state.original(file).await?, method == Method::HEAD, false)
-}
-#[utoipa::path(head, path="/api/v1/files/{file_id}/bytes", params(("file_id"=String,Path)),responses((status=200,description="Same representation headers as GET; no body"),(status=404,body=ApiError)))]
-pub(super) async fn original_head(
-    state: State<Arc<Shared>>,
-    path: Result<Path<String>, PathRejection>,
-) -> Result<Response, ApiError> {
-    original(state, path, Method::HEAD).await
-}
-#[utoipa::path(operation_id="read_preview_bytes", get, path="/api/v1/previews/{locator}/bytes", params(("locator"=String,Path)),responses((status=200,body=String,content_type="image/png",description="Already-produced PNG. Run-scoped locator does not pin bytes and never regenerates. Range is ignored."),(status=404,body=ApiError)))]
-pub(super) async fn preview(
-    State(state): State<Arc<Shared>>,
-    path: Result<Path<String>, PathRejection>,
-    method: Method,
-) -> Result<Response, ApiError> {
-    response(
-        state.derived(path_id(path)?).await?,
-        method == Method::HEAD,
-        true,
-    )
-}
-#[utoipa::path(head, path="/api/v1/previews/{locator}/bytes", params(("locator"=String,Path)),responses((status=200,description="Same representation headers as GET; no body"),(status=404,body=ApiError)))]
-pub(super) async fn preview_head(
-    state: State<Arc<Shared>>,
-    path: Result<Path<String>, PathRejection>,
-) -> Result<Response, ApiError> {
-    preview(state, path, Method::HEAD).await
-}
-fn response(
+//! HTTP transfer mechanics shared by original and derived representations.
+use super::error::{ApiError, ErrorCode};
+use axum::{body::Body, http::header, response::Response};
+pub(crate) fn response(
     opened: crate::runtime::OpenedBytes,
     head: bool,
     png: bool,

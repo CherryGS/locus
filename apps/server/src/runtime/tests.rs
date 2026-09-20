@@ -1,5 +1,7 @@
 use super::{Server, ServerConfig};
-use crate::api::{dto::*, error::ErrorCode};
+use crate::api::{
+    core::dto::*, dto::*, error::ErrorCode, file::dto::*, media::dto::*, task::dto::*,
+};
 use std::sync::Arc;
 use tokio::sync::{Barrier, oneshot, watch};
 
@@ -362,7 +364,6 @@ async fn imports_continue_beyond_old_retention_cap_without_losing_prior_results(
 
 #[tokio::test(flavor = "multi_thread")]
 async fn lost_direct_mutation_is_pending_then_recovered_after_drain_and_launch_failure() {
-    use crate::api::media_dto::*;
     let (_root, server) = app().await;
     let database = server.state.domain.database.clone();
     let (locked_tx, locked_rx) = oneshot::channel();
@@ -426,7 +427,6 @@ async fn lost_direct_mutation_is_pending_then_recovered_after_drain_and_launch_f
 
 #[tokio::test(flavor = "multi_thread")]
 async fn media_and_membership_recovery_retains_one_mutation_and_task_claim() {
-    use crate::api::media_dto::*;
     let (_root, server) = app().await;
     let request = CreateMedia {
         request_id: uuid::Uuid::now_v7().to_string(),
@@ -537,7 +537,6 @@ async fn media_and_membership_recovery_retains_one_mutation_and_task_claim() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn mixed_entity_view_keeps_corrupt_entry_and_valid_other_kind() {
-    use crate::api::media_dto::*;
     use diesel_async::RunQueryDsl;
     let (_root, server) = app().await;
     let domain = server.state.domain.clone();

@@ -1,11 +1,10 @@
+use crate::api::{
+    core::dto::{CoreFailure, Membership},
+    error::{Diagnostic, DomainDiagnostic},
+    file::dto::CurrentInput,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct RequestIdentity {
-    pub request_id: String,
-}
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum MediaKind {
@@ -17,19 +16,6 @@ pub enum MediaKind {
 pub struct CreateMedia {
     pub request_id: String,
     pub kind: MediaKind,
-}
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct Membership {
-    pub entity_id: String,
-    pub kind_id: String,
-    pub component_id: String,
-}
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct ChangeMembership {
-    pub request_id: String,
-    pub membership: Membership,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -50,57 +36,16 @@ pub struct PreviewRequest {
     pub target: MediaTarget,
     pub edge: u32,
 }
-
-/// Typed failures retain the owner boundary, including nested commit uncertainty.
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
-#[serde(tag = "owner", rename_all = "snake_case")]
-pub enum DomainDiagnostic {
-    Core { error: CoreFailure },
-    File { diagnostic: super::dto::Diagnostic },
-    Media { error: MediaFailure },
-    Store { diagnostic: super::dto::Diagnostic },
-    Executor { message: String },
-}
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
-#[serde(tag = "code", rename_all = "snake_case")]
-pub enum CoreFailure {
-    MissingEntity {
-        entity_id: String,
-    },
-    MissingComponent {
-        component_id: String,
-    },
-    SlotOccupied {
-        component_id: String,
-    },
-    AttachmentOccupied {
-        membership: Membership,
-    },
-    KindMismatch {
-        component_id: String,
-        actual: String,
-        requested: String,
-    },
-    UnavailableKind {
-        kind_id: String,
-    },
-    Store {
-        diagnostic: super::dto::Diagnostic,
-    },
-    Other {
-        message: String,
-    },
-}
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(tag = "code", rename_all = "snake_case")]
 pub enum MediaFailure {
     Core { error: CoreFailure },
-    File { diagnostic: super::dto::Diagnostic },
-    Store { diagnostic: super::dto::Diagnostic },
+    File { diagnostic: Diagnostic },
+    Store { diagnostic: Diagnostic },
     MissingRecord { target: MediaTarget },
     Attempt { failure: AttemptFailure },
     Cache { message: String },
-    PreviewAccess { diagnostic: super::dto::Diagnostic },
+    PreviewAccess { diagnostic: Diagnostic },
     Other { message: String },
 }
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
@@ -122,25 +67,6 @@ pub enum AttemptCode {
 pub struct AttemptFailure {
     pub code: AttemptCode,
     pub detail: String,
-}
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
-#[serde(tag = "status", rename_all = "snake_case")]
-pub enum MutationOutcome {
-    EntityCreated {
-        entity_id: String,
-    },
-    MediaCreated {
-        target: MediaTarget,
-        kind_id: String,
-    },
-    Attached,
-    AlreadyAttached,
-    Detached {
-        removed: bool,
-    },
-    Failed {
-        diagnostic: DomainDiagnostic,
-    },
 }
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -184,13 +110,6 @@ pub struct MediaRecord {
     pub basis: Option<String>,
     pub facts: Option<MediaFacts>,
     pub last_failure: Option<AttemptFailure>,
-}
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
-#[serde(tag = "status", rename_all = "snake_case")]
-pub enum CurrentInput {
-    File { file_id: String },
-    MissingEntity { entity_id: String },
-    MissingSlot { entity_id: String },
 }
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(tag = "status", rename_all = "snake_case")]

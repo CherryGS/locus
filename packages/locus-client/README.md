@@ -5,6 +5,10 @@ The server's registered Rust handlers and transport DTOs produce `openapi.json`.
 `src/index.ts` supplies the small `openapi-fetch` factory. No credential, discovery,
 retry, request-ID replacement or run-ID replacement is built into it.
 
+OpenAPI groups operations by `core`, `file`, `media`, `task` and `server` tags.
+The server group owns admission, request recovery and completion envelopes that
+combine multiple domains. Grouping does not change paths or generated call types.
+
 ```ts
 import { createLocusClient } from "@locus/client";
 

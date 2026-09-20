@@ -1,4 +1,10 @@
-use super::{auth, bytes, dto::*, error::ApiError, handlers, media_handlers};
+use super::{
+    auth, core,
+    dto::TaskOutcome,
+    error::ApiError,
+    file, handlers, media,
+    task::{self, dto::TaskSnapshot},
+};
 use crate::runtime::Shared;
 use axum::{Router, middleware, response::IntoResponse, routing::get};
 use std::sync::Arc;
@@ -11,7 +17,7 @@ use utoipa::{
         security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
     },
 };
-use utoipa_axum::{router::OpenApiRouter, routes};
+use utoipa_axum::router::OpenApiRouter;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -22,27 +28,11 @@ struct Contract;
 
 fn registered() -> OpenApiRouter<Arc<Shared>> {
     OpenApiRouter::with_openapi(Contract::openapi())
-        .routes(routes!(media_handlers::create_entity))
-        .routes(routes!(media_handlers::create_media))
-        .routes(routes!(media_handlers::attach))
-        .routes(routes!(media_handlers::detach))
-        .routes(routes!(media_handlers::memberships))
-        .routes(routes!(media_handlers::entity_media))
-        .routes(routes!(media_handlers::read))
-        .routes(routes!(media_handlers::view))
-        .routes(routes!(media_handlers::interpret))
-        .routes(routes!(media_handlers::preview))
-        .routes(routes!(bytes::original, bytes::original_head))
-        .routes(routes!(bytes::preview, bytes::preview_head))
-        .routes(routes!(handlers::status))
-        .routes(routes!(handlers::import))
-        .routes(routes!(handlers::read))
-        .routes(routes!(handlers::submission))
-        .routes(routes!(handlers::tasks))
-        .routes(routes!(handlers::task))
-        .routes(routes!(handlers::outcome))
-        .routes(routes!(handlers::drain))
-        .routes(routes!(handlers::events))
+        .merge(core::router())
+        .merge(file::router())
+        .merge(media::router())
+        .merge(task::router())
+        .merge(handlers::router())
 }
 
 pub fn openapi() -> anyhow::Result<openapi::OpenApi> {

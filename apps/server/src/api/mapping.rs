@@ -1,19 +1,10 @@
+//! Result envelopes shared across domain adapters.
 use super::{
-    dto::*,
-    error::{ApiError, ErrorCode},
+    dto::TaskOutcome,
+    error::{Diagnostic, FailureKind},
+    file::{dto::CopyProgress, mapping::diagnostic},
 };
-use locus_core::api::CoreError;
-use locus_file::api::{AccessCause, AdmissionFailure, FileError, FileRecord};
-use locus_store::api::StoreError;
-
-pub(crate) fn metadata(file: FileRecord) -> FileMetadata {
-    FileMetadata {
-        file_id: file.id.to_string(),
-        kind_id: locus_file::api::FILE_KIND.to_string(),
-        relative_path: file.relative_path,
-        byte_count: file.byte_count.to_string(),
-    }
-}
+use locus_file::api::AdmissionFailure;
 pub(crate) fn failure(error: AdmissionFailure) -> TaskOutcome {
     let progress = error.progress;
     TaskOutcome::Failed {
@@ -27,36 +18,6 @@ pub(crate) fn failure(error: AdmissionFailure) -> TaskOutcome {
         }),
     }
 }
-pub(crate) fn diagnostic(error: &FileError) -> Diagnostic {
-    // Match typed wrappers explicitly: transparent Error::source chains can omit
-    // StoreError itself and lose the durable commit-uncertainty distinction.
-    let kind = match error {
-        FileError::Store(StoreError::CommitOutcomeUnknown(_))
-        | FileError::Core(CoreError::Store(StoreError::CommitOutcomeUnknown(_))) => {
-            FailureKind::CommitOutcomeUnknown
-        }
-        FileError::Io { source, .. } | FileError::CopyRead(source) => match source.kind() {
-            std::io::ErrorKind::NotFound => FailureKind::InputMissing,
-            std::io::ErrorKind::PermissionDenied => FailureKind::AccessDenied,
-            _ => FailureKind::Io,
-        },
-        FileError::NotRegularFile => FailureKind::NotRegularFile,
-        FileError::Access { cause, .. } => match cause {
-            AccessCause::MissingBytes(_) => FailureKind::ManagedBytesMissing,
-            AccessCause::Denied(_) => FailureKind::AccessDenied,
-            AccessCause::Io(_) => FailureKind::Io,
-        },
-        FileError::Store(_)
-        | FileError::Database(_)
-        | FileError::Core(CoreError::Store(_) | CoreError::Database(_)) => FailureKind::Database,
-        FileError::Worker(_) | FileError::Task(_) => FailureKind::Executor,
-        _ => FailureKind::Domain,
-    };
-    Diagnostic {
-        kind,
-        message: error.to_string(),
-    }
-}
 pub(crate) fn executor(message: impl Into<String>) -> TaskOutcome {
     TaskOutcome::Failed {
         diagnostic: Diagnostic {
@@ -66,44 +27,14 @@ pub(crate) fn executor(message: impl Into<String>) -> TaskOutcome {
         progress: None,
     }
 }
-pub(crate) fn read_error(error: FileError) -> ApiError {
-    let code = if matches!(error, FileError::MissingRecord(_)) {
-        ErrorCode::MissingFile
-    } else {
-        ErrorCode::OperationFailed
-    };
-    ApiError {
-        code,
-        message: error.to_string(),
-        diagnostic: Some(super::media_dto::DomainDiagnostic::File {
-            diagnostic: diagnostic(&error),
-        }),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn managed_access_failures_preserve_missing_denied_and_io() {
-        let id = locus_file::api::FileId::from_bytes(uuid::Uuid::now_v7().as_bytes()).unwrap();
-        for (cause, expected) in [
-            (
-                AccessCause::MissingBytes(std::io::ErrorKind::NotFound.into()),
-                FailureKind::ManagedBytesMissing,
-            ),
-            (
-                AccessCause::Denied(std::io::ErrorKind::PermissionDenied.into()),
-                FailureKind::AccessDenied,
-            ),
-            (
-                AccessCause::Io(std::io::ErrorKind::Other.into()),
-                FailureKind::Io,
-            ),
-        ] {
-            assert_eq!(diagnostic(&FileError::Access { id, cause }).kind, expected);
-        }
-    }
+    use crate::api::{core::mapping as core_mapping, media::mapping as media_mapping};
+    use locus_core::api::{self as core, CoreError};
+    use locus_file::api::{self as file, FileError};
+    use locus_media::api as media;
+    use locus_store::api::StoreError;
     #[test]
     fn typed_wrappers_preserve_uncertain_commit_and_exact_progress() {
         for source in [
@@ -131,5 +62,26 @@ mod tests {
             assert_eq!(json["progress"]["bytes_written"], "9007199254740993");
             assert_eq!(json["progress"]["copy_complete"], true);
         }
+    }
+    #[test]
+    fn all_nested_commit_uncertainty_paths_are_typed() {
+        fn uncertain() -> StoreError {
+            StoreError::CommitOutcomeUnknown(diesel::result::Error::RollbackTransaction)
+        }
+        for error in [
+            media::MediaError::Store(uncertain()),
+            media::MediaError::Core(core::CoreError::Store(uncertain())),
+            media::MediaError::File(file::FileError::Store(uncertain())),
+            media::MediaError::File(file::FileError::Core(core::CoreError::Store(uncertain()))),
+        ] {
+            let value = serde_json::to_value(media_mapping::media(error)).unwrap();
+            assert!(value.to_string().contains("commit_outcome_unknown"));
+        }
+        let value =
+            serde_json::to_value(core_mapping::core(core::CoreError::Store(uncertain()))).unwrap();
+        assert_eq!(
+            value["error"]["diagnostic"]["kind"],
+            "commit_outcome_unknown"
+        );
     }
 }

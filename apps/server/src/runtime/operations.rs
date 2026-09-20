@@ -1,74 +1,13 @@
 use super::registry::Shared;
 use crate::api::{
-    dto::*,
+    dto::TaskOutcome,
     error::{ApiError, ErrorCode},
     mapping,
 };
-use locus_file::api::FileId;
 use locus_task::api::{TaskContext, TaskError, TaskHandle};
 use std::{future::Future, sync::Arc};
 use tokio::sync::oneshot;
-
 impl Shared {
-    pub fn import(self: &Arc<Self>, request: ImportRequest) -> Result<Receipt, ApiError> {
-        let domain = self.domain.clone();
-        let source = request.source_path.clone();
-        self.public(
-            request.request_id.clone(),
-            super::submissions::Arguments::Import(request),
-            "Import File",
-            move |task| async move {
-                let mut session = match domain.database.session(&task).await {
-                    Ok(session) => session,
-                    Err(error) => {
-                        return TaskOutcome::Failed {
-                            diagnostic: Diagnostic {
-                                kind: FailureKind::Database,
-                                message: error.to_string(),
-                            },
-                            progress: None,
-                        };
-                    }
-                };
-                match domain
-                    .files
-                    .admit(&domain.kernel, &mut session, source)
-                    .await
-                {
-                    Ok(file) => TaskOutcome::Imported {
-                        file: mapping::metadata(file),
-                    },
-                    Err(error) => mapping::failure(error),
-                }
-            },
-        )
-    }
-
-    pub async fn read(self: &Arc<Self>, id: FileId) -> Result<FileMetadata, ApiError> {
-        let domain = self.domain.clone();
-        let receiver = self.direct("Read File metadata", move |task| async move {
-            let mut session =
-                domain.database.session(&task).await.map_err(|error| {
-                    ApiError::new(ErrorCode::OperationFailed, error.to_string())
-                })?;
-            domain
-                .files
-                .read(&mut session, id)
-                .await
-                .map(mapping::metadata)
-                .map_err(mapping::read_error)
-        })?;
-        receiver
-            .await
-            .map_err(|_| {
-                ApiError::new(
-                    ErrorCode::OperationFailed,
-                    "Direct operation supervisor was lost",
-                )
-            })?
-            .map_err(|error| ApiError::new(ErrorCode::OperationFailed, error.to_string()))?
-    }
-
     pub(super) fn direct<T, F, Fut>(
         self: &Arc<Self>,
         label: &str,
@@ -98,7 +37,6 @@ impl Shared {
         Ok(receiver)
     }
 }
-
 pub(super) async fn supervise(state: Arc<Shared>, id: String, handle: TaskHandle<TaskOutcome>) {
     let mut changes = handle.subscribe();
     let result = handle.result();

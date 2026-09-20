@@ -1,6 +1,8 @@
 mod bootstrap;
 mod bytes;
 mod composition;
+mod core;
+mod file;
 mod media;
 mod operations;
 mod registry;

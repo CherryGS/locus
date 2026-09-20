@@ -1,38 +1,18 @@
-use super::{registry::Shared, submissions::Arguments};
-use crate::api::{dto::*, error::ApiError, media_dto::*, media_mapping as map};
-use locus_core::api::{EntityId, Membership as CoreMembership};
+use super::{
+    bytes::{OpenedBytes, opened},
+    registry::Shared,
+    submissions::Arguments,
+};
+use crate::api::{
+    dto::*,
+    error::{ApiError, DomainDiagnostic, ErrorCode},
+    media::{dto::*, mapping as map},
+    store,
+};
+use locus_core::api::EntityId;
 use locus_media::api::{MediaId, Rendition};
 use std::sync::Arc;
-
 impl Shared {
-    pub async fn create_entity(self: &Arc<Self>, id: String) -> Result<MutationOutcome, ApiError> {
-        let domain = self.domain.clone();
-        self.mutation(
-            id,
-            Arguments::CreateEntity,
-            "Create entity",
-            move |task| async move {
-                let result = async {
-                    let mut session = domain.database.session(&task).await.map_err(|e| {
-                        DomainDiagnostic::Store {
-                            diagnostic: map::store(&e),
-                        }
-                    })?;
-                    domain
-                        .kernel
-                        .create_entity(&mut session)
-                        .await
-                        .map(|id| MutationOutcome::EntityCreated {
-                            entity_id: id.to_string(),
-                        })
-                        .map_err(map::core)
-                }
-                .await;
-                result.unwrap_or_else(|diagnostic| MutationOutcome::Failed { diagnostic })
-            },
-        )
-        .await
-    }
     pub async fn create_media(
         self: &Arc<Self>,
         request: CreateMedia,
@@ -50,7 +30,7 @@ impl Shared {
                 let result = async {
                     let mut session = domain.database.session(&task).await.map_err(|e| {
                         DomainDiagnostic::Store {
-                            diagnostic: map::store(&e),
+                            diagnostic: store::diagnostic(&e),
                         }
                     })?;
                     domain
@@ -69,88 +49,12 @@ impl Shared {
         )
         .await
     }
-    pub async fn membership(
-        self: &Arc<Self>,
-        request: ChangeMembership,
-        membership: CoreMembership,
-        attach: bool,
-    ) -> Result<MutationOutcome, ApiError> {
-        let domain = self.domain.clone();
-        let arguments = if attach {
-            Arguments::Attach(request.membership)
-        } else {
-            Arguments::Detach(request.membership)
-        };
-        self.mutation(
-            request.request_id,
-            arguments,
-            if attach {
-                "Attach component"
-            } else {
-                "Detach component"
-            },
-            move |task| async move {
-                let result = async {
-                    let mut session = domain.database.session(&task).await.map_err(|e| {
-                        DomainDiagnostic::Store {
-                            diagnostic: map::store(&e),
-                        }
-                    })?;
-                    if attach {
-                        domain
-                            .kernel
-                            .attach(&mut session, membership)
-                            .await
-                            .map(|o| match o {
-                                locus_core::api::AttachOutcome::Attached => {
-                                    MutationOutcome::Attached
-                                }
-                                locus_core::api::AttachOutcome::AlreadyAttached => {
-                                    MutationOutcome::AlreadyAttached
-                                }
-                            })
-                            .map_err(map::core)
-                    } else {
-                        domain
-                            .kernel
-                            .detach(&mut session, membership)
-                            .await
-                            .map(|removed| MutationOutcome::Detached { removed })
-                            .map_err(map::core)
-                    }
-                }
-                .await;
-                result.unwrap_or_else(|diagnostic| MutationOutcome::Failed { diagnostic })
-            },
-        )
-        .await
-    }
-    pub async fn memberships(
-        self: &Arc<Self>,
-        entity: EntityId,
-    ) -> Result<Vec<Membership>, ApiError> {
-        let domain = self.domain.clone();
-        self.query("Read memberships", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|e| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: map::store(&e),
-                })
-            })?;
-            domain
-                .kernel
-                .memberships(&mut session, entity)
-                .await
-                .map(|v| v.into_iter().map(map::membership).collect())
-                .map_err(|e| ApiError::domain(map::core(e)))
-        })
-        .await
-    }
     pub async fn media_read(self: &Arc<Self>, id: MediaId) -> Result<MediaRecord, ApiError> {
         let domain = self.domain.clone();
         self.query("Read Media", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|e| {
                 ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: map::store(&e),
+                    diagnostic: store::diagnostic(&e),
                 })
             })?;
             domain
@@ -167,7 +71,7 @@ impl Shared {
         self.query("View Media", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|e| {
                 ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: map::store(&e),
+                    diagnostic: store::diagnostic(&e),
                 })
             })?;
             domain
@@ -187,7 +91,7 @@ impl Shared {
         self.query("View entity Media", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|e| {
                 ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: map::store(&e),
+                    diagnostic: store::diagnostic(&e),
                 })
             })?;
             domain
@@ -213,7 +117,7 @@ impl Shared {
                 let result = async {
                     let mut session = domain.database.session(&task).await.map_err(|e| {
                         DomainDiagnostic::Store {
-                            diagnostic: map::store(&e),
+                            diagnostic: store::diagnostic(&e),
                         }
                     })?;
                     domain
@@ -261,7 +165,7 @@ impl Shared {
                 let result = async {
                     let mut session = domain.database.session(&task).await.map_err(|e| {
                         DomainDiagnostic::Store {
-                            diagnostic: map::store(&e),
+                            diagnostic: store::diagnostic(&e),
                         }
                     })?;
                     domain
@@ -300,5 +204,21 @@ impl Shared {
                 }
             },
         )
+    }
+    pub async fn derived(self: &Arc<Self>, locator: String) -> Result<OpenedBytes, ApiError> {
+        let preview = self.lock().previews.get(&locator).cloned().ok_or_else(|| {
+            ApiError::new(
+                ErrorCode::PreviewUnavailable,
+                "Unknown preview locator in this run",
+            )
+        })?;
+        let media = self.domain.media.clone();
+        self.query("Open derived bytes",move |task|async move {
+            let file=media.open_preview(&task,&preview).await.map_err(|e| {
+                let code=if matches!(&e,locus_media::api::MediaError::PreviewAccess(e) if e.kind()==std::io::ErrorKind::PermissionDenied) { ErrorCode::AccessDenied } else { ErrorCode::OperationFailed };
+                let mut error=ApiError::domain(map::media(e)); error.code=code; error
+            })?.ok_or_else(||ApiError::new(ErrorCode::PreviewUnavailable,"Preview bytes are no longer available; generation is explicit"))?;
+            opened(&task,move ||Ok(file)).await
+        }).await
     }
 }
