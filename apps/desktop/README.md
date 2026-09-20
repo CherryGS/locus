@@ -32,8 +32,10 @@ allows the same shell to navigate from local built assets. Run
 
 The Windows title bar uses native window controls and the overlay's CSS safe
 area. Dark tokens and the host background are aligned before the window shows.
-The Entity page has a responsive virtual grid and single selection. Development
-loads offline synthetic records from `app/preview/entities.ts`; the production
+The Entity page has a centered virtual grid of fixed-size cards and single
+selection. Development loads offline synthetic records from `app/preview/entities.ts`; the production
 renderer excludes that module and shows an empty list until backend integration.
 Selection links the grid to Overview and the selected item's File/Image panels.
+Its page header sits above a workspace containing both the grid and inspector.
+The outer shell owns only the title bar, navigation, footer and page outlet.
 Home and Setting retain their minimal headings.

@@ -1,16 +1,18 @@
 import type { EntityItem } from "@/entities/entity"
-import { useEntitySelection } from "@/features/entity-selection"
-import { Empty, EmptyDescription, EmptyHeader } from "@/shared/ui/empty"
-import { EntityGrid } from "./entity-grid"
+import { EntitySelectionProvider } from "@/features/entity-selection"
+import { Separator } from "@/shared/ui/separator"
+import { EntityWorkspace } from "./entity-workspace"
 
 export function EntityPage({ entities }: { entities: readonly EntityItem[] }) {
-  const { selectedEntity, selectEntity } = useEntitySelection()
   return (
-    <section className="flex h-full min-h-0 flex-col gap-5" aria-labelledby="entity-heading">
-      <h1 id="entity-heading" className="text-xl font-semibold tracking-tight">Entity</h1>
-      {entities.length > 0
-        ? <EntityGrid entities={entities} selectedId={selectedEntity?.id} onSelect={selectEntity} />
-        : <Empty><EmptyHeader><EmptyDescription>No entities yet.</EmptyDescription></EmptyHeader></Empty>}
-    </section>
+    <EntitySelectionProvider>
+      <section className="flex h-full min-h-0 flex-col" aria-labelledby="entity-heading">
+        <header data-slot="entity-page-header" className="flex h-16 shrink-0 items-center gap-4 px-6">
+          <h1 id="entity-heading" className="text-xl font-semibold tracking-tight">Entity</h1>
+        </header>
+        <Separator />
+        <EntityWorkspace entities={entities} />
+      </section>
+    </EntitySelectionProvider>
   )
 }
