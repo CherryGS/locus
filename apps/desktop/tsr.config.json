@@ -1,0 +1,6 @@
+{
+  "routesDirectory": "./src/renderer/app/routes",
+  "generatedRouteTree": "./src/renderer/app/route-tree.gen.ts",
+  "quoteStyle": "double",
+  "semicolons": false
+}

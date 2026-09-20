@@ -107,3 +107,20 @@ server-media-smoke: server-build client-check
 
 server-video-smoke: server-build client-check
     {{ npm }} --prefix packages/locus-client run smoke:video
+
+# Standalone Electron shell; no backend or user library is opened.
+desktop-install:
+    {{ npm }} --prefix apps/desktop ci
+    {{ npm }} --prefix apps/desktop run install:electron
+
+desktop-check:
+    {{ npm }} --prefix apps/desktop run typecheck
+
+desktop-build:
+    {{ npm }} --prefix apps/desktop run build
+
+desktop-run:
+    {{ npm }} --prefix apps/desktop run dev
+
+desktop-preview:
+    {{ npm }} --prefix apps/desktop start

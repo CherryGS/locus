@@ -17,9 +17,9 @@ Intent discovery was deferred at the user's request so bootstrap could proceed. 
 
 ## Loopback server
 
-Run `just client-install` and `just server-smoke` for an isolated real-binary demonstration through the generated client. It imports synthetic files, reads metadata, recovers submissions, observes SSE, checks typed failures/restart/drain, and reports a bounded warm loopback latency sample. It never opens the default user library. The GPUI prototype has been removed. Run `just server-media-smoke` for Image and `just server-video-smoke` with provisioned ffprobe/ffmpeg for Video, through PNG and original-byte retrieval. Electron, renderer/static delivery, dialogs and Twitter HTTP adaptation remain later work.
+Run `just client-install` and `just server-smoke` for an isolated real-binary demonstration through the generated client. It imports synthetic files, reads metadata, recovers submissions, observes SSE, checks typed failures/restart/drain, and reports a bounded warm loopback latency sample. It never opens the default user library. The GPUI prototype has been removed. Run `just server-media-smoke` for Image and `just server-video-smoke` with provisioned ffprobe/ffmpeg for Video, through PNG and original-byte retrieval. Connected Electron lifecycle, Axum renderer/static delivery, dialogs and Twitter HTTP adaptation remain later work.
 
-`just server-run` (also `just rust-run`) expects a private stdin pipe containing one JSON object followed by EOF: a caller-created random temporary `credential` (32–256 ASCII token characters), and optional absolute `library_root`. The input is limited to 16 KiB. The server binds `127.0.0.1:0`, opens storage, and emits one stdout JSON readiness record with `origin` and fresh `run_id`; diagnostics use stderr. Credentials are never printed, persisted or placed in URLs. The host must create the credential and scope authorization to that exact origin; no desktop host is implemented here.
+`just server-run` (also `just rust-run`) expects a private stdin pipe containing one JSON object followed by EOF: a caller-created random temporary `credential` (32–256 ASCII token characters), and optional absolute `library_root`. The input is limited to 16 KiB. The server binds `127.0.0.1:0`, opens storage, and emits one stdout JSON readiness record with `origin` and fresh `run_id`; diagnostics use stderr. Credentials are never printed, persisted or placed in URLs. The host must create the credential and scope authorization to that exact origin; connected desktop-host integration remains later work.
 
 All routes, including `/api/v1/openapi.json`, require `Authorization: Bearer …` and `X-Locus-Run`. Foreign Origin/Host headers are rejected, with no permissive CORS. Metadata reads use task-bound database coordination and return directly. File imports require a canonical UUID `request_id` and an absolute `source_path`, returning a public task receipt. Same-run identical redelivery recovers the receipt; conflicting arguments fail. Typed outcomes preserve File identity, copy progress, and commit uncertainty. Byte counts, progress units and revisions use exact decimal strings.
 
@@ -53,6 +53,14 @@ level. Runtime domain calls follow the same `core`/`file`/`media` ownership;
 shared supervision remains in `runtime`. Domain crates stay independent of HTTP.
 OpenAPI uses matching `core`, `file`, `media`, `task` and `server` tags; these
 groups do not add URL prefixes.
+
+## Desktop shell
+
+Run `just desktop-install`, then `just desktop-run` for the standalone Electron
+shell in `apps/desktop`. It provides Home / Entity / Setting routes and an Overview
+panel without opening a library or starting the backend. Use `just desktop-check`
+and `just desktop-build` to validate it; `just desktop-preview` launches the built
+assets. See [desktop development](apps/desktop/README.md) for source boundaries.
 
 ## Using the foundation
 
