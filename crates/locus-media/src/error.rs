@@ -55,6 +55,8 @@ pub enum MediaError {
     Configuration(String),
     #[error("cache: {0}")]
     Cache(String),
+    #[error("preview access: {0}")]
+    PreviewAccess(std::io::Error),
     #[error(transparent)]
     Attempt(#[from] AttemptFailure),
 }

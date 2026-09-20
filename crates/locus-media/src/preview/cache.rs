@@ -9,6 +9,71 @@ fn cache_error(error: impl ToString) -> MediaError {
     MediaError::Cache(error.to_string())
 }
 impl MediaService {
+    /// Open only an already-produced rendition through this cache's checked
+    /// boundary. This never decodes, generates, or changes retained facts.
+    /// A descriptor does not pin bytes: eviction returns `None`.
+    pub async fn open_preview(
+        &self,
+        task: &locus_task::api::TaskContext,
+        preview: &super::types::Preview,
+    ) -> Result<Option<fs::File>, MediaError> {
+        let name = super::render::name(
+            preview.file,
+            preview.kind,
+            preview.rendition,
+            preview.stream_index,
+        );
+        let issued_path = preview.path.clone();
+        self.cache_task(Some(task), move |storage| {
+            // Reading uses a non-creating check with typed I/O errors. Generation
+            // retains its existing cache-error behavior and directory setup.
+            let path = match storage.checked_preview_artifact(&name) {
+                Err(MediaError::PreviewAccess(e)) if e.kind() == std::io::ErrorKind::NotFound => {
+                    return Ok(None);
+                }
+                result => result?,
+            };
+            if issued_path != path {
+                return Err(cache_error(
+                    "preview descriptor outside its rendition boundary",
+                ));
+            }
+            let file = match fs::File::open(path) {
+                Ok(file) => file,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+                Err(e) => return Err(MediaError::PreviewAccess(e)),
+            };
+            if !file
+                .metadata()
+                .map_err(MediaError::PreviewAccess)?
+                .is_file()
+            {
+                return Err(cache_error("preview is not a regular file"));
+            }
+            Ok(Some(file))
+        })
+        .await
+    }
+
+    fn checked_preview_artifact(&self, name: &str) -> Result<PathBuf, MediaError> {
+        let root = self
+            .cache
+            .parent()
+            .ok_or_else(|| cache_error("cache parent missing"))?;
+        check_read_path(root, true, fs::symlink_metadata(root))?;
+        check_read_path(&self.cache, true, fs::symlink_metadata(&self.cache))?;
+        if name.is_empty()
+            || !name
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'.')
+        {
+            return Err(cache_error("invalid artifact name"));
+        }
+        let path = self.cache.join(name);
+        check_read_path(&path, false, fs::symlink_metadata(&path))?;
+        Ok(path)
+    }
+
     pub(super) async fn cache_task<T: Send + 'static>(
         &self,
         task: Option<&locus_task::api::TaskContext>,
@@ -153,5 +218,41 @@ impl MediaService {
             Ok(paths.len())
         })
         .await
+    }
+}
+
+fn check_read_path(
+    path: &std::path::Path,
+    directory: bool,
+    metadata: std::io::Result<fs::Metadata>,
+) -> Result<(), MediaError> {
+    let metadata = metadata.map_err(MediaError::PreviewAccess)?;
+    if metadata.file_type().is_symlink()
+        || (if directory {
+            !metadata.is_dir()
+        } else {
+            !metadata.is_file()
+        })
+        || fs::canonicalize(path).map_err(MediaError::PreviewAccess)? != path
+    {
+        return Err(cache_error("preview boundary redirected or nonregular"));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn read_boundary_denial_stays_typed_before_open() {
+        let error = check_read_path(
+            std::path::Path::new("not-opened"),
+            true,
+            Err(std::io::ErrorKind::PermissionDenied.into()),
+        )
+        .unwrap_err();
+        assert!(
+            matches!(error,MediaError::PreviewAccess(e) if e.kind()==std::io::ErrorKind::PermissionDenied)
+        );
     }
 }

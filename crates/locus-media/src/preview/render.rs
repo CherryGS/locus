@@ -140,7 +140,12 @@ impl MediaService {
         })
     }
 }
-fn name(file: FileId, kind: MediaKind, rendition: Rendition, stream: Option<u32>) -> String {
+pub(super) fn name(
+    file: FileId,
+    kind: MediaKind,
+    rendition: Rendition,
+    stream: Option<u32>,
+) -> String {
     let hex = file.component().as_uuid().simple().to_string();
     match kind {
         MediaKind::Image => format!("media-{hex}-image-v1-{}.png", rendition.edge),

@@ -9,13 +9,14 @@ use locus_store::api::StoreError;
 pub(crate) fn metadata(file: FileRecord) -> FileMetadata {
     FileMetadata {
         file_id: file.id.to_string(),
+        kind_id: locus_file::api::FILE_KIND.to_string(),
         relative_path: file.relative_path,
         byte_count: file.byte_count.to_string(),
     }
 }
-pub(crate) fn failure(error: AdmissionFailure) -> ImportOutcome {
+pub(crate) fn failure(error: AdmissionFailure) -> TaskOutcome {
     let progress = error.progress;
-    ImportOutcome::Failed {
+    TaskOutcome::Failed {
         diagnostic: diagnostic(&error.source),
         progress: Some(CopyProgress {
             file_id: progress.id.to_string(),
@@ -56,8 +57,8 @@ pub(crate) fn diagnostic(error: &FileError) -> Diagnostic {
         message: error.to_string(),
     }
 }
-pub(crate) fn executor(message: impl Into<String>) -> ImportOutcome {
-    ImportOutcome::Failed {
+pub(crate) fn executor(message: impl Into<String>) -> TaskOutcome {
+    TaskOutcome::Failed {
         diagnostic: Diagnostic {
             kind: FailureKind::Executor,
             message: message.into(),
@@ -71,7 +72,13 @@ pub(crate) fn read_error(error: FileError) -> ApiError {
     } else {
         ErrorCode::OperationFailed
     };
-    ApiError::new(code, error.to_string())
+    ApiError {
+        code,
+        message: error.to_string(),
+        diagnostic: Some(super::media_dto::DomainDiagnostic::File {
+            diagnostic: diagnostic(&error),
+        }),
+    }
 }
 
 #[cfg(test)]

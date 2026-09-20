@@ -359,3 +359,247 @@ async fn imports_continue_beyond_old_retention_cap_without_losing_prior_results(
     server.close_admission();
     server.state.wait_drained().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn lost_direct_mutation_is_pending_then_recovered_after_drain_and_launch_failure() {
+    use crate::api::media_dto::*;
+    let (_root, server) = app().await;
+    let database = server.state.domain.database.clone();
+    let (locked_tx, locked_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel();
+    let holder = server
+        .state
+        .queue
+        .submit("hold DB", move |task| async move {
+            let mut session = database.session(&task).await.unwrap();
+            session
+                .transaction::<_, locus_store::api::StoreError, _>(move |_| {
+                    Box::pin(async move {
+                        locked_tx.send(()).unwrap();
+                        release_rx.await.unwrap();
+                        Ok(())
+                    })
+                })
+                .await
+                .unwrap();
+        })
+        .unwrap();
+    locked_rx.await.unwrap();
+    let id = uuid::Uuid::now_v7().to_string();
+    let request_id = id.clone();
+    let state = server.state.clone();
+    let delivery = tokio::spawn(async move { state.create_entity(request_id).await });
+    while server.state.lock().active == 0 {
+        tokio::task::yield_now().await;
+    }
+    assert_eq!(
+        server.state.submission(&id).unwrap(),
+        Submission::DirectPending
+    );
+    delivery.abort();
+    let _ = delivery.await;
+    assert_eq!(server.state.close().admission, AdmissionState::Draining);
+    assert!(server.state.snapshot().tasks.is_empty());
+    release_tx.send(()).unwrap();
+    holder.result().await.unwrap();
+    server.state.wait_drained().await;
+    let recovered = server.state.create_entity(id.clone()).await.unwrap();
+    assert!(matches!(recovered, MutationOutcome::EntityCreated { .. }));
+    assert_eq!(
+        server.state.submission(&id).unwrap(),
+        Submission::DirectComplete { outcome: recovered }
+    );
+    let (_root, server) = app().await;
+    server.state.lock().reject_next_launch = true;
+    let id = uuid::Uuid::now_v7().to_string();
+    let error = server.state.create_entity(id.clone()).await.unwrap_err();
+    server.state.close();
+    assert_eq!(
+        server.state.create_entity(id.clone()).await.unwrap_err(),
+        error
+    );
+    assert_eq!(
+        server.state.submission(&id).unwrap(),
+        Submission::Rejected { error }
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn media_and_membership_recovery_retains_one_mutation_and_task_claim() {
+    use crate::api::media_dto::*;
+    let (_root, server) = app().await;
+    let request = CreateMedia {
+        request_id: uuid::Uuid::now_v7().to_string(),
+        kind: MediaKind::Image,
+    };
+    let (a, b) = tokio::join!(
+        server.state.create_media(request.clone()),
+        server.state.create_media(request.clone())
+    );
+    assert_eq!(a, b);
+    let MutationOutcome::MediaCreated { target, kind_id } = a.unwrap() else {
+        panic!("create")
+    };
+    let MutationOutcome::EntityCreated { entity_id } = server
+        .state
+        .create_entity(uuid::Uuid::now_v7().to_string())
+        .await
+        .unwrap()
+    else {
+        panic!("entity")
+    };
+    let membership = Membership {
+        entity_id: entity_id.clone(),
+        kind_id: kind_id.clone(),
+        component_id: target.component_id.clone(),
+    };
+    let core = locus_core::api::Membership {
+        entity: locus_core::api::EntityId::from_bytes(
+            uuid::Uuid::parse_str(&entity_id).unwrap().as_bytes(),
+        )
+        .unwrap(),
+        kind: locus_core::api::KindId::from_uuid(uuid::Uuid::parse_str(&kind_id).unwrap()),
+        component: locus_core::api::ComponentId::from_bytes(
+            uuid::Uuid::parse_str(&target.component_id)
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap(),
+    };
+    let request = ChangeMembership {
+        request_id: uuid::Uuid::now_v7().to_string(),
+        membership,
+    };
+    let (a, b) = tokio::join!(
+        server.state.membership(request.clone(), core, true),
+        server.state.membership(request.clone(), core, true)
+    );
+    assert_eq!(a.unwrap(), MutationOutcome::Attached);
+    assert_eq!(b.unwrap(), MutationOutcome::Attached);
+    assert_eq!(
+        server
+            .state
+            .membership(request.clone(), core, false)
+            .await
+            .unwrap_err()
+            .code,
+        ErrorCode::RequestConflict
+    );
+    let mut detach = request.clone();
+    detach.request_id = uuid::Uuid::now_v7().to_string();
+    let (a, b) = tokio::join!(
+        server.state.membership(detach.clone(), core, false),
+        server.state.membership(detach.clone(), core, false)
+    );
+    assert_eq!(a.unwrap(), MutationOutcome::Detached { removed: true });
+    assert_eq!(b.unwrap(), MutationOutcome::Detached { removed: true });
+    let media_id = locus_media::api::ImageId::from_component(core.component).into();
+    let input = InterpretRequest {
+        request_id: uuid::Uuid::now_v7().to_string(),
+        target: target.clone(),
+    };
+    let a = server.state.interpret(input.clone(), media_id).unwrap();
+    let b = server.state.interpret(input.clone(), media_id).unwrap();
+    assert_eq!(a, b);
+    assert!(matches!(
+        terminal(&server.state, &a.task_id).await,
+        ImportOutcome::Interpreted { .. }
+    ));
+    assert_eq!(
+        server
+            .state
+            .preview(
+                PreviewRequest {
+                    request_id: input.request_id,
+                    target: target.clone(),
+                    edge: 32
+                },
+                media_id
+            )
+            .unwrap_err()
+            .code,
+        ErrorCode::RequestConflict
+    );
+    let input = PreviewRequest {
+        request_id: uuid::Uuid::now_v7().to_string(),
+        target,
+        edge: 32,
+    };
+    let a = server.state.preview(input.clone(), media_id).unwrap();
+    assert_eq!(server.state.preview(input.clone(), media_id).unwrap(), a);
+    assert!(matches!(
+        terminal(&server.state, &a.task_id).await,
+        ImportOutcome::MediaFailed { .. }
+    ));
+    server.state.close();
+    assert_eq!(server.state.preview(input, media_id).unwrap(), a);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mixed_entity_view_keeps_corrupt_entry_and_valid_other_kind() {
+    use crate::api::media_dto::*;
+    use diesel_async::RunQueryDsl;
+    let (_root, server) = app().await;
+    let domain = server.state.domain.clone();
+    let entity = server
+        .state
+        .queue
+        .submit("prepare mixed payloads", move |task| async move {
+            let mut session = domain.database.session(&task).await.unwrap();
+            let entity = domain.kernel.create_entity(&mut session).await.unwrap();
+            for kind in [
+                locus_media::api::MediaKind::Image,
+                locus_media::api::MediaKind::Video,
+            ] {
+                let id = domain
+                    .media
+                    .create(&domain.kernel, &mut session, kind)
+                    .await
+                    .unwrap();
+                domain
+                    .kernel
+                    .attach(
+                        &mut session,
+                        locus_core::api::Membership {
+                            entity,
+                            kind: kind.kind(),
+                            component: id.component(),
+                        },
+                    )
+                    .await
+                    .unwrap();
+            }
+            session
+                .transaction::<_, locus_store::api::StoreError, _>(|c| {
+                    Box::pin(async move {
+                        diesel::sql_query("UPDATE locus_images SET payload = 'invalid'")
+                            .execute(c.connection())
+                            .await?;
+                        Ok(())
+                    })
+                })
+                .await
+                .unwrap();
+            entity
+        })
+        .unwrap()
+        .result()
+        .await
+        .unwrap();
+    let entries = server.state.entity_media(entity).await.unwrap();
+    assert_eq!(entries.len(), 2);
+    assert_eq!(
+        entries
+            .iter()
+            .filter(|e| matches!(e.result, MediaEntryResult::Failed { .. }))
+            .count(),
+        1
+    );
+    assert_eq!(
+        entries
+            .iter()
+            .filter(|e| matches!(e.result, MediaEntryResult::Readable { .. }))
+            .count(),
+        1
+    );
+}

@@ -34,4 +34,6 @@ export function createLocusClient(context: BackendContext, fetch?: typeof global
 
 export type { components, paths } from "./schema.js";
 export type TaskSnapshot = components["schemas"]["TaskSnapshot"];
-export type ImportOutcome = components["schemas"]["ImportOutcome"];
+export type TaskOutcome = components["schemas"]["TaskOutcome"];
+/** Compatibility name; task results now also include Media operations. */
+export type ImportOutcome = TaskOutcome;

@@ -178,6 +178,18 @@ async fn cache_directory_redirect_rejects_reads_and_cleanup_before_touching_targ
     let (entity, id) = f.component(MediaKind::Image).await;
     let path = f.png("source", 16, 16);
     f.admit(&path, entity).await;
+    let produced = f
+        .media
+        .preview(
+            &f.kernel,
+            &f.files,
+            &mut f.session,
+            id,
+            Rendition { edge: 16 },
+        )
+        .await
+        .unwrap();
+    f.media.clear_cache().await.unwrap();
     let outside = f.directory.path().join("outside");
     std::fs::create_dir(&outside).unwrap();
     let sentinel = outside.join("media-keep.png");
@@ -195,6 +207,15 @@ async fn cache_directory_redirect_rejects_reads_and_cleanup_before_touching_targ
     }
     #[cfg(unix)]
     std::os::unix::fs::symlink(&outside, f.media.cache_root()).unwrap();
+    let media = f.media.clone();
+    locus_task::api::TaskQueue::new()
+        .submit("reject redirected read", move |task| async move {
+            assert!(media.open_preview(&task, &produced).await.is_err());
+        })
+        .unwrap()
+        .result()
+        .await
+        .unwrap();
     assert!(f.media.clear_cache().await.is_err());
     assert!(
         f.media
@@ -277,4 +298,47 @@ async fn image_output_limit_is_separate_from_accepted_basic_facts() {
     let record = f.media.read(&mut f.session, id).await.unwrap();
     assert!(record.facts.is_some());
     assert!(record.last_failure.is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn opening_produced_preview_rechecks_descriptor_boundary_and_never_regenerates() {
+    let mut f = Fixture::new().await;
+    let (entity, id) = f.component(MediaKind::Image).await;
+    let path = f.png("open-preview", 32, 20);
+    f.admit(&path, entity).await;
+    let preview = f
+        .media
+        .preview(
+            &f.kernel,
+            &f.files,
+            &mut f.session,
+            id,
+            Rendition { edge: 16 },
+        )
+        .await
+        .unwrap();
+    let path = preview.path.clone();
+    let media = f.media.clone();
+    let queue = locus_task::api::TaskQueue::new();
+    queue
+        .submit("open produced", move |task| async move {
+            let file = media.open_preview(&task, &preview).await.unwrap().unwrap();
+            assert!(file.metadata().unwrap().len() > 0);
+            drop(file);
+            let mut invalid = Preview {
+                path: preview.path.with_file_name("outside.png"),
+                ..preview
+            };
+            assert!(media.open_preview(&task, &invalid).await.is_err());
+            invalid.path = path.clone();
+            std::fs::remove_file(&path).unwrap();
+            assert!(media.open_preview(&task, &invalid).await.unwrap().is_none());
+            assert!(!path.exists());
+            std::fs::create_dir(&path).unwrap();
+            assert!(media.open_preview(&task, &invalid).await.is_err());
+        })
+        .unwrap()
+        .result()
+        .await
+        .unwrap();
 }

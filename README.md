@@ -10,20 +10,36 @@ The Rust workspace contains persistent identity, attachment, managed File, Image
 - `locus-file` owns UUIDv7 File records, managed copies, identified input access, and current entity/File input comparison.
 - `locus-media` owns separate Image/Video kinds, retained interpretations and warnings, explicit retry, derived previews/covers, and a common per-component read view.
 - `locus-twitter`, under `crates/provider`, owns independent Twitter snapshots, local validation, guarded File association and provider-specific reads.
-- `apps/server` owns the authenticated loopback Axum server, centralized HTTP/OpenAPI contract, and separate File/Media/Twitter/task backend examples. The server initializes only kernel/File storage; examples retain their broader domain compositions.
+- `apps/server` owns the authenticated loopback Axum server, centralized HTTP/OpenAPI contract, and separate File/Media/Twitter/task backend examples. The server composes kernel/File/Media on one task-bound database; examples also exercise Twitter.
 - `packages/locus-client` owns generated TypeScript declarations and a small `openapi-fetch` client factory, with no renderer framework or embedded credential.
 
 Intent discovery was deferred at the user's request so bootstrap could proceed. The current intent snapshot and its confirmation state are maintained in the independent local `project-doc` repository.
 
 ## Loopback server
 
-Run `just client-install` and `just server-smoke` for an isolated real-binary demonstration through the generated client. It imports synthetic files, reads metadata, recovers submissions, observes SSE, checks typed failures/restart/drain, and reports a bounded warm loopback latency sample. It never opens the default user library. The GPUI prototype has been removed; Electron, renderer/static delivery, dialogs and Media/Twitter HTTP adapters remain later work.
+Run `just client-install` and `just server-smoke` for an isolated real-binary demonstration through the generated client. It imports synthetic files, reads metadata, recovers submissions, observes SSE, checks typed failures/restart/drain, and reports a bounded warm loopback latency sample. It never opens the default user library. The GPUI prototype has been removed. Run `just server-media-smoke` for Image and `just server-video-smoke` with provisioned ffprobe/ffmpeg for Video, through PNG and original-byte retrieval. Electron, renderer/static delivery, dialogs and Twitter HTTP adaptation remain later work.
 
 `just server-run` (also `just rust-run`) expects a private stdin pipe containing one JSON object followed by EOF: a caller-created random temporary `credential` (32–256 ASCII token characters), and optional absolute `library_root`. The input is limited to 16 KiB. The server binds `127.0.0.1:0`, opens storage, and emits one stdout JSON readiness record with `origin` and fresh `run_id`; diagnostics use stderr. Credentials are never printed, persisted or placed in URLs. The host must create the credential and scope authorization to that exact origin; no desktop host is implemented here.
 
 All routes, including `/api/v1/openapi.json`, require `Authorization: Bearer …` and `X-Locus-Run`. Foreign Origin/Host headers are rejected, with no permissive CORS. Metadata reads use task-bound database coordination and return directly. File imports require a canonical UUID `request_id` and an absolute `source_path`, returning a public task receipt. Same-run identical redelivery recovers the receipt; conflicting arguments fail. Typed outcomes preserve File identity, copy progress, and commit uncertainty. Byte counts, progress units and revisions use exact decimal strings.
 
-Submission bindings and outcomes remain available throughout the run. Admission has no fixed request-count or active-operation quota; domain stages coordinate actual shared resources. Drain atomically closes new work, preserves observation/recovery while accepted imports and direct reads complete, then ends passive connections within a one-second flush window. Ctrl-C requests the same sequence. Restart uses a fresh run and does not replay or reconstruct tasks from durable File records.
+Submission bindings and outcomes remain available throughout the run. Admission has no fixed request-count or active-operation quota; domain stages coordinate actual shared resources. Drain atomically closes new work, preserves observation/recovery while accepted tasks, direct mutations and reads complete, then ends passive connections within a one-second flush window. Ctrl-C requests the same sequence. Restart uses a fresh run and does not replay or reconstruct tasks from durable domain records.
+
+Entity and Image/Video creation and exact membership mutations return direct,
+committed domain outcomes, retaining pending/completed/failed request recovery
+without entries in the public task list. Explicit interpretation and preview
+creation always return task receipts, including warnings, failures and cache hits.
+An accepted interpretation may retain a failure warning; inspect its result and
+record rather than treating task completion as decoding success. Reads never
+implicitly interpret or generate. `LOCUS_FFPROBE` / `LOCUS_FFMPEG` override the
+application's video tools; missing tools do not block startup, Image or reads.
+
+Authenticated GET/HEAD byte routes stream complete representations. Originals are
+`application/octet-stream` attachments and derived previews are `image/png`; both
+use `nosniff` and `no-store`. Range is ignored with a normal full response. Derived
+locators last only for their backend run, preserve the actual source File and
+rendition evidence, and do not pin cache bytes. Eviction returns unavailable;
+reading never regenerates. HTTP transfer retains no database stage.
 
 Use `just client-generate` to export OpenAPI and regenerate TypeScript, `just client-check` for positive/negative type checks, and `just client-drift` to verify deterministic checked-in output. Schema export (`just server-schema [path]`) does not open storage or require bootstrap/authentication. See [client and API usage](packages/locus-client/README.md) for routes, error/status behavior and SSE semantics.
 
@@ -70,7 +86,7 @@ location plus `Locus` on other platforms). Set `LOCUS_DATA_DIR` to use an isolat
 root. `ApplicationStorage::open(root)` accepts an injected root for composition
 and tests. It opens `metadata.sqlite`, registers File/Image/Video/Twitter owners and initializes
 their domain-owned schema versions. Run `just rust-run-backend` for the explicit
-console example; the server initializes only its consumed kernel/File schemas. Core schema
+console example; the server initializes its consumed kernel/File/Media schemas. Core schema
 2 upgrades unshared version-1 data
 atomically; a shared component produces `MigrationSharedComponent` without changing
 its data/schema. Resolving such legacy sharing requires an explicit decision.

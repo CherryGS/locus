@@ -128,7 +128,7 @@ pub(super) async fn method_not_allowed() -> ApiError {
     ApiError::new(ErrorCode::MethodNotAllowed, "Method not allowed")
 }
 
-fn canonical_id(id: &str) -> Result<uuid::Uuid, ApiError> {
+pub(crate) fn canonical_id(id: &str) -> Result<uuid::Uuid, ApiError> {
     let parsed = uuid::Uuid::parse_str(id)
         .map_err(|_| ApiError::invalid("Identity must be a canonical hyphenated UUID"))?;
     if parsed.to_string() != id {
@@ -138,7 +138,7 @@ fn canonical_id(id: &str) -> Result<uuid::Uuid, ApiError> {
     }
     Ok(parsed)
 }
-fn path_id(path: Result<Path<String>, PathRejection>) -> Result<String, ApiError> {
+pub(crate) fn path_id(path: Result<Path<String>, PathRejection>) -> Result<String, ApiError> {
     let Path(value) = path.map_err(|_| ApiError::invalid("Invalid path identity"))?;
     canonical_id(&value)?;
     Ok(value)

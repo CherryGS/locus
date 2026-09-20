@@ -386,7 +386,7 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
         locus_server::api::openapi().unwrap().to_json().unwrap()
     );
     let schema: Value = serde_json::from_str(&one).unwrap();
-    assert_eq!(schema["paths"].as_object().unwrap().len(), 9);
+    assert_eq!(schema["paths"].as_object().unwrap().len(), 21);
     assert_eq!(
         schema["paths"]["/api/v1/events"]["get"]["responses"]["200"]["content"]["text/event-stream"]
             ["schema"]["type"],
@@ -396,8 +396,13 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
         schema["components"]["schemas"]["FileMetadata"]["properties"]["byte_count"]["type"],
         "string"
     );
+    let mut operation_ids = std::collections::BTreeSet::new();
     for path in schema["paths"].as_object().unwrap().values() {
         for operation in path.as_object().unwrap().values() {
+            assert!(
+                operation_ids.insert(operation["operationId"].as_str().unwrap()),
+                "duplicate operation ID"
+            );
             assert!(operation["responses"]["401"].is_object());
             assert!(
                 operation["parameters"]

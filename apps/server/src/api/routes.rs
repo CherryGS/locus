@@ -1,4 +1,4 @@
-use super::{auth, dto::*, error::ApiError, handlers};
+use super::{auth, bytes, dto::*, error::ApiError, handlers, media_handlers};
 use crate::runtime::Shared;
 use axum::{Router, middleware, response::IntoResponse, routing::get};
 use std::sync::Arc;
@@ -16,12 +16,24 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 #[derive(OpenApi)]
 #[openapi(
     info(title = "Locus loopback API", version = "1.0.0"),
-    components(schemas(ApiError, TaskSnapshot, ImportOutcome))
+    components(schemas(ApiError, TaskSnapshot, TaskOutcome))
 )]
 struct Contract;
 
 fn registered() -> OpenApiRouter<Arc<Shared>> {
     OpenApiRouter::with_openapi(Contract::openapi())
+        .routes(routes!(media_handlers::create_entity))
+        .routes(routes!(media_handlers::create_media))
+        .routes(routes!(media_handlers::attach))
+        .routes(routes!(media_handlers::detach))
+        .routes(routes!(media_handlers::memberships))
+        .routes(routes!(media_handlers::entity_media))
+        .routes(routes!(media_handlers::read))
+        .routes(routes!(media_handlers::view))
+        .routes(routes!(media_handlers::interpret))
+        .routes(routes!(media_handlers::preview))
+        .routes(routes!(bytes::original, bytes::original_head))
+        .routes(routes!(bytes::preview, bytes::preview_head))
         .routes(routes!(handlers::status))
         .routes(routes!(handlers::import))
         .routes(routes!(handlers::read))
@@ -45,6 +57,30 @@ pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
         "bearer",
         std::iter::empty::<&str>(),
     )]);
+    // OpenAPI's binary string describes bytes, not a JSON array of integers.
+    for (path, mime) in [
+        ("/api/v1/files/{file_id}/bytes", "application/octet-stream"),
+        ("/api/v1/previews/{locator}/bytes", "image/png"),
+    ] {
+        if let Some(operation) = document
+            .paths
+            .paths
+            .get_mut(path)
+            .and_then(|p| p.get.as_mut())
+            && let Some(RefOr::T(response)) = operation.responses.responses.get_mut("200")
+            && let Some(content) = response.content.get_mut(mime)
+        {
+            content.schema = Some(
+                openapi::ObjectBuilder::new()
+                    .schema_type(openapi::Type::String)
+                    .format(Some(openapi::SchemaFormat::KnownFormat(
+                        openapi::KnownFormat::Binary,
+                    )))
+                    .build()
+                    .into(),
+            );
+        }
+    }
     for item in document.paths.paths.values_mut() {
         for operation in [
             &mut item.get,

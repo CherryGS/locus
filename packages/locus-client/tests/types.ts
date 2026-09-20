@@ -16,11 +16,11 @@ async function contracts() {
   // @ts-expect-error File metadata lookup still requires its path identity.
   await client.GET("/api/v1/files/{file_id}");
   const file: components["schemas"]["FileMetadata"] = {
-    file_id: "id", relative_path: "object/id",
+    file_id: "id", kind_id: "kind", relative_path: "object/id",
     // @ts-expect-error Exact byte counts are decimal strings.
     byte_count: 9007199254740993,
   };
-  const outcome = {} as components["schemas"]["ImportOutcome"];
+  const outcome = {} as components["schemas"]["TaskOutcome"];
   if (outcome.status === "failed") {
     // @ts-expect-error Failed admission does not imply a successful File record.
     console.log(outcome.file);

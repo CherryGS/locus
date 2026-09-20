@@ -19,6 +19,9 @@ pub enum ErrorCode {
     UnknownRequest,
     UnknownTask,
     MissingFile,
+    MissingBytes,
+    AccessDenied,
+    PreviewUnavailable,
     OperationFailed,
     NotFound,
     MethodNotAllowed,
@@ -28,6 +31,8 @@ pub enum ErrorCode {
 pub struct ApiError {
     pub code: ErrorCode,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diagnostic: Option<super::media_dto::DomainDiagnostic>,
 }
 
 impl ApiError {
@@ -35,6 +40,14 @@ impl ApiError {
         Self {
             code,
             message: message.into(),
+            diagnostic: None,
+        }
+    }
+    pub(crate) fn domain(diagnostic: super::media_dto::DomainDiagnostic) -> Self {
+        Self {
+            code: ErrorCode::OperationFailed,
+            message: "Domain operation failed".into(),
+            diagnostic: Some(diagnostic),
         }
     }
     pub(crate) fn invalid(message: impl Into<String>) -> Self {
@@ -43,7 +56,7 @@ impl ApiError {
     pub(crate) fn status(&self) -> StatusCode {
         match self.code {
             ErrorCode::Unauthorized => StatusCode::UNAUTHORIZED,
-            ErrorCode::ForeignOrigin => StatusCode::FORBIDDEN,
+            ErrorCode::ForeignOrigin | ErrorCode::AccessDenied => StatusCode::FORBIDDEN,
             ErrorCode::WrongRun | ErrorCode::RequestConflict => StatusCode::CONFLICT,
             ErrorCode::InvalidRequest => StatusCode::BAD_REQUEST,
             ErrorCode::AdmissionClosed | ErrorCode::LaunchRejected => {
@@ -51,6 +64,8 @@ impl ApiError {
             }
             ErrorCode::UnknownRequest
             | ErrorCode::UnknownTask
+            | ErrorCode::MissingBytes
+            | ErrorCode::PreviewUnavailable
             | ErrorCode::MissingFile
             | ErrorCode::NotFound => StatusCode::NOT_FOUND,
             ErrorCode::OperationFailed => StatusCode::INTERNAL_SERVER_ERROR,

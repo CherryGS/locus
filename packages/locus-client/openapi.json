@@ -107,6 +107,332 @@
         }
       }
     },
+    "/api/v1/entities": {
+      "post": {
+        "operationId": "create_entity",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestIdentity"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entities/{entity_id}/media": {
+      "get": {
+        "operationId": "entity_media",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MediaEntry"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entities/{entity_id}/memberships": {
+      "get": {
+        "operationId": "memberships",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Membership"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/events": {
       "get": {
         "summary": "SSE `snapshot` events contain complete TaskSnapshot JSON, not a JSON response.",
@@ -322,6 +648,230 @@
         }
       }
     },
+    "/api/v1/files/{file_id}/bytes": {
+      "get": {
+        "operationId": "read_original_bytes",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete original attachment. Range is ignored. Length is from the opened file.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "head": {
+        "operationId": "original_head",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Same representation headers as GET; no body"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/imports": {
       "post": {
         "operationId": "import",
@@ -379,6 +929,998 @@
           },
           "403": {
             "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/interpretations": {
+      "post": {
+        "operationId": "interpret",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterpretRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media": {
+      "post": {
+        "operationId": "create_media",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMedia"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/{kind}/{component_id}": {
+      "get": {
+        "operationId": "read_media",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MediaKind"
+            }
+          },
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/{kind}/{component_id}/view": {
+      "get": {
+        "operationId": "view_media",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MediaKind"
+            }
+          },
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memberships/attach": {
+      "post": {
+        "operationId": "attach",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeMembership"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memberships/detach": {
+      "post": {
+        "operationId": "detach",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeMembership"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/previews": {
+      "post": {
+        "operationId": "generate_preview",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/previews/{locator}/bytes": {
+      "get": {
+        "operationId": "read_preview_bytes",
+        "parameters": [
+          {
+            "name": "locator",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Already-produced PNG. Run-scoped locator does not pin bytes and never regenerates. Range is ignored.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "head": {
+        "operationId": "preview_head",
+        "parameters": [
+          {
+            "name": "locator",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Same representation headers as GET; no body"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -995,10 +2537,167 @@
           "code": {
             "$ref": "#/components/schemas/ErrorCode"
           },
+          "diagnostic": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DomainDiagnostic"
+              }
+            ]
+          },
           "message": {
             "type": "string"
           }
         }
+      },
+      "Applicability": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unmounted"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "file_id",
+              "status"
+            ],
+            "properties": {
+              "file_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "matching"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "basis",
+              "current",
+              "status"
+            ],
+            "properties": {
+              "basis": {
+                "type": "string"
+              },
+              "current": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "current",
+              "status"
+            ],
+            "properties": {
+              "basis": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "current": {
+                "$ref": "#/components/schemas/CurrentInput"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "incomplete"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "status"
+            ],
+            "properties": {
+              "diagnostic": {
+                "$ref": "#/components/schemas/DomainDiagnostic"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "error"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "AttemptCode": {
+        "type": "string",
+        "enum": [
+          "missing_input",
+          "file_access",
+          "unsupported_input",
+          "decode",
+          "limit",
+          "timeout",
+          "tool_unavailable",
+          "tool_failure",
+          "malformed_output",
+          "no_frame",
+          "worker"
+        ]
+      },
+      "AttemptFailure": {
+        "type": "object",
+        "required": [
+          "code",
+          "detail"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/AttemptCode"
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      },
+      "ChangeMembership": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "membership"
+        ],
+        "properties": {
+          "membership": {
+            "$ref": "#/components/schemas/Membership"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "CopyProgress": {
         "type": "object",
@@ -1027,6 +2726,236 @@
           }
         }
       },
+      "CoreFailure": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "missing_entity"
+                ]
+              },
+              "entity_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component_id",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "missing_component"
+                ]
+              },
+              "component_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component_id",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "slot_occupied"
+                ]
+              },
+              "component_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "membership",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "attachment_occupied"
+                ]
+              },
+              "membership": {
+                "$ref": "#/components/schemas/Membership"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component_id",
+              "actual",
+              "requested",
+              "code"
+            ],
+            "properties": {
+              "actual": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "kind_mismatch"
+                ]
+              },
+              "component_id": {
+                "type": "string"
+              },
+              "requested": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind_id",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "unavailable_kind"
+                ]
+              },
+              "kind_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "store"
+                ]
+              },
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "other"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "CreateMedia": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/MediaKind"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CurrentInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "file_id",
+              "status"
+            ],
+            "properties": {
+              "file_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "file"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "status"
+            ],
+            "properties": {
+              "entity_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "missing_entity"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "status"
+            ],
+            "properties": {
+              "entity_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "missing_slot"
+                ]
+              }
+            }
+          }
+        ]
+      },
       "Diagnostic": {
         "type": "object",
         "required": [
@@ -1042,6 +2971,107 @@
           }
         }
       },
+      "DomainDiagnostic": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "owner"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/CoreFailure"
+              },
+              "owner": {
+                "type": "string",
+                "enum": [
+                  "core"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "owner"
+            ],
+            "properties": {
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              },
+              "owner": {
+                "type": "string",
+                "enum": [
+                  "file"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "owner"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/MediaFailure"
+              },
+              "owner": {
+                "type": "string",
+                "enum": [
+                  "media"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "owner"
+            ],
+            "properties": {
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              },
+              "owner": {
+                "type": "string",
+                "enum": [
+                  "store"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "owner"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string",
+                "enum": [
+                  "executor"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Typed failures retain the owner boundary, including nested commit uncertainty."
+      },
+      "DurationPrecision": {
+        "type": "string",
+        "enum": [
+          "unknown"
+        ]
+      },
       "ErrorCode": {
         "type": "string",
         "enum": [
@@ -1055,6 +3085,9 @@
           "unknown_request",
           "unknown_task",
           "missing_file",
+          "missing_bytes",
+          "access_denied",
+          "preview_unavailable",
           "operation_failed",
           "not_found",
           "method_not_allowed"
@@ -1078,6 +3111,7 @@
         "type": "object",
         "required": [
           "file_id",
+          "kind_id",
           "relative_path",
           "byte_count"
         ],
@@ -1089,59 +3123,21 @@
           "file_id": {
             "type": "string"
           },
+          "kind_id": {
+            "type": "string"
+          },
           "relative_path": {
             "type": "string"
           }
         }
       },
-      "ImportOutcome": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "file",
-              "status"
-            ],
-            "properties": {
-              "file": {
-                "$ref": "#/components/schemas/FileMetadata"
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "imported"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "diagnostic",
-              "status"
-            ],
-            "properties": {
-              "diagnostic": {
-                "$ref": "#/components/schemas/Diagnostic"
-              },
-              "progress": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/CopyProgress"
-                  }
-                ]
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "failed"
-                ]
-              }
-            }
-          }
+      "ImageFormat": {
+        "type": "string",
+        "enum": [
+          "png",
+          "jpeg",
+          "web_p",
+          "gif"
         ]
       },
       "ImportRequest": {
@@ -1162,6 +3158,572 @@
           }
         },
         "additionalProperties": false
+      },
+      "InterpretRequest": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "target"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/components/schemas/MediaTarget"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Interpretation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "record",
+              "status"
+            ],
+            "properties": {
+              "record": {
+                "$ref": "#/components/schemas/MediaRecord"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "accepted"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "rejected_context_changed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "rejected_newer_attempt"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "MediaEntry": {
+        "type": "object",
+        "required": [
+          "membership",
+          "result"
+        ],
+        "properties": {
+          "membership": {
+            "$ref": "#/components/schemas/Membership"
+          },
+          "result": {
+            "$ref": "#/components/schemas/MediaEntryResult"
+          }
+        }
+      },
+      "MediaEntryResult": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "view",
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "readable"
+                ]
+              },
+              "view": {
+                "$ref": "#/components/schemas/MediaView"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "status"
+            ],
+            "properties": {
+              "diagnostic": {
+                "$ref": "#/components/schemas/DomainDiagnostic"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "MediaFacts": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "format",
+              "width",
+              "height",
+              "kind"
+            ],
+            "properties": {
+              "format": {
+                "$ref": "#/components/schemas/ImageFormat"
+              },
+              "height": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "image"
+                ]
+              },
+              "width": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "container",
+              "stream_index",
+              "kind"
+            ],
+            "properties": {
+              "codec": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "container": {
+                "type": "string"
+              },
+              "duration": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StreamDuration"
+                  }
+                ]
+              },
+              "height": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "minimum": 0
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "video"
+                ]
+              },
+              "stream_index": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              },
+              "width": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          }
+        ]
+      },
+      "MediaFailure": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "core"
+                ]
+              },
+              "error": {
+                "$ref": "#/components/schemas/CoreFailure"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "file"
+                ]
+              },
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "store"
+                ]
+              },
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "target",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "missing_record"
+                ]
+              },
+              "target": {
+                "$ref": "#/components/schemas/MediaTarget"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "failure",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "attempt"
+                ]
+              },
+              "failure": {
+                "$ref": "#/components/schemas/AttemptFailure"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "cache"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "preview_access"
+                ]
+              },
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "other"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "MediaKind": {
+        "type": "string",
+        "enum": [
+          "image",
+          "video"
+        ]
+      },
+      "MediaRecord": {
+        "type": "object",
+        "required": [
+          "target",
+          "revision"
+        ],
+        "properties": {
+          "basis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "facts": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MediaFacts"
+              }
+            ]
+          },
+          "last_failure": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AttemptFailure"
+              }
+            ]
+          },
+          "revision": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/components/schemas/MediaTarget"
+          }
+        }
+      },
+      "MediaTarget": {
+        "type": "object",
+        "required": [
+          "kind",
+          "component_id"
+        ],
+        "properties": {
+          "component_id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MediaKind"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MediaView": {
+        "type": "object",
+        "required": [
+          "record",
+          "applicability"
+        ],
+        "properties": {
+          "applicability": {
+            "$ref": "#/components/schemas/Applicability"
+          },
+          "record": {
+            "$ref": "#/components/schemas/MediaRecord"
+          }
+        }
+      },
+      "Membership": {
+        "type": "object",
+        "required": [
+          "entity_id",
+          "kind_id",
+          "component_id"
+        ],
+        "properties": {
+          "component_id": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "kind_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MutationOutcome": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "status"
+            ],
+            "properties": {
+              "entity_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "entity_created"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "target",
+              "kind_id",
+              "status"
+            ],
+            "properties": {
+              "kind_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "media_created"
+                ]
+              },
+              "target": {
+                "$ref": "#/components/schemas/MediaTarget"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "attached"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "already_attached"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "removed",
+              "status"
+            ],
+            "properties": {
+              "removed": {
+                "type": "boolean"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "detached"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "status"
+            ],
+            "properties": {
+              "diagnostic": {
+                "$ref": "#/components/schemas/DomainDiagnostic"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              }
+            }
+          }
+        ]
       },
       "OutcomeResponse": {
         "oneOf": [
@@ -1187,7 +3749,7 @@
             ],
             "properties": {
               "outcome": {
-                "$ref": "#/components/schemas/ImportOutcome"
+                "$ref": "#/components/schemas/TaskOutcome"
               },
               "status": {
                 "type": "string",
@@ -1198,6 +3760,73 @@
             }
           }
         ]
+      },
+      "PreviewMetadata": {
+        "type": "object",
+        "required": [
+          "locator",
+          "file_id",
+          "kind",
+          "edge",
+          "origin"
+        ],
+        "properties": {
+          "edge": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "file_id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MediaKind"
+          },
+          "locator": {
+            "type": "string",
+            "description": "Run-scoped opaque locator; does not pin cache bytes. GET never regenerates."
+          },
+          "origin": {
+            "$ref": "#/components/schemas/PreviewOrigin"
+          },
+          "stream_index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "PreviewOrigin": {
+        "type": "string",
+        "enum": [
+          "hit",
+          "generated"
+        ]
+      },
+      "PreviewRequest": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "target",
+          "edge"
+        ],
+        "properties": {
+          "edge": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/components/schemas/MediaTarget"
+          }
+        },
+        "additionalProperties": false
       },
       "PublicTask": {
         "type": "object",
@@ -1280,6 +3909,18 @@
           }
         }
       },
+      "RequestIdentity": {
+        "type": "object",
+        "required": [
+          "request_id"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ServerStatus": {
         "type": "object",
         "required": [
@@ -1297,6 +3938,22 @@
           },
           "run_id": {
             "type": "string"
+          }
+        }
+      },
+      "StreamDuration": {
+        "type": "object",
+        "required": [
+          "seconds",
+          "precision"
+        ],
+        "properties": {
+          "precision": {
+            "$ref": "#/components/schemas/DurationPrecision"
+          },
+          "seconds": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -1334,6 +3991,142 @@
                 "type": "string",
                 "enum": [
                   "rejected"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "direct_pending"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "outcome",
+              "status"
+            ],
+            "properties": {
+              "outcome": {
+                "$ref": "#/components/schemas/MutationOutcome"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "direct_complete"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "TaskOutcome": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "result",
+              "status"
+            ],
+            "properties": {
+              "result": {
+                "$ref": "#/components/schemas/Interpretation"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "interpreted"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "preview",
+              "status"
+            ],
+            "properties": {
+              "preview": {
+                "$ref": "#/components/schemas/PreviewMetadata"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "preview"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "status"
+            ],
+            "properties": {
+              "diagnostic": {
+                "$ref": "#/components/schemas/DomainDiagnostic"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "media_failed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "file",
+              "status"
+            ],
+            "properties": {
+              "file": {
+                "$ref": "#/components/schemas/FileMetadata"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "imported"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "status"
+            ],
+            "properties": {
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              },
+              "progress": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CopyProgress"
+                  }
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "failed"
                 ]
               }
             }

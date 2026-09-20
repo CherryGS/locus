@@ -799,6 +799,7 @@ dependencies = [
  "async-stream",
  "axum",
  "diesel",
+ "diesel-async",
  "directories",
  "futures-core",
  "http-body-util",

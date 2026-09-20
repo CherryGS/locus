@@ -24,12 +24,12 @@ impl ServerConfig {
     }
 }
 pub(crate) struct Binding {
-    pub arguments: ImportRequest,
+    pub arguments: super::submissions::Arguments,
     pub result: Submission,
 }
 pub(crate) struct Entry {
     pub projection: PublicTask,
-    pub outcome: Option<ImportOutcome>,
+    pub outcome: Option<TaskOutcome>,
 }
 pub(crate) struct Registry {
     pub open: bool,
@@ -37,6 +37,7 @@ pub(crate) struct Registry {
     pub revision: u64,
     pub requests: BTreeMap<String, Binding>,
     pub tasks: BTreeMap<String, Entry>,
+    pub previews: BTreeMap<String, std::sync::Arc<locus_media::api::Preview>>,
     #[cfg(test)]
     pub reject_next_launch: bool,
 }
@@ -157,7 +158,7 @@ impl Shared {
             self.changed(&mut registry);
         }
     }
-    pub fn finish(&self, id: &str, outcome: ImportOutcome) {
+    pub fn finish(&self, id: &str, outcome: TaskOutcome) {
         let mut registry = self.lock();
         if let Some(entry) = registry.tasks.get_mut(id) {
             entry.outcome = Some(outcome);
@@ -181,6 +182,7 @@ pub(crate) fn initial_registry() -> Registry {
         revision: 0,
         requests: BTreeMap::new(),
         tasks: BTreeMap::new(),
+        previews: BTreeMap::new(),
         #[cfg(test)]
         reject_next_launch: false,
     }

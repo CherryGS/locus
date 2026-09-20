@@ -19,17 +19,18 @@ locus-task.workspace = true
 locus-core.workspace = true
 locus-store.workspace = true
 locus-file.workspace = true
+locus-media.workspace = true
 directories.workspace = true
-tokio = { workspace = true, features = ["net", "signal"] }
+tokio = { workspace = true, features = ["net", "signal", "fs"] }
 
 [dev-dependencies]
 image.workspace = true
-locus-media.workspace = true
 locus-twitter.workspace = true
 tempfile.workspace = true
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
 diesel.workspace = true
+diesel-async.workspace = true
 
 [[example]]
 name = "file-backend"

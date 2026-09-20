@@ -100,3 +100,10 @@ client-drift: server-build
 
 server-smoke: server-build client-check
     {{ npm }} --prefix packages/locus-client run smoke
+
+# Explicit actual Image and provisioned Video HTTP/generated-client consumers.
+server-media-smoke: server-build client-check
+    {{ npm }} --prefix packages/locus-client run smoke:media
+
+server-video-smoke: server-build client-check
+    {{ npm }} --prefix packages/locus-client run smoke:video
