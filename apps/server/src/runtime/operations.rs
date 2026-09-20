@@ -12,7 +12,7 @@ use tokio::sync::oneshot;
 impl Shared {
     pub fn import(self: &Arc<Self>, request: ImportRequest) -> Result<Receipt, ApiError> {
         let mut registry = self.lock();
-        // Existing bindings survive the close/capacity gate and are never evicted.
+        // Existing bindings remain recoverable after admission closes.
         if let Some(binding) = registry.requests.get(&request.request_id) {
             if binding.arguments != request {
                 return Err(ApiError::new(
@@ -26,12 +26,6 @@ impl Shared {
             };
         }
         self.admit(&mut registry)?;
-        if registry.requests.len() >= self.max_requests {
-            return Err(ApiError::new(
-                ErrorCode::Capacity,
-                "Run request retention limit reached; earlier recovery state is retained",
-            ));
-        }
         let receipt = Receipt {
             run_id: self.run_id.clone(),
             request_id: request.request_id.clone(),

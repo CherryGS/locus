@@ -84,16 +84,6 @@
               }
             }
           },
-          "429": {
-            "description": "Resource limit; no new claim",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "Operation failure",
             "content": {
@@ -185,16 +175,6 @@
           },
           "409": {
             "description": "Wrong run or conflicting request ID",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Resource limit; no new claim",
             "content": {
               "application/json": {
                 "schema": {
@@ -319,16 +299,6 @@
               }
             }
           },
-          "429": {
-            "description": "Resource limit; no new claim",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "Operation failure",
             "content": {
@@ -429,16 +399,6 @@
           },
           "409": {
             "description": "Wrong run or conflicting request ID",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Resource limit; no new claim",
             "content": {
               "application/json": {
                 "schema": {
@@ -563,16 +523,6 @@
               }
             }
           },
-          "429": {
-            "description": "Resource limit; no new claim",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "Operation failure",
             "content": {
@@ -671,16 +621,6 @@
               }
             }
           },
-          "429": {
-            "description": "Resource limit; no new claim",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "Operation failure",
             "content": {
@@ -771,16 +711,6 @@
           },
           "409": {
             "description": "Wrong run or conflicting request ID",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Resource limit; no new claim",
             "content": {
               "application/json": {
                 "schema": {
@@ -905,16 +835,6 @@
               }
             }
           },
-          "429": {
-            "description": "Resource limit; no new claim",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "Operation failure",
             "content": {
@@ -1031,16 +951,6 @@
               }
             }
           },
-          "429": {
-            "description": "Resource limit; no new claim",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "Operation failure",
             "content": {
@@ -1141,7 +1051,6 @@
           "invalid_request",
           "request_conflict",
           "admission_closed",
-          "capacity",
           "launch_rejected",
           "unknown_request",
           "unknown_task",

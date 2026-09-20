@@ -70,7 +70,6 @@ pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
                 (403, "Foreign origin or host"),
                 (405, "Method not allowed"),
                 (409, "Wrong run or conflicting request ID"),
-                (429, "Resource limit; no new claim"),
                 (500, "Operation failure"),
                 (503, "Admission closed or retained launch rejection"),
             ] {

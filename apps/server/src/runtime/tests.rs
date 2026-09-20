@@ -1,15 +1,14 @@
 use super::{Server, ServerConfig};
 use crate::api::{dto::*, error::ErrorCode};
 use std::sync::Arc;
-use tokio::sync::{Barrier, oneshot};
+use tokio::sync::{Barrier, oneshot, watch};
 
-async fn app(max_requests: usize) -> (tempfile::TempDir, Server) {
+async fn app() -> (tempfile::TempDir, Server) {
     let root = tempfile::tempdir().unwrap();
-    let mut config = ServerConfig::new(
+    let config = ServerConfig::new(
         "test-credential-with-at-least-32-characters".into(),
         root.path().join("library"),
     );
-    config.max_requests = max_requests;
     (root, Server::bind(config).await.unwrap())
 }
 fn request(path: &std::path::Path) -> ImportRequest {
@@ -34,8 +33,8 @@ async fn terminal(state: &Arc<super::Shared>, id: &str) -> ImportOutcome {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn duplicate_claim_conflict_and_capacity_retain_one_real_copy() {
-    let (root, server) = app(1).await;
+async fn duplicate_claim_conflict_and_recovery_retain_one_real_copy() {
+    let (root, server) = app().await;
     let source = root.path().join("original.bin");
     std::fs::write(&source, b"retained original").unwrap();
     let submission = request(&source);
@@ -60,10 +59,6 @@ async fn duplicate_claim_conflict_and_capacity_retain_one_real_copy() {
         server.state.import(conflict).unwrap_err().code,
         ErrorCode::RequestConflict
     );
-    assert_eq!(
-        server.state.import(request(&source)).unwrap_err().code,
-        ErrorCode::Capacity
-    );
     let ImportOutcome::Imported { file } = terminal(&server.state, &first.task_id).await else {
         panic!("import failed")
     };
@@ -84,7 +79,7 @@ async fn duplicate_claim_conflict_and_capacity_retain_one_real_copy() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn claimed_launch_rejection_is_definite_and_recoverable() {
-    let (root, server) = app(1).await;
+    let (root, server) = app().await;
     server.state.lock().reject_next_launch = true;
     let submission = request(&root.path().join("not-executed"));
     let error = server.state.import(submission.clone()).unwrap_err();
@@ -100,7 +95,7 @@ async fn claimed_launch_rejection_is_definite_and_recoverable() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn direct_response_loss_drain_waits_for_blocking_worker_and_between_stages() {
-    let (_root, server) = app(8).await;
+    let (_root, server) = app().await;
     let (started_tx, started_rx) = oneshot::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     let (between_tx, between_rx) = oneshot::channel();
@@ -138,7 +133,7 @@ async fn direct_response_loss_drain_waits_for_blocking_worker_and_between_stages
 
 #[tokio::test(flavor = "multi_thread")]
 async fn abandoned_body_still_waits_for_actual_protected_worker() {
-    let (_root, server) = app(8).await;
+    let (_root, server) = app().await;
     let (started_tx, started_rx) = oneshot::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     drop(
@@ -162,7 +157,7 @@ async fn abandoned_body_still_waits_for_actual_protected_worker() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn read_uses_shared_database_gate_and_survives_handler_loss() {
-    let (root, server) = app(8).await;
+    let (root, server) = app().await;
     let source = root.path().join("original");
     std::fs::write(&source, b"db").unwrap();
     let receipt = server.state.import(request(&source)).unwrap();
@@ -212,7 +207,7 @@ async fn read_uses_shared_database_gate_and_survives_handler_loss() {
 #[tokio::test(flavor = "multi_thread")]
 async fn concurrent_close_and_new_claim_have_one_atomic_order() {
     for _ in 0..12 {
-        let (root, server) = app(4).await;
+        let (root, server) = app().await;
         let submission = request(&root.path().join("missing"));
         let barrier = Arc::new(Barrier::new(3));
         let (state, start, input) = (server.state.clone(), barrier.clone(), submission.clone());
@@ -244,7 +239,7 @@ async fn concurrent_close_and_new_claim_have_one_atomic_order() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn queued_public_import_remains_recoverable_during_drain() {
-    let (root, server) = app(8).await;
+    let (root, server) = app().await;
     let source = root.path().join("queued-original");
     std::fs::write(&source, b"queued").unwrap();
     let database = server.state.domain.database.clone();
@@ -295,35 +290,72 @@ async fn queued_public_import_remains_recoverable_during_drain() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn active_capacity_rejection_does_not_claim_or_evict_recovery() {
-    let root = tempfile::tempdir().unwrap();
-    let mut config = ServerConfig::new(
-        "capacity-test-credential-at-least-32-characters".into(),
-        root.path().join("library"),
-    );
-    config.max_active_operations = 1;
-    let server = Server::bind(config).await.unwrap();
-    let submission = request(&root.path().join("missing"));
+async fn active_work_does_not_impose_a_count_barrier_on_import_or_drain() {
+    let (root, server) = app().await;
+    let (release, waiting) = watch::channel(false);
+    let mut active = Vec::new();
+    // Exceed the removed 64-operation cap while keeping actual work alive.
+    for _ in 0..65 {
+        let mut waiting = waiting.clone();
+        active.push(
+            server
+                .state
+                .direct("wait for release", move |_| async move {
+                    waiting.wait_for(|released| *released).await.unwrap();
+                })
+                .unwrap(),
+        );
+    }
+    assert_eq!(server.state.status().active_operations, "65");
+    let source = root.path().join("original");
+    std::fs::write(&source, b"accepted while busy").unwrap();
+    let submission = request(&source);
     let receipt = server.state.import(submission.clone()).unwrap();
-    terminal(&server.state, &receipt.task_id).await;
-    let (release_tx, release_rx) = oneshot::channel();
-    let direct = server
-        .state
-        .direct("hold admission", move |_| async move {
-            release_rx.await.unwrap();
-        })
-        .unwrap();
-    let later = request(&root.path().join("later"));
-    assert_eq!(
-        server.state.import(later.clone()).unwrap_err().code,
-        ErrorCode::Capacity
-    );
-    assert_eq!(
-        server.state.submission(&later.request_id).unwrap_err().code,
-        ErrorCode::UnknownRequest
-    );
+    assert!(matches!(
+        terminal(&server.state, &receipt.task_id).await,
+        ImportOutcome::Imported { .. }
+    ));
+    assert_eq!(server.state.close().admission, AdmissionState::Draining);
     assert_eq!(server.state.import(submission).unwrap(), receipt);
-    release_tx.send(()).unwrap();
-    direct.await.unwrap().unwrap();
+    release.send(true).unwrap();
+    for operation in active {
+        operation.await.unwrap().unwrap();
+    }
+    server.state.wait_drained().await;
+    assert_eq!(server.state.status().active_operations, "0");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn imports_continue_beyond_old_retention_cap_without_losing_prior_results() {
+    let (root, server) = app().await;
+    let source = root.path().join("original");
+    std::fs::write(&source, b"small import").unwrap();
+    let first_request = request(&source);
+    let first = server.state.import(first_request.clone()).unwrap();
+    let first_outcome = terminal(&server.state, &first.task_id).await;
+    assert!(matches!(first_outcome, ImportOutcome::Imported { .. }));
+    // Exercise real copy/registration past the former cumulative limit. Completed
+    // submissions stay recoverable without preventing another deliberate import.
+    tokio::time::timeout(std::time::Duration::from_secs(60), async {
+        for _ in 0..1024 {
+            let receipt = server.state.import(request(&source)).unwrap();
+            assert!(matches!(
+                terminal(&server.state, &receipt.task_id).await,
+                ImportOutcome::Imported { .. }
+            ));
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(server.state.snapshot().tasks.len(), 1025);
+    assert_eq!(server.state.import(first_request).unwrap(), first);
+    assert_eq!(
+        server.state.outcome(&first.task_id).unwrap(),
+        OutcomeResponse::Complete {
+            outcome: first_outcome
+        }
+    );
+    assert_eq!(std::fs::read(source).unwrap(), b"small import");
     server.close_admission();
+    server.state.wait_drained().await;
 }

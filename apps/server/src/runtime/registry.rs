@@ -14,16 +14,12 @@ use tokio::sync::watch;
 pub struct ServerConfig {
     pub credential: String,
     pub library_root: PathBuf,
-    pub max_requests: usize,
-    pub max_active_operations: usize,
 }
 impl ServerConfig {
     pub fn new(credential: String, library_root: PathBuf) -> Self {
         Self {
             credential,
             library_root,
-            max_requests: 1024,
-            max_active_operations: 64,
         }
     }
 }
@@ -50,8 +46,6 @@ pub(crate) struct Shared {
     pub run_id: String,
     pub queue: TaskQueue,
     pub domain: super::composition::Domain,
-    pub max_requests: usize,
-    pub max_active: usize,
     pub registry: Mutex<Registry>,
     pub changes: watch::Sender<u64>,
     pub drained: watch::Sender<bool>,
@@ -95,12 +89,6 @@ impl Shared {
             return Err(ApiError::new(
                 ErrorCode::AdmissionClosed,
                 "New work is closed; existing submissions remain recoverable during drain",
-            ));
-        }
-        if registry.active >= self.max_active {
-            return Err(ApiError::new(
-                ErrorCode::Capacity,
-                "Active operation limit reached",
             ));
         }
         Ok(())

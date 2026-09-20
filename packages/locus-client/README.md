@@ -47,7 +47,7 @@ unmodified and exported, including the full required header contract.
 
 Transport errors use `ApiError`: 400 invalid input; 401 authorization; 403 foreign
 origin/host; 409 wrong run or conflicting request; 404 unknown request/task,
-missing File, or route; 405 unsupported method; 429 capacity; 503 closed admission
+missing File, or route; 405 unsupported method; 503 closed admission
 or definite launch rejection; 500 direct operation failure. Malformed JSON and
 oversized import bodies produce 400 before claiming work. An accepted import may
 finish with `ImportOutcome.status = "failed"` despite a successful HTTP query:
@@ -56,11 +56,11 @@ have no progress; this is unknown information, not zero work or proof of rollbac
 `commit_outcome_unknown` preserves the existing store/domain uncertainty. File
 identities and relative locations remain available on admission failure when known.
 
-Task/request state lasts through this backend run only. New admissions are
-bounded (default 1,024 retained requests, 64 active operations); recovery bindings
-are never evicted to admit later work. Existing binding lookup precedes drain and
-capacity checks. A wrong run or unknown task after restart does not prove absent
-durable effects. File records persist; tasks are neither replayed nor reconstructed.
+Task/request state lasts through this backend run only. Admission has no fixed
+request-count or active-operation quota, and recovery bindings remain available
+throughout the run. Existing binding lookup precedes the drain gate. A wrong run
+or unknown task after restart does not prove absent durable effects. File records
+persist; tasks are neither replayed nor reconstructed.
 
 SSE is a `text/event-stream` response, not one JSON `TaskSnapshot`. Each `snapshot`
 event has a decimal revision in `id` and complete `TaskSnapshot` JSON in `data`.

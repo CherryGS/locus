@@ -15,7 +15,6 @@ pub enum ErrorCode {
     InvalidRequest,
     RequestConflict,
     AdmissionClosed,
-    Capacity,
     LaunchRejected,
     UnknownRequest,
     UnknownTask,
@@ -50,7 +49,6 @@ impl ApiError {
             ErrorCode::AdmissionClosed | ErrorCode::LaunchRejected => {
                 StatusCode::SERVICE_UNAVAILABLE
             }
-            ErrorCode::Capacity => StatusCode::TOO_MANY_REQUESTS,
             ErrorCode::UnknownRequest
             | ErrorCode::UnknownTask
             | ErrorCode::MissingFile

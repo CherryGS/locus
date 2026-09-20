@@ -171,7 +171,7 @@ export interface components {
             message: string;
         };
         /** @enum {string} */
-        ErrorCode: "unauthorized" | "foreign_origin" | "wrong_run" | "invalid_request" | "request_conflict" | "admission_closed" | "capacity" | "launch_rejected" | "unknown_request" | "unknown_task" | "missing_file" | "operation_failed" | "not_found" | "method_not_allowed";
+        ErrorCode: "unauthorized" | "foreign_origin" | "wrong_run" | "invalid_request" | "request_conflict" | "admission_closed" | "launch_rejected" | "unknown_request" | "unknown_task" | "missing_file" | "operation_failed" | "not_found" | "method_not_allowed";
         /** @enum {string} */
         FailureKind: "input_missing" | "managed_bytes_missing" | "access_denied" | "not_regular_file" | "io" | "commit_outcome_unknown" | "database" | "domain" | "executor";
         FileMetadata: {
@@ -320,15 +320,6 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Resource limit; no new claim */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
             /** @description Operation failure */
             500: {
                 headers: {
@@ -408,15 +399,6 @@ export interface operations {
             };
             /** @description Wrong run or conflicting request ID */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Resource limit; no new claim */
-            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -519,15 +501,6 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Resource limit; no new claim */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
             /** @description Operation failure */
             500: {
                 headers: {
@@ -610,15 +583,6 @@ export interface operations {
             };
             /** @description Wrong run or conflicting request ID */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Resource limit; no new claim */
-            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -721,15 +685,6 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Resource limit; no new claim */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
             /** @description Operation failure */
             500: {
                 headers: {
@@ -815,15 +770,6 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Resource limit; no new claim */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
             /** @description Operation failure */
             500: {
                 headers: {
@@ -902,15 +848,6 @@ export interface operations {
             };
             /** @description Wrong run or conflicting request ID */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Resource limit; no new claim */
-            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1013,15 +950,6 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Resource limit; no new claim */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
             /** @description Operation failure */
             500: {
                 headers: {
@@ -1110,15 +1038,6 @@ export interface operations {
             };
             /** @description Wrong run or conflicting request ID */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Resource limit; no new claim */
-            429: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -17,10 +17,7 @@ pub struct Server {
 impl Server {
     pub async fn bind(config: ServerConfig) -> anyhow::Result<Self> {
         validate_credential(&config.credential)?;
-        if !config.library_root.is_absolute()
-            || config.max_requests == 0
-            || config.max_active_operations == 0
-        {
+        if !config.library_root.is_absolute() {
             bail!("invalid server configuration");
         }
         let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
@@ -35,8 +32,6 @@ impl Server {
             run_id: uuid::Uuid::now_v7().to_string(),
             queue,
             domain,
-            max_requests: config.max_requests,
-            max_active: config.max_active_operations,
             registry: Mutex::new(initial_registry()),
             changes: watch::channel(0).0,
             drained: watch::channel(false).0,
