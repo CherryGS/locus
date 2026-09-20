@@ -10,6 +10,7 @@ export default defineConfig({
   plugins: [
     tanstackRouter({
       target: "react",
+      quoteStyle: "double",
       routesDirectory: fileURLToPath(new URL("./src/renderer/app/routes", import.meta.url)),
       generatedRouteTree: fileURLToPath(new URL("./src/renderer/app/route-tree.gen.ts", import.meta.url)),
     }),

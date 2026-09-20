@@ -8,49 +8,49 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as EntityRouteImport } from './routes/entity'
-import { Route as SettingRouteImport } from './routes/setting'
+import { Route as rootRouteImport } from "./routes/__root"
+import { Route as IndexRouteImport } from "./routes/index"
+import { Route as EntityRouteImport } from "./routes/entity"
+import { Route as SettingRouteImport } from "./routes/setting"
 
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const EntityRoute = EntityRouteImport.update({
-  id: '/entity',
-  path: '/entity',
+  id: "/entity",
+  path: "/entity",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingRoute = SettingRouteImport.update({
-  id: '/setting',
-  path: '/setting',
+  id: "/setting",
+  path: "/setting",
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/entity': typeof EntityRoute
-  '/setting': typeof SettingRoute
+  "/": typeof IndexRoute
+  "/entity": typeof EntityRoute
+  "/setting": typeof SettingRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/entity': typeof EntityRoute
-  '/setting': typeof SettingRoute
+  "/": typeof IndexRoute
+  "/entity": typeof EntityRoute
+  "/setting": typeof SettingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/entity': typeof EntityRoute
-  '/setting': typeof SettingRoute
+  "/": typeof IndexRoute
+  "/entity": typeof EntityRoute
+  "/setting": typeof SettingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/entity' | '/setting'
+  fullPaths: "/" | "/entity" | "/setting"
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/entity' | '/setting'
-  id: '__root__' | '/' | '/entity' | '/setting'
+  to: "/" | "/entity" | "/setting"
+  id: "__root__" | "/" | "/entity" | "/setting"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -59,26 +59,26 @@ export interface RootRouteChildren {
   SettingRoute: typeof SettingRoute
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
+    "/": {
+      id: "/"
+      path: "/"
+      fullPath: "/"
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/entity': {
-      id: '/entity'
-      path: '/entity'
-      fullPath: '/entity'
+    "/entity": {
+      id: "/entity"
+      path: "/entity"
+      fullPath: "/entity"
       preLoaderRoute: typeof EntityRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/setting': {
-      id: '/setting'
-      path: '/setting'
-      fullPath: '/setting'
+    "/setting": {
+      id: "/setting"
+      path: "/setting"
+      fullPath: "/setting"
       preLoaderRoute: typeof SettingRouteImport
       parentRoute: typeof rootRouteImport
     }
