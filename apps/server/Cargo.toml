@@ -1,0 +1,48 @@
+[package]
+name = "locus-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow.workspace = true
+axum = "=0.8.9"
+utoipa = "=5.5.0"
+utoipa-axum = "=0.2.0"
+async-stream = "=0.3.6"
+futures-core = "0.3"
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio", "service"] }
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+locus-task.workspace = true
+locus-core.workspace = true
+locus-store.workspace = true
+locus-file.workspace = true
+directories.workspace = true
+tokio = { workspace = true, features = ["net", "signal"] }
+
+[dev-dependencies]
+image.workspace = true
+locus-media.workspace = true
+locus-twitter.workspace = true
+tempfile.workspace = true
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+diesel.workspace = true
+
+[[example]]
+name = "file-backend"
+test = true
+
+[[example]]
+name = "media-backend"
+test = true
+
+[[example]]
+name = "twitter-backend"
+test = true
+
+[[example]]
+name = "task-backend"
+test = true

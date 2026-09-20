@@ -1,0 +1,19 @@
+{
+  "name": "@locus/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "generate": "openapi-typescript openapi.json --output src/schema.d.ts",
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsx smoke.ts"
+  },
+  "dependencies": { "openapi-fetch": "0.17.0" },
+  "devDependencies": {
+    "@types/node": "26.6.2",
+    "openapi-typescript": "7.13.0",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3"
+  }
+}

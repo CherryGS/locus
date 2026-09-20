@@ -1,0 +1,67 @@
+use axum::{
+    Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ErrorCode {
+    Unauthorized,
+    ForeignOrigin,
+    WrongRun,
+    InvalidRequest,
+    RequestConflict,
+    AdmissionClosed,
+    Capacity,
+    LaunchRejected,
+    UnknownRequest,
+    UnknownTask,
+    MissingFile,
+    OperationFailed,
+    NotFound,
+    MethodNotAllowed,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+pub struct ApiError {
+    pub code: ErrorCode,
+    pub message: String,
+}
+
+impl ApiError {
+    pub(crate) fn new(code: ErrorCode, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+        }
+    }
+    pub(crate) fn invalid(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::InvalidRequest, message)
+    }
+    pub(crate) fn status(&self) -> StatusCode {
+        match self.code {
+            ErrorCode::Unauthorized => StatusCode::UNAUTHORIZED,
+            ErrorCode::ForeignOrigin => StatusCode::FORBIDDEN,
+            ErrorCode::WrongRun | ErrorCode::RequestConflict => StatusCode::CONFLICT,
+            ErrorCode::InvalidRequest => StatusCode::BAD_REQUEST,
+            ErrorCode::AdmissionClosed | ErrorCode::LaunchRejected => {
+                StatusCode::SERVICE_UNAVAILABLE
+            }
+            ErrorCode::Capacity => StatusCode::TOO_MANY_REQUESTS,
+            ErrorCode::UnknownRequest
+            | ErrorCode::UnknownTask
+            | ErrorCode::MissingFile
+            | ErrorCode::NotFound => StatusCode::NOT_FOUND,
+            ErrorCode::OperationFailed => StatusCode::INTERNAL_SERVER_ERROR,
+            ErrorCode::MethodNotAllowed => StatusCode::METHOD_NOT_ALLOWED,
+        }
+    }
+}
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        (self.status(), Json(self)).into_response()
+    }
+}

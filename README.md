@@ -10,15 +10,22 @@ The Rust workspace contains persistent identity, attachment, managed File, Image
 - `locus-file` owns UUIDv7 File records, managed copies, identified input access, and current entity/File input comparison.
 - `locus-media` owns separate Image/Video kinds, retained interpretations and warnings, explicit retry, derived previews/covers, and a common per-component read view.
 - `locus-twitter`, under `crates/provider`, owns independent Twitter snapshots, local validation, guarded File association and provider-specific reads.
-- `apps/locus` owns the native GPUI Kit shell and separate File/Media/Twitter backend examples. The default shell uses in-memory fixtures; examples own a multithread Tokio runtime and initialize persistent kernel/File/Media/Twitter storage.
+- `apps/server` owns the authenticated loopback Axum server, centralized HTTP/OpenAPI contract, and separate File/Media/Twitter/task backend examples. The server initializes only kernel/File storage; examples retain their broader domain compositions.
+- `packages/locus-client` owns generated TypeScript declarations and a small `openapi-fetch` client factory, with no renderer framework or embedded credential.
 
 Intent discovery was deferred at the user's request so bootstrap could proceed. The current intent snapshot and its confirmation state are maintained in the independent local `project-doc` repository.
 
-## Native UI preview
+## Loopback server
 
-Run `just rust-run` to open the native window. The left navigation, search, status filter and sorting combine to select resources in the center grid or list. The right inspector separates common information and library issues, individually collapsible component panels, and editable notes/tags. Press Enter or use Add to create a tag; click a tag to remove it. Notes, unfinished tag drafts and favorites remain associated with each resource while switching selections, but are cleared when the app closes. Drag the column dividers to adjust widths.
+Run `just client-install` and `just server-smoke` for an isolated real-binary demonstration through the generated client. It imports synthetic files, reads metadata, recovers submissions, observes SSE, checks typed failures/restart/drain, and reports a bounded warm loopback latency sample. It never opens the default user library. The GPUI prototype has been removed; Electron, renderer/static delivery, dialogs and Media/Twitter HTTP adapters remain later work.
 
-The preview includes six original embedded SVG illustrations and bundled GPUI Kit icons, so it needs no network access or media directory. It does not scan files, download models, persist edits or register domain kinds. Displayed file paths and metadata are illustrative fixtures, not real files or settled schemas. The future GPUI/Tokio/database integration remains unverified. See [UI reference research](docs/ui-shell-research.md) for the source patterns behind the shell.
+`just server-run` (also `just rust-run`) expects a private stdin pipe containing one JSON object followed by EOF: a caller-created random temporary `credential` (32–256 ASCII token characters), and optional absolute `library_root`. The input is limited to 16 KiB. The server binds `127.0.0.1:0`, opens storage, and emits one stdout JSON readiness record with `origin` and fresh `run_id`; diagnostics use stderr. Credentials are never printed, persisted or placed in URLs. The host must create the credential and scope authorization to that exact origin; no desktop host is implemented here.
+
+All routes, including `/api/v1/openapi.json`, require `Authorization: Bearer …` and `X-Locus-Run`. Foreign Origin/Host headers are rejected, with no permissive CORS. Metadata reads use task-bound database coordination and return directly. File imports require a canonical UUID `request_id` and an absolute `source_path`, returning a public task receipt. Same-run identical redelivery recovers the receipt; conflicting arguments fail. Typed outcomes preserve File identity, copy progress, and commit uncertainty. Byte counts, progress units and revisions use exact decimal strings.
+
+The run retains up to 1,024 submission bindings (including definite launch rejections) and permits up to 64 active operations by default. Capacity rejects new work without evicting recovery state. Drain atomically closes new work, preserves observation/recovery while accepted imports and direct reads complete, then ends passive connections within a one-second flush window. Ctrl-C requests the same sequence. Restart uses a fresh run and does not replay or reconstruct tasks from durable File records.
+
+Use `just client-generate` to export OpenAPI and regenerate TypeScript, `just client-check` for positive/negative type checks, and `just client-drift` to verify deterministic checked-in output. Schema export (`just server-schema [path]`) does not open storage or require bootstrap/authentication. See [client and API usage](packages/locus-client/README.md) for routes, error/status behavior and SSE semantics.
 
 ## Using the foundation
 
@@ -63,7 +70,7 @@ location plus `Locus` on other platforms). Set `LOCUS_DATA_DIR` to use an isolat
 root. `ApplicationStorage::open(root)` accepts an injected root for composition
 and tests. It opens `metadata.sqlite`, registers File/Image/Video/Twitter owners and initializes
 their domain-owned schema versions. Run `just rust-run-backend` for the explicit
-console example; the default native shell does not open this database. Core schema
+console example; the server initializes only its consumed kernel/File schemas. Core schema
 2 upgrades unshared version-1 data
 atomically; a shared component produces `MigrationSharedComponent` without changing
 its data/schema. Resolving such legacy sharing requires an explicit decision.
@@ -215,7 +222,7 @@ copy, attaches the intended kind, interprets it, requests a 320-pixel preview an
 prints actual IDs and separate stage outcomes. Copies and earlier committed stages
 remain if later interpretation fails. The regular File example remains usable.
 Extension delivery/import transport, playback, native UI integration, model and
-AIGC behavior are deferred; the default GPUI shell continues using fixtures.
+AIGC behavior remain deferred.
 
 ## Twitter provider backend
 
@@ -291,7 +298,7 @@ Run `just rust-run-tasks` for the real `task-backend` consumer. It creates a
 temporary library and synthetic PNG, runs two independent File/Image/Twitter
 operations, prints waiting/running stages and live progress, then retrieves typed
 File, interpretation, preview and snapshot results. It does not open user data or
-change the normal GPUI fixture startup. The temporary library is removed on exit.
+use the server HTTP surface. The temporary library is removed on exit.
 
 Compose `locus_task::api::TaskQueue` with `locus_store::api::TaskDatabase::open`.
 Within each submitted body, obtain `database.session(&task)` and call the ordinary
@@ -330,7 +337,7 @@ the selected external versions.
 
 ## Development
 
-The workspace is validated on Windows with Rust/Cargo 1.97.0 stable MSVC, Rustfmt, Clippy, cargo-nextest 0.9.140, and Just 1.57.0. The native GPUI Kit build uses the installed Visual C++ toolchain, Windows SDK (10.0.26100.0 on the development host), CMake and Ninja.
+The workspace is validated on Windows with Rust/Cargo 1.97.0 stable MSVC, Rustfmt, Clippy, cargo-nextest 0.9.140, and Just 1.57.0. The Windows build uses the installed Visual C++ toolchain and bundled SQLite.
 
 Build profiles are set in the workspace root. `dev` uses optimization level 1,
 line-table debug information, assertions/overflow checks and incremental builds;
@@ -349,7 +356,7 @@ just rust-test-code locus-file
 just rust-test-code locus-media
 just rust-test-code locus-twitter
 just rust-test-video
-just rust-test-code locus --example file-backend
+just rust-test-code locus-server --example file-backend
 just rust-run
 just rust-run-backend
 ```

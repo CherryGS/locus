@@ -11,14 +11,14 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 - `just rust-fmt-check`: check formatting without changing files.
 - `just rust-lint`: check all workspace targets with the enforced Clippy lints.
 - `just rust-test-all`: run workspace code tests with Nextest.
-- `just rust-test-code locus`: run code tests for the provisional application package; additional Nextest arguments may follow.
+- `just rust-test-code locus-server`: run server and migrated example tests; additional Nextest arguments may follow.
 - `just rust-metadata`: validate and inspect workspace metadata.
 - `just rust-deps`: inspect the resolved dependency tree.
 - `just rust-build`: build all workspace targets.
-- `just rust-build-release`: build the native application with the release profile.
-- `just rust-build-dist`: build the native application with the dist profile.
-- `just rust-run`: run the provisional application entry point.
-- `just rust-run-backend`: run the explicit File backend composition example without starting the native UI.
+- `just rust-build-release`: build the server binary with the release profile.
+- `just rust-build-dist`: build the server binary with the dist profile.
+- `just rust-run`: run the server entry point with its private JSON bootstrap pipe.
+- `just rust-run-backend`: run the explicit File backend composition example.
 - `just rust-run-media image|video path`: copy/admit a supplied local input and exercise the intended Media component, interpretation and preview.
 - `just rust-test-video`: run the explicitly provisioned ffprobe/ffmpeg integration tests (configure `LOCUS_FFPROBE` and `LOCUS_FFMPEG` as needed).
 - `just rust-lock-media`: resolve the Media workspace edges offline while retaining locked dependency versions.
@@ -26,6 +26,14 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 - `just rust-lock-twitter`: resolve the Twitter workspace edges offline while retaining locked dependency versions.
 - `just rust-run-tasks`: run concurrent real File/Media/Twitter tasks using a temporary library and synthetic input.
 - `just rust-lock-tasks`: resolve task workspace edges offline while retaining locked dependency versions.
+- `just server-resolve`: resolve changed server dependency edges while preserving compatible locked selections.
+- `just server-build` / `just server-run`: build or run only the server binary.
+- `just server-schema [path]`: export deterministic OpenAPI without storage/bootstrap initialization.
+- `just client-install`: install the pinned client lockfile without lifecycle scripts.
+- `just client-generate`: export OpenAPI and regenerate TypeScript declarations.
+- `just client-check`: check the client, real smoke consumer and negative type contracts.
+- `just client-drift`: regenerate twice in a temporary directory and reject schema/client drift.
+- `just server-smoke`: exercise the real server binary with its authorized generated client and report bounded local JSON timing.
 
 ## General rules
 
