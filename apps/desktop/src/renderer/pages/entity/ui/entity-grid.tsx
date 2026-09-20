@@ -1,0 +1,146 @@
+import { useCallback, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react"
+import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual"
+import { EntityCard, type EntityItem } from "@/entities/entity"
+
+const gap = 12
+const minimumCardWidth = 180
+const captionHeight = 64
+
+type EntityGridProps = {
+  entities: readonly EntityItem[]
+  selectedId: string | undefined
+  onSelect: (entity: EntityItem) => void
+}
+
+export function EntityGrid({ entities, selectedId, onSelect }: EntityGridProps) {
+  const viewport = useRef<HTMLDivElement>(null)
+  const resizeAnchor = useRef<{ index: number; align: "auto" | "start" } | undefined>(undefined)
+  const gridId = useId()
+  const [width, setWidth] = useState(0)
+  const columns = Math.max(1, Math.floor((width + gap) / (minimumCardWidth + gap)))
+  const cardWidth = Math.max(0, (width - (columns - 1) * gap) / columns)
+  const rowHeight = cardWidth * 3 / 4 + captionHeight
+  const selectedIndex = entities.findIndex((entity) => entity.id === selectedId)
+  const selectedRow = selectedIndex < 0 ? -1 : Math.floor(selectedIndex / columns)
+  const cellId = (id: string) => `${gridId}-${id}`
+
+  useLayoutEffect(() => {
+    const element = viewport.current
+    if (!element) return
+    function measureWidth() {
+      if (!element || element.clientWidth === width) return
+      const stride = rowHeight + gap
+      const selectedTop = selectedRow * stride
+      const selectionVisible = selectedRow >= 0
+        && selectedTop + rowHeight > element.scrollTop
+        && selectedTop < element.scrollTop + element.clientHeight
+      // Reflow keeps a visible selection in view. When browsing elsewhere,
+      // preserve the first visible entity instead of jumping back to selection.
+      resizeAnchor.current = {
+        // Include the row gap so a subpixel-rounded scroll position just before
+        // a row start does not walk backward one row on every resize event.
+        index: selectionVisible ? selectedIndex : Math.min(entities.length - 1, Math.floor((element.scrollTop + gap) / stride) * columns),
+        align: selectionVisible ? "auto" : "start",
+      }
+      setWidth(element.clientWidth)
+    }
+    const observer = new ResizeObserver(measureWidth)
+    measureWidth()
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [columns, entities.length, rowHeight, selectedIndex, selectedRow, width])
+
+  const virtualizer = useVirtualizer({
+    count: Math.ceil(entities.length / columns),
+    getScrollElement: () => viewport.current,
+    estimateSize: () => rowHeight,
+    getItemKey: useCallback((row: number) => entities[row * columns].id, [columns, entities]),
+    gap,
+    overscan: 2,
+    rangeExtractor: useCallback((range: Range) => {
+      const rows = defaultRangeExtractor(range)
+      // The grid keeps DOM focus while scrolling. Keep its active descendant
+      // mounted even when that selected row moves outside the visible range.
+      if (selectedRow >= 0 && !rows.includes(selectedRow)) rows.push(selectedRow)
+      return rows.sort((a, b) => a - b)
+    }, [selectedRow]),
+  })
+
+  useLayoutEffect(() => {
+    // Width changes alter row height even when the column count stays the same.
+    // Invalidate cached estimates before restoring the browsing position.
+    virtualizer.measure()
+    const anchor = resizeAnchor.current
+    if (width > 0 && anchor) {
+      resizeAnchor.current = undefined
+      virtualizer.scrollToIndex(Math.floor(anchor.index / columns), { align: anchor.align })
+    }
+  }, [columns, rowHeight, virtualizer, width])
+
+  function select(index: number) {
+    viewport.current?.focus({ preventScroll: true })
+    onSelect(entities[index])
+  }
+
+  function navigate(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.altKey || event.shiftKey) return
+    let index = Math.max(0, selectedIndex)
+    const rowStart = Math.floor(index / columns) * columns
+    switch (event.key) {
+      case "ArrowRight": index += selectedIndex < 0 ? 0 : 1; break
+      case "ArrowLeft": index -= selectedIndex < 0 ? 0 : 1; break
+      case "ArrowDown": index += selectedIndex < 0 ? 0 : columns; break
+      case "ArrowUp": index -= selectedIndex < 0 ? 0 : columns; break
+      case "Home": index = event.ctrlKey || event.metaKey ? 0 : rowStart; break
+      case "End": index = event.ctrlKey || event.metaKey ? entities.length - 1 : rowStart + columns - 1; break
+      default: return
+    }
+    event.preventDefault()
+    index = Math.max(0, Math.min(entities.length - 1, index))
+    select(index)
+    virtualizer.scrollToIndex(Math.floor(index / columns), { align: "auto" })
+  }
+
+  return (
+    <div
+      ref={viewport}
+      role="grid"
+      aria-label="Entities"
+      aria-rowcount={Math.ceil(entities.length / columns)}
+      aria-colcount={columns}
+      aria-multiselectable={false}
+      aria-activedescendant={selectedIndex >= 0 ? cellId(entities[selectedIndex].id) : undefined}
+      tabIndex={0}
+      className="min-h-0 flex-1 overflow-auto outline-none [overflow-anchor:none] [scrollbar-gutter:stable]"
+      onFocus={() => { if (selectedIndex < 0) onSelect(entities[0]) }}
+      onKeyDown={navigate}
+    >
+      <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((row) => (
+          <div
+            key={row.key}
+            role="row"
+            aria-rowindex={row.index + 1}
+            className="absolute top-0 left-0 grid w-full grid-rows-1"
+            style={{ height: row.size, gap, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, transform: `translateY(${row.start}px)` }}
+          >
+            {entities.slice(row.index * columns, (row.index + 1) * columns).map((entity, column) => (
+              <div
+                key={entity.id}
+                id={cellId(entity.id)}
+                role="gridcell"
+                aria-colindex={column + 1}
+                aria-label={entity.name}
+                aria-selected={entity.id === selectedId}
+                className="min-h-0 min-w-0 cursor-default rounded-xl outline-offset-[-2px] select-none aria-selected:outline-2 aria-selected:outline-ring"
+                onClick={() => select(row.index * columns + column)}
+              >
+                <EntityCard entity={entity} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

@@ -4,7 +4,7 @@ Use `just desktop-ui` for routine UI development and verification. It serves the
 same renderer through Vite on loopback without starting Electron. Open the URL
 printed by Vite in an isolated in-app browser, or use a headless browser for
 automated interaction and screenshot checks. Navigation, hover behavior, panels,
-page layout and later virtual-grid interactions can be checked there without
+page layout and virtual-grid interactions can be checked there without
 taking over the desktop pointer or foreground window.
 
 Reserve native Electron checks for window controls, draggable title-bar regions,
@@ -32,4 +32,8 @@ allows the same shell to navigate from local built assets. Run
 
 The Windows title bar uses native window controls and the overlay's CSS safe
 area. Dark tokens and the host background are aligned before the window shows.
-The initial pages contain only their headings, with no sample library data.
+The Entity page has a responsive virtual grid and single selection. Development
+loads offline synthetic records from `app/preview/entities.ts`; the production
+renderer excludes that module and shows an empty list until backend integration.
+Selection links the grid to Overview and the selected item's File/Image panels.
+Home and Setting retain their minimal headings.
