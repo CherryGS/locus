@@ -1,0 +1,25 @@
+import { formatFileSize } from "../lib/format-file-size.ts"
+import type { EntityItem } from "./entity-item"
+
+export type ImageDisplayItem = { src: string }
+
+export const fileDisplayItems = {
+  originalName(entity: EntityItem): string | undefined {
+    return entity.components.find((component) => component.kind === "file")?.originalName
+  },
+  size(entity: EntityItem): string | undefined {
+    const file = entity.components.find((component) => component.kind === "file")
+    return file ? formatFileSize(file.bytes) : undefined
+  },
+}
+
+export const imageDisplayItems = {
+  preview(entity: EntityItem): ImageDisplayItem | undefined {
+    const src = entity.components.find((component) => component.kind === "image")?.thumbnail
+    return src ? { src } : undefined
+  },
+  dimensions(entity: EntityItem): string | undefined {
+    const image = entity.components.find((component) => component.kind === "image")
+    return image ? `${image.width} × ${image.height}` : undefined
+  },
+}

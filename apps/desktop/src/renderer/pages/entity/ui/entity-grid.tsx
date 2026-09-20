@@ -108,6 +108,7 @@ export function EntityGrid({ entities, selectedId, onSelect }: EntityGridProps) 
   return (
     <ScrollArea
       className="h-full min-h-0"
+      scrollbarProps={{ className: "data-vertical:border-l-border" }}
       viewportProps={{
         ref: viewport,
         role: "grid",
@@ -137,12 +138,12 @@ export function EntityGrid({ entities, selectedId, onSelect }: EntityGridProps) 
                 id={cellId(entity.id)}
                 role="gridcell"
                 aria-colindex={column + 1}
-                aria-label={entity.name}
+                aria-labelledby={`${cellId(entity.id)}-title`}
                 aria-selected={entity.id === selectedId}
                 className="min-h-0 min-w-0 cursor-default rounded-xl outline-offset-[-2px] select-none aria-selected:outline-2 aria-selected:outline-ring"
                 onClick={() => select(row.index * columns + column)}
               >
-                <EntityCard entity={entity} />
+                <EntityCard entity={entity} titleId={`${cellId(entity.id)}-title`} />
               </div>
             ))}
           </div>

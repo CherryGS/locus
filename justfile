@@ -116,6 +116,9 @@ desktop-install:
 desktop-check:
     {{ npm }} --prefix apps/desktop run typecheck
 
+desktop-test:
+    {{ npm }} --prefix apps/desktop test
+
 desktop-build:
     {{ npm }} --prefix apps/desktop run build
 

@@ -10,6 +10,7 @@ import { Separator } from "@/shared/ui/separator"
 import { EntityGrid } from "./entity-grid"
 import { minimumEntityGridWidth } from "./entity-grid-layout"
 import { entityPanels, type EntityPanelId } from "./entity-panels"
+import { CopyIdentityButton } from "./copy-identity-button"
 
 export function EntityWorkspace({ entities }: { entities: readonly EntityItem[] }) {
   const { selectedEntity, selectEntity } = useEntitySelection()
@@ -51,13 +52,22 @@ export function EntityWorkspace({ entities }: { entities: readonly EntityItem[] 
               <motion.aside
                 id="auxiliary-panel"
                 aria-labelledby="auxiliary-heading"
-                className="h-full bg-sidebar"
+                className="flex h-full min-h-0 flex-col bg-sidebar"
                 initial={{ opacity: reduceMotion ? 1 : 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.12 }}
               >
-                <ScrollArea className="h-full">
-                  <h2 id="auxiliary-heading" className="px-4 py-4 text-sm font-medium">{activePanel.label}</h2>
+                <header className="flex h-11 min-w-0 shrink-0 items-center gap-2 px-4">
+                  <h2 id="auxiliary-heading" className="shrink-0 text-sm font-medium">{activePanel.label}</h2>
+                  {activePanel.identity && (
+                    <>
+                      <span aria-hidden="true" className="text-muted-foreground">·</span>
+                      <CopyIdentityButton key={activePanel.identity.value} {...activePanel.identity} />
+                    </>
+                  )}
+                </header>
+                <Separator />
+                <ScrollArea key={activePanel.id} className="min-h-0 flex-1">
                   {activePanel.content}
                 </ScrollArea>
               </motion.aside>

@@ -16,7 +16,9 @@ Run `just desktop-install`, then `just desktop-run` from the repository root for
 the live Electron shell. Install uses the pinned npm lockfile and explicitly
 downloads Electron's binary through its `install-electron` command; it needs no
 global npm configuration changes. `just desktop-check` generates file routes and checks
-the host and browser separately. `just desktop-build` writes `out/main` and
+the host and browser separately. `just desktop-test` runs the card-presentation
+logic tests with Node's built-in runner (Node 24, including TypeScript stripping),
+without launching Electron. `just desktop-build` writes `out/main` and
 `out/renderer`; `just desktop-preview` opens those built local assets.
 
 This is an isolated UI review consumer. It does not start Axum, open a library,

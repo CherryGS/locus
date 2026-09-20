@@ -19,18 +19,30 @@ const specimens = palettes.flatMap(([background, foreground, accent]) => (
 
 export const previewEntities: readonly EntityItem[] = Array.from({ length: 240 }, (_, index) => {
   const number = String(index + 1).padStart(3, "0")
-  const id = `sample-${number}`
+  // One long-name/UUID specimen exercises narrow inspector layouts.
+  const id = index === 1 ? "01995c68-7200-7000-8000-000000000002" : `sample-${number}`
   if ((index + 1) % 13 === 0) return { id, name: `Sample ${number}`, components: [] }
   const fileOnly = (index + 1) % 7 === 0
-  const name = `Sample ${number}.${fileOnly ? "txt" : "png"}`
+  const name = index === 1
+    ? "Sample 002 — coastline-study_evening-light_colour-and-texture-references_final-version.png"
+    : `Sample ${number}.${fileOnly ? "txt" : "png"}`
   const specimen = specimens[index % specimens.length]
   return {
     id,
     name,
-    thumbnail: fileOnly ? undefined : specimen.thumbnail,
     components: [
-      { kind: "file", id: `${id}-file`, name, mediaType: fileOnly ? "text/plain" : "image/png", bytes: fileOnly ? 2048 : 240000 + index * 3120 },
-      ...(fileOnly ? [] : [{ kind: "image" as const, id: `${id}-image`, format: "PNG", width: specimen.width, height: specimen.height }]),
+      {
+        kind: "file", id: `${id}-file`, originalName: name,
+        bytes: fileOnly ? 2048 : 240000 + index * 3120,
+        importedAt: new Date(Date.UTC(2026, 8, 20, 2) + index * 60_000).toISOString(),
+      },
+      ...(fileOnly ? [] : [{
+        kind: "image" as const, id: `${id}-image`, format: "PNG",
+        width: specimen.width, height: specimen.height,
+        thumbnail: specimen.thumbnail,
+        colorMode: index % 3 === 0 ? "RGBA" : "RGB",
+        bitsPerChannel: 8, hasAlphaChannel: index % 3 === 0,
+      }]),
     ],
   }
 })

@@ -6,10 +6,12 @@ function ScrollArea({
   className,
   children,
   viewportProps,
+  scrollbarProps,
   ...props
 }: ScrollAreaPrimitive.Root.Props & {
   // Virtualized composites need the real scrolling element for refs and ARIA.
   viewportProps?: React.ComponentProps<typeof ScrollAreaPrimitive.Viewport>
+  scrollbarProps?: React.ComponentProps<typeof ScrollBar>
 }) {
   return (
     <ScrollAreaPrimitive.Root
@@ -27,7 +29,7 @@ function ScrollArea({
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
+      <ScrollBar {...scrollbarProps} />
       <ScrollAreaPrimitive.Corner />
     </ScrollAreaPrimitive.Root>
   )
