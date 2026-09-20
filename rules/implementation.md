@@ -37,6 +37,7 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 
 ## General rules
 
+- Verify renderer UI in an isolated in-app browser or a headless browser by default, using `just desktop-ui`. Avoid taking over the user's desktop pointer or focus for browser-testable behavior. Reserve native desktop automation for concrete Electron/OS integration checks and explain the need before using it.
 - Keep implementation natural and simple. Record speculative edge cases and potential requirements as observations; introduce behavioral barriers, quotas or policy mechanisms only for concrete observed needs or settled contracts. Unmeasured hypothetical resource growth alone does not justify blocking ordinary use.
 - Keep files that serve as module indexes or aggregation roots limited to module declarations, API re-exports, and dependency or composition wiring. Put product and domain behavior in the modules they expose.
 - Rust directory modules use `mod.rs`. Keep `lib.rs` and every `mod.rs` limited to module declarations, visibility, and re-exports (with relevant documentation or attributes). Put types, functions, implementations, constants, and behavior in leaf files. A simple leaf does not need its own directory.

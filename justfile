@@ -122,5 +122,9 @@ desktop-build:
 desktop-run:
     {{ npm }} --prefix apps/desktop run dev
 
+# Browser-only renderer preview; does not launch an Electron window.
+desktop-ui:
+    {{ npm }} --prefix apps/desktop run dev:renderer
+
 desktop-preview:
     {{ npm }} --prefix apps/desktop start

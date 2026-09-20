@@ -1,5 +1,17 @@
 # Desktop
 
+Use `just desktop-ui` for routine UI development and verification. It serves the
+same renderer through Vite on loopback without starting Electron. Open the URL
+printed by Vite in an isolated in-app browser, or use a headless browser for
+automated interaction and screenshot checks. Navigation, hover behavior, panels,
+page layout and later virtual-grid interactions can be checked there without
+taking over the desktop pointer or foreground window.
+
+Reserve native Electron checks for window controls, draggable title-bar regions,
+native dialogs and host integration. Browser results do not establish those
+native behaviors. Prefer browser verification by default, and explain any need
+for desktop control before using it.
+
 Run `just desktop-install`, then `just desktop-run` from the repository root for
 the live Electron shell. Install uses the pinned npm lockfile and explicitly
 downloads Electron's binary through its `install-electron` command; it needs no

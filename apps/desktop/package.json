@@ -8,6 +8,7 @@
   "scripts": {
     "install:electron": "install-electron",
     "dev": "electron-vite dev",
+    "dev:renderer": "vite --host 127.0.0.1",
     "start": "electron-vite preview",
     "routes": "tsr generate",
     "typecheck": "npm run routes && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
