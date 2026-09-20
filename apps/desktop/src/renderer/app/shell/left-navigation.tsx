@@ -17,7 +17,7 @@ const navigation = [
   { to: "/setting", label: "Setting", icon: SettingsIcon },
 ] as const
 
-export function LeftNavigation({ collapsed }: { collapsed: boolean }) {
+export function LeftNavigation() {
   const [revealed, setRevealed] = useState(false)
   const nav = useRef<HTMLElement>(null)
   const pointerInside = useRef(false)
@@ -25,7 +25,6 @@ export function LeftNavigation({ collapsed }: { collapsed: boolean }) {
   const revealTimer = useRef<number | undefined>(undefined)
   const concealTimer = useRef<number | undefined>(undefined)
   const reduceMotion = useReducedMotion()
-  const expanded = !collapsed || revealed
   const transition = {
     duration: reduceMotion ? 0 : 0.18,
     ease: [0.2, 0.8, 0.2, 1] as const,
@@ -36,11 +35,7 @@ export function LeftNavigation({ collapsed }: { collapsed: boolean }) {
     window.clearTimeout(concealTimer.current)
   }
 
-  useEffect(() => {
-    cancelTimers()
-    setRevealed(false)
-    return cancelTimers
-  }, [collapsed])
+  useEffect(() => cancelTimers, [])
 
   function concealAfterLeave() {
     window.clearTimeout(revealTimer.current)
@@ -55,7 +50,7 @@ export function LeftNavigation({ collapsed }: { collapsed: boolean }) {
   function enter() {
     pointerInside.current = true
     cancelTimers()
-    if (collapsed && !revealed) {
+    if (!revealed) {
       revealTimer.current = window.setTimeout(() => setRevealed(true), revealDelay)
     }
   }
@@ -69,7 +64,7 @@ export function LeftNavigation({ collapsed }: { collapsed: boolean }) {
     if (event.target instanceof HTMLElement && event.target.matches(":focus-visible")) {
       keyboardFocus.current = true
       cancelTimers()
-      if (collapsed) setRevealed(true)
+      setRevealed(true)
     }
   }
 
@@ -81,21 +76,16 @@ export function LeftNavigation({ collapsed }: { collapsed: boolean }) {
   }
 
   return (
-    // Only the pinned layout owns content width. Hover reveal extends over the
-    // main area, with the same mounted links and fixed icon positions.
-    <motion.div
-      className="relative z-10 shrink-0"
-      initial={false}
-      animate={{ width: collapsed ? collapsedWidth : expandedWidth }}
-      transition={transition}
-    >
+    // Reveal extends over the main area without changing its width, using the
+    // same mounted links and fixed icon positions.
+    <div className="relative z-10 w-12 shrink-0">
       <motion.nav
         ref={nav}
         id="primary-navigation"
         aria-label="Main navigation"
         className="absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden bg-sidebar p-2"
         initial={false}
-        animate={{ width: expanded ? expandedWidth : collapsedWidth }}
+        animate={{ width: revealed ? expandedWidth : collapsedWidth }}
         transition={transition}
         onPointerEnter={enter}
         onPointerLeave={leave}
@@ -119,7 +109,7 @@ export function LeftNavigation({ collapsed }: { collapsed: boolean }) {
               aria-hidden="true"
               className="shrink-0 whitespace-nowrap"
               initial={false}
-              animate={{ opacity: expanded ? 1 : 0 }}
+              animate={{ opacity: revealed ? 1 : 0 }}
               transition={{ duration: reduceMotion ? 0 : 0.12 }}
             >
               {label}
@@ -128,6 +118,6 @@ export function LeftNavigation({ collapsed }: { collapsed: boolean }) {
         ))}
         <Separator orientation="vertical" className="absolute inset-y-0 right-0" />
       </motion.nav>
-    </motion.div>
+    </div>
   )
 }
