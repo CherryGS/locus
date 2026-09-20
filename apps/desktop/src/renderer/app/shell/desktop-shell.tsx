@@ -1,45 +1,39 @@
 import { useState } from "react"
-import { Link, Outlet } from "@tanstack/react-router"
-import { HomeIcon, LayoutGridIcon, PanelRightIcon, SettingsIcon } from "lucide-react"
+import { Outlet } from "@tanstack/react-router"
+import { PanelLeftCloseIcon, PanelLeftOpenIcon, PanelRightIcon } from "lucide-react"
 import { motion, useReducedMotion } from "motion/react"
-import { Button, buttonVariants } from "@/shared/ui/button"
+import { Button } from "@/shared/ui/button"
 import { Empty, EmptyDescription, EmptyHeader } from "@/shared/ui/empty"
 import { Separator } from "@/shared/ui/separator"
-
-const navigation = [
-  { to: "/", label: "Home", icon: HomeIcon },
-  { to: "/entity", label: "Entity", icon: LayoutGridIcon },
-  { to: "/setting", label: "Setting", icon: SettingsIcon },
-] as const
+import { LeftNavigation } from "./left-navigation"
 
 export function DesktopShell() {
+  const [navigationCollapsed, setNavigationCollapsed] = useState(false)
   const [activePanel, setActivePanel] = useState<"overview" | null>(null)
   const reduceMotion = useReducedMotion()
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       <header className="title-bar shrink-0 bg-sidebar">
-        <div className="title-bar-content flex items-center px-4 text-xs font-medium text-muted-foreground">
+        <div className="title-bar-content flex items-center gap-2 px-3 text-xs font-medium text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={navigationCollapsed ? "Expand navigation" : "Collapse navigation"}
+            title={navigationCollapsed ? "Expand navigation" : "Collapse navigation"}
+            aria-controls="primary-navigation"
+            onClick={() => setNavigationCollapsed((current) => !current)}
+          >
+            {navigationCollapsed
+              ? <PanelLeftOpenIcon data-icon="inline-start" />
+              : <PanelLeftCloseIcon data-icon="inline-start" />}
+          </Button>
           Locus
         </div>
       </header>
       <Separator />
       <div className="flex min-h-0 flex-1">
-        <nav aria-label="Main navigation" className="flex w-48 shrink-0 flex-col gap-1 bg-sidebar p-2">
-          {navigation.map(({ to, label, icon: Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              activeOptions={{ exact: true }}
-              className={buttonVariants({ variant: "ghost", className: "justify-start" })}
-              activeProps={{ className: buttonVariants({ variant: "secondary", className: "justify-start" }) }}
-            >
-              <Icon data-icon="inline-start" />
-              {label}
-            </Link>
-          ))}
-        </nav>
-        <Separator orientation="vertical" />
+        <LeftNavigation collapsed={navigationCollapsed} />
         <main className="min-w-0 flex-1 overflow-auto p-6">
           <Outlet />
         </main>
