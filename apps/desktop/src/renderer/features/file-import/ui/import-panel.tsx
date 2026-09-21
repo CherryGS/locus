@@ -1,7 +1,13 @@
 import { useState, useSyncExternalStore } from "react"
-import { ImportIcon } from "lucide-react"
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  FileIcon,
+  ImportIcon,
+  RefreshCwIcon,
+  TriangleAlertIcon,
+} from "lucide-react"
 import { Button } from "@/shared/ui/button"
-import { Badge } from "@/shared/ui/badge"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
 import { Separator } from "@/shared/ui/separator"
@@ -103,10 +109,21 @@ export function ImportDetails({
   }
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm">Current results - {items.length} selected files</p>
-      <Button size="sm" variant="outline" disabled={c.observing} onClick={() => void c.observe()}>
-        Check results
-      </Button>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-medium">
+          Files <span className="ml-1 text-muted-foreground">{items.length}</span>
+        </h3>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Check results"
+          title="Refresh file results"
+          disabled={c.observing}
+          onClick={() => void c.observe()}
+        >
+          {c.observing ? <Spinner /> : <RefreshCwIcon />}
+        </Button>
+      </div>
       {(c.problem || viewError) && (
         <Alert>
           <AlertTitle>Result observation needs attention</AlertTitle>
@@ -156,63 +173,67 @@ export function ImportDetails({
         .map((batch) => (
           <section
             key={batch.batch_id}
-            className="flex flex-col gap-3"
+            className="flex min-w-0 flex-col"
             aria-label={`Import batch ${batch.batch_id}`}
           >
-            <p className="text-xs text-muted-foreground">
-              Original results:{" "}
-              {batch.items.filter((i) => i.attempts[0]?.ended && i.attempts[0].result.complete).length}{" "}
-              complete,{" "}
-              {batch.items.filter((i) => i.attempts[0]?.ended && !i.attempts[0].result.complete).length}{" "}
-              incomplete,{" "}
-              {batch.items.filter((i) => !i.attempts[0]?.ended && !ended.has(batch.batch_id)).length} active
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Batch {batch.batch_id} / original{" "}
-              {batch.original_ended || ended.has(batch.batch_id) ? "ended" : "processing"}
-            </p>
-            {batch.items.map((item) => (
-              <article key={item.item_id} className="flex flex-col gap-3 rounded-lg border p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="min-w-0 break-all text-sm">{item.source_path}</p>
-                  <Badge variant="secondary">
-                    {item.active_request_id && ended.has(item.active_request_id)
-                      ? "Execution ended - details last known"
-                      : c.itemPending(item.item_id)
-                        ? "Recovery awaiting confirmation"
-                        : label(item)}
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {item.current.base.state === "success" && item.current.entity_id && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      aria-disabled={viewing === item.current.entity_id}
-                      onClick={() => {
-                        if (viewing !== item.current.entity_id) void show(item.current.entity_id!)
-                      }}
-                    >
-                      View
-                    </Button>
-                  )}
-                  {item.actions
-                    .filter((a) => a !== "recopy")
-                    .map((action) => (
+            {batch.items.map((item, index) => (
+              <article key={item.item_id} className="flex min-w-0 flex-col gap-3">
+                {index > 0 && <Separator />}
+                <div className="flex flex-wrap items-start gap-x-3 gap-y-2 pt-1">
+                  <FileIcon className="mt-1 size-4 shrink-0 text-muted-foreground" />
+                  <div className="flex min-w-0 flex-1 basis-32 flex-col gap-1">
+                    <p className="truncate text-sm font-medium" title={item.source_path}>
+                      {item.source_path.split(/[\\/]/).pop() || item.source_path}
+                    </p>
+                    <p className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
+                      {(item.active_request_id && !ended.has(item.active_request_id)) ||
+                      c.itemPending(item.item_id) ? (
+                        <Spinner className="mt-0.5 size-3.5 shrink-0" />
+                      ) : item.current.complete ? (
+                        <CheckIcon className="mt-0.5 size-3.5 shrink-0" />
+                      ) : (
+                        <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+                      )}
+                      <span>
+                        {item.active_request_id && ended.has(item.active_request_id)
+                          ? "Execution ended - details last known"
+                          : c.itemPending(item.item_id)
+                            ? "Recovery awaiting confirmation"
+                            : label(item)}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="ml-auto flex max-w-full flex-wrap gap-1.5">
+                    {item.current.base.state === "success" && item.current.entity_id && (
                       <Button
-                        key={action}
                         size="sm"
-                        variant="outline"
-                        disabled={!c.available || c.itemPending(item.item_id)}
-                        onClick={() => void c.recover(batch.batch_id, item.item_id, action)}
+                        variant="ghost"
+                        aria-disabled={viewing === item.current.entity_id}
+                        onClick={() => {
+                          if (viewing !== item.current.entity_id) void show(item.current.entity_id!)
+                        }}
                       >
-                        {action === "confirm"
-                          ? "Check original result"
-                          : item.current.base.state === "success"
-                            ? "Complete processing"
-                            : "Reuse completed copy"}
+                        {viewing === item.current.entity_id && <Spinner data-icon="inline-start" />}View
                       </Button>
-                    ))}
+                    )}
+                    {item.actions
+                      .filter((a) => a !== "recopy")
+                      .map((action) => (
+                        <Button
+                          key={action}
+                          size="sm"
+                          variant="outline"
+                          disabled={!c.available || c.itemPending(item.item_id)}
+                          onClick={() => void c.recover(batch.batch_id, item.item_id, action)}
+                        >
+                          {action === "confirm"
+                            ? "Check original result"
+                            : item.current.base.state === "success"
+                              ? "Complete processing"
+                              : "Reuse completed copy"}
+                        </Button>
+                      ))}
+                  </div>
                 </div>
                 {item.actions.includes("recopy") && (
                   <Alert>
@@ -231,30 +252,61 @@ export function ImportDetails({
                     </AlertDescription>
                   </Alert>
                 )}
-                <details>
-                  <summary className="cursor-pointer text-sm">Current processing details</summary>
-                  <Details result={item.current} />
-                </details>
-                <details>
-                  <summary className="cursor-pointer text-sm">
-                    Original and recovery attempts ({item.attempts.length})
+                <details className="group/file mb-3 ml-7 min-w-0">
+                  <summary className="flex cursor-pointer list-none items-center gap-1 text-xs text-muted-foreground [&::-webkit-details-marker]:hidden">
+                    <ChevronRightIcon className="size-3.5 transition-transform group-open/file:rotate-90" />
+                    Details
                   </summary>
-                  <div className="flex flex-col gap-3">
-                    {item.attempts.map((attempt) => (
-                      <div key={attempt.request_id} className="flex flex-col gap-2">
-                        <Separator />
-                        <p className="text-xs">
-                          {attempt.action} /{" "}
-                          {attempt.ended || ended.has(attempt.request_id) ? "ended" : "active"} /{" "}
-                          {attempt.request_id}
-                        </p>
-                        <Details result={attempt.result} />
+                  <div className="mt-3 flex min-w-0 flex-col gap-4 rounded-lg bg-muted/30 p-3">
+                    <p className="break-all text-xs text-muted-foreground">{item.source_path}</p>
+                    <div className="flex min-w-0 flex-col gap-2">
+                      <h4 className="text-xs font-medium">Current processing details</h4>
+                      <Details result={item.current} />
+                    </div>
+                    <details className="group/attempts">
+                      <summary className="flex cursor-pointer list-none items-start gap-1 text-xs text-muted-foreground [&::-webkit-details-marker]:hidden">
+                        <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-open/attempts:rotate-90" />
+                        Original and recovery attempts ({item.attempts.length})
+                      </summary>
+                      <div className="mt-3 flex flex-col gap-3">
+                        {item.attempts.map((attempt) => (
+                          <div key={attempt.request_id} className="flex min-w-0 flex-col gap-2">
+                            <Separator />
+                            <p className="break-all text-xs">
+                              {attempt.action} /{" "}
+                              {attempt.ended || ended.has(attempt.request_id) ? "ended" : "active"} /{" "}
+                              {attempt.request_id}
+                            </p>
+                            <Details result={attempt.result} />
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </details>
                   </div>
                 </details>
               </article>
             ))}
+            <details className="group/original mt-2">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs text-muted-foreground [&::-webkit-details-marker]:hidden">
+                <ChevronRightIcon className="size-3.5 transition-transform group-open/original:rotate-90" />
+                Original batch result
+              </summary>
+              <div className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground">
+                <p>
+                  Original results:{" "}
+                  {batch.items.filter((i) => i.attempts[0]?.ended && i.attempts[0].result.complete).length}{" "}
+                  complete,{" "}
+                  {batch.items.filter((i) => i.attempts[0]?.ended && !i.attempts[0].result.complete).length}{" "}
+                  incomplete,{" "}
+                  {batch.items.filter((i) => !i.attempts[0]?.ended && !ended.has(batch.batch_id)).length}{" "}
+                  active
+                </p>
+                <p className="break-all">
+                  Batch {batch.batch_id} / original{" "}
+                  {batch.original_ended || ended.has(batch.batch_id) ? "ended" : "processing"}
+                </p>
+              </div>
+            </details>
           </section>
         ))}
     </div>

@@ -73,8 +73,11 @@ try {
   await page.getByRole("button", { name: "Import", exact: true }).click()
   assert.equal(await page.getByRole("dialog", { name: "Tasks this run" }).isVisible(), false)
   await page.getByRole("button", { name: /^Tasks/ }).click()
-  await page.locator("[data-task-record] > summary").click()
-  await page.getByText("Submission unconfirmed", { exact: true }).waitFor()
+  await page.locator("[data-task-record]").click()
+  await page
+    .locator('[data-task-detail]:visible [data-slot="alert-title"]')
+    .filter({ hasText: "Submission unconfirmed" })
+    .waitFor()
   const beforeRecovery = await backend.client.GET("/api/v1/import-batches")
   assert.equal(
     beforeRecovery.data?.batches.length,
@@ -83,14 +86,14 @@ try {
   )
   assert.equal(submissions, 1)
   await page.getByRole("button", { name: "Check original submission", exact: true }).click()
-  await page.locator("[data-task-record] > summary").filter({ hasText: "2 complete" }).waitFor()
+  await page.locator("[data-task-record]").filter({ hasText: "2 complete" }).waitFor()
   assert.equal(
     redeliveredBody,
     lostBody,
     "Explicit recovery redelivers the same full body and request identity",
   )
   await page.unroute("**/api/v1/import-batches")
-  await page.locator("[data-task-record] > summary").filter({ hasText: "1 need attention" }).waitFor()
+  await page.locator("[data-task-record]").filter({ hasText: "1 need attention" }).waitFor()
   assert.equal(page.url(), destination)
   assert.equal(lists, initialLists)
   assert.equal(submissions, 2)
@@ -139,7 +142,8 @@ try {
     .filter({ hasText: missing })
     .getByRole("button", { name: "Recopy source and import", exact: true })
     .click()
-  await page.locator("[data-task-record] > summary").filter({ hasText: "3 complete" }).waitFor()
+  await page.locator("[data-task-record]").filter({ hasText: "3 complete" }).waitFor()
+  await page.locator("article").filter({ hasText: missing }).getByText("Details", { exact: true }).click()
   await page
     .locator("article")
     .filter({ hasText: missing })
@@ -147,7 +151,7 @@ try {
     .click()
   const viewport = page
     .getByRole("dialog", { name: "Tasks this run" })
-    .locator('[data-slot="scroll-area-viewport"]')
+    .getByLabel("Task details", { exact: true })
   const scroll = await viewport.evaluate((e) => ({
     height: e.clientHeight,
     content: e.scrollHeight,

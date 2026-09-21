@@ -37,7 +37,7 @@ try {
   await page.getByRole("button", { name: "Import", exact: true }).click()
   assert.equal(await page.getByRole("dialog", { name: "Tasks this run" }).isVisible(), false)
   await page.getByRole("button", { name: /^Tasks/ }).click()
-  await page.locator("[data-task-record] > summary").filter({ hasText: "1 complete" }).waitFor()
+  await page.locator("[data-task-record]").filter({ hasText: "1 complete" }).waitFor()
   const options = await application.evaluate(() => (globalThis as any).__desktopTest.fileDialogs)
   assert.deepEqual(options[0].properties, ["openFile", "multiSelections"])
   assert.equal(options[0].buttonLabel, "Import")

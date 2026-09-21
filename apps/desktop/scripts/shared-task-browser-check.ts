@@ -137,8 +137,13 @@ try {
   await page.getByRole("button", { name: /^Tasks/ }).click()
   const region = page.getByRole("dialog", { name: "Tasks this run" })
   assert.equal(await region.locator("[data-task-record]").count(), 5)
-  await region.locator("[data-task-record] > summary").filter({ hasText: "Import 2 files" }).click()
-  await region.getByText("Original and recovery attempts (2)", { exact: true }).click()
+  const batchEntry = region.locator(`[data-task-record="${batch.batch_id}"]`)
+  const batchDetails = region.locator(`[data-task-detail="${batch.batch_id}"]`)
+  const recoveredFile = batchDetails.locator("article").filter({ hasText: missing })
+  await batchEntry.click()
+  await recoveredFile.getByText("Details", { exact: true }).click()
+  await recoveredFile.getByText("Original and recovery attempts (2)", { exact: true }).click()
+  const standaloneEntry = region.locator(`[data-task-record="${success.data.task_id}"]`)
   await region.getByRole("button", { name: "Check results", exact: true }).focus()
   await page.keyboard.press("Alt+ArrowLeft")
   assert.equal(page.url(), initial, "task focus owns history keys")
@@ -171,6 +176,50 @@ try {
   await page.waitForURL((url) => url.href !== initial)
   const destination = page.url()
   await page.getByRole("button", { name: /^Tasks/ }).click()
+  // An explicit View refresh can add a library error banner. Exercise that
+  // separately from the non-mutating modal geometry/focus checks above.
+  let releaseRefresh!: () => void
+  let sawRefresh!: () => void
+  const heldRefresh = new Promise<void>((resolve) => {
+    releaseRefresh = resolve
+  })
+  const requestedRefresh = new Promise<void>((resolve) => {
+    sawRefresh = resolve
+  })
+  await page.route("**/api/v1/entities", async (route) => {
+    sawRefresh()
+    await heldRefresh
+    await route.fulfill({
+      status: 500,
+      json: { code: "operation_failed", message: "test refresh unavailable" },
+    })
+  })
+  await recoveredFile.getByRole("button", { name: "View", exact: true }).click()
+  await requestedRefresh
+  await standaloneEntry.focus()
+  await page.keyboard.press("Enter")
+  assert.equal(await standaloneEntry.getAttribute("aria-current"), "true")
+  assert.equal(await batchDetails.isVisible(), false)
+  assert.equal(await region.locator("[data-task-detail]:visible").count(), 1)
+  releaseRefresh()
+  await batchDetails
+    .filter({ hasText: "Library refresh failed. The prior list and selection are preserved." })
+    .waitFor({ state: "attached" })
+  assert.equal(
+    await standaloneEntry.getAttribute("aria-current"),
+    "true",
+    "a late View failure does not change task selection",
+  )
+  await batchEntry.click()
+  await batchDetails
+    .getByText("Library refresh failed. The prior list and selection are preserved.", { exact: true })
+    .waitFor()
+  assert.equal(
+    await recoveredFile.getByText("Original and recovery attempts (2)", { exact: true }).isVisible(),
+    true,
+  )
+  assert.equal(page.url(), destination)
+  await page.unroute("**/api/v1/entities")
   for (const viewport of [
     { width: 1200, height: 800 },
     { width: 720, height: 480 },
@@ -186,12 +235,28 @@ try {
       bounds && bounds.y >= 0 && bounds.y + bounds.height <= viewport.height,
       JSON.stringify({ bounds, viewport }),
     )
-    const scroll = await region
-      .locator('[data-slot="scroll-area-viewport"]')
-      .evaluate((element) => ({ height: element.clientHeight, content: element.scrollHeight }))
+    const detailsViewport = batchDetails.getByLabel("Task details", { exact: true })
+    const scroll = await detailsViewport.evaluate((element) => ({
+      height: element.clientHeight,
+      content: element.scrollHeight,
+      width: element.clientWidth,
+      contentWidth: element.scrollWidth,
+    }))
     assert(
       scroll.content > scroll.height && scroll.height > 100,
       "long details scroll below the modal header",
+    )
+    assert(scroll.contentWidth <= scroll.width + 1, "details must not overflow horizontally")
+    await detailsViewport.evaluate((element) => {
+      element.scrollTop = 120
+    })
+    const retainedScroll = await detailsViewport.evaluate((element) => element.scrollTop)
+    await standaloneEntry.click()
+    await batchEntry.click()
+    assert.equal(
+      await detailsViewport.evaluate((element) => element.scrollTop),
+      retainedScroll,
+      "each selected task retains its scroll position",
     )
     await region.getByRole("button", { name: "Close tasks", exact: true }).click()
     await region.waitFor({ state: "hidden" })
@@ -222,7 +287,7 @@ try {
     ),
   )
   console.log(
-    `PASS shared task external discovery, grouping, original/recovery preservation, File/Media outcomes, quiet completion, focus isolation and minimum viewport. ${output}`,
+    `PASS shared task discovery, grouping, outcomes, retained task selection/details/late View feedback, focus isolation and minimum viewport. ${output}`,
   )
 } finally {
   await browser.close()
