@@ -9,6 +9,8 @@ const { syncBuiltinESMExports } = require("node:module")
 const { writeFileSync } = require("node:fs")
 globalThis.__desktopTest = {
   dialogs: [],
+  fileDialogs: [],
+  fileSelections: [],
   children: [],
   responses: [],
   states: [],
@@ -75,5 +77,9 @@ dialog.showMessageBox = async (_window, options) => {
   return new Promise((resolve) =>
     globalThis.__desktopTest.responses.push((response) => resolve({ response, checkboxChecked: false }))
   )
+}
+dialog.showOpenDialog = async (_window, options) => {
+  globalThis.__desktopTest.fileDialogs.push(options)
+  return globalThis.__desktopTest.fileSelections.shift() ?? { canceled: true, filePaths: [] }
 }
 void import("../out/main/index.js")

@@ -67,7 +67,7 @@ export function startDesktop() {
     preparationTimer = setTimeout(() => {
       if (close.state === attempt)
         void unavailable(
-          "The renderer has not completed the preference-preparation handoff. Saving readiness cannot be established."
+          "The renderer has not completed the preference-preparation handoff. Saving readiness cannot be established.",
         )
     }, 15_000)
   }
@@ -89,7 +89,7 @@ export function startDesktop() {
       if (backend?.child.exitCode === 0) finish()
       else
         await unavailable(
-          "The backend is unavailable. Preference confirmation and accepted-work completion cannot be established."
+          "The backend is unavailable. Preference confirmation and accepted-work completion cannot be established.",
         )
       return
     }
@@ -102,7 +102,7 @@ export function startDesktop() {
       if (backend.child.exitCode === 0) finish()
       else
         await unavailable(
-          "Closing could not confirm backend drain. New admissions may already be closed; Locus cannot return to ordinary saving. Check closing to repeat the same drain request."
+          "Closing could not confirm backend drain. New admissions may already be closed; Locus cannot return to ordinary saving. Check closing to repeat the same drain request.",
         )
     }
   }
@@ -179,7 +179,7 @@ export function startDesktop() {
       void unavailable(
         connection.status === "failed" || connection.status === "lost"
           ? connection.message
-          : "The renderer cannot prepare preferences for closing."
+          : "The renderer cannot prepare preferences for closing.",
       )
       return
     }
@@ -187,6 +187,51 @@ export function startDesktop() {
     changed()
     waitForPreparation()
   }
+
+  let selectingFiles = false
+  ipcMain.handle(channels.selectImportFiles, async (event) => {
+    sender(event)
+    if (
+      selectingFiles ||
+      !window ||
+      window.isDestroyed() ||
+      connection.status !== "ready" ||
+      close.state.phase !== "idle" ||
+      drainCommitted
+    )
+      return {
+        status: "failed",
+        message: "Local selection is unavailable while another picker or application close is active.",
+      }
+    const selectedWindow = window
+    const selectedRun = connection.runId
+    selectingFiles = true
+    try {
+      const result = await dialog.showOpenDialog(selectedWindow, {
+        title: "Import files: retain copies and process supported images and videos",
+        buttonLabel: "Import",
+        properties: ["openFile", "multiSelections"],
+      })
+      if (
+        selectedWindow.isDestroyed() ||
+        connection.status !== "ready" ||
+        connection.runId !== selectedRun ||
+        close.state.phase !== "idle" ||
+        drainCommitted
+      )
+        return {
+          status: "failed",
+          message: "The application connection or close state changed during selection. No import was submitted.",
+        }
+      return result.canceled || !result.filePaths.length
+        ? { status: "canceled" }
+        : { status: "selected", paths: result.filePaths }
+    } catch (error) {
+      return { status: "failed", message: error instanceof Error ? error.message : "Local file selection failed." }
+    } finally {
+      selectingFiles = false
+    }
+  })
 
   ipcMain.handle(channels.state, (event) => {
     sender(event)
@@ -295,8 +340,8 @@ export function startDesktop() {
           backend.origin,
           backend.runId,
           backend.credential,
-          details.requestHeaders
-        )
+          details.requestHeaders,
+        ),
       )
     })
     try {
@@ -309,11 +354,13 @@ export function startDesktop() {
         if (exiting) return
         connection = {
           status: "lost",
-          message: "The backend stopped. Restart Locus to reconnect; pending choices have not been confirmed saved.",
+          message:
+            "The backend stopped. Restart Locus to reconnect; pending choices have not been confirmed saved.",
         }
         changed()
         if (drainCommitted && code === 0) finish()
-        else if (drainCommitted || !pageAvailable || close.state.phase !== "idle") void unavailable(connection.message)
+        else if (drainCommitted || !pageAvailable || close.state.phase !== "idle")
+          void unavailable(connection.message)
       })
       await window.loadURL(`${backend.origin}/#/entity`)
     } catch (error) {

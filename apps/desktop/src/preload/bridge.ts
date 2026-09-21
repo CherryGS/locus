@@ -9,6 +9,7 @@ import {
 } from "../shared/desktop-bridge"
 
 const bridge: DesktopBridge = Object.freeze({
+  selectImportFiles: () => ipcRenderer.invoke(channels.selectImportFiles),
   state: () => ipcRenderer.invoke(channels.state),
   ready: () => ipcRenderer.invoke(channels.ready),
   observe(listener: (state: DesktopState) => void) {

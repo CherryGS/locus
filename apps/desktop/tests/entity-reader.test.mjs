@@ -230,3 +230,22 @@ test("coalescing an ordinary new range preserves an explicit reread of a still-a
   await tick()
   assert.equal(aReads, 2)
 })
+
+test("import effects reread only demanded subjects and retain latest queued effect without list refresh", async () => {
+  let lists = 0, reads = []
+  const pending = deferred()
+  let block = false
+  const f = fixture({ identities: async () => { lists++; return suppliedSequence(["a", "b", "c"]) }, memberships: async ids => {
+    reads.push([...ids]); if (block) { block = false; await pending.promise }
+    return ids.map(entity_id => ({ status: "present", entity_id, memberships: [{ entity_id, kind_id: imageKind, component_id: entity_id }] }))
+  } })
+  await f.reader.refresh(); f.reader.demand(["a"]); await tick()
+  const sequence = f.reader.sequence
+  block = true
+  const effect = id => ({ current: { entity_id: id, kinds: [] } })
+  f.reader.importEffects([effect("a"), effect("b")]); await tick()
+  f.reader.importEffects([effect("a")]); f.reader.importEffects([effect("a")]); pending.resolve(); await tick(); await tick()
+  assert.equal(lists, 1); assert.equal(f.reader.sequence, sequence); assert(reads.every(ids => ids.every(id => id === "a")))
+  assert(reads.length <= 3)
+  f.reader.demand(["b"]); await tick(); assert(reads.some(ids => ids.includes("b")))
+})

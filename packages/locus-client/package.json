@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/entities.test.ts",
     "smoke": "tsx smoke.ts",
+    "smoke:imports": "tsx import-smoke.ts",
     "smoke:media": "tsx media-smoke.ts",
     "smoke:video": "tsx media-smoke.ts --video",
     "smoke:entities": "tsx entity-smoke.ts",

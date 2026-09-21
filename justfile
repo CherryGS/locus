@@ -160,3 +160,13 @@ desktop-native-test: server-build desktop-build
 
 desktop-renderer-scale count="1000000": server-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:scale -- {{ count }}
+
+# Connected local-file import through the real generated client.
+server-import-smoke: server-build client-check
+    {{ npm }} --prefix packages/locus-client run smoke:imports
+
+desktop-import-browser:
+    {{ npm }} --prefix apps/desktop run verify:import-browser
+
+desktop-import-native:
+    {{ npm }} --prefix apps/desktop run verify:import-native

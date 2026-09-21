@@ -206,12 +206,26 @@ impl Shared {
         )
     }
     pub async fn derived(self: &Arc<Self>, locator: String) -> Result<OpenedBytes, ApiError> {
-        let preview = self.lock().previews.get(&locator).cloned().ok_or_else(|| {
-            ApiError::new(
-                ErrorCode::PreviewUnavailable,
-                "Unknown preview locator in this run",
-            )
-        })?;
+        let preview = self
+            .lock()
+            .previews
+            .get(&locator)
+            .cloned()
+            .or_else(|| {
+                self.imports
+                    .snapshots()
+                    .into_iter()
+                    .flat_map(|b| b.items)
+                    .flat_map(|i| i.current.kinds)
+                    .find(|k| k.locator.as_deref() == Some(&locator))
+                    .and_then(|k| k.output)
+            })
+            .ok_or_else(|| {
+                ApiError::new(
+                    ErrorCode::PreviewUnavailable,
+                    "Unknown preview locator in this run",
+                )
+            })?;
         let media = self.domain.media.clone();
         self.query("Open derived bytes",move |task|async move {
             let file=media.open_preview(&task,&preview).await.map_err(|e| {

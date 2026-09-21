@@ -27,6 +27,7 @@ impl Server {
         let queue = TaskQueue::new();
         let domain = Domain::open(&queue, &config.library_root).await?;
         let state = Arc::new(Shared {
+            imports: crate::imports::ImportStore::default(),
             credential: config.credential,
             origin,
             run_id: uuid::Uuid::now_v7().to_string(),

@@ -220,3 +220,15 @@ pub(crate) fn validate_png(
     }
     Ok(())
 }
+
+/// Supported format observation only: a match does not promise a decodable image.
+pub(crate) async fn recognize(
+    storage: &MediaService,
+    input: LocalFile,
+) -> Result<(), AttemptFailure> {
+    let config = storage.config.clone();
+    storage
+        .blocking(move || reader(input, &config).map(|_| ()))
+        .await
+        .map_err(|e| AttemptFailure::new(FailureCode::Worker, e))?
+}

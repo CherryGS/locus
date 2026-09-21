@@ -23,6 +23,13 @@ pub struct Receipt {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum TaskOutcome {
+    ImportBatch {
+        batch_id: String,
+    },
+    ImportRecovery {
+        batch_id: String,
+        item_id: String,
+    },
     Interpreted {
         result: Interpretation,
     },

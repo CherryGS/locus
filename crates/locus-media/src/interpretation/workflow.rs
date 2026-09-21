@@ -19,15 +19,35 @@ impl MediaService {
         session: &mut Session,
         id: impl Into<MediaId>,
     ) -> Result<PreparedInterpretation, MediaError> {
-        let id = id.into();
+        self.prepare_expected(kernel, files, session, id.into(), None)
+            .await
+    }
+    /// Capture only the caller's original host and File; acceptance still checks
+    /// the captured revision and context after decoder work.
+    pub async fn prepare_expected(
+        &self,
+        kernel: &Kernel,
+        files: &FileService,
+        session: &mut Session,
+        id: MediaId,
+        expected: Option<crate::input::ExpectedInput>,
+    ) -> Result<PreparedInterpretation, MediaError> {
         let kernel = kernel.clone();
         let (record, observed) = session
             .transaction_named("Media input observation", move |c| {
                 Box::pin(async move {
-                    Ok::<_, MediaError>((
-                        Self::read_in(c, id).await?,
-                        Self::context_in(&kernel, c, id).await?,
-                    ))
+                    let observed = Self::context_in(&kernel, c, id).await?;
+                    let record = Self::read_in(c, id).await?;
+                    if let Some(expected) = expected {
+                        expected.check(observed)?;
+                        if expected
+                            .revision
+                            .is_some_and(|revision| revision != record.revision)
+                        {
+                            return Err(MediaError::NewerAttempt);
+                        }
+                    }
+                    Ok::<_, MediaError>((record, observed))
                 })
             })
             .await?;

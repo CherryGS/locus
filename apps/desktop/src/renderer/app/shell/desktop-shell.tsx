@@ -3,6 +3,7 @@ import { useState } from "react"
 import { Separator } from "@/shared/ui/separator"
 import { TitlebarActionsTarget } from "@/shared/ui/titlebar-actions"
 import { LeftNavigation } from "./left-navigation"
+import { ImportActions } from "./import-actions"
 import { HistoryNavigation } from "./history-navigation"
 
 export function DesktopShell() {
@@ -16,6 +17,7 @@ export function DesktopShell() {
             <span>Locus</span>
             <div className="flex items-center gap-0.5">
               <HistoryNavigation />
+              <ImportActions />
               <div ref={setActionsTarget} className="contents" />
             </div>
           </div>

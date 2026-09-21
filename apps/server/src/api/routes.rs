@@ -30,6 +30,7 @@ fn registered() -> OpenApiRouter<Arc<Shared>> {
     OpenApiRouter::with_openapi(Contract::openapi())
         .merge(core::router())
         .merge(file::router())
+        .merge(super::imports::router())
         .merge(media::router())
         .merge(preferences::router())
         .merge(task::router())

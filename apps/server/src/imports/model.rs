@@ -1,0 +1,139 @@
+use locus_core::api::EntityId;
+use locus_file::api::{CopyProgress, FileId, PreparedFile};
+use locus_media::api::{MediaId, MediaKind, Preview};
+use std::sync::Arc;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum State {
+    Pending,
+    Running,
+    Success,
+    NoMatch,
+    Failed,
+    Uncertain,
+    Conflict,
+    Skipped,
+}
+#[derive(Debug, Clone)]
+pub(crate) struct Step {
+    pub state: State,
+    pub reason: Option<String>,
+}
+impl Step {
+    pub fn new(state: State) -> Self {
+        Self {
+            state,
+            reason: None,
+        }
+    }
+    pub fn error(state: State, reason: impl ToString) -> Self {
+        Self {
+            state,
+            reason: Some(reason.to_string()),
+        }
+    }
+    pub fn success(&self) -> bool {
+        self.state == State::Success
+    }
+}
+#[derive(Debug, Clone)]
+pub(crate) struct KindResult {
+    pub kind: MediaKind,
+    pub recognition: Step,
+    pub establishment: Step,
+    pub interpretation: Step,
+    pub preview: Step,
+    pub component: Option<MediaId>,
+    pub revision: Option<i64>,
+    pub output: Option<Arc<Preview>>,
+    pub locator: Option<String>,
+}
+impl KindResult {
+    pub fn new(kind: MediaKind) -> Self {
+        Self {
+            kind,
+            recognition: Step::new(State::Pending),
+            establishment: Step::new(State::Pending),
+            interpretation: Step::new(State::Pending),
+            preview: Step::new(State::Pending),
+            component: None,
+            revision: None,
+            output: None,
+            locator: None,
+        }
+    }
+    pub fn complete(&self) -> bool {
+        self.recognition.state == State::NoMatch
+            || (self.recognition.success()
+                && self.establishment.success()
+                && self.interpretation.success()
+                && self.preview.success())
+    }
+}
+#[derive(Debug, Clone)]
+pub(crate) struct ResultState {
+    pub observation_problem: Option<String>,
+    pub copy: Step,
+    pub base: Step,
+    pub entity: Option<EntityId>,
+    pub file: Option<FileId>,
+    pub progress: Option<CopyProgress>,
+    pub kinds: Vec<KindResult>,
+    pub effect: u64,
+}
+impl ResultState {
+    pub fn new() -> Self {
+        Self {
+            observation_problem: None,
+            copy: Step::new(State::Pending),
+            base: Step::new(State::Pending),
+            entity: None,
+            file: None,
+            progress: None,
+            kinds: vec![
+                KindResult::new(MediaKind::Image),
+                KindResult::new(MediaKind::Video),
+            ],
+            effect: 0,
+        }
+    }
+    pub fn complete(&self) -> bool {
+        self.base.success() && self.kinds.iter().all(KindResult::complete)
+    }
+    pub fn uncertain(&self) -> bool {
+        self.base.state == State::Uncertain
+            || self.kinds.iter().any(|k| {
+                k.establishment.state == State::Uncertain
+                    || k.interpretation.state == State::Uncertain
+            })
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Action {
+    Original,
+    Retry,
+    Recopy,
+    Confirm,
+}
+#[derive(Debug, Clone)]
+pub(crate) struct Attempt {
+    pub id: String,
+    pub action: Action,
+    pub ended: bool,
+    pub result: ResultState,
+}
+#[derive(Debug, Clone)]
+pub(crate) struct Item {
+    pub id: String,
+    pub source: String,
+    pub current: ResultState,
+    pub attempts: Vec<Attempt>,
+    pub active: Option<String>,
+    pub prepared: Option<PreparedFile>,
+}
+#[derive(Debug, Clone)]
+pub(crate) struct Batch {
+    pub id: String,
+    pub items: Vec<Item>,
+    pub ended: bool,
+}

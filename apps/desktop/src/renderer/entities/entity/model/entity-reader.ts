@@ -1,4 +1,4 @@
-import { ApiFailure, errorText, type BackendApi } from "@/shared/api"
+import { ApiFailure, errorText, type BackendApi, type Wire } from "@/shared/api"
 import type { EntityItem } from "./entity-item"
 import type { IdentitySequence } from "./identity-sequence"
 import { fileProjection, mediaProblems, mediaProjection, membershipProjection } from "./live-projection"
@@ -13,13 +13,16 @@ type Entry = {
   membershipObserved: boolean
   epoch: number
 }
-type ReadApi = Pick<BackendApi, "identities" | "memberships" | "file" | "media">
+type ReadApi = Pick<BackendApi, "identities" | "memberships" | "file" | "media"> &
+  Partial<Pick<BackendApi, "previewBytes">>
 
 export class EntityReader {
   sequence?: IdentitySequence
   listPending = false
   listError?: string
   listRevision = 0
+  private previews = new Map<string, Wire<"PreviewMetadata">>()
+  private previewUrls = new Map<string, string>()
   private listGeneration = 0
   private entries = new Map<string, Entry>()
   private needed = new Set<string>()
@@ -38,7 +41,7 @@ export class EntityReader {
   readonly snapshot = () => this.revision
   constructor(
     private readonly api: ReadApi,
-    readonly capacity = 256
+    readonly capacity = 256,
   ) {}
   private changed() {
     this.revision++
@@ -113,7 +116,9 @@ export class EntityReader {
         this.queued = false
         this.prune()
         void this.read(
-          [...this.needed].filter((id) => !this.entries.has(id) || this.entries.get(id)!.epoch !== this.listRevision)
+          [...this.needed].filter(
+            (id) => !this.entries.has(id) || this.entries.get(id)!.epoch !== this.listRevision,
+          ),
         )
       })
     }
@@ -140,6 +145,23 @@ export class EntityReader {
       }
       return false
     }
+  }
+  importEffects(items: Wire<"ImportItem">[]) {
+    const visible: string[] = []
+    for (const item of items) {
+      for (const kind of item.current.kinds)
+        if (kind.component_id && kind.output) this.previews.set(kind.component_id, kind.output)
+      const id = item.current.entity_id
+      if (!id) continue
+      const entry = this.entries.get(id)
+      if (entry) {
+        entry.epoch = -1
+        entry.resourceRevision = ++this.resourceGeneration
+      }
+      if (this.needed.has(id)) visible.push(id)
+    }
+    // A single bounded membership request, never a full identity-list refresh.
+    if (visible.length) void this.read([...new Set(visible)], true)
   }
   reread(id: string) {
     const entry = this.entries.get(id)
@@ -206,7 +228,8 @@ export class EntityReader {
               {
                 key: "membership",
                 subject: `Entity ${id}`,
-                message: "This Entity is no longer available. Refresh the list to establish its current membership.",
+                message:
+                  "This Entity is no longer available. Refresh the list to establish its current membership.",
                 recovery: "entity",
               },
             ],
@@ -224,10 +247,12 @@ export class EntityReader {
         const present = new Set(components.map((c) => c.id))
         entry.membershipObserved = true
         for (const key of entry.resources.keys())
-          if (!components.some((c) => c.kind === "image" && key.startsWith(`${c.id}:`))) entry.resources.delete(key)
+          if (!components.some((c) => c.kind === "image" && key.startsWith(`${c.id}:`)))
+            entry.resources.delete(key)
         const problems = (entry.item.problems ?? []).filter(
           (problem) =>
-            problem.key !== "membership" && [...present].some((component) => problem.key.startsWith(`${component}:`))
+            problem.key !== "membership" &&
+            [...present].some((component) => problem.key.startsWith(`${component}:`)),
         )
         entry.item = {
           id,
@@ -260,7 +285,9 @@ export class EntityReader {
                   : await this.api.media(component.kind as "image" | "video", component.id)
               if (this.entries.get(id) !== entry) return
               const next =
-                "file_id" in value ? fileProjection(value) : { ...mediaProjection(value), kindId: component.kindId }
+                "file_id" in value
+                  ? fileProjection(value)
+                  : { ...mediaProjection(value), kindId: component.kindId }
               if (next.id !== component.id || next.kind !== component.kind)
                 throw new Error("The record result did not match the requested Component.")
               entry.item = {
@@ -270,8 +297,50 @@ export class EntityReader {
               this.replaceProblems(
                 entry,
                 `${component.id}:`,
-                "file_id" in value ? [] : mediaProblems(value).map((p) => ({ ...p, key: `${component.id}:${p.key}` }))
+                "file_id" in value
+                  ? []
+                  : mediaProblems(value).map((p) => ({ ...p, key: `${component.id}:${p.key}` })),
               )
+              if (
+                (next.kind === "image" || next.kind === "video") &&
+                "applicability" in next &&
+                next.applicability?.status === "matching"
+              ) {
+                const output = this.previews.get(next.id)
+                if (
+                  output &&
+                  output.file_id === next.applicability.file_id &&
+                  output.kind === next.kind &&
+                  this.api.previewBytes
+                ) {
+                  try {
+                    const bytes = await this.api.previewBytes(output.locator, new AbortController().signal)
+                    if (this.entries.get(id) !== entry) return
+                    const url = URL.createObjectURL(bytes)
+                    const key = `${id}:${next.id}`
+                    const old = this.previewUrls.get(key)
+                    if (old) URL.revokeObjectURL(old)
+                    this.previewUrls.set(key, url)
+                    entry.item = {
+                      ...entry.item,
+                      components: entry.item.components.map((c) =>
+                        c.id === next.id ? { ...next, thumbnail: url } : c,
+                      ),
+                    }
+                    this.replaceProblems(entry, `${next.id}:preview`, [])
+                  } catch (error) {
+                    if (this.entries.get(id) !== entry) return
+                    this.replaceProblems(entry, `${next.id}:preview`, [
+                      {
+                        key: `${next.id}:preview`,
+                        subject: `${next.kind} preview`,
+                        message: errorText(error),
+                        recovery: "entity",
+                      },
+                    ])
+                  }
+                }
+              }
               if (next.kind === "image") {
                 const basis = `${next.id}:${next.inputFileId}`
                 for (const key of entry.resources.keys()) if (key !== basis) entry.resources.delete(key)
@@ -304,7 +373,7 @@ export class EntityReader {
                         readStatus: "failed",
                         previous,
                       } as typeof c)
-                    : c
+                    : c,
                 ),
               }
               this.replaceProblems(entry, `${component.id}:read`, [
@@ -381,7 +450,14 @@ export class EntityReader {
   }
   private prune() {
     for (const [id, entry] of this.entries) {
-      if (!this.needed.has(id) && (entry.pending || this.entries.size > this.capacity)) this.entries.delete(id)
+      if (!this.needed.has(id) && (entry.pending || this.entries.size > this.capacity)) {
+        this.entries.delete(id)
+        for (const [key, url] of this.previewUrls)
+          if (key.startsWith(`${id}:`)) {
+            URL.revokeObjectURL(url)
+            this.previewUrls.delete(key)
+          }
+      }
     }
     this.jobs = this.jobs.filter((job) => this.entries.get(job.id) === job.entry)
   }

@@ -1356,6 +1356,327 @@
         }
       }
     },
+    "/api/v1/import-batches": {
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "operationId": "observe",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "operationId": "submit",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/import-recoveries": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "operationId": "recover",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRecoveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/imports": {
       "post": {
         "tags": [
@@ -3326,6 +3647,25 @@
           }
         }
       },
+      "BatchImportRequest": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "source_paths"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "source_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "ChangeMembership": {
         "type": "object",
         "required": [
@@ -3914,6 +4254,174 @@
           "gif"
         ]
       },
+      "ImportAction": {
+        "type": "string",
+        "enum": [
+          "retry",
+          "recopy",
+          "confirm"
+        ]
+      },
+      "ImportAttempt": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "action",
+          "ended",
+          "result"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ImportAttemptAction"
+          },
+          "ended": {
+            "type": "boolean"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ImportResult"
+          }
+        }
+      },
+      "ImportAttemptAction": {
+        "type": "string",
+        "enum": [
+          "original",
+          "retry",
+          "recopy",
+          "confirm"
+        ]
+      },
+      "ImportBatch": {
+        "type": "object",
+        "required": [
+          "batch_id",
+          "original_ended",
+          "items"
+        ],
+        "properties": {
+          "batch_id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportItem"
+            }
+          },
+          "original_ended": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ImportItem": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "source_path",
+          "current",
+          "attempts",
+          "actions"
+        ],
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportAction"
+            }
+          },
+          "active_request_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportAttempt"
+            }
+          },
+          "current": {
+            "$ref": "#/components/schemas/ImportResult"
+          },
+          "item_id": {
+            "type": "string"
+          },
+          "source_path": {
+            "type": "string"
+          }
+        }
+      },
+      "ImportKindResult": {
+        "type": "object",
+        "required": [
+          "kind",
+          "recognition",
+          "establishment",
+          "interpretation",
+          "preview"
+        ],
+        "properties": {
+          "component_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "establishment": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
+          "interpretation": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MediaKind"
+          },
+          "output": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PreviewMetadata"
+              }
+            ]
+          },
+          "preview": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
+          "recognition": {
+            "$ref": "#/components/schemas/ImportStep"
+          }
+        }
+      },
+      "ImportRecoveryRequest": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "batch_id",
+          "item_id",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ImportAction"
+          },
+          "batch_id": {
+            "type": "string"
+          },
+          "item_id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ImportRequest": {
         "type": "object",
         "description": "An intentional import submission. Reuse its ID only with identical arguments.",
@@ -3932,6 +4440,120 @@
           }
         },
         "additionalProperties": false
+      },
+      "ImportResult": {
+        "type": "object",
+        "required": [
+          "copy",
+          "base",
+          "managed_bytes_may_exist",
+          "copy_complete",
+          "kinds",
+          "complete",
+          "effect_revision"
+        ],
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "copied_bytes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "copy": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
+          "copy_complete": {
+            "type": "boolean"
+          },
+          "effect_revision": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kinds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportKindResult"
+            }
+          },
+          "managed_bytes_may_exist": {
+            "type": "boolean"
+          },
+          "observation_problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ImportSnapshot": {
+        "type": "object",
+        "required": [
+          "admission",
+          "run_id",
+          "batches"
+        ],
+        "properties": {
+          "admission": {
+            "$ref": "#/components/schemas/AdmissionState"
+          },
+          "batches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportBatch"
+            }
+          },
+          "run_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ImportStep": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/ImportStepState"
+          }
+        }
+      },
+      "ImportStepState": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "running",
+          "success",
+          "no_match",
+          "failed",
+          "uncertain",
+          "conflict",
+          "skipped"
+        ]
       },
       "InterpretRequest": {
         "type": "object",
@@ -5045,6 +5667,46 @@
       },
       "TaskOutcome": {
         "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "batch_id",
+              "status"
+            ],
+            "properties": {
+              "batch_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "import_batch"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "batch_id",
+              "item_id",
+              "status"
+            ],
+            "properties": {
+              "batch_id": {
+                "type": "string"
+              },
+              "item_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "import_recovery"
+                ]
+              }
+            }
+          },
           {
             "type": "object",
             "required": [

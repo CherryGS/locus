@@ -70,7 +70,12 @@ pub(crate) fn parse(bytes: &[u8], family: Family) -> Result<VideoFacts, AttemptF
         let object = stream
             .as_object()
             .ok_or_else(|| malformed("stream object"))?;
-        if object.get("codec_type").and_then(Value::as_str) != Some("video") {
+        let codec_type = object
+            .get("codec_type")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| malformed("required codec_type missing or invalid"))?;
+        if codec_type != "video" {
             continue;
         }
         let mut excluded = false;

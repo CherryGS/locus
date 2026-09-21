@@ -78,3 +78,22 @@ fn artwork_and_still_dispositions_never_establish_temporal_video() {
         );
     }
 }
+
+#[test]
+fn recognition_budget_and_required_probe_output_are_failures() {
+    let mut bytes = vec![0; 64 * 1024];
+    bytes[..4].copy_from_slice(&100_000_u32.to_be_bytes());
+    bytes[4..8].copy_from_slice(b"ftyp");
+    assert_eq!(classify(&bytes).unwrap_err().code, FailureCode::Limit);
+    bytes[..12].copy_from_slice(b"\x1a\x45\xdf\xa3\x01\0\0\0\0\x01\x86\xa0");
+    assert_eq!(classify(&bytes).unwrap_err().code, FailureCode::Limit);
+    for json in [
+        br#"{"streams":[{"index":0}]}"#.as_slice(),
+        br#"{"streams":[{"codec_type":4}]}"#,
+    ] {
+        assert_eq!(
+            parse(json, Family::Mov).unwrap_err().code,
+            FailureCode::MalformedOutput
+        );
+    }
+}

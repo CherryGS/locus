@@ -44,6 +44,12 @@ fn vint(bytes: &[u8], offset: &mut usize, keep_marker: bool) -> Option<u64> {
 pub(crate) fn classify(bytes: &[u8]) -> Result<Family, AttemptFailure> {
     if bytes.len() >= 16 && &bytes[4..8] == b"ftyp" {
         let size = u32::from_be_bytes(bytes[..4].try_into().map_err(|_| unsupported())?) as usize;
+        if size > bytes.len() && bytes.len() == 64 * 1024 {
+            return Err(AttemptFailure::new(
+                FailureCode::Limit,
+                "BMFF brand header exceeds recognition observation budget",
+            ));
+        }
         if size < 16 || size > bytes.len() || !(size - 16).is_multiple_of(4) {
             return Err(unsupported());
         }
@@ -64,6 +70,16 @@ pub(crate) fn classify(bytes: &[u8]) -> Result<Family, AttemptFailure> {
         let mut offset = 4;
         let size = usize::try_from(vint(bytes, &mut offset, false).ok_or_else(unsupported)?)
             .map_err(|_| unsupported())?;
+        if offset
+            .checked_add(size)
+            .is_some_and(|end| end > bytes.len())
+            && bytes.len() == 64 * 1024
+        {
+            return Err(AttemptFailure::new(
+                FailureCode::Limit,
+                "EBML header exceeds recognition observation budget",
+            ));
+        }
         let end = offset
             .checked_add(size)
             .filter(|end| *end <= bytes.len())

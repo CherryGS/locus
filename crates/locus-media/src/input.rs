@@ -44,3 +44,27 @@ impl MediaService {
         }
     }
 }
+
+/// Original input prerequisite for a consumer-owned operation. This is a guard,
+/// never a binding that bypasses actual memberships.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExpectedInput {
+    pub entity: EntityId,
+    pub file: FileId,
+    /// When supplied, processing may only capture this component revision.
+    pub revision: Option<i64>,
+}
+impl ExpectedInput {
+    pub(crate) fn check(self, actual: InputContext) -> Result<(), MediaError> {
+        if actual
+            == (InputContext::Hosted {
+                host: self.entity,
+                input: CurrentInput::File(self.file),
+            })
+        {
+            Ok(())
+        } else {
+            Err(MediaError::ContextChanged)
+        }
+    }
+}

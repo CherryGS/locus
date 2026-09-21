@@ -1,10 +1,16 @@
-import { createLocusClient, readEntityIds, type components, type BackendContext, type LocusClient } from "@locus/client"
+import {
+  createLocusClient,
+  readEntityIds,
+  type components,
+  type BackendContext,
+  type LocusClient,
+} from "@locus/client"
 
 export type Wire<K extends keyof components["schemas"]> = components["schemas"][K]
 export class ApiFailure extends Error {
   constructor(
     public readonly detail: Wire<"ApiError">,
-    public readonly status: number
+    public readonly status: number,
   ) {
     super(detail.message)
   }
@@ -51,9 +57,27 @@ export class BackendApi {
   readonly client: LocusClient
   constructor(
     readonly context: BackendContext,
-    transport?: typeof fetch
+    transport?: typeof fetch,
   ) {
     this.client = createLocusClient(context, transport)
+  }
+  async importBatch(body: Wire<"BatchImportRequest">) {
+    return result(await this.client.POST("/api/v1/import-batches", { body }))
+  }
+  async recoverImport(body: Wire<"ImportRecoveryRequest">) {
+    return result(await this.client.POST("/api/v1/import-recoveries", { body }))
+  }
+  async imports() {
+    return result(await this.client.GET("/api/v1/import-batches"))
+  }
+  async previewBytes(locator: string, signal: AbortSignal) {
+    return result(
+      await this.client.GET("/api/v1/previews/{locator}/bytes", {
+        params: { path: { locator } },
+        parseAs: "blob",
+        signal,
+      }),
+    )
   }
   identities() {
     return readEntityIds(this.client)
@@ -68,7 +92,7 @@ export class BackendApi {
     return result(
       await this.client.GET("/api/v1/media/{kind}/{component_id}/view", {
         params: { path: { kind, component_id: id } },
-      })
+      }),
     )
   }
   async preferences(ids: string[]) {
@@ -79,7 +103,7 @@ export class BackendApi {
       await this.client.PUT("/api/v1/entities/{entity_id}/view-preference", {
         params: { path: { entity_id: id } },
         body,
-      })
+      }),
     )
   }
   async submission(id: string) {

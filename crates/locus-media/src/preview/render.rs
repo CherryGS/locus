@@ -19,6 +19,19 @@ impl MediaService {
         id: impl Into<MediaId>,
         rendition: Rendition,
     ) -> Result<Preview, MediaError> {
+        self.preview_expected(kernel, files, session, id.into(), rendition, None)
+            .await
+    }
+    /// The returned preview always names the File actually captured here.
+    pub async fn preview_expected(
+        &self,
+        kernel: &Kernel,
+        files: &FileService,
+        session: &mut Session,
+        id: MediaId,
+        rendition: Rendition,
+        expected: Option<crate::input::ExpectedInput>,
+    ) -> Result<Preview, MediaError> {
         if rendition.edge == 0
             || rendition.edge > 2048
             || rendition.edge > self.config.max_dimension
@@ -27,16 +40,25 @@ impl MediaService {
                 "rendition edge must be 1..=2048 and within dimension budget".into(),
             ));
         }
-        let id = id.into();
         let kernel = kernel.clone();
         let (record, observed) = session
             .transaction_named("Media preview input", move |c| {
                 Box::pin(async move {
                     let observed = Self::context_in(&kernel, c, id).await?;
+                    let record = Self::read_in(c, id).await?;
+                    if let Some(expected) = expected {
+                        expected.check(observed)?;
+                        if expected
+                            .revision
+                            .is_some_and(|revision| revision != record.revision)
+                        {
+                            return Err(MediaError::NewerAttempt);
+                        }
+                    }
                     if let Some(file) = observed.file() {
                         FileService::read_in(c, file).await?;
                     }
-                    Ok::<_, MediaError>((Self::read_in(c, id).await?, observed))
+                    Ok::<_, MediaError>((record, observed))
                 })
             })
             .await?;

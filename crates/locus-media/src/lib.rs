@@ -12,6 +12,7 @@ mod interpretation;
 mod owner;
 mod persistence;
 mod preview;
+mod recognition;
 mod record;
 mod service;
 mod view;

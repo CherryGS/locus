@@ -46,6 +46,7 @@ pub(crate) struct Registry {
     pub reject_next_launch: bool,
 }
 pub(crate) struct Shared {
+    pub imports: crate::imports::ImportStore,
     pub credential: String,
     pub origin: String,
     pub run_id: String,
@@ -165,6 +166,7 @@ impl Shared {
     pub fn finish(&self, id: &str, outcome: TaskOutcome) {
         let mut registry = self.lock();
         if let Some(entry) = registry.tasks.get_mut(id) {
+            self.imports.end_unfinished(&entry.projection.request_id);
             entry.outcome = Some(outcome);
             entry.projection.state = PublicTaskState::Terminal;
             entry.projection.outcome_available = true;

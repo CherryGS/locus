@@ -15,6 +15,8 @@ use std::{future::Future, sync::Arc};
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Arguments {
+    ImportBatch(crate::api::imports::dto::BatchImportRequest),
+    RecoverImport(crate::api::imports::dto::ImportRecoveryRequest),
     Import(ImportRequest),
     CreateEntity,
     CreateMedia(MediaKind),
@@ -53,6 +55,19 @@ impl Shared {
             };
         }
         self.admit(&mut registry)?;
+        match &arguments {
+            Arguments::ImportBatch(r) => self.imports.reserve_batch(&r.request_id, &r.source_paths),
+            Arguments::RecoverImport(r) => self
+                .imports
+                .reserve_recovery(
+                    &r.batch_id,
+                    &r.item_id,
+                    &r.request_id,
+                    crate::api::imports::mapping::action(r.action),
+                )
+                .map_err(|e| ApiError::new(ErrorCode::RequestConflict, e))?,
+            _ => (),
+        }
         #[cfg(test)]
         let reject = std::mem::take(&mut registry.reject_next_launch);
         #[cfg(not(test))]
@@ -65,6 +80,13 @@ impl Shared {
         let handle = match launched {
             Ok(handle) => handle,
             Err(error) => {
+                match &arguments {
+                    Arguments::ImportBatch(r) => self.imports.release(&r.request_id, None, &id),
+                    Arguments::RecoverImport(r) => {
+                        self.imports.release(&r.batch_id, Some(&r.item_id), &id)
+                    }
+                    _ => (),
+                }
                 let error = ApiError::new(ErrorCode::LaunchRejected, error.to_string());
                 registry.requests.insert(
                     id,

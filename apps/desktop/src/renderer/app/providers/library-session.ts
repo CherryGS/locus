@@ -1,5 +1,6 @@
 import { BackendApi } from "@/shared/api"
 import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
+import { ImportCoordinator } from "@/features/file-import"
 import { PreferenceCoordinator } from "@/features/entity-view-preferences"
 import type { DesktopBridge, DesktopState } from "../../../shared/desktop-bridge"
 
@@ -12,6 +13,7 @@ export class LibrarySession {
   readonly api: BackendApi
   readonly reader: EntityReader
   readonly preferences: PreferenceCoordinator
+  readonly imports: ImportCoordinator
   constructor(
     readonly bridge: DesktopBridge,
     readonly initial: DesktopState
@@ -25,6 +27,12 @@ export class LibrarySession {
     this.api = new BackendApi(initial.connection)
     this.reader = new EntityReader(this.api)
     this.preferences = new PreferenceCoordinator(this.api)
+    this.imports = new ImportCoordinator(this.api, bridge, (items) => {
+      this.reader.importEffects(items)
+    })
+    this.imports.host(initial)
+    bridge.observe((state) => this.imports.host(state))
+    void this.imports.observe()
   }
   readonly demand = (ids: string[]) => {
     this.reader.demand(ids)

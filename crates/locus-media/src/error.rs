@@ -33,6 +33,10 @@ impl AttemptFailure {
 }
 #[derive(Debug, Error)]
 pub enum MediaError {
+    #[error("original Media host/File context has changed")]
+    ContextChanged,
+    #[error("a newer Media interpretation changed the expected revision")]
+    NewerAttempt,
     #[error(transparent)]
     Task(#[from] locus_task::api::TaskError),
     #[error(transparent)]

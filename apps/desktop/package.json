@@ -17,6 +17,8 @@
     "build:renderer": "vite build",
     "install:browser": "playwright install chromium",
     "preview:ui": "tsx scripts/browser-preview.ts",
+    "verify:import-browser": "tsx scripts/import-browser-check.ts",
+    "verify:import-native": "tsx scripts/import-electron-check.ts",
     "verify:browser": "tsx scripts/browser-check.ts",
     "verify:electron": "tsx scripts/electron-smoke.ts && tsx scripts/electron-close-check.ts",
     "verify:scale": "tsx scripts/renderer-scale.ts"

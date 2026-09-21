@@ -1,6 +1,6 @@
 mod bootstrap;
 mod bytes;
-mod composition;
+pub(crate) mod composition;
 mod core;
 mod file;
 mod media;
@@ -21,3 +21,8 @@ mod preference_tests;
 mod tests;
 
 pub(crate) use bytes::OpenedBytes;
+
+mod imports;
+
+#[cfg(test)]
+mod import_tests;

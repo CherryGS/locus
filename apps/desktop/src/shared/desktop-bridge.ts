@@ -17,7 +17,11 @@ export type CloseAction = { attemptId: string; action: "return" | "continue"; re
 export type CloseCommit = { attemptId: string; revision: number }
 
 /** No credential, generic IPC, process or filesystem capability crosses this seam. */
+export type LocalFileSelection =
+  { status: "selected"; paths: string[] } | { status: "canceled" } | { status: "failed"; message: string }
+
 export interface DesktopBridge {
+  selectImportFiles(): Promise<LocalFileSelection>
   state(): Promise<DesktopState>
   ready(): Promise<void>
   observe(listener: (state: DesktopState) => void): () => void
@@ -27,6 +31,7 @@ export interface DesktopBridge {
 }
 
 export const desktopChannels = {
+  selectImportFiles: "locus:select-import-files",
   state: "locus:state",
   ready: "locus:renderer-ready",
   changed: "locus:changed",
@@ -46,7 +51,8 @@ export function isPreparation(value: unknown): value is Preparation {
     revision(value.revision) &&
     Array.isArray(value.items) &&
     value.items.every(
-      (item) => record(item) && identity(item.entityId) && identity(item.viewId) && typeof item.reason === "string"
+      (item) =>
+        record(item) && identity(item.entityId) && identity(item.viewId) && typeof item.reason === "string",
     )
   )
 }
