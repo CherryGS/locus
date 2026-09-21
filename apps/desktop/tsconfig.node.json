@@ -10,5 +10,5 @@
     "noEmit": true,
     "composite": true
   },
-  "include": ["src/main/**/*.ts", "*.config.ts"]
+  "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts", "*.config.ts"]
 }

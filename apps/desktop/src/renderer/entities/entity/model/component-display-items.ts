@@ -10,7 +10,7 @@ export const fileDisplayItems = {
   },
   size(entity: EntityItem): string | undefined {
     const file = entity.components.find((component) => component.kind === "file")
-    return file ? formatFileSize(file.bytes) : undefined
+    return file?.bytes !== undefined ? formatFileSize(file.bytes) : undefined
   },
 }
 
@@ -21,7 +21,7 @@ export const imageDisplayItems = {
   },
   dimensions(entity: EntityItem): string | undefined {
     const image = entity.components.find((component) => component.kind === "image")
-    return image ? `${image.width} × ${image.height}` : undefined
+    return image?.width !== undefined && image.height !== undefined ? `${image.width} × ${image.height}` : undefined
   },
 }
 

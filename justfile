@@ -121,7 +121,7 @@ server-preference-smoke: server-build client-check
 server-entity-scale count="1000000": server-build client-check
     {{ npm }} --prefix packages/locus-client run scale:entities -- {{ count }}
 
-# Standalone Electron shell; no backend or user library is opened.
+# Production Electron entry owns the backend and uses the selected real library.
 desktop-install:
     {{ npm }} --prefix apps/desktop ci
     {{ npm }} --prefix apps/desktop run install:electron
@@ -135,12 +135,28 @@ desktop-test:
 desktop-build:
     {{ npm }} --prefix apps/desktop run build
 
-desktop-run:
-    {{ npm }} --prefix apps/desktop run dev
+desktop-run: server-build desktop-build
+    {{ npm }} --prefix apps/desktop start
 
-# Browser-only renderer preview; does not launch an Electron window.
-desktop-ui:
+# Isolated live browser preview over a newly created synthetic temporary library.
+desktop-ui: server-build desktop-build
+    {{ npm }} --prefix apps/desktop run preview:ui
+
+desktop-preview: server-build desktop-build
+    {{ npm }} --prefix apps/desktop start
+
+desktop-browser-install:
+    {{ npm }} --prefix apps/desktop run install:browser
+
+# Explicit supplied-data preview: open /?preview=specimens#/entity.
+desktop-ui-specimens:
     {{ npm }} --prefix apps/desktop run dev:renderer
 
-desktop-preview:
-    {{ npm }} --prefix apps/desktop start
+desktop-ui-test: server-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:browser
+
+desktop-native-test: server-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:electron
+
+desktop-renderer-scale count="1000000": server-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:scale -- {{ count }}

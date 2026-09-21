@@ -1,4 +1,5 @@
-export function formatFileSize(bytes: number) {
+export function formatFileSize(input: number | string) {
+  const bytes = typeof input === "string" ? Number(input) : input
   const units = ["bytes", "KiB", "MiB", "GiB", "TiB"]
   let unit = 0
   let value = bytes

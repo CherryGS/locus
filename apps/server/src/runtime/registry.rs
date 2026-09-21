@@ -15,12 +15,15 @@ use tokio::sync::watch;
 pub struct ServerConfig {
     pub credential: String,
     pub library_root: PathBuf,
+    /// Explicit trusted build output, never a library or request-selected path.
+    pub renderer_root: Option<PathBuf>,
 }
 impl ServerConfig {
     pub fn new(credential: String, library_root: PathBuf) -> Self {
         Self {
             credential,
             library_root,
+            renderer_root: None,
         }
     }
 }

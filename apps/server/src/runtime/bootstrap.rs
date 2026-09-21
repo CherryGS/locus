@@ -12,6 +12,7 @@ use std::{
 pub struct Bootstrap {
     pub credential: String,
     pub library_root: Option<PathBuf>,
+    pub renderer_root: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -48,7 +49,9 @@ impl Bootstrap {
                     .join("Locus"))
             },
         )?;
-        Ok(super::registry::ServerConfig::new(self.credential, root))
+        let mut config = super::registry::ServerConfig::new(self.credential, root);
+        config.renderer_root = self.renderer_root;
+        Ok(config)
     }
 }
 

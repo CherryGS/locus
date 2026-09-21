@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { motion, useReducedMotion } from "motion/react"
-import type { EntityItem } from "@/entities/entity"
+import type { EntityItem, EntitySource } from "@/entities/entity"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyDescription, EmptyHeader } from "@/shared/ui/empty"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/shared/ui/resizable"
@@ -11,26 +11,38 @@ import { minimumEntityGridWidth } from "./entity-grid-layout"
 import { entityPanels, type EntityPanelId } from "./entity-panels"
 import { CopyIdentityButton } from "@/shared/ui/copy-identity-button"
 
-export function EntityWorkspace({ entities, selectedEntity, viewing, onSelect, onOpen, content, viewSelection }: {
-  entities: readonly EntityItem[]
+export function EntityWorkspace({
+  source,
+  selectedEntity,
+  viewing,
+  onSelect,
+  onOpen,
+  content,
+  viewSelection,
+  gridFeedback,
+}: {
+  source: EntitySource
   selectedEntity: EntityItem | null
   viewing: boolean
   onSelect: (entity: EntityItem) => void
   onOpen: (entity: EntityItem) => void
   content: ReactNode
   viewSelection: ReactNode
+  gridFeedback?: ReactNode
 }) {
   const panels = entityPanels(selectedEntity, viewSelection)
   const [activePanelId, setActivePanelId] = useState<EntityPanelId | null>(null)
   const missingPanel = activePanelId !== null && !panels.some((panel) => panel.id === activePanelId)
-  const activePanel = activePanelId === null ? null : panels.find((panel) => panel.id === activePanelId) ?? panels[0]
+  const activePanel = activePanelId === null ? null : (panels.find((panel) => panel.id === activePanelId) ?? panels[0])
   const [panelDefaultWidth, setPanelDefaultWidth] = useState(256)
   // Keep the mounted split pane's default stable during a drag; restore its
   // last live width only when reopening it.
   const lastPanelWidth = useRef(256)
   const reduceMotion = useReducedMotion()
 
-  useEffect(() => { if (missingPanel) setActivePanelId("overview") }, [missingPanel])
+  useEffect(() => {
+    if (missingPanel) setActivePanelId("overview")
+  }, [missingPanel])
 
   function togglePanel(id: EntityPanelId) {
     if (activePanel === null) setPanelDefaultWidth(lastPanelWidth.current)
@@ -49,10 +61,22 @@ export function EntityWorkspace({ entities, selectedEntity, viewing, onSelect, o
         <ResizablePanel id="entity-grid-panel" minSize={minimumEntityGridWidth}>
           {viewing
             ? content
-            : entities.length > 0
-            ? <EntityGrid entities={entities} selectedId={selectedEntity?.id} onSelect={onSelect} onOpen={onOpen} revealSelectionOnMount={selectedEntity !== null} />
-            : <Empty className="h-full"><EmptyHeader><EmptyDescription>No entities yet.</EmptyDescription></EmptyHeader></Empty>}
-
+            : (gridFeedback ??
+              (source.sequence.length > 0 ? (
+                <EntityGrid
+                  source={source}
+                  selectedId={selectedEntity?.id}
+                  onSelect={onSelect}
+                  onOpen={onOpen}
+                  revealSelectionOnMount
+                />
+              ) : (
+                <Empty className="h-full">
+                  <EmptyHeader>
+                    <EmptyDescription>No entities yet.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              )))}
         </ResizablePanel>
         {activePanel && (
           <>
@@ -65,7 +89,9 @@ export function EntityWorkspace({ entities, selectedEntity, viewing, onSelect, o
               defaultSize={panelDefaultWidth}
               minSize="12rem"
               groupResizeBehavior="preserve-pixel-size"
-              onResize={({ inPixels }) => { lastPanelWidth.current = inPixels }}
+              onResize={({ inPixels }) => {
+                lastPanelWidth.current = inPixels
+              }}
             >
               <motion.aside
                 id="auxiliary-panel"

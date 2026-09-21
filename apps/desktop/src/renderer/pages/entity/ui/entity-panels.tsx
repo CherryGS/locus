@@ -1,8 +1,15 @@
 import { PanelRightIcon, type LucideIcon } from "lucide-react"
 import type { ReactNode } from "react"
-import { componentAppearance, EntityComponentDetails, EntityOverview, type EntityComponent, type EntityItem } from "@/entities/entity"
+import {
+  componentAppearance,
+  EntityComponentDetails,
+  EntityOverview,
+  type EntityComponent,
+  type EntityItem,
+} from "@/entities/entity"
+import { availableViews } from "../model/content-views"
 
-export type EntityPanelId = "overview" | EntityComponent["kind"]
+export type EntityPanelId = string
 
 type EntityPanel = {
   id: EntityPanelId
@@ -15,12 +22,20 @@ type EntityPanel = {
 export function entityPanels(entity: EntityItem | null, viewSelection?: ReactNode): EntityPanel[] {
   return [
     {
-      id: "overview", label: "Overview", icon: PanelRightIcon,
+      id: "overview",
+      label: "Overview",
+      icon: PanelRightIcon,
       identity: entity ? { label: "Entity ID", value: entity.id } : undefined,
-      content: <EntityOverview entity={entity} viewSelection={viewSelection} />,
+      content: (
+        <EntityOverview
+          entity={entity}
+          viewSelection={viewSelection}
+          representedKinds={viewSelection ? availableViews(entity).map((view) => view.kind) : []}
+        />
+      ),
     },
     ...(entity?.components.map((component) => ({
-      id: component.kind,
+      id: component.kind === "unknown" ? component.id : component.kind,
       label: componentAppearance[component.kind].label,
       identity: { label: "Component ID", value: component.id },
       icon: componentAppearance[component.kind].icon,

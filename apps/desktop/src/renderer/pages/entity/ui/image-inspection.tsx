@@ -3,9 +3,27 @@ import { ImageOffIcon, MinusIcon, PlusIcon } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
-import { fitImageScale, zoomImage, type ImagePoint, type ImageSize, type ImageTransform } from "../model/image-transform"
+import {
+  fitImageScale,
+  zoomImage,
+  type ImagePoint,
+  type ImageSize,
+  type ImageTransform,
+} from "../model/image-transform"
 
-export function ImageInspection({ src, name }: { src: string | undefined; name: string }) {
+export function ImageInspection({
+  src,
+  name,
+  onDecoded,
+  onFailed,
+  onRetry,
+}: {
+  src: string | undefined
+  name: string
+  onDecoded?: () => void
+  onFailed?: () => void
+  onRetry?: () => void
+}) {
   const viewport = useRef<HTMLDivElement>(null)
   const drag = useRef<{ id: number; x: number; y: number } | null>(null)
   const zoomTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -40,11 +58,14 @@ export function ImageInspection({ src, name }: { src: string | undefined; name: 
     return () => observer.disconnect()
   }, [])
 
-  const zoom = useCallback((factor: number, point?: ImagePoint) => {
-    if (!ready) return
-    setManualView((previous) => zoomImage(previous ?? { scale: fit, x: 0, y: 0 }, factor, point))
-    flashZoom()
-  }, [fit, ready, flashZoom])
+  const zoom = useCallback(
+    (factor: number, point?: ImagePoint) => {
+      if (!ready) return
+      setManualView((previous) => zoomImage(previous ?? { scale: fit, x: 0, y: 0 }, factor, point))
+      flashZoom()
+    },
+    [fit, ready, flashZoom]
+  )
 
   useEffect(() => {
     const element = viewport.current
@@ -54,7 +75,10 @@ export function ImageInspection({ src, name }: { src: string | undefined; name: 
       if (!element) return
       const rect = element.getBoundingClientRect()
       const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height : 1)
-      zoom(2 ** (-pixels / 500), { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 })
+      zoom(2 ** (-pixels / 500), {
+        x: event.clientX - rect.left - rect.width / 2,
+        y: event.clientY - rect.top - rect.height / 2,
+      })
     }
     element.addEventListener("wheel", wheel, { passive: false })
     return () => element.removeEventListener("wheel", wheel)
@@ -94,7 +118,8 @@ export function ImageInspection({ src, name }: { src: string | undefined; name: 
   function endPan(event: PointerEvent<HTMLDivElement>) {
     if (drag.current?.id !== event.pointerId) return
     drag.current = null
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
   return (
@@ -106,13 +131,18 @@ export function ImageInspection({ src, name }: { src: string | undefined; name: 
       aria-label="Image preview"
       aria-busy={!unavailable && !ready}
       tabIndex={0}
-      className={cn("relative min-h-0 min-w-0 flex-1 touch-none overflow-hidden outline-none select-none", ready && "cursor-grab active:cursor-grabbing")}
+      className={cn(
+        "relative min-h-0 min-w-0 flex-1 touch-none overflow-hidden outline-none select-none",
+        ready && "cursor-grab active:cursor-grabbing"
+      )}
       onKeyDown={zoomKey}
       onPointerDown={beginPan}
       onPointerMove={pan}
       onPointerUp={endPan}
       onPointerCancel={endPan}
-      onLostPointerCapture={() => { drag.current = null }}
+      onLostPointerCapture={() => {
+        drag.current = null
+      }}
     >
       {src && !failed && (
         <img
@@ -120,36 +150,75 @@ export function ImageInspection({ src, name }: { src: string | undefined; name: 
           alt={name}
           draggable={false}
           className="pointer-events-none absolute top-1/2 left-1/2 max-w-none select-none"
-          style={{ width: imageSize?.width, height: imageSize?.height, opacity: ready ? 1 : 0, transform: `translate(-50%, -50%) translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}
+          style={{
+            width: imageSize?.width,
+            height: imageSize?.height,
+            opacity: ready ? 1 : 0,
+            transform: `translate(-50%, -50%) translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+          }}
           onLoad={(event) => {
             const { naturalWidth: width, naturalHeight: height } = event.currentTarget
-            if (width > 0 && height > 0) setImageSize({ width, height })
-            else setFailed(true)
+            if (width > 0 && height > 0) {
+              setImageSize({ width, height })
+              onDecoded?.()
+            } else {
+              setFailed(true)
+              onFailed?.()
+            }
           }}
-          onError={() => setFailed(true)}
+          onError={() => {
+            setFailed(true)
+            onFailed?.()
+          }}
         />
       )}
       {unavailable ? (
         <Empty className="h-full" role="status">
           <EmptyHeader>
-            <EmptyMedia variant="icon"><ImageOffIcon /></EmptyMedia>
+            <EmptyMedia variant="icon">
+              <ImageOffIcon />
+            </EmptyMedia>
             <EmptyTitle>Unable to display image</EmptyTitle>
             <EmptyDescription>Return to the source or continue browsing.</EmptyDescription>
           </EmptyHeader>
+          {onRetry && (
+            <Button variant="outline" onClick={onRetry}>
+              Retry image
+            </Button>
+          )}
         </Empty>
-      ) : !ready && <p role="status" className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading image…</p>}
+      ) : (
+        !ready && (
+          <p role="status" className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            Loading image…
+          </p>
+        )
+      )}
       {ready && (
         <div
           data-slot="image-zoom-feedback"
-          className={cn("pointer-events-none absolute bottom-4 left-1/2 flex -translate-x-1/2 cursor-default items-center gap-1 rounded-full border bg-popover/90 p-1 shadow-sm opacity-0 transition-opacity focus-within:pointer-events-auto focus-within:opacity-100", showZoom && "pointer-events-auto opacity-100")}
+          className={cn(
+            "pointer-events-none absolute bottom-4 left-1/2 flex -translate-x-1/2 cursor-default items-center gap-1 rounded-full border bg-popover/90 p-1 shadow-sm opacity-0 transition-opacity focus-within:pointer-events-auto focus-within:opacity-100",
+            showZoom && "pointer-events-auto opacity-100"
+          )}
           onPointerDown={(event) => event.stopPropagation()}
-          onPointerEnter={() => { clearTimeout(zoomTimer.current); setShowZoom(true) }}
+          onPointerEnter={() => {
+            clearTimeout(zoomTimer.current)
+            setShowZoom(true)
+          }}
           onPointerLeave={flashZoom}
         >
           <Button variant="ghost" size="icon-sm" aria-label="Zoom out" title="Zoom out (-)" onClick={() => zoom(0.8)}>
             <MinusIcon data-icon="inline-start" />
           </Button>
-          <Button variant="ghost" size="xs" className="min-w-14" aria-label="Fit image" title="Fit image (0)" onClick={resetFit}>
+          <Button
+            variant="ghost"
+            size="xs"
+            className="min-w-14"
+            aria-label="Fit image"
+            title="Fit image (0)"
+            onClick={resetFit}
+          >
             <span className="tabular-nums">{Math.round(view.scale * 100)}%</span>
           </Button>
           <Button variant="ghost" size="icon-sm" aria-label="Zoom in" title="Zoom in (+)" onClick={() => zoom(1.25)}>

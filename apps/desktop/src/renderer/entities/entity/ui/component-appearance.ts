@@ -1,4 +1,4 @@
-import { AtSignIcon, FileIcon, ImageIcon, VideoIcon, type LucideIcon } from "lucide-react"
+import { AtSignIcon, FileIcon, ImageIcon, VideoIcon, BoxIcon, type LucideIcon } from "lucide-react"
 import type { EntityComponent } from "../model/entity-item"
 
 export const componentAppearance = {
@@ -6,4 +6,5 @@ export const componentAppearance = {
   image: { label: "Image", icon: ImageIcon },
   video: { label: "Video", icon: VideoIcon },
   twitter: { label: "Twitter", icon: AtSignIcon },
+  unknown: { label: "Unsupported", icon: BoxIcon },
 } satisfies Record<EntityComponent["kind"], { label: string; icon: LucideIcon }>

@@ -122,10 +122,14 @@ pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
     Ok(document)
 }
 
-pub(crate) fn router(state: Arc<Shared>) -> anyhow::Result<Router> {
+pub(crate) async fn router(
+    state: Arc<Shared>,
+    renderer_root: Option<std::path::PathBuf>,
+) -> anyhow::Result<Router> {
     let (router, _) = registered().split_for_parts();
     // Serialize once per server, rather than generating OpenAPI for business calls.
     let schema = Arc::new(openapi()?.to_json()?);
+    let router = super::renderer::attach(router, renderer_root).await?;
     Ok(router
         .route(
             "/api/v1/openapi.json",

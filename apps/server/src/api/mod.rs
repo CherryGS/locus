@@ -8,6 +8,7 @@ mod handlers;
 pub(crate) mod mapping;
 pub mod media;
 pub mod preferences;
+mod renderer;
 mod request;
 pub(crate) mod routes;
 pub(crate) mod store;

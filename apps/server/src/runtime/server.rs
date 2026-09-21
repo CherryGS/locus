@@ -36,7 +36,7 @@ impl Server {
             changes: watch::channel(0).0,
             drained: watch::channel(false).0,
         });
-        let router = routes::router(state.clone())?;
+        let router = routes::router(state.clone(), config.renderer_root).await?;
         Ok(Self {
             state,
             listener,
