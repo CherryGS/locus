@@ -9,7 +9,7 @@ import { Separator } from "@/shared/ui/separator"
 import { EntityGrid } from "./entity-grid"
 import { minimumEntityGridWidth } from "./entity-grid-layout"
 import { entityPanels, type EntityPanelId } from "./entity-panels"
-import { CopyIdentityButton } from "./copy-identity-button"
+import { CopyIdentityButton } from "@/shared/ui/copy-identity-button"
 
 export function EntityWorkspace({ entities, selectedEntity, viewing, onSelect, onOpen, content, viewSelection }: {
   entities: readonly EntityItem[]

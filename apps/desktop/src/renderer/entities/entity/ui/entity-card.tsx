@@ -13,6 +13,7 @@ export function EntityCard({ entity, titleId }: { entity: EntityItem; titleId: s
           src={display.preview?.src}
           hasFile={entity.components.some((component) => component.kind === "file")}
           hasVideo={entity.components.some((component) => component.kind === "video")}
+          hasTwitter={entity.components.some((component) => component.kind === "twitter")}
         />
       </div>
       <CardHeader className="h-16 shrink-0 py-2">

@@ -122,6 +122,7 @@ export function EntityPage({
       <div className="flex flex-col gap-2">
         <ToggleGroup
           aria-label="Content view"
+          className="max-w-full flex-wrap"
           variant="outline"
           size="sm"
           value={viewId ? [viewId] : []}

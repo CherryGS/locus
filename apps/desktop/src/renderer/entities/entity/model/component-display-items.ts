@@ -35,3 +35,14 @@ export const videoDisplayItems = {
     return seconds === undefined ? undefined : formatDuration(seconds)
   },
 }
+
+export const twitterDisplayItems = {
+  title(entity: EntityItem): string | undefined {
+    const twitter = entity.components.find((component) => component.kind === "twitter")
+    return twitter?.text?.trim() || (twitter?.postId ? `Post ${twitter.postId}` : twitter?.postUrl)
+  },
+  author(entity: EntityItem): string | undefined {
+    const author = entity.components.find((component) => component.kind === "twitter")?.author
+    return author?.handle ? `@${author.handle}` : author?.displayName
+  },
+}

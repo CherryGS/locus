@@ -1,5 +1,6 @@
-import { app, BrowserWindow, Menu, nativeTheme } from "electron"
+import { app, BrowserWindow, Menu, nativeTheme, shell } from "electron"
 import { join } from "node:path"
+import { externalLinkHandler } from "./external-links"
 
 function createWindow() {
   const window = new BrowserWindow({
@@ -24,6 +25,7 @@ function createWindow() {
   })
 
   window.once("ready-to-show", () => window.show())
+  window.webContents.setWindowOpenHandler(externalLinkHandler((url) => shell.openExternal(url)))
 
   // This review consumer intentionally has no backend or preload capability.
   // The connected desktop will load the authorized Axum origin here.

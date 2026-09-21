@@ -78,6 +78,7 @@ export function EntityFilmstrip({ entities, selectedId, canNavigate, viewFor, on
                     src={thumbnail}
                     hasFile={entity.components.some((component) => component.kind === "file")}
                     hasVideo={entity.components.some((component) => component.kind === "video")}
+                    hasTwitter={entity.components.some((component) => component.kind === "twitter")}
                   />
                 </span>
                 <span

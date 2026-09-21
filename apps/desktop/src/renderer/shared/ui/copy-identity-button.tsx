@@ -27,7 +27,7 @@ export function CopyIdentityButton({ label, value }: { label: string; value: str
       <Button
         variant={status === "failed" ? "destructive" : "ghost"}
         size="xs"
-        className="min-w-0 shrink flex-1 justify-start"
+        className="w-full min-w-0 shrink flex-1 justify-start px-0"
         aria-label={`Copy ${label.toLowerCase()}`}
         title={value}
         onClick={copy}

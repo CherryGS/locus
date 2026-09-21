@@ -43,6 +43,19 @@ To regenerate the checked-in media fixtures, run
 with ffmpeg on PATH, or set `LOCUS_FFMPEG` to its executable. This is a development
 fixture tool, not a desktop runtime dependency or a real-library import path.
 
+Twitter is another read-only Component view. Sample 002 combines Image and
+Twitter, Sample 005 combines Video and Twitter, and Sample 010 supplies a capture
+without local media. Sample 011 has only a post ID; Sample 018 has observed empty
+text/ALT/references. Overview chooses the content view for that Entity; the right
+rail independently opens its Twitter details. Author, text, source links, dates,
+media position/ALT and reference links are fictional supplied observations.
+No provider requests, imports or backend writes happen while rendering.
+
+Source links open in a new browser tab during browser preview. Electron delegates
+HTTP(S) links to the system browser and denies the child Electron window; other
+protocols and credential-bearing URLs are not handed to an OS protocol handler.
+No preload or general native bridge is introduced for this link action.
+
 View choices are temporary, independent values in Entity page state. They remain
 available during inspection/history navigation, but leaving the page or restarting
 clears them. No database, localStorage or HTTP preference adapter is involved.

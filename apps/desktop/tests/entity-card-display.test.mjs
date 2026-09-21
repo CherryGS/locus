@@ -81,3 +81,17 @@ test("Video contributes a static poster and duration while missing facts keep ot
     title: "original.png", preview: undefined, summary: "2 KiB",
   })
 })
+
+test("Twitter titles identify source-only captures without replacing File or Image contributions", () => {
+  const twitter = {
+    kind: "twitter", id: "twitter", postId: "1000000000000000001",
+    text: "A study in light\n#landscape", author: { handle: "locus_demo" },
+  }
+  const sourceOnly = { ...entity, components: [twitter] }
+  assert.deepEqual(entityCardDisplay(sourceOnly), {
+    title: twitter.text, preview: undefined, summary: "@locus_demo",
+  })
+  assert.deepEqual(entityCardDisplay({ ...entity, components: [twitter, image, file] }), entityCardDisplay(entity))
+  assert.equal(entityCardDisplay({ ...sourceOnly, components: [{ ...twitter, text: undefined }] }).title, "Post 1000000000000000001")
+  assert.equal(twitter.text, "A study in light\n#landscape")
+})

@@ -1,13 +1,13 @@
-import { fileDisplayItems, imageDisplayItems, videoDisplayItems, type ImageDisplayItem } from "./component-display-items.ts"
+import { fileDisplayItems, imageDisplayItems, videoDisplayItems, twitterDisplayItems, type ImageDisplayItem } from "./component-display-items.ts"
 import { resolveDisplaySlot, type DisplayCandidate } from "./display-slot.ts"
 import type { EntityItem } from "./entity-item"
 
 // Card composition owns these choices. Array order is the priority within a
 // slot; it does not rank entire component kinds or depend on attachment order.
 const cardSlots = {
-  title: [fileDisplayItems.originalName],
+  title: [fileDisplayItems.originalName, twitterDisplayItems.title],
   preview: [imageDisplayItems.preview, videoDisplayItems.preview],
-  summary: [imageDisplayItems.dimensions, videoDisplayItems.duration, fileDisplayItems.size],
+  summary: [imageDisplayItems.dimensions, videoDisplayItems.duration, fileDisplayItems.size, twitterDisplayItems.author],
 } as const satisfies {
   title: readonly DisplayCandidate<string>[]
   preview: readonly DisplayCandidate<ImageDisplayItem>[]

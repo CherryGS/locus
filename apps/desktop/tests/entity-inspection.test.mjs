@@ -48,6 +48,17 @@ test("Video remains a content choice without a playable source and follows the f
   assert.equal(adjacentEntity([image, video, file, empty], "a", 1), video)
   assert.equal(adjacentEntity([image, video, file, empty], "v", 1), file)
 })
+
+test("Twitter inspection remains available for partial captures and coexists with media views", () => {
+  const twitter = { kind: "twitter", postId: "1000000000000000001" }
+  const sourceOnly = { id: "source", components: [twitter] }
+  const withImage = { ...image, components: [...image.components, twitter] }
+  assert.equal(resolveView(sourceOnly, null), "twitter.read")
+  assert.equal(resolveView(withImage, null), "image.inspect")
+  assert.equal(resolveView(withImage, "twitter.read"), "twitter.read")
+  assert.equal(resolveView(image, "twitter.read"), "image.inspect")
+  assert.equal(adjacentEntity([withImage, sourceOnly, empty], "a", 1), sourceOnly)
+})
 test("router history records M P Q separately while Esc addresses its declared source", () => {
   const history = createMemoryHistory({ initialEntries: ["/entity"] })
   const grid = { entityId: "M", mode: "grid", collectionId: "library" }

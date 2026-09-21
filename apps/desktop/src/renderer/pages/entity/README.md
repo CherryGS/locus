@@ -46,7 +46,7 @@ browsing elsewhere, it retains the first visible entity. Card height is constant
 only column changes regroup rows.
 
 Double-click or Enter opens every Entity, including File-only and empty items.
-Image inspection, Video playback and File information are static Component views;
+Image inspection, Video playback, Twitter reading and File information are static Component views;
 no available view produces a placeholder. Previous/next and arrow keys follow the
 complete supplied order and wrap. One-item selection does not append a visit or
 reset the content. Missing or failed image resources remain in the chosen view.
@@ -117,7 +117,7 @@ Static thumbnail resources sit with the Image or Video projection. Overview read
 directly and does not consume card slots. Grid cell names refer to the rendered
 card title while selection and virtual row identity still use Entity IDs.
 
-Overview is always available. File, Image and Video appear only for components present
+Overview is always available. File, Image, Video and Twitter appear only for components present
 on the selected entity. If the active component disappears, the open inspector
 returns to Overview. Clicking the active panel closes it; another button switches
 content. Selection updates content without opening a closed inspector. Inspector
@@ -164,6 +164,41 @@ codec. Missing facts display "Unknown" instead of fabricated zero values. These
 are supplied renderer facts and are independent of whether playback succeeds;
 native playback events do not overwrite retained metadata. Video resource access
 and real-library data flow remain separate integration work.
+
+Twitter's selected UI fields are:
+
+- Author display name, handle, user ID and profile link, without an avatar.
+- Full post text, post ID and original-page link.
+- Publication time and capture observation time as distinct values, rendered in
+  the viewer's local time zone. Capture time is not File import time.
+- The current media's observed source order (displayed one-based) and ALT text.
+  Unknown order is not inferred from an Entity list. Media IDs are not shown.
+- Reply, quote and repost relationship types with target links; no target-post
+  expansion, remote fetch or inferred local-Entity relationship.
+
+Hashtags remain literal text when present in the body. They have no separate
+section and do not become user-managed tags. This iteration adds no interaction
+counts, remote media previews, acquisition or snapshot mutation.
+
+The main Twitter view presents a compact post card with author, publication time,
+unabridged multiline text, the original link and reference links. The inspector
+contains the full field set so it can accompany Image/Video views. It retains
+the ID-only sticky header. Post and author IDs use the same full-value copy
+control as local Entity/component IDs; long values truncate visually. Link
+labels are short, with their complete destinations retained in hover titles.
+Captured text is rendered as text, never injected HTML.
+
+A missing observation displays "Not captured"; an observed empty text or list
+has an explicit empty result. A locator-only capture still offers its Twitter
+view and remains in the full navigation sequence. These views do not establish
+live remote availability, File association or a text-only collection workflow.
+
+Image and Video remain the ordinary content-view defaults when present. Twitter
+is available independently, and is preferred over File information when no media
+view exists; an explicit per-Entity choice takes precedence as before. Card
+titles fall back from File's name to captured post text or locator, with author
+as the last summary candidate. They do not replace media preview/summary slots.
+No author/post object, persistent preference contract or provider API is added.
 
 The app route supplies offline development specimens with image, video, file-only and
 component-free items, including a long-name/UUID specimen for narrow panes.

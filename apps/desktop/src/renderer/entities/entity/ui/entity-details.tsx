@@ -7,24 +7,8 @@ import type { EntityComponent, EntityItem } from "../model/entity-item"
 import { formatFileSize } from "../lib/format-file-size"
 import { formatDuration } from "../lib/format-duration"
 import { componentAppearance } from "./component-appearance"
-
-function Detail({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="-mx-1 grid min-h-7 min-w-0 grid-cols-[clamp(4.5rem,36%,5rem)_minmax(0,1fr)] items-baseline gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted/30">
-      <dt className="text-xs leading-5 text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 text-xs leading-5 tabular-nums select-text [overflow-wrap:anywhere]">{children}</dd>
-    </div>
-  )
-}
-
-function DetailSection({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section aria-label={title} className="flex min-w-0 flex-col gap-2 px-4 py-3">
-      <h3 className="text-xs font-semibold">{title}</h3>
-      {children}
-    </section>
-  )
-}
+import { Detail, DetailSection, DetailTime } from "./detail-fields"
+import { TwitterDetails } from "./twitter-details"
 
 function fileExtension(name: string) {
   const dot = name.lastIndexOf(".")
@@ -36,16 +20,6 @@ function aspectRatio(width: number, height: number) {
   let b = height
   while (b !== 0) [a, b] = [b, a % b]
   return `${width / a}:${height / a}`
-}
-
-function ImportTime({ value }: { value: string }) {
-  const date = new Date(value)
-  return (
-    <time dateTime={value} title={date.toLocaleString(undefined, { timeZoneName: "short" })}>
-      <span className="block">{date.toLocaleDateString(undefined, { year: "numeric", month: "2-digit", day: "2-digit" })}</span>
-      <span className="block text-[11px] leading-4 text-muted-foreground">{date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}</span>
-    </time>
-  )
 }
 
 export function EntityOverview({ entity, viewSelection }: { entity: EntityItem | null; viewSelection?: ReactNode }) {
@@ -87,6 +61,7 @@ export function EntityOverview({ entity, viewSelection }: { entity: EntityItem |
 }
 
 export function EntityComponentDetails({ component }: { component: EntityComponent }) {
+  if (component.kind === "twitter") return <TwitterDetails component={component} />
   return (
     <div className="flex min-w-0 flex-col pb-1">
       {component.kind === "file" ? (
@@ -98,7 +73,7 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
               <span className="block">{formatFileSize(component.bytes)}</span>
               {component.bytes >= 1024 && <span className="block text-[11px] leading-4 text-muted-foreground">{component.bytes.toLocaleString()} bytes</span>}
             </Detail>
-            <Detail label="Imported"><ImportTime value={component.importedAt} /></Detail>
+            <Detail label="Imported"><DetailTime value={component.importedAt} /></Detail>
           </dl>
         </DetailSection>
       ) : component.kind === "video" ? (

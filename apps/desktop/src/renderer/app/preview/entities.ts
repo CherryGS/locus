@@ -1,6 +1,7 @@
 import type { EntityItem } from "@/entities/entity"
 import type { RelatedCollection } from "@/pages/entity"
 import { videoSpecimens } from "./videos"
+import { twitterSpecimens } from "./twitter"
 
 // Synthetic, offline UI specimens. The route imports this module only in dev;
 // none of these records or thumbnails enter the production renderer bundle.
@@ -23,6 +24,9 @@ export const previewEntities: readonly EntityItem[] = Array.from({ length: 240 }
   const number = String(index + 1).padStart(3, "0")
   // One long-name/UUID specimen exercises narrow inspector layouts.
   const id = `01995c68-7200-7000-8000-${String(index + 1).padStart(12, "0")}`
+  const twitter = twitterSpecimens.get(index + 1)
+  const twitterComponents = twitter ? [{ kind: "twitter" as const, id: `${id}-twitter`, ...twitter }] : []
+  if (index === 9) return { id, name: "Source capture 010", components: twitterComponents }
   if ((index + 1) % 13 === 0) return { id, name: `Sample ${number}`, components: [] }
   const fileOnly = (index + 1) % 7 === 0
   const video = videoSpecimens.get(index + 1)
@@ -46,6 +50,7 @@ export const previewEntities: readonly EntityItem[] = Array.from({ length: 240 }
         colorMode: index % 3 === 0 ? "RGBA" : "RGB",
         bitsPerChannel: 8, hasAlphaChannel: index % 3 === 0,
       }]),
+      ...twitterComponents,
     ],
   }
 })

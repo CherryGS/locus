@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from "react"
-import { EntityCard, EntityComponentDetails, type EntityItem } from "@/entities/entity"
+import { EntityCard, EntityComponentDetails, TwitterPost, type EntityItem } from "@/entities/entity"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
 import { Button } from "@/shared/ui/button"
 import { ScrollArea } from "@/shared/ui/scroll-area"
@@ -28,6 +28,7 @@ export function EntityContent({
   const image = entity.components.find((component) => component.kind === "image")
   const video = entity.components.find((component) => component.kind === "video")
   const file = entity.components.find((component) => component.kind === "file")
+  const twitter = entity.components.find((component) => component.kind === "twitter")
   return (
     <section
       ref={focus}
@@ -51,6 +52,10 @@ export function EntityContent({
           poster={video?.thumbnail}
           name={entity.name}
         />
+      ) : viewId === "twitter.read" && twitter ? (
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="p-6"><TwitterPost component={twitter} /></div>
+        </ScrollArea>
       ) : viewId === "file.info" && file ? (
         <ScrollArea className="min-h-0 flex-1">
           <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
