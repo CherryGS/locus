@@ -8,7 +8,7 @@ export function HistoryNavigation() {
 
   useEffect(() => {
     function navigate(event: KeyboardEvent) {
-      if (event.defaultPrevented) return
+      if (event.defaultPrevented || document.querySelector('[data-slot="dialog-content"][data-open]')) return
       const backwards = (event.key === "ArrowLeft" && event.altKey) || (event.key === "[" && event.metaKey)
       const forwards = (event.key === "ArrowRight" && event.altKey) || (event.key === "]" && event.metaKey)
       if (!backwards && !forwards) return

@@ -868,6 +868,7 @@ export interface components {
             completed?: string | null;
             label: string;
             message?: string | null;
+            operation: components["schemas"]["TaskOperation"];
             outcome_available: boolean;
             request_id: string;
             stage?: string | null;
@@ -925,6 +926,32 @@ export interface components {
             outcome: components["schemas"]["MutationOutcome"];
             /** @enum {string} */
             status: "direct_complete";
+        };
+        /** @description Accepted business scope, independent of display labels and execution stages. */
+        TaskOperation: {
+            batch_id: string;
+            item_count: number;
+            /** @enum {string} */
+            kind: "import_batch";
+        } | {
+            batch_id: string;
+            item_id: string;
+            /** @enum {string} */
+            kind: "import_recovery";
+        } | {
+            /** @enum {string} */
+            kind: "file_import";
+            source_path: string;
+        } | {
+            /** @enum {string} */
+            kind: "interpretation";
+            target: components["schemas"]["MediaTarget"];
+        } | {
+            /** Format: int32 */
+            edge: number;
+            /** @enum {string} */
+            kind: "preview";
+            target: components["schemas"]["MediaTarget"];
         };
         TaskOutcome: {
             batch_id: string;

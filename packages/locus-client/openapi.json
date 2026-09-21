@@ -5418,6 +5418,7 @@
           "task_id",
           "request_id",
           "label",
+          "operation",
           "state",
           "outcome_available"
         ],
@@ -5437,6 +5438,9 @@
               "string",
               "null"
             ]
+          },
+          "operation": {
+            "$ref": "#/components/schemas/TaskOperation"
           },
           "outcome_available": {
             "type": "boolean"
@@ -5664,6 +5668,116 @@
             }
           }
         ]
+      },
+      "TaskOperation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "batch_id",
+              "item_count",
+              "kind"
+            ],
+            "properties": {
+              "batch_id": {
+                "type": "string"
+              },
+              "item_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "import_batch"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "batch_id",
+              "item_id",
+              "kind"
+            ],
+            "properties": {
+              "batch_id": {
+                "type": "string"
+              },
+              "item_id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "import_recovery"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "source_path",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "file_import"
+                ]
+              },
+              "source_path": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "target",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "interpretation"
+                ]
+              },
+              "target": {
+                "$ref": "#/components/schemas/MediaTarget"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "target",
+              "edge",
+              "kind"
+            ],
+            "properties": {
+              "edge": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "preview"
+                ]
+              },
+              "target": {
+                "$ref": "#/components/schemas/MediaTarget"
+              }
+            }
+          }
+        ],
+        "description": "Accepted business scope, independent of display labels and execution stages."
       },
       "TaskOutcome": {
         "oneOf": [

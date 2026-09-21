@@ -8,7 +8,7 @@ use crate::api::{
     error::{ApiError, DomainDiagnostic, ErrorCode},
     file::dto::ImportRequest,
     media::dto::{MediaKind, MediaTarget},
-    task::dto::{PublicTask, PublicTaskState},
+    task::dto::{PublicTask, PublicTaskState, TaskOperation},
 };
 use locus_task::api::{TaskContext, TaskError};
 use std::{future::Future, sync::Arc};
@@ -55,6 +55,27 @@ impl Shared {
             };
         }
         self.admit(&mut registry)?;
+        let descriptor = match &arguments {
+            Arguments::ImportBatch(r) => TaskOperation::ImportBatch {
+                batch_id: r.request_id.clone(),
+                item_count: r.source_paths.len(),
+            },
+            Arguments::RecoverImport(r) => TaskOperation::ImportRecovery {
+                batch_id: r.batch_id.clone(),
+                item_id: r.item_id.clone(),
+            },
+            Arguments::Import(r) => TaskOperation::FileImport {
+                source_path: r.source_path.clone(),
+            },
+            Arguments::Interpret(target) => TaskOperation::Interpretation {
+                target: target.clone(),
+            },
+            Arguments::Preview { target, edge } => TaskOperation::Preview {
+                target: target.clone(),
+                edge: *edge,
+            },
+            _ => return Err(conflict()),
+        };
         match &arguments {
             Arguments::ImportBatch(r) => self.imports.reserve_batch(&r.request_id, &r.source_paths),
             Arguments::RecoverImport(r) => self
@@ -121,6 +142,7 @@ impl Shared {
                     task_id: receipt.task_id.clone(),
                     request_id: id,
                     label: label.into(),
+                    operation: descriptor,
                     state: PublicTaskState::Submitted,
                     stage: None,
                     message: None,

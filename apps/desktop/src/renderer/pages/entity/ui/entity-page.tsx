@@ -136,7 +136,7 @@ export function EntityPage({
         event.altKey ||
         event.ctrlKey ||
         event.metaKey ||
-        document.querySelector('[data-slot="dialog-content"]')
+        document.querySelector('[data-slot="dialog-content"][data-open]')
       )
         return
       event.preventDefault()

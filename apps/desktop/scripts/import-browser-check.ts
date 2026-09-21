@@ -47,9 +47,8 @@ try {
   const destination = page.url(),
     initialLists = lists
   await page.getByRole("button", { name: "Import", exact: true }).click()
-  await page.getByText("No imports yet", { exact: true }).waitFor()
+  assert.equal(await page.getByRole("dialog", { name: "Tasks this run" }).isVisible(), false)
   assert.equal(submissions, 0)
-  await page.keyboard.press("Escape")
   await page.evaluate(
     (paths) => {
       ;(globalThis as any).__importSelections.push({ status: "selected", paths })
@@ -72,6 +71,9 @@ try {
     await route.continue()
   })
   await page.getByRole("button", { name: "Import", exact: true }).click()
+  assert.equal(await page.getByRole("dialog", { name: "Tasks this run" }).isVisible(), false)
+  await page.getByRole("button", { name: /^Tasks/ }).click()
+  await page.locator("[data-task-record] > summary").click()
   await page.getByText("Submission unconfirmed", { exact: true }).waitFor()
   const beforeRecovery = await backend.client.GET("/api/v1/import-batches")
   assert.equal(
@@ -81,10 +83,14 @@ try {
   )
   assert.equal(submissions, 1)
   await page.getByRole("button", { name: "Check original submission", exact: true }).click()
-  await page.getByText("2 complete", { exact: true }).waitFor()
-  assert.equal(redeliveredBody, lostBody, "Explicit recovery redelivers the same full body and request identity")
+  await page.locator("[data-task-record] > summary").filter({ hasText: "2 complete" }).waitFor()
+  assert.equal(
+    redeliveredBody,
+    lostBody,
+    "Explicit recovery redelivers the same full body and request identity",
+  )
   await page.unroute("**/api/v1/import-batches")
-  await page.getByText("1 need attention", { exact: true }).waitFor()
+  await page.locator("[data-task-record] > summary").filter({ hasText: "1 need attention" }).waitFor()
   assert.equal(page.url(), destination)
   assert.equal(lists, initialLists)
   assert.equal(submissions, 2)
@@ -114,11 +120,16 @@ try {
   await plainRow.getByRole("button", { name: "View", exact: true }).click()
   await requestedRefresh
   await page.keyboard.press("Escape")
-  await page.locator('[data-slot="dialog-content"]').waitFor({ state: "detached" })
+  await page.getByRole("dialog", { name: "Tasks this run" }).waitFor({ state: "hidden" })
   await page.getByRole("button", { name: "Next entity", exact: true }).click()
   const newerDestination = page.url()
   releaseRefresh()
-  await page.getByRole("button", { name: "Imports", exact: true }).click()
+  await page
+    .locator('[data-slot="dialog-content"][hidden]')
+    .filter({ hasText: "Viewing was superseded by newer navigation." })
+    .waitFor({ state: "attached" })
+  assert.equal(await page.getByRole("dialog", { name: "Tasks this run" }).isVisible(), false)
+  await page.getByRole("button", { name: /^Tasks/ }).click()
   await page.getByText("Viewing was superseded by newer navigation.", { exact: true }).waitFor()
   assert.equal(page.url(), newerDestination)
   await page.unroute("**/api/v1/entities")
@@ -128,19 +139,24 @@ try {
     .filter({ hasText: missing })
     .getByRole("button", { name: "Recopy source and import", exact: true })
     .click()
-  await page.getByText("3 complete", { exact: true }).waitFor()
+  await page.locator("[data-task-record] > summary").filter({ hasText: "3 complete" }).waitFor()
   await page
     .locator("article")
     .filter({ hasText: missing })
     .getByText("Original and recovery attempts (2)", { exact: true })
     .click()
-  const viewport = page.locator('[data-slot="dialog-content"] [data-slot="scroll-area-viewport"]')
+  const viewport = page
+    .getByRole("dialog", { name: "Tasks this run" })
+    .locator('[data-slot="scroll-area-viewport"]')
   const scroll = await viewport.evaluate((e) => ({
     height: e.clientHeight,
     content: e.scrollHeight,
     bottom: e.getBoundingClientRect().bottom,
   }))
-  assert(scroll.content > scroll.height && scroll.bottom <= 800, "Expanded attempts must scroll inside the dialog")
+  assert(
+    scroll.content > scroll.height && scroll.bottom <= 800,
+    "Expanded attempts must scroll inside the task modal",
+  )
   await page.screenshot({ path: join(output, "imports-recovery.png") })
   await page
     .locator("article")
@@ -151,17 +167,20 @@ try {
   const snapshot = await backend.client.GET("/api/v1/import-batches")
   assert(snapshot.data)
   const imported = snapshot.data.batches[0].items.find((i) => i.source_path === image)!
-  await page.locator(`[data-slot="entity-inspection"][data-entity-id="${imported.current.entity_id}"]`).waitFor()
+  await page
+    .locator(`[data-slot="entity-inspection"][data-entity-id="${imported.current.entity_id}"]`)
+    .waitFor()
   await page.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
   assert.equal(
     await page.locator('[data-slot="entity-inspection"]').getAttribute("data-entity-id"),
     imported.current.entity_id,
   )
-  await page.locator('[data-slot="dialog-content"]').waitFor({ state: "detached" })
+  await page.getByRole("dialog", { name: "Tasks this run" }).waitFor({ state: "hidden" })
+  await page.locator('[data-slot="entity-inspection"]').click()
   await page.keyboard.press("Escape")
   await page.getByRole("grid", { name: "Entities" }).waitFor()
-  await page.getByRole("button", { name: "Imports complete", exact: true }).waitFor()
-  assert.equal(await page.getByRole("button", { name: "Imports: 1 need attention", exact: true }).count(), 0)
+  await page.getByRole("button", { name: /^Tasks.*1 records$/ }).waitFor()
+  assert.equal(await page.getByRole("button", { name: /Tasks.*need attention/ }).count(), 0)
   await page.screenshot({ path: join(output, "imported-library.png") })
   assert.equal((await page.locator('img[src^="blob:"]').count()) > 0, true)
   assert.deepEqual(errors, [])

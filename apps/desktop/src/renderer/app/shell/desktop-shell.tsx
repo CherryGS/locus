@@ -5,6 +5,7 @@ import { TitlebarActionsTarget } from "@/shared/ui/titlebar-actions"
 import { LeftNavigation } from "./left-navigation"
 import { ImportActions } from "./import-actions"
 import { HistoryNavigation } from "./history-navigation"
+import { TaskWorkspace } from "./task-workspace"
 
 export function DesktopShell() {
   const [actionsTarget, setActionsTarget] = useState<HTMLDivElement | null>(null)
@@ -23,14 +24,12 @@ export function DesktopShell() {
           </div>
         </header>
         <Separator />
-        <div className="flex min-h-0 flex-1">
+        <TaskWorkspace>
           <LeftNavigation />
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
             <Outlet />
           </main>
-        </div>
-        <Separator />
-        <footer aria-label="Application footer" className="h-6 shrink-0 bg-sidebar" />
+        </TaskWorkspace>
       </div>
     </TitlebarActionsTarget.Provider>
   )

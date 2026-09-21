@@ -16,7 +16,11 @@ function fixture() {
       run_id: "run",
       admission: "open",
       batches: [
-        { batch_id: "b", original_ended: true, items: [{ ...item(), attempts: [{ request_id: "request" }] }] },
+        {
+          batch_id: "b",
+          original_ended: true,
+          items: [{ ...item(), attempts: [{ request_id: "request" }] }],
+        },
       ],
     }),
     importBatch: async (body) => {
@@ -48,6 +52,55 @@ test("cancel and empty selection submit nothing; mixed paths use one stable batc
   f.bridge.selectImportFiles = async () => ({ status: "selected", paths: ["image", "plain"] })
   await f.coordinator.select()
   assert.deepEqual(f.calls[0], { request_id: "request", source_paths: ["image", "plain"] })
+  f.coordinator.dispose()
+})
+test("public task acceptance prevents lost-response replay and verifies retained receipt attribution", async () => {
+  const f = fixture()
+  f.bridge.selectImportFiles = async () => ({ status: "selected", paths: ["original"] })
+  f.api.importBatch = async (body) => {
+    f.calls.push(body)
+    throw Error("response lost")
+  }
+  await f.coordinator.select()
+  f.coordinator.observeTasks([
+    {
+      task_id: "task",
+      request_id: "request",
+      operation: { kind: "import_batch", batch_id: "request", item_count: 1 },
+    },
+  ])
+  f.api.submission = async () => {
+    throw new ApiFailure({ code: "unknown_request", message: "Unknown request" }, 404)
+  }
+  await f.coordinator.checkRequest("request")
+  assert.equal(f.calls.length, 1)
+  assert.equal(f.coordinator.submissions.get("request").accepted, true)
+  f.coordinator.observeTasks([
+    {
+      task_id: "different-task",
+      request_id: "request",
+      operation: { kind: "import_batch", batch_id: "request", item_count: 1 },
+    },
+  ])
+  assert.equal(f.coordinator.available, false)
+  assert.match(f.coordinator.problem, /attribution/)
+  f.coordinator.dispose()
+})
+test("selection and definite admission failures remain discoverable after successful observation", async () => {
+  const f = fixture()
+  f.bridge.selectImportFiles = async () => ({ status: "failed", message: "picker unavailable" })
+  await f.coordinator.select()
+  await f.coordinator.observe()
+  assert.equal(f.coordinator.problem, undefined)
+  assert.match(f.coordinator.notices[0], /picker unavailable/)
+  f.bridge.selectImportFiles = async () => ({ status: "selected", paths: ["source"] })
+  f.api.importBatch = async () => {
+    throw new ApiFailure({ code: "launch_rejected", message: "launch unavailable" }, 500)
+  }
+  await f.coordinator.select()
+  await f.coordinator.observe()
+  assert.match(f.coordinator.notices[1], /launch unavailable/)
+  assert.equal(f.coordinator.submissions.size, 0)
   f.coordinator.dispose()
 })
 test("lost response recovers original identity without new mutation and locks competing recovery", async () => {
@@ -169,7 +222,9 @@ test("unknown request cannot redeliver after gate closure or wrong-run evidence"
     if (mode === "wrong-run-host")
       f.coordinator.host({ connection: { status: "ready", runId: "another-run" }, close: { phase: "idle" } })
     f.api.submission = async () => {
-      throw mode === "wrong-run" ? new ApiFailure({ code: "wrong_run", message: "Wrong run" }, 409) : unknown()
+      throw mode === "wrong-run"
+        ? new ApiFailure({ code: "wrong_run", message: "Wrong run" }, 409)
+        : unknown()
     }
     await f.coordinator.checkRequest("request")
     assert.equal(f.calls.length, 1, mode)

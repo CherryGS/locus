@@ -170,3 +170,6 @@ desktop-import-browser:
 
 desktop-import-native:
     {{ npm }} --prefix apps/desktop run verify:import-native
+
+desktop-shared-tasks:
+    {{ npm }} --prefix apps/desktop run verify:shared-tasks

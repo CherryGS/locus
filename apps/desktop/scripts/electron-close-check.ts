@@ -128,14 +128,135 @@ try {
   await page.getByRole("button", { name: "Use File view", exact: true }).click()
   await page.getByText("Saving choice…", { exact: true }).waitFor()
   await page.waitForFunction(() => !!(window as any).__releaseSave)
+  await page.getByRole("button", { name: /^Tasks/ }).click()
+  await page.getByRole("dialog", { name: "Tasks this run" }).waitFor()
+  await page.getByRole("dialog", { name: "Tasks this run" }).evaluate((element) => {
+    ;(window as any).__retainedTasks = element
+  })
+  const heldDestination = page.url()
+  await page.evaluate(() => {
+    const trace = { events: [] as unknown[], samples: [] as unknown[], frame: null as number | null }
+    requestAnimationFrame(() => {
+      trace.frame = performance.now()
+    })
+    ;(window as any).__preparationFocus = trace
+    ;(window as any).__samplePreparationFocus = (phase: string) => {
+      const element = document.activeElement
+      trace.samples.push({
+        phase,
+        time: performance.now(),
+        frame: trace.frame,
+        visibility: document.visibilityState,
+        hasFocus: document.hasFocus(),
+        tag: element?.tagName,
+        text: element?.textContent?.slice(0, 100),
+        guard: element?.hasAttribute("data-base-ui-focus-guard") ?? false,
+        dialog: element?.closest('[role="dialog"]')?.getAttribute("aria-labelledby"),
+        guardDialog: element?.hasAttribute("data-base-ui-focus-guard")
+          ? element.parentElement?.querySelector('[role="dialog"]')?.getAttribute("aria-labelledby")
+          : undefined,
+      })
+    }
+    document.addEventListener("focusin", (event) => {
+      const element = event.target as Element
+      trace.events.push({
+        time: performance.now(),
+        tag: element.tagName,
+        text: element.textContent?.slice(0, 100),
+        guard: element.hasAttribute("data-base-ui-focus-guard"),
+        dialog: element.closest('[role="dialog"]')?.getAttribute("aria-labelledby"),
+        guardDialog: element.hasAttribute("data-base-ui-focus-guard")
+          ? element.parentElement?.querySelector('[role="dialog"]')?.getAttribute("aria-labelledby")
+          : undefined,
+      })
+    })
+    ;(window as any).__samplePreparationFocus("tasks open")
+  })
   await nativeClose()
-  await page.getByRole("dialog").waitFor()
+  const preparation = page.getByRole("dialog", { name: "Preparing to close" })
+  await preparation.waitFor()
+  await page.getByRole("dialog", { name: "Tasks this run" }).waitFor({ state: "hidden" })
+  // Hidden Electron can deliver focus animation frames much later than popup
+  // visibility. Await the actual initial handoff before issuing keyboard input.
+  await page.waitForFunction(() => {
+    const dialog = document.activeElement?.closest('[role="dialog"][data-open]')
+    return !!dialog?.textContent?.includes("Preparing to close")
+  })
+  assert(await preparation.evaluate((element) => element.contains(document.activeElement)))
+  await page.evaluate(() => (window as any).__samplePreparationFocus("before Tab"))
+  await page.keyboard.press("Tab")
+  await page.evaluate(() => (window as any).__samplePreparationFocus("immediately after Tab"))
+  await writeFile(
+    join(output, "preparation-focus.json"),
+    JSON.stringify(await page.evaluate(() => (window as any).__preparationFocus), null, 2),
+  )
+  // The primitive's focus guard queues redirection onto its focus frame. Assert
+  // the resulting preparation focus, not the transient sentinel itself.
+  await page.waitForFunction(() => {
+    const dialog = document.activeElement?.closest('[role="dialog"][data-open]')
+    return !!dialog?.textContent?.includes("Preparing to close")
+  })
+  await page.evaluate(() => (window as any).__samplePreparationFocus("settled after Tab"))
+  await writeFile(
+    join(output, "preparation-focus.json"),
+    JSON.stringify(await page.evaluate(() => (window as any).__preparationFocus), null, 2),
+  )
+  assert(await preparation.evaluate((element) => element.contains(document.activeElement)))
   const attempt = await page.evaluate(async () => (await window.locusDesktop!.state()).close)
   assert.equal(attempt.phase, "preparing")
   await nativeClose()
   assert.deepEqual(await page.evaluate(async () => (await window.locusDesktop!.state()).close), attempt)
   await page.getByRole("button", { name: "Return to Locus", exact: true }).click()
   await page.getByRole("dialog").waitFor({ state: "detached" })
+  assert.equal(page.url(), heldDestination)
+  await page.getByRole("button", { name: /^Tasks/ }).click()
+  await page.getByRole("dialog", { name: "Tasks this run" }).waitFor()
+  assert(await page.getByRole("dialog", { name: "Tasks this run" }).evaluate((element) => element === (window as any).__retainedTasks))
+  // Reproduce a quick key during the sibling-modal handoff, before preparation
+  // has received its initial animation-frame focus. The outgoing Tasks guard
+  // must no longer be able to cancel preparation's queued focus.
+  await nativeClose()
+  await preparation.waitFor()
+  await page.getByRole("dialog", { name: "Tasks this run" }).waitFor({ state: "hidden" })
+  await page.evaluate(() => (window as any).__samplePreparationFocus("quick handoff before Tab"))
+  await page.keyboard.press("Tab")
+  await page.evaluate(() => (window as any).__samplePreparationFocus("quick handoff immediately after Tab"))
+  await page.waitForFunction(() => {
+    const dialog = document.activeElement?.closest('[role="dialog"][data-open]')
+    return !!dialog?.textContent?.includes("Preparing to close")
+  })
+  assert(await preparation.evaluate((element) => element.contains(document.activeElement)))
+  await page.evaluate(() => (window as any).__samplePreparationFocus("quick handoff focus settled"))
+  await writeFile(
+    join(output, "preparation-focus.json"),
+    JSON.stringify(await page.evaluate(() => (window as any).__preparationFocus), null, 2),
+  )
+  await preparation.getByRole("button", { name: "Return to Locus", exact: true }).click()
+  await preparation.waitFor({ state: "hidden" })
+  assert.equal(page.url(), heldDestination)
+  // Host priority must also finish an ordinary Tasks closing animation when
+  // open is already false, rather than depending only on a new open transition.
+  await page.getByRole("button", { name: /^Tasks/ }).click()
+  await page.getByRole("dialog", { name: "Tasks this run" }).waitFor()
+  await page.getByRole("button", { name: "Close tasks", exact: true }).click()
+  await nativeClose()
+  await preparation.waitFor()
+  await page.evaluate(() => (window as any).__samplePreparationFocus("ordinary close overlap before Tab"))
+  await page.keyboard.press("Tab")
+  await page.evaluate(() => (window as any).__samplePreparationFocus("ordinary close overlap immediately after Tab"))
+  await page.waitForFunction(() => {
+    const dialog = document.activeElement?.closest('[role="dialog"][data-open]')
+    return !!dialog?.textContent?.includes("Preparing to close")
+  })
+  assert(await preparation.evaluate((element) => element.contains(document.activeElement)))
+  await page.evaluate(() => (window as any).__samplePreparationFocus("ordinary close overlap focus settled"))
+  await writeFile(
+    join(output, "preparation-focus.json"),
+    JSON.stringify(await page.evaluate(() => (window as any).__preparationFocus), null, 2),
+  )
+  await preparation.getByRole("button", { name: "Return to Locus", exact: true }).click()
+  await preparation.waitFor({ state: "hidden" })
+  assert.equal(page.url(), heldDestination)
   assert.equal((await status(page)).admission, "open")
   await page.evaluate(
     async (attemptId) => window.locusDesktop!.prepared({ attemptId, revision: 0, items: [] }),
@@ -144,8 +265,9 @@ try {
   assert.equal((await page.evaluate(() => window.locusDesktop!.state())).close.phase, "idle")
   await page.evaluate(() => (window as any).__releaseSave())
   await page.getByText("Choice saved", { exact: true }).waitFor()
+  await page.getByRole("button", { name: /^Tasks/ }).click()
   await finishByClose()
-  checks.push("Held actual save, duplicate close, return preserves admission/accepted save, stale reply ignored")
+  checks.push("Tasks yields focus to held preference preparation; Return preserves browsing and task access; duplicate/stale close is ignored and normal exit drains with Tasks open")
 
   // A definite failed current save is listed. Escape dismisses only the dialog;
   // the underlying inspection remains the same. Retry after return still saves.

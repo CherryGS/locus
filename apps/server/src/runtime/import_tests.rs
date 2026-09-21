@@ -60,6 +60,14 @@ async fn whole_base_rollback_retains_copy_and_retry_reuses_identity_without_sour
         source_paths: vec![source.clone()],
     };
     let receipt = server.state.import_batch(request.clone()).unwrap();
+    assert_eq!(
+        server.state.task(&receipt.task_id).unwrap().operation,
+        crate::api::task::TaskOperation::ImportBatch {
+            batch_id: request.request_id.clone(),
+            item_count: 1,
+        }
+    );
+    assert_eq!(server.state.import_batch(request.clone()).unwrap(), receipt);
     terminal(&server.state, &receipt.task_id).await;
     let old = first(&server);
     assert_eq!(old.current.base.state, ImportStepState::Failed);
@@ -96,6 +104,13 @@ async fn whole_base_rollback_retains_copy_and_retry_reuses_identity_without_sour
     std::fs::remove_file(&source).unwrap();
     let retry = recovery(&request.request_id, &old, ImportAction::Retry);
     let receipt = server.state.recover_import(retry.clone()).unwrap();
+    assert_eq!(
+        server.state.task(&receipt.task_id).unwrap().operation,
+        crate::api::task::TaskOperation::ImportRecovery {
+            batch_id: request.request_id.clone(),
+            item_id: old.item_id.clone(),
+        }
+    );
     terminal(&server.state, &receipt.task_id).await;
     assert_eq!(server.state.recover_import(retry).unwrap(), receipt);
     let now = first(&server);

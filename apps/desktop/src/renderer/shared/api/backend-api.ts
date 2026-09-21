@@ -1,3 +1,4 @@
+import { readTaskEvents } from "./task-events"
 import {
   createLocusClient,
   readEntityIds,
@@ -70,6 +71,21 @@ export class BackendApi {
   async imports() {
     return result(await this.client.GET("/api/v1/import-batches"))
   }
+  async tasks() {
+    return result(await this.client.GET("/api/v1/tasks"))
+  }
+  async taskOutcome(id: string) {
+    return result(
+      await this.client.GET("/api/v1/tasks/{task_id}/outcome", { params: { path: { task_id: id } } }),
+    )
+  }
+  async taskEvents(signal: AbortSignal, receive: (snapshot: Wire<"TaskSnapshot">) => void) {
+    const response = await this.client.GET("/api/v1/events", { parseAs: "stream", signal })
+    const stream = result(response)
+    if (!stream) throw new Error("Task stream unavailable")
+    await readTaskEvents(stream, signal, receive)
+  }
+
   async previewBytes(locator: string, signal: AbortSignal) {
     return result(
       await this.client.GET("/api/v1/previews/{locator}/bytes", {
@@ -96,7 +112,9 @@ export class BackendApi {
     )
   }
   async preferences(ids: string[]) {
-    return result(await this.client.POST("/api/v1/entities/view-preferences/batch", { body: { entity_ids: ids } }))
+    return result(
+      await this.client.POST("/api/v1/entities/view-preferences/batch", { body: { entity_ids: ids } }),
+    )
   }
   async savePreference(id: string, body: Wire<"UpdateViewPreference">) {
     return result(
@@ -107,7 +125,9 @@ export class BackendApi {
     )
   }
   async submission(id: string) {
-    return result(await this.client.GET("/api/v1/requests/{request_id}", { params: { path: { request_id: id } } }))
+    return result(
+      await this.client.GET("/api/v1/requests/{request_id}", { params: { path: { request_id: id } } }),
+    )
   }
   async bytes(id: string, signal: AbortSignal) {
     const value = await this.client.GET("/api/v1/files/{file_id}/bytes", {

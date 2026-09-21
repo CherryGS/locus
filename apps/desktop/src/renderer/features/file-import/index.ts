@@ -1,2 +1,2 @@
 export { ImportCoordinator } from "./model/import-coordinator"
-export { ImportPanel } from "./ui/import-panel"
+export { ImportButton, ImportDetails } from "./ui/import-panel"

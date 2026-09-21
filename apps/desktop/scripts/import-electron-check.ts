@@ -28,12 +28,16 @@ try {
     await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()),
     false,
   )
-  assert.deepEqual(await page.evaluate(() => window.locusDesktop!.selectImportFiles()), { status: "canceled" })
+  assert.deepEqual(await page.evaluate(() => window.locusDesktop!.selectImportFiles()), {
+    status: "canceled",
+  })
   await application.evaluate((_electron, source) => {
     ;(globalThis as any).__desktopTest.fileSelections.push({ canceled: false, filePaths: [source] })
   }, source)
   await page.getByRole("button", { name: "Import", exact: true }).click()
-  await page.getByText("1 complete", { exact: true }).waitFor()
+  assert.equal(await page.getByRole("dialog", { name: "Tasks this run" }).isVisible(), false)
+  await page.getByRole("button", { name: /^Tasks/ }).click()
+  await page.locator("[data-task-record] > summary").filter({ hasText: "1 complete" }).waitFor()
   const options = await application.evaluate(() => (globalThis as any).__desktopTest.fileDialogs)
   assert.deepEqual(options[0].properties, ["openFile", "multiSelections"])
   assert.equal(options[0].buttonLabel, "Import")
@@ -74,7 +78,8 @@ try {
   if (application)
     await application
       .evaluate(({ app }) => {
-        for (const child of (globalThis as any).__desktopTest.children) if (child.exitCode === null) child.kill()
+        for (const child of (globalThis as any).__desktopTest.children)
+          if (child.exitCode === null) child.kill()
         app.exit(1)
       })
       .catch(() => {})

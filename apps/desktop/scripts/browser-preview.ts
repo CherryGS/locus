@@ -37,14 +37,34 @@ export async function browserPreview(backend: Awaited<ReturnType<typeof startSer
           headers.set(key, Array.isArray(value) ? value.join(",") : value)
       headers.set("Origin", backend.context.origin)
       const body = request.method === "GET" || request.method === "HEAD" ? undefined : await bytes(request)
+      const controller = new AbortController()
+      response.once("close", () => controller.abort())
       const upstream = await backend.authorizedFetch(`${backend.context.origin}${target.pathname}${target.search}`, {
         method: request.method,
         headers,
         body,
+        signal: controller.signal,
       })
       const outputHeaders = Object.fromEntries(upstream.headers)
       delete outputHeaders["transfer-encoding"]
       delete outputHeaders["content-length"]
+      if (upstream.headers.get("content-type")?.includes("text/event-stream") && upstream.body) {
+        response.writeHead(upstream.status, outputHeaders)
+        response.flushHeaders()
+        const reader = upstream.body.getReader()
+        try {
+          while (!controller.signal.aborted) {
+            const chunk = await reader.read()
+            if (chunk.done) break
+            if (!response.write(Buffer.from(chunk.value))) await once(response, "drain", { signal: controller.signal })
+          }
+          response.end()
+        } finally {
+          await reader.cancel().catch(() => {})
+          reader.releaseLock()
+        }
+        return
+      }
       const content = Buffer.from(await upstream.arrayBuffer())
       const output =
         (target.pathname === "/" || target.pathname === "/index.html") && upstream.ok

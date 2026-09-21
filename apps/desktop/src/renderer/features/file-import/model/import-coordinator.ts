@@ -6,11 +6,14 @@ type Pending = {
   body: Wire<"BatchImportRequest"> | Wire<"ImportRecoveryRequest">
   pending: boolean
   accepted?: boolean
+  receipt?: Wire<"Receipt">
   problem?: string
 }
 export class ImportCoordinator {
   batches: Wire<"ImportBatch">[] = []
   readonly submissions = new Map<string, Pending>()
+  readonly notices: string[] = []
+  private readonly accepted = new Map<string, Pending>()
   selecting = false
   problem?: string
   feedback?: string
@@ -42,7 +45,9 @@ export class ImportCoordinator {
   }
   host(state: DesktopState) {
     this.live =
-      !this.runLost && state.connection.status === "ready" && state.connection.runId === this.api.context.runId
+      !this.runLost &&
+      state.connection.status === "ready" &&
+      state.connection.runId === this.api.context.runId
     this.hostOpen = state.close.phase === "idle"
     this.available = this.live && this.hostOpen && this.admissionOpen
     if (!this.live) {
@@ -63,6 +68,7 @@ export class ImportCoordinator {
       await this.send({ request_id: this.uuid(), source_paths: selection.paths })
     } catch (error) {
       this.problem = errorText(error)
+      this.notices.push(`File selection failed: ${this.problem}`)
     } finally {
       this.selecting = false
       this.changed()
@@ -74,6 +80,31 @@ export class ImportCoordinator {
   }
   itemPending(id: string) {
     return [...this.submissions.values()].some((s) => "item_id" in s.body && s.body.item_id === id)
+  }
+  observeTasks(tasks: Wire<"PublicTask">[]) {
+    for (const [id, saved] of new Map([...this.accepted, ...this.submissions])) {
+      const task = tasks.find((value) => value.request_id === id)
+      if (!task) continue
+      const operation = task.operation
+      const matches =
+        "source_paths" in saved.body
+          ? operation.kind === "import_batch" &&
+            operation.batch_id === id &&
+            operation.item_count === saved.body.source_paths.length
+          : operation.kind === "import_recovery" &&
+            operation.batch_id === saved.body.batch_id &&
+            operation.item_id === saved.body.item_id
+      if (!matches || (saved.receipt && saved.receipt.task_id !== task.task_id)) {
+        this.loseRun()
+        this.problem = "Observed import task attribution did not match. This submission will not be replayed."
+        this.changed()
+        return
+      }
+      saved.accepted = true
+      saved.receipt = { run_id: this.api.context.runId, request_id: id, task_id: task.task_id }
+      this.accepted.set(id, saved)
+    }
+    this.changed()
   }
   private loseRun() {
     this.runLost = true
@@ -88,11 +119,17 @@ export class ImportCoordinator {
     try {
       const receipt =
         "source_paths" in body ? await this.api.importBatch(body) : await this.api.recoverImport(body)
-      if (receipt.run_id !== this.api.context.runId || receipt.request_id !== body.request_id) {
+      if (
+        receipt.run_id !== this.api.context.runId ||
+        receipt.request_id !== body.request_id ||
+        (submission.receipt && submission.receipt.task_id !== receipt.task_id)
+      ) {
         this.loseRun()
         throw new Error("Import receipt attribution did not match. This submission will not be replayed.")
       }
       submission.accepted = true
+      submission.receipt = receipt
+      this.accepted.set(body.request_id, submission)
       submission.pending = false
       await this.observe()
     } catch (error) {
@@ -100,10 +137,13 @@ export class ImportCoordinator {
       // keeps the original identity until same-run recovery establishes it.
       if (
         error instanceof ApiFailure &&
-        ["invalid_request", "request_conflict", "admission_closed", "launch_rejected"].includes(error.detail.code)
+        ["invalid_request", "request_conflict", "admission_closed", "launch_rejected"].includes(
+          error.detail.code,
+        )
       ) {
         this.submissions.delete(body.request_id)
         this.problem = errorText(error)
+        this.notices.push(`Submission ${body.request_id} was rejected: ${this.problem}`)
         if (error.detail.code === "admission_closed") {
           this.admissionOpen = false
           this.available = false
@@ -126,16 +166,26 @@ export class ImportCoordinator {
       if (outcome.status === "accepted") {
         if (outcome.receipt.run_id !== this.api.context.runId || outcome.receipt.request_id !== id) {
           this.loseRun()
-          throw new Error("Recovered receipt attribution did not match. This submission will not be replayed.")
+          throw new Error(
+            "Recovered receipt attribution did not match. This submission will not be replayed.",
+          )
         }
         saved.accepted = true
+        if (saved.receipt && saved.receipt.task_id !== outcome.receipt.task_id) {
+          this.loseRun()
+          throw new Error("Recovered task identity changed. This submission will not be replayed.")
+        }
+        saved.receipt = outcome.receipt
+        this.accepted.set(id, saved)
         saved.pending = false
         await this.observe()
       } else if (outcome.status === "rejected") {
         this.submissions.delete(id)
         this.problem = outcome.error.message
+        this.notices.push(`Submission ${id} was rejected: ${this.problem}`)
       } else
-        saved.problem = "The original request has no attributable import receipt. No new import was submitted."
+        saved.problem =
+          "The original request has no attributable import receipt. No new import was submitted."
     } catch (error) {
       if (error instanceof ApiFailure && error.detail.code === "wrong_run") this.loseRun()
       if (error instanceof ApiFailure && error.detail.code === "unknown_request") {
@@ -188,7 +238,13 @@ export class ImportCoordinator {
           snapshot.batches.some((b) =>
             "source_paths" in saved.body
               ? b.batch_id === id
-              : b.items.some((i) => i.attempts?.some((a) => a.request_id === id)),
+              : b.batch_id === saved.body.batch_id &&
+                b.items.some(
+                  (i) =>
+                    "item_id" in saved.body &&
+                    i.item_id === saved.body.item_id &&
+                    i.attempts?.some((a) => a.request_id === id),
+                ),
           )
         )
           this.submissions.delete(id)

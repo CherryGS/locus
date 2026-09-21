@@ -9,11 +9,35 @@ pub enum PublicTaskState {
     BetweenStages,
     Terminal,
 }
+/// Accepted business scope, independent of display labels and execution stages.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TaskOperation {
+    ImportBatch {
+        batch_id: String,
+        item_count: usize,
+    },
+    ImportRecovery {
+        batch_id: String,
+        item_id: String,
+    },
+    FileImport {
+        source_path: String,
+    },
+    Interpretation {
+        target: crate::api::media::dto::MediaTarget,
+    },
+    Preview {
+        target: crate::api::media::dto::MediaTarget,
+        edge: u32,
+    },
+}
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 pub struct PublicTask {
     pub task_id: String,
     pub request_id: String,
     pub label: String,
+    pub operation: TaskOperation,
     pub state: PublicTaskState,
     pub stage: Option<String>,
     pub message: Option<String>,
