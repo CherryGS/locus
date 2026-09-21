@@ -15,6 +15,15 @@ async function contracts() {
   await client.GET("/api/v1/server", { params: { header: { "X-Locus-Run": "another-run" } } });
   // @ts-expect-error File metadata lookup still requires its path identity.
   await client.GET("/api/v1/files/{file_id}");
+  const binary = await client.GET("/api/v1/entities", { parseAs: "arrayBuffer" });
+  const bytes: ArrayBuffer | undefined = binary.data;
+  const batch = await client.POST("/api/v1/memberships/read", { body: { entity_ids: ["entity"] } });
+  if (batch.data?.[0].status === "present") console.log(batch.data[0].memberships);
+  // @ts-expect-error A membership read requires its subset.
+  await client.POST("/api/v1/memberships/read", { body: {} });
+  // @ts-expect-error No query pagination contract was introduced.
+  await client.GET("/api/v1/entities", { params: { query: { page: 1 } } });
+  void bytes;
   const file: components["schemas"]["FileMetadata"] = {
     file_id: "id", kind_id: "kind", relative_path: "object/id",
     // @ts-expect-error Exact byte counts are decimal strings.

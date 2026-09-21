@@ -44,6 +44,29 @@ applies when launching `locus-server`; it does not connect the UI to a library.
 
 ## Verification
 
+`GET /api/v1/entities` completes one task-coordinated database observation before
+returning packed 16-byte RFC UUIDv7 Entity identities. It includes empty Entities,
+excludes unattached components and promises no sort order across reads. Success
+uses `application/octet-stream`, exact `Content-Length` (including zero), `nosniff`
+and `no-store`. Failures use the existing typed JSON error responses.
+
+`POST /api/v1/memberships/read` accepts `{ "entity_ids": ["..."] }`, with one
+attributed `present`/`missing` result per input position, including duplicates.
+Present results include the actual memberships and may be empty. A database or
+decode failure rejects the batch. Missing owners or unreadable domain payloads
+do not erase memberships. SQL bind chunks share one transaction; this route alone
+is exempt from the generic 16,384-byte JSON body ceiling, without a public item
+quota. Existing create-Entity POST and single-Entity reads remain available.
+
+Both reads require current authorization/run context, participate in admission and
+drain, and retain no request binding or public task. Database stages finish before
+HTTP transfer; holding an unread identity response cannot hold the DB or drain.
+Later memberships and payload reads observe current domain context, independently
+of an earlier fixed identity sequence. Ordinary reads never interpret or generate.
+
 `just rust-test-code locus-server` covers bootstrap parsing, isolated root
 selection, HTTP behavior and the existing backend examples. `just server-smoke`
 exercises the real server with a private bootstrap and temporary library.
+`just server-entity-smoke` demonstrates this read path through the generated
+client. `just server-entity-scale` uses a million actual Entity rows, reports
+end-to-end completion and process memory, and cleans up only its temporary fixture.

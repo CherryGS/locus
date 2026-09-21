@@ -7,9 +7,12 @@
   "scripts": {
     "generate": "openapi-typescript openapi.json --output src/schema.d.ts",
     "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/entities.test.ts",
     "smoke": "tsx smoke.ts",
     "smoke:media": "tsx media-smoke.ts",
-    "smoke:video": "tsx media-smoke.ts --video"
+    "smoke:video": "tsx media-smoke.ts --video",
+    "smoke:entities": "tsx entity-smoke.ts",
+    "scale:entities": "node --expose-gc --import tsx entity-scale.ts"
   },
   "dependencies": { "openapi-fetch": "0.17.0" },
   "devDependencies": {

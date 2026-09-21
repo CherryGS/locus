@@ -27,7 +27,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["entity_ids"];
         put?: never;
         post: operations["create_entity"];
         delete?: never;
@@ -223,6 +223,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["detach"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/memberships/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["memberships_batch"];
         delete?: never;
         options?: never;
         head?: never;
@@ -471,6 +487,16 @@ export interface components {
         };
         /** @enum {string} */
         DurationPrecision: "unknown";
+        EntityMemberships: {
+            entity_id: string;
+            memberships: components["schemas"]["Membership"][];
+            /** @enum {string} */
+            status: "present";
+        } | {
+            entity_id: string;
+            /** @enum {string} */
+            status: "missing";
+        };
         /** @enum {string} */
         ErrorCode: "unauthorized" | "foreign_origin" | "wrong_run" | "invalid_request" | "request_conflict" | "admission_closed" | "launch_rejected" | "unknown_request" | "unknown_task" | "missing_file" | "missing_bytes" | "access_denied" | "preview_unavailable" | "operation_failed" | "not_found" | "method_not_allowed";
         /** @enum {string} */
@@ -660,6 +686,10 @@ export interface components {
         };
         /** @enum {string} */
         PublicTaskState: "submitted" | "waiting" | "running" | "between_stages" | "terminal";
+        ReadMemberships: {
+            /** @description One result per input position, including duplicate identities. No item quota. */
+            entity_ids: string[];
+        };
         Receipt: {
             request_id: string;
             run_id: string;
@@ -751,6 +781,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServerStatus"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    entity_ids: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Complete packed RFC UUIDv7 identities, 16 bytes each; unspecified sequence order. DB work completes before transfer. Empty success is zero bytes. */
+            200: {
+                headers: {
+                    /** @description no-store */
+                    "Cache-Control"?: string;
+                    /** @description Exact decimal byte count, required even for empty success */
+                    "Content-Length"?: string;
+                    /** @description nosniff */
+                    "X-Content-Type-Options"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
                 };
             };
             /** @description Invalid request */
@@ -2006,6 +2128,96 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MutationOutcome"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    memberships_batch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadMemberships"];
+            };
+        };
+        responses: {
+            /** @description One attributed result per input position, including duplicates. Database/decode failure rejects the whole batch. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityMemberships"][];
                 };
             };
             /** @description Invalid request */

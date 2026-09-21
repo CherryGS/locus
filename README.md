@@ -11,13 +11,22 @@ The Rust workspace contains persistent identity, attachment, managed File, Image
 - `locus-media` owns separate Image/Video kinds, retained interpretations and warnings, explicit retry, derived previews/covers, and a common per-component read view.
 - `locus-twitter`, under `crates/provider`, owns independent Twitter snapshots, local validation, guarded File association and provider-specific reads.
 - `apps/server` owns the authenticated loopback Axum server, centralized HTTP/OpenAPI contract, and separate File/Media/Twitter/task backend examples. The server composes kernel/File/Media on one task-bound database; examples also exercise Twitter.
-- `packages/locus-client` owns generated TypeScript declarations and a small `openapi-fetch` client factory, with no renderer framework or embedded credential.
+- `packages/locus-client` owns generated TypeScript declarations, a small `openapi-fetch` client factory and a validated compact binary Entity reader, with no renderer framework or embedded credential.
 
 Intent discovery was deferred at the user's request so bootstrap could proceed. The current intent snapshot and its confirmation state are maintained in the independent local `project-doc` repository.
 
 ## Loopback server
 
 Run `just client-install` and `just server-smoke` for an isolated real-binary demonstration through the generated client. It imports synthetic files, reads metadata, recovers submissions, observes SSE, checks typed failures/restart/drain, and reports a bounded warm loopback latency sample. It never opens the default user library. The GPUI prototype has been removed. Run `just server-media-smoke` for Image and `just server-video-smoke` with provisioned ffprobe/ffmpeg for Video, through PNG and original-byte retrieval. Connected Electron lifecycle, Axum renderer/static delivery, dialogs and Twitter HTTP adaptation remain later work.
+
+`just server-entity-smoke` demonstrates complete binary Entity discovery, refresh,
+bounded batch memberships and subsequent File/Media reads. The client keeps IDs
+in one binary buffer and materializes selected UUID strings on demand. Results
+stay fixed until replaced by a completed refresh; later membership/payload reads
+retain their actual current outcomes. `just server-entity-scale` seeds 1,000,000
+actual Entities in a temporary library and reports complete-read latency, lookup
+costs and measured server/client memory, including transport allocation costs.
+Fixture setup requires `uv` and is excluded from the enumeration timing.
 
 `just server-run` (also `just rust-run`) expects a private stdin pipe containing one JSON object followed by EOF: a caller-created random temporary `credential` (32–256 ASCII token characters), and optional absolute `library_root`. The input is limited to 16 KiB. The server binds `127.0.0.1:0`, opens storage, and emits one stdout JSON readiness record with `origin` and fresh `run_id`; diagnostics use stderr. Credentials are never printed, persisted or placed in URLs. The host must create the credential and scope authorization to that exact origin; connected desktop-host integration remains later work.
 
@@ -42,6 +51,9 @@ rendition evidence, and do not pin cache bytes. Eviction returns unavailable;
 reading never regenerates. HTTP transfer retains no database stage.
 
 Use `just client-generate` to export OpenAPI and regenerate TypeScript, `just client-check` for positive/negative type checks, and `just client-drift` to verify deterministic checked-in output. Schema export (`just server-schema [path]`) does not open storage or require bootstrap/authentication. See [client and API usage](packages/locus-client/README.md) for routes, error/status behavior and SSE semantics.
+
+`just client-test` exercises full-transfer validation, zero-length success and
+malformed/truncated responses through the actual generated-client factory.
 
 HTTP adapters are grouped by the crate they consume inside `apps/server/src/api`:
 `core` owns entity/membership endpoints, `file` owns imports and original access,

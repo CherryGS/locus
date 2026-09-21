@@ -2,7 +2,7 @@
 
 The server's registered Rust handlers and transport DTOs produce `openapi.json`.
 `openapi-typescript` produces `src/schema.d.ts`; do not edit either generated file.
-`src/index.ts` supplies the small `openapi-fetch` factory. No credential, discovery,
+`src/index.ts` exports the small `openapi-fetch` factory. No credential, discovery,
 retry, request-ID replacement or run-ID replacement is built into it.
 
 OpenAPI groups operations by `core`, `file`, `media`, `task` and `server` tags.
@@ -36,6 +36,8 @@ lost response. A new intentional business attempt gets a new request ID.
 | `/imports` | POST | 202 task receipt for a supplied local path |
 | `/files/{file_id}` | GET | Direct File metadata; 404 `missing_file` for absent record |
 | `/entities` | POST | Direct recoverable entity creation (`request_id`) |
+| `/entities` | GET | Complete packed binary Entity identities, including empty Entities |
+| `/memberships/read` | POST | Attributed current membership batch for `entity_ids`, including duplicates |
 | `/media` | POST | Direct recoverable Image/Video creation (`request_id`, `kind`) |
 | `/memberships/attach`, `/memberships/detach` | POST | Direct recoverable exact membership mutation |
 | `/entities/{entity_id}/memberships` | GET | Direct current memberships |
@@ -59,6 +61,61 @@ describes the run as a required header parameter, separately from the bearer
 grant. The factory supplies it from caller context and adapts only that managed
 header out of its per-call type requirements. The generated `paths` remain
 unmodified and exported, including the full required header contract.
+
+## Entity discovery and content reads
+
+```ts
+import { createLocusClient, readEntityIds } from "@locus/client";
+
+const client = createLocusClient({ origin, runId }, authorizedFetch);
+const identities = await readEntityIds(client, { signal });
+const selected = identities.at(0); // UUID string on demand; undefined if empty
+if (selected !== undefined) {
+  const memberships = await client.POST("/api/v1/memberships/read", {
+    body: { entity_ids: [selected] },
+  });
+  // Inspect each status, then dispatch Kind/Component identities to their owners.
+}
+const replacement = await readEntityIds(client); // new result; identities stays fixed
+```
+
+The exported `EntitySequence` exposes `length`, `byteLength`, `at(position)` and
+`indexOf(canonicalUuidV7)`. It owns one private binary buffer; indexed access is
+O(1) and identity-position lookup is an O(n) binary scan returning `-1` when absent
+or invalid. A second zero-copy view compares four words per ID. No million-item
+string/object map or auxiliary identity index is built.
+Enumeration has no business sort or order-stability guarantee across refreshes.
+An existing sequence remains unchanged after domain writes or a failed refresh.
+
+The helper uses the generated GET route and the supplied client, preserving injected
+authorization/run headers. It waits for the complete body and validates HTTP 200,
+binary media type, required exact decimal Content-Length, byte equality, 16-byte
+alignment and RFC UUIDv7 version/variant. It also handles the fetch library's
+zero-length parse bypass. HTTP/validation failures throw `EntityReadError`, with
+`response` and the generated `apiError` when available; fetch/stream failures reject
+without publishing a partial sequence. Empty success is a validated zero-byte body.
+
+The raw generated route is also available:
+
+```ts
+const raw = await client.GET("/api/v1/entities", { parseAs: "arrayBuffer" });
+// raw.response and raw.error remain available. For Content-Length: 0,
+// openapi-fetch can leave raw.data undefined; readEntityIds handles that case.
+```
+
+A raw ArrayBuffer alone is not an established identity result; callers bypassing
+the helper own equivalent completion and identity validation. JSON batch results
+preserve one outcome per input position, in order, including duplicates. `present`
+contains `entity_id` and `memberships` (possibly empty); `missing` identifies an
+absent Entity. Overall storage/decode failure is an error, never a successful empty
+batch. SQL parameter chunking is internal. This route alone has no generic 16 KiB
+JSON body ceiling or public item quota; consumers choose the subset they need.
+
+Membership reads do not depend on available provider transports or readable payloads.
+Use the returned Kind/Component identities for File/Media/provider calls. Retain
+independently successful facts when another component read fails. Reads after
+membership discovery use the owner's actual current context, with no cross-call
+snapshot. They never start interpretation, preview work or provider refresh.
 
 Transport errors use `ApiError`: 400 invalid input; 401 authorization; 403 foreign
 origin/host or denied byte access; 409 wrong run or conflicting request; 404 unknown request/task,
@@ -128,10 +185,13 @@ From the repository root:
 just client-install
 just client-generate
 just client-check
+just client-test
 just client-drift
 just server-smoke
 just server-media-smoke
 just server-video-smoke
+just server-entity-smoke
+just server-entity-scale
 ```
 
 `client-check` compiles the actual smoke consumer and negative type cases.
@@ -149,3 +209,36 @@ directly, creates a synthetic video and runs the same HTTP sequence. Missing too
 fail this explicit check; set `LOCUS_FFPROBE` and `LOCUS_FFMPEG` when they are not on
 PATH. Both checks decode returned PNG pixels, compare original bytes, verify
 recovery/restart, and drain with unread original bytes and SSE connections.
+
+`server-entity-smoke` checks empty/nonempty/refresh identities, attributed membership
+batches and observed-kind dispatch to File/Media. It verifies no read-generated
+tasks/cache outputs, then explicitly changes payload/context between steps to show
+that earlier successful evidence remains distinct from current domain outcomes.
+
+`server-entity-scale [count]` defaults to 1,000,000 actual valid Entity rows. It
+initializes a temporary real library, stops the initializer, seeds constrained rows
+with `uv run python`, and starts a fresh measured server. It reports total DB rows
+separately from Entity count, complete-result latency including DB decoding and
+fetch copies/validation, indexed and linear lookup timings, and actual OS/server
+and Node/client memory. A separate compact-bitset check verifies complete unique
+fixture coverage outside the timed read. The command has no default-library path.
+
+The server uses the pinned SQLite wrapper's supported blocking callback to iterate
+rows directly into an exactly preallocated byte buffer within one transaction;
+its default async row collector is avoided. The client adopts the received buffer,
+but fetch still allocates/copies during transfer. Memory output includes Node RSS,
+heap/external/ArrayBuffer samples and process RSS high-water, plus server working-set
+baseline/high-water on Windows or RSS on Linux. Samples can miss synchronous peaks;
+high-water figures include process startup. These overlapping values must not be
+summed. Other platforms explicitly report a sampled server RSS rather than a peak.
+
+One local 1,000,000-Entity run (Windows 11 x64, i7-14790F, 32 GiB RAM, Node 24.18.0,
+Cargo dev profile with optimization/debug info and warm fixture filesystem) had
+1,000,003 total DB rows, 16,000,000 ID bytes and a 301 ms first usable result.
+Server working set was 13.6 MB baseline / 32.3 MB lifetime peak. Client RSS was
+88.7 MB baseline / 140.7 MB observed high-water / 107.7 MB after checks, two event-loop
+turns and GC; retained ArrayBuffers were 16.2 MB. Indexed access averaged 0.247
+microseconds over 10,000 calls; midpoint/last identity scans took 5.1/5.9 ms. These decimal-MB
+measurements include runtime/transport overhead and are a local sample, not a
+throughput target, unlimited-size claim or SLA. Rerun the command on the target
+machine/build to assess its actual costs.

@@ -32,8 +32,11 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 - `just client-install`: install the pinned client lockfile without lifecycle scripts.
 - `just client-generate`: export OpenAPI and regenerate TypeScript declarations.
 - `just client-check`: check the client, real smoke consumer and negative type contracts.
+- `just client-test`: verify the Entity reader through the generated factory, including malformed and truncated responses.
 - `just client-drift`: regenerate twice in a temporary directory and reject schema/client drift.
 - `just server-smoke`: exercise the real server binary with its authorized generated client and report bounded local JSON timing.
+- `just server-entity-smoke`: exercise complete/refresh identities, batch memberships and subsequent File/Media reads against a temporary real server library.
+- `just server-entity-scale [count]`: seed an isolated actual Entity fixture (default 1,000,000), then measure complete binary reads, lookups and server/client memory; requires `uv` for fixture setup.
 
 ## General rules
 

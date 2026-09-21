@@ -1,6 +1,6 @@
 use diesel::{
     QueryableByName,
-    sql_types::{BigInt, Binary},
+    sql_types::{BigInt, Binary, Nullable},
 };
 
 #[derive(QueryableByName)]
@@ -26,4 +26,14 @@ pub(crate) struct MembershipRow {
     pub(crate) kind: Vec<u8>,
     #[diesel(sql_type = Binary)]
     pub(crate) component: Vec<u8>,
+}
+
+#[derive(QueryableByName)]
+pub(crate) struct EntityMembershipRow {
+    #[diesel(sql_type = Binary)]
+    pub(crate) entity: Vec<u8>,
+    #[diesel(sql_type = Nullable<Binary>)]
+    pub(crate) kind: Option<Vec<u8>>,
+    #[diesel(sql_type = Nullable<Binary>)]
+    pub(crate) component: Option<Vec<u8>>,
 }

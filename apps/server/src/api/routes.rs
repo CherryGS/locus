@@ -49,6 +49,7 @@ pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
     )]);
     // OpenAPI's binary string describes bytes, not a JSON array of integers.
     for (path, mime) in [
+        ("/api/v1/entities", "application/octet-stream"),
         ("/api/v1/files/{file_id}/bytes", "application/octet-stream"),
         ("/api/v1/previews/{locator}/bytes", "image/png"),
     ] {

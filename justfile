@@ -95,6 +95,9 @@ client-generate: server-schema
 client-check:
     {{ npm }} --prefix packages/locus-client run typecheck
 
+client-test:
+    {{ npm }} --prefix packages/locus-client test
+
 client-drift: server-build
     node scripts/check-client-drift.mjs
 
@@ -107,6 +110,13 @@ server-media-smoke: server-build client-check
 
 server-video-smoke: server-build client-check
     {{ npm }} --prefix packages/locus-client run smoke:video
+
+server-entity-smoke: server-build client-check
+    {{ npm }} --prefix packages/locus-client run smoke:entities
+
+# Actual isolated SQLite fixture; setup is outside the measured complete read.
+server-entity-scale count="1000000": server-build client-check
+    {{ npm }} --prefix packages/locus-client run scale:entities -- {{ count }}
 
 # Standalone Electron shell; no backend or user library is opened.
 desktop-install:

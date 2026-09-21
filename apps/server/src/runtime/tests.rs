@@ -13,6 +13,80 @@ async fn app() -> (tempfile::TempDir, Server) {
     );
     (root, Server::bind(config).await.unwrap())
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn entity_enumeration_releases_db_before_unconsumed_http_body_and_retains_no_read_entries() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+    let (_root, server) = app().await;
+    // Create directly inside a coordinated stage, with no mutation receipt.
+    let domain = server.state.domain.clone();
+    server
+        .state
+        .query("fixture", move |task| async move {
+            let mut session = domain.database.session(&task).await.unwrap();
+            domain.kernel.create_entity(&mut session).await.unwrap();
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let database = server.state.domain.database.clone();
+    let (locked_tx, locked_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel();
+    let holder = server
+        .state
+        .queue
+        .submit("hold DB", move |task| async move {
+            let mut session = database.session(&task).await.unwrap();
+            session
+                .transaction::<_, locus_store::api::StoreError, _>(move |_| {
+                    Box::pin(async move {
+                        locked_tx.send(()).unwrap();
+                        release_rx.await.unwrap();
+                        Ok(())
+                    })
+                })
+                .await
+                .unwrap();
+        })
+        .unwrap();
+    locked_rx.await.unwrap();
+    let request = Request::builder()
+        .uri("/api/v1/entities")
+        .header(
+            "authorization",
+            format!("Bearer {}", server.state.credential),
+        )
+        .header("x-locus-run", server.state.run_id.clone())
+        .body(Body::empty())
+        .unwrap();
+    let router = server.router();
+    let response = tokio::spawn(async move { router.oneshot(request).await.unwrap() });
+    while server.state.lock().active == 0 {
+        tokio::task::yield_now().await;
+    }
+    assert!(!response.is_finished());
+    release_tx.send(()).unwrap();
+    holder.result().await.unwrap();
+    let unread = response.await.unwrap();
+    assert_eq!(unread.headers()["content-length"], "16");
+    // Complete another real DB read while the HTTP body's bytes remain unpolled.
+    assert!(
+        tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            server
+                .state
+                .memberships_batch(vec![locus_core::api::EntityId::new()])
+        )
+        .await
+        .unwrap()
+        .is_ok()
+    );
+    assert!(server.state.lock().requests.is_empty());
+    assert!(server.state.lock().tasks.is_empty());
+    assert_eq!(server.state.close().admission, AdmissionState::Drained);
+    drop(unread);
+}
 fn request(path: &std::path::Path) -> ImportRequest {
     ImportRequest {
         request_id: uuid::Uuid::now_v7().to_string(),
@@ -585,6 +659,42 @@ async fn mixed_entity_view_keeps_corrupt_entry_and_valid_other_kind() {
         .result()
         .await
         .unwrap();
+    let memberships = server.state.memberships_batch(vec![entity]).await.unwrap();
+    let EntityMemberships::Present { memberships, .. } = &memberships[0] else {
+        panic!("present Entity was lost")
+    };
+    assert_eq!(memberships.len(), 2);
+    // Damaged Image payload does not erase its known membership or prevent the
+    // independent Video owner from returning its retained record.
+    for membership in memberships {
+        let component = locus_core::api::ComponentId::from_bytes(
+            uuid::Uuid::parse_str(&membership.component_id)
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+        if membership.kind_id == locus_media::api::MediaKind::Image.kind().to_string() {
+            assert!(
+                server
+                    .state
+                    .media_read(locus_media::api::MediaId::Image(
+                        locus_media::api::ImageId::from_component(component)
+                    ))
+                    .await
+                    .is_err()
+            );
+        } else {
+            assert!(
+                server
+                    .state
+                    .media_read(locus_media::api::MediaId::Video(
+                        locus_media::api::VideoId::from_component(component)
+                    ))
+                    .await
+                    .is_ok()
+            );
+        }
+    }
     let entries = server.state.entity_media(entity).await.unwrap();
     assert_eq!(entries.len(), 2);
     assert_eq!(
