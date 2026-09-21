@@ -21,7 +21,15 @@ pub(crate) enum Arguments {
     Attach(Membership),
     Detach(Membership),
     Interpret(MediaTarget),
-    Preview { target: MediaTarget, edge: u32 },
+    Preview {
+        target: MediaTarget,
+        edge: u32,
+    },
+    UpdateViewPreference {
+        entity: locus_core::api::EntityId,
+        view: crate::preferences::identity::ViewDefinitionId,
+        revision: Option<crate::preferences::identity::SavedRevision>,
+    },
 }
 impl Shared {
     pub(super) fn public<F, Fut>(

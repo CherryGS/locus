@@ -341,6 +341,120 @@
         }
       }
     },
+    "/api/v1/entities/view-preferences/batch": {
+      "post": {
+        "tags": [
+          "preferences"
+        ],
+        "operationId": "read_view_preferences",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadViewPreferences"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "One attributed result per input position. Database/decode failure rejects the whole batch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EntityViewPreference"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/entities/{entity_id}/media": {
       "get": {
         "tags": [
@@ -488,6 +602,232 @@
                   "items": {
                     "$ref": "#/components/schemas/Membership"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entities/{entity_id}/view-preference": {
+      "get": {
+        "tags": [
+          "preferences"
+        ],
+        "operationId": "read_view_preference",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityViewPreference"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "preferences"
+        ],
+        "operationId": "update_view_preference",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateViewPreference"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Saved only after commit succeeds. Conflict returns the observed current preference without retry. Recover lost completion by the same request ID in this run.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationOutcome"
                 }
               }
             }
@@ -3333,6 +3673,24 @@
           {
             "type": "object",
             "required": [
+              "error",
+              "owner"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/PreferenceFailure"
+              },
+              "owner": {
+                "type": "string",
+                "enum": [
+                  "preferences"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "diagnostic",
               "owner"
             ],
@@ -3398,6 +3756,72 @@
                 "type": "string",
                 "enum": [
                   "present"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "status"
+            ],
+            "properties": {
+              "entity_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "missing"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "EntityViewPreference": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "view_definition_id",
+              "revision",
+              "status"
+            ],
+            "properties": {
+              "entity_id": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "saved"
+                ]
+              },
+              "view_definition_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "status"
+            ],
+            "properties": {
+              "entity_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unset"
                 ]
               }
             }
@@ -4058,6 +4482,60 @@
           {
             "type": "object",
             "required": [
+              "preference",
+              "status"
+            ],
+            "properties": {
+              "preference": {
+                "$ref": "#/components/schemas/SavedViewPreference"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "view_preference_saved"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "current",
+              "status"
+            ],
+            "properties": {
+              "current": {
+                "$ref": "#/components/schemas/EntityViewPreference"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "view_preference_conflict"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "status"
+            ],
+            "properties": {
+              "entity_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "view_preference_missing"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "diagnostic",
               "status"
             ],
@@ -4106,6 +4584,140 @@
                 "enum": [
                   "complete"
                 ]
+              }
+            }
+          }
+        ]
+      },
+      "PreferenceFailure": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "revision_exhausted"
+                ]
+              },
+              "entity_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "version",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "schema_version"
+                ]
+              },
+              "version": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "corrupt_schema"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "corrupt_record"
+                ]
+              },
+              "entity_id": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "store"
+                ]
+              },
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "core"
+                ]
+              },
+              "error": {
+                "$ref": "#/components/schemas/CoreFailure"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "invalid_input"
+                ]
+              },
+              "message": {
+                "type": "string"
               }
             }
           }
@@ -4256,6 +4868,22 @@
         },
         "additionalProperties": false
       },
+      "ReadViewPreferences": {
+        "type": "object",
+        "required": [
+          "entity_ids"
+        ],
+        "properties": {
+          "entity_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Caller-selected identities, with one ordered result per input including duplicates."
+          }
+        },
+        "additionalProperties": false
+      },
       "Receipt": {
         "type": "object",
         "required": [
@@ -4286,6 +4914,26 @@
           }
         },
         "additionalProperties": false
+      },
+      "SavedViewPreference": {
+        "type": "object",
+        "required": [
+          "entity_id",
+          "view_definition_id",
+          "revision"
+        ],
+        "properties": {
+          "entity_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "description": "Canonical positive decimal, retained as a string to preserve integer precision."
+          },
+          "view_definition_id": {
+            "type": "string"
+          }
+        }
       },
       "ServerStatus": {
         "type": "object",
@@ -4522,6 +5170,30 @@
             }
           }
         }
+      },
+      "UpdateViewPreference": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "view_definition_id"
+        ],
+        "properties": {
+          "expected_revision": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Canonical positive decimal through 9223372036854775807. Null or omitted\nrequires no saved preference; it never means unconditional overwrite."
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "view_definition_id": {
+            "type": "string",
+            "description": "Opaque retained definition identity; unavailable definitions remain valid."
+          }
+        },
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

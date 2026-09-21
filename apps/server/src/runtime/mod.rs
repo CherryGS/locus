@@ -5,6 +5,7 @@ mod core;
 mod file;
 mod media;
 mod operations;
+mod preferences;
 mod registry;
 mod server;
 mod submissions;
@@ -14,6 +15,8 @@ pub use registry::ServerConfig;
 pub(crate) use registry::Shared;
 pub use server::Server;
 
+#[cfg(test)]
+mod preference_tests;
 #[cfg(test)]
 mod tests;
 

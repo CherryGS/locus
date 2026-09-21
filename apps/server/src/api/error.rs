@@ -1,4 +1,6 @@
-use super::{core::dto::CoreFailure, media::dto::MediaFailure};
+use super::{
+    core::dto::CoreFailure, media::dto::MediaFailure, preferences::dto::PreferenceFailure,
+};
 use axum::{
     Json,
     http::StatusCode,
@@ -104,6 +106,7 @@ pub enum DomainDiagnostic {
     Core { error: CoreFailure },
     File { diagnostic: Diagnostic },
     Media { error: MediaFailure },
+    Preferences { error: PreferenceFailure },
     Store { diagnostic: Diagnostic },
     Executor { message: String },
 }

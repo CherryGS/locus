@@ -2,7 +2,7 @@ use super::{
     auth, core,
     dto::TaskOutcome,
     error::ApiError,
-    file, handlers, media,
+    file, handlers, media, preferences,
     task::{self, dto::TaskSnapshot},
 };
 use crate::runtime::Shared;
@@ -31,6 +31,7 @@ fn registered() -> OpenApiRouter<Arc<Shared>> {
         .merge(core::router())
         .merge(file::router())
         .merge(media::router())
+        .merge(preferences::router())
         .merge(task::router())
         .merge(handlers::router())
 }

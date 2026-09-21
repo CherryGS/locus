@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/entities/view-preferences/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["read_view_preferences"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/entities/{entity_id}/media": {
         parameters: {
             query?: never;
@@ -61,6 +77,22 @@ export interface paths {
         };
         get: operations["memberships"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/entities/{entity_id}/view-preference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["read_view_preference"];
+        put: operations["update_view_preference"];
         post?: never;
         delete?: never;
         options?: never;
@@ -477,6 +509,10 @@ export interface components {
             /** @enum {string} */
             owner: "media";
         } | {
+            error: components["schemas"]["PreferenceFailure"];
+            /** @enum {string} */
+            owner: "preferences";
+        } | {
             diagnostic: components["schemas"]["Diagnostic"];
             /** @enum {string} */
             owner: "store";
@@ -492,6 +528,21 @@ export interface components {
             memberships: components["schemas"]["Membership"][];
             /** @enum {string} */
             status: "present";
+        } | {
+            entity_id: string;
+            /** @enum {string} */
+            status: "missing";
+        };
+        EntityViewPreference: {
+            entity_id: string;
+            revision: string;
+            /** @enum {string} */
+            status: "saved";
+            view_definition_id: string;
+        } | {
+            entity_id: string;
+            /** @enum {string} */
+            status: "unset";
         } | {
             entity_id: string;
             /** @enum {string} */
@@ -641,6 +692,18 @@ export interface components {
             /** @enum {string} */
             status: "detached";
         } | {
+            preference: components["schemas"]["SavedViewPreference"];
+            /** @enum {string} */
+            status: "view_preference_saved";
+        } | {
+            current: components["schemas"]["EntityViewPreference"];
+            /** @enum {string} */
+            status: "view_preference_conflict";
+        } | {
+            entity_id: string;
+            /** @enum {string} */
+            status: "view_preference_missing";
+        } | {
             diagnostic: components["schemas"]["DomainDiagnostic"];
             /** @enum {string} */
             status: "failed";
@@ -652,6 +715,36 @@ export interface components {
             outcome: components["schemas"]["TaskOutcome"];
             /** @enum {string} */
             status: "complete";
+        };
+        PreferenceFailure: {
+            /** @enum {string} */
+            code: "revision_exhausted";
+            entity_id: string;
+        } | {
+            /** @enum {string} */
+            code: "schema_version";
+            version: string;
+        } | {
+            /** @enum {string} */
+            code: "corrupt_schema";
+            message: string;
+        } | {
+            /** @enum {string} */
+            code: "corrupt_record";
+            entity_id: string;
+            message: string;
+        } | {
+            /** @enum {string} */
+            code: "store";
+            diagnostic: components["schemas"]["Diagnostic"];
+        } | {
+            /** @enum {string} */
+            code: "core";
+            error: components["schemas"]["CoreFailure"];
+        } | {
+            /** @enum {string} */
+            code: "invalid_input";
+            message: string;
         };
         PreviewMetadata: {
             /** Format: int32 */
@@ -690,6 +783,10 @@ export interface components {
             /** @description One result per input position, including duplicate identities. No item quota. */
             entity_ids: string[];
         };
+        ReadViewPreferences: {
+            /** @description Caller-selected identities, with one ordered result per input including duplicates. */
+            entity_ids: string[];
+        };
         Receipt: {
             request_id: string;
             run_id: string;
@@ -697,6 +794,12 @@ export interface components {
         };
         RequestIdentity: {
             request_id: string;
+        };
+        SavedViewPreference: {
+            entity_id: string;
+            /** @description Canonical positive decimal, retained as a string to preserve integer precision. */
+            revision: string;
+            view_definition_id: string;
         };
         ServerStatus: {
             /** @description Includes private direct-response work until actual queue completion. */
@@ -753,6 +856,16 @@ export interface components {
             revision: string;
             run_id: string;
             tasks: components["schemas"]["PublicTask"][];
+        };
+        UpdateViewPreference: {
+            /**
+             * @description Canonical positive decimal through 9223372036854775807. Null or omitted
+             *     requires no saved preference; it never means unconditional overwrite.
+             */
+            expected_revision?: string | null;
+            request_id: string;
+            /** @description Opaque retained definition identity; unavailable definitions remain valid. */
+            view_definition_id: string;
         };
     };
     responses: never;
@@ -1029,6 +1142,96 @@ export interface operations {
             };
         };
     };
+    read_view_preferences: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadViewPreferences"];
+            };
+        };
+        responses: {
+            /** @description One attributed result per input position. Database/decode failure rejects the whole batch. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityViewPreference"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     entity_media: {
         parameters: {
             query?: never;
@@ -1136,6 +1339,185 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Membership"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    read_view_preference: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityViewPreference"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    update_view_preference: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateViewPreference"];
+            };
+        };
+        responses: {
+            /** @description Saved only after commit succeeds. Conflict returns the observed current preference without retry. Recover lost completion by the same request ID in this run. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MutationOutcome"];
                 };
             };
             /** @description Invalid request */

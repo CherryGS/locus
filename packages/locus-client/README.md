@@ -5,7 +5,7 @@ The server's registered Rust handlers and transport DTOs produce `openapi.json`.
 `src/index.ts` exports the small `openapi-fetch` factory. No credential, discovery,
 retry, request-ID replacement or run-ID replacement is built into it.
 
-OpenAPI groups operations by `core`, `file`, `media`, `task` and `server` tags.
+OpenAPI groups operations by `core`, `file`, `media`, `preferences`, `task` and `server` tags.
 The server group owns admission, request recovery and completion envelopes that
 combine multiple domains. Grouping does not change paths or generated call types.
 
@@ -41,6 +41,9 @@ lost response. A new intentional business attempt gets a new request ID.
 | `/media` | POST | Direct recoverable Image/Video creation (`request_id`, `kind`) |
 | `/memberships/attach`, `/memberships/detach` | POST | Direct recoverable exact membership mutation |
 | `/entities/{entity_id}/memberships` | GET | Direct current memberships |
+| `/entities/{entity_id}/view-preference` | GET | Attributed saved definition, unset preference or missing Entity |
+| `/entities/{entity_id}/view-preference` | PUT | Direct recoverable conditional preference update |
+| `/entities/view-preferences/batch` | POST | Ordered attributed preference results for caller-selected `entity_ids` |
 | `/media/{kind}/{component_id}` | GET | Direct retained record, including unattached records |
 | `/media/{kind}/{component_id}/view` | GET | Record plus actual-input applicability |
 | `/entities/{entity_id}/media` | GET | Independent per-component results, preserving failed entries |
@@ -61,6 +64,61 @@ describes the run as a required header parameter, separately from the bearer
 grant. The factory supplies it from caller context and adapts only that managed
 header out of its per-call type requirements. The generated `paths` remain
 unmodified and exported, including the full required header contract.
+
+## Entity presentation preferences
+
+```ts
+const observed = await client.GET("/api/v1/entities/{entity_id}/view-preference", {
+  params: { path: { entity_id } },
+});
+if (observed.data?.status === "saved" || observed.data?.status === "unset") {
+  const result = await client.PUT("/api/v1/entities/{entity_id}/view-preference", {
+    params: { path: { entity_id } },
+    body: {
+      request_id: intentionalSubmissionId,
+      view_definition_id: "image.inspect",
+      expected_revision: observed.data.status === "saved" ? observed.data.revision : null,
+    },
+  });
+  // Inspect result.data.status; HTTP 200 alone does not establish a saved choice.
+}
+```
+
+`saved` supplies the Entity, opaque view-definition ID and positive decimal revision;
+`unset` successfully observes no preference, and `missing` identifies an unavailable
+Entity. Failed reads remain errors. Batch reads use `{ entity_ids }`, preserve order
+and duplicates, reject the whole batch on observation failure, and share membership
+batches' exemption from the generic JSON body ceiling. Consumers select the needed
+identities; there is no whole-library preference preload or cross-call snapshot.
+
+Keep revision strings intact; JavaScript numbers cannot represent their full range.
+Null or omitted `expected_revision` requires no saved preference. A matching revision
+permits one update and advances it even when a definition repeats, so A-to-B-to-A does
+not revive A's older revision. `view_preference_saved` returns the committed preference.
+`view_preference_conflict` returns the current saved/unset observation and performs no
+write; `view_preference_missing` leaves the unavailable Entity untouched. Unknown but
+valid view definitions remain retained values. The backend neither selects a fallback
+nor changes Components when a view is unavailable.
+
+`failed` includes a typed `DomainDiagnostic`. A preferences/store diagnostic whose
+kind is `commit_outcome_unknown` means commit completion could not be established;
+`direct_complete` only says that the original operation has a retained outcome.
+Recover a lost response through `/requests/{request_id}` or identical re-delivery in
+the same run. Recovery returns that original outcome even after later saves, without
+reapplying the original value. An authoritative read can establish actual saved state.
+Restart reads the database; it must not replay old unconfirmed submissions.
+
+Conditional revisions prevent prepared stale writes from overwriting newer committed
+versions. The later UI coordinator must still discard superseded intent and retry only
+its current choice against newly observed state, using a new request ID. Automatically
+rebasing an obsolete write would defeat this protection. The generated client does
+not retry, coordinate renderer autosave, or implement normal-close preparation.
+
+`just server-preference-smoke` uses the generated client against a real process and
+temporary library, including concurrent delivery, stale rejection, original-result
+recovery, component independence/replacement, and restart persistence. Rust owner and
+HTTP tests additionally induce an actual deferred-constraint COMMIT failure and check
+its retained uncertainty, plus rollback, corruption, deletion and revision bounds.
 
 ## Entity discovery and content reads
 

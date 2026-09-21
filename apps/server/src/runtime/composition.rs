@@ -1,3 +1,4 @@
+use crate::preferences::service::PreferenceService;
 use anyhow::Context;
 use locus_core::api::Kernel;
 use locus_file::api::{FileOwner, FileService};
@@ -12,6 +13,7 @@ pub(crate) struct Domain {
     pub kernel: Kernel,
     pub files: FileService,
     pub media: MediaService,
+    pub preferences: PreferenceService,
 }
 impl Domain {
     pub async fn open(queue: &TaskQueue, root: &Path) -> anyhow::Result<Self> {
@@ -33,11 +35,13 @@ impl Domain {
             config.ffmpeg = path.into();
         }
         let media = MediaService::new(files.root(), config)?;
+        let preferences = PreferenceService::new(kernel.clone());
         let domain = Self {
             database,
             kernel,
             files,
             media,
+            preferences,
         };
         let init = domain.clone();
         queue
@@ -46,6 +50,7 @@ impl Domain {
                 init.kernel.initialize(&mut session).await?;
                 init.files.initialize(&mut session).await?;
                 init.media.initialize(&mut session).await?;
+                init.preferences.initialize(&mut session).await?;
                 Ok::<_, anyhow::Error>(())
             })?
             .result()

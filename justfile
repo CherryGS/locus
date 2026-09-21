@@ -114,6 +114,9 @@ server-video-smoke: server-build client-check
 server-entity-smoke: server-build client-check
     {{ npm }} --prefix packages/locus-client run smoke:entities
 
+server-preference-smoke: server-build client-check
+    {{ npm }} --prefix packages/locus-client run smoke:preferences
+
 # Actual isolated SQLite fixture; setup is outside the measured complete read.
 server-entity-scale count="1000000": server-build client-check
     {{ npm }} --prefix packages/locus-client run scale:entities -- {{ count }}

@@ -2,6 +2,7 @@ use super::{
     error::{Diagnostic, DomainDiagnostic},
     file::dto::{CopyProgress, FileMetadata},
     media::dto::{Interpretation, MediaTarget, PreviewMetadata},
+    preferences::dto::{EntityViewPreference, SavedViewPreference},
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -67,6 +68,15 @@ pub enum MutationOutcome {
     AlreadyAttached,
     Detached {
         removed: bool,
+    },
+    ViewPreferenceSaved {
+        preference: SavedViewPreference,
+    },
+    ViewPreferenceConflict {
+        current: EntityViewPreference,
+    },
+    ViewPreferenceMissing {
+        entity_id: String,
     },
     Failed {
         diagnostic: DomainDiagnostic,
