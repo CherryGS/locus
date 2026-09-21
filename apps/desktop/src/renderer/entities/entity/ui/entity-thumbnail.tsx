@@ -1,8 +1,10 @@
 import { BoxIcon, FileIcon } from "lucide-react"
+import { useState } from "react"
 
 export function EntityThumbnail({ src, hasFile }: { src: string | undefined; hasFile: boolean }) {
-  if (src) {
-    return <img src={src} alt="" draggable={false} decoding="async" className="size-full object-contain" />
+  const [failedSource, setFailedSource] = useState<string>()
+  if (src && src !== failedSource) {
+    return <img src={src} alt="" draggable={false} decoding="async" className="size-full object-contain" onError={() => setFailedSource(src)} />
   }
 
   const Icon = hasFile ? FileIcon : BoxIcon

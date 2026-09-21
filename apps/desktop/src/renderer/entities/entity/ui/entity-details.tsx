@@ -5,7 +5,6 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Separator } from "@/shared/ui/separator"
 import type { EntityComponent, EntityItem } from "../model/entity-item"
 import { formatFileSize } from "../lib/format-file-size"
-import { EntityThumbnail } from "./entity-thumbnail"
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -47,7 +46,7 @@ function ImportTime({ value }: { value: string }) {
   )
 }
 
-export function EntityOverview({ entity }: { entity: EntityItem | null }) {
+export function EntityOverview({ entity, viewSelection }: { entity: EntityItem | null; viewSelection?: ReactNode }) {
   if (!entity) {
     return (
       <Empty className="px-4 py-10">
@@ -62,21 +61,8 @@ export function EntityOverview({ entity }: { entity: EntityItem | null }) {
 
   return (
     <div className="flex min-w-0 flex-col pb-1">
-      <div className="p-4">
-        <div className="aspect-[4/3] overflow-hidden rounded-lg bg-muted/20">
-          <EntityThumbnail
-            src={entity.components.find((component) => component.kind === "image")?.thumbnail}
-            hasFile={entity.components.some((component) => component.kind === "file")}
-          />
-        </div>
-      </div>
-      <Separator />
-      <DetailSection title="Properties">
-        <dl><Detail label="Name">{entity.name}</Detail></dl>
-      </DetailSection>
-      <Separator />
       <DetailSection title="Components">
-        <div className="flex flex-wrap gap-2">
+        {viewSelection ?? <div className="flex flex-wrap gap-2">
           {entity.components.length === 0 ? (
             <p className="flex items-center gap-2 text-xs text-muted-foreground"><BoxIcon className="size-4" aria-hidden="true" />No components</p>
           ) : entity.components.map((component) => (
@@ -85,7 +71,11 @@ export function EntityOverview({ entity }: { entity: EntityItem | null }) {
               {component.kind === "file" ? "File" : "Image"}
             </Badge>
           ))}
-        </div>
+        </div>}
+      </DetailSection>
+      <Separator />
+      <DetailSection title="Properties">
+        <dl><Detail label="Name">{entity.name}</Detail></dl>
       </DetailSection>
     </div>
   )

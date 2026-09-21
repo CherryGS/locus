@@ -1,43 +1,43 @@
 # Desktop
 
-Use `just desktop-ui` for routine UI development and verification. It serves the
-same renderer through Vite on loopback without starting Electron. Open the URL
-printed by Vite in an isolated in-app browser, or use a headless browser for
-automated interaction and screenshot checks. Navigation, hover behavior, panels,
-page layout and virtual-grid interactions can be checked there without
-taking over the desktop pointer or foreground window.
+`just desktop-run` opens the standalone Electron/Vite development shell with
+synthetic UI specimens and hot updates. It does not start the Rust server, open a
+library, import files or install a preload bridge.
 
-Reserve native Electron checks for window controls, draggable title-bar regions,
-native dialogs and host integration. Browser results do not establish those
-native behaviors. Prefer browser verification by default, and explain any need
-for desktop control before using it.
+`just desktop-ui` serves the same renderer in an independent browser-only Vite
+consumer. Use an isolated in-app browser or headless browser for ordinary UI
+verification without taking the desktop pointer or focus.
 
-Run `just desktop-install`, then `just desktop-run` from the repository root for
-the live Electron shell. Install uses the pinned npm lockfile and explicitly
-downloads Electron's binary through its `install-electron` command; it needs no
-global npm configuration changes. `just desktop-check` generates file routes and checks
-the host and browser separately. `just desktop-test` runs the card-presentation
-logic tests with Node's built-in runner (Node 24, including TypeScript stripping),
-without launching Electron. `just desktop-build` writes `out/main` and
-`out/renderer`; `just desktop-preview` opens those built local assets.
+`just desktop-install` installs the pinned desktop lockfile and explicitly
+downloads Electron. `just desktop-check` generates routes and checks separate
+Node and renderer TypeScript boundaries. `just desktop-test` runs card, image
+geometry, view-resolution and navigation tests. `just desktop-build` builds the
+host and production renderer, omitting specimen data; `just desktop-preview`
+builds and opens that production preview. Production shows an empty Entity list
+until real browsing data is designed and connected.
 
-This is an isolated UI review consumer. It does not start Axum, open a library,
-select files or expose native IPC. The connected desktop lifecycle and authorized
-Axum origin remain later integration work.
+The renderer uses FSD: app supplies entry, routes and specimens; pages/entity
+owns inspection composition and navigation; entities/entity owns card/detail
+presentation; shared owns Base UI shadcn components. Route files are thin adapters
+and the route tree is generated.
 
-`src/main` owns Electron. The renderer uses FSD: `app` owns entry, routes, styles
-and the persistent shell; `pages` owns each page; `shared` owns Base UI shadcn
-components and utilities. `components.json` points the CLI at these shared paths.
-`app/route-tree.gen.ts` is generated from thin file-route adapters. Hash history
-allows the same shell to navigate from local built assets. Run
-`npm --prefix apps/desktop run build:renderer` to build only the renderer assets.
+Entity inspection follows the complete supplied list, including File-only and
+no-view entries. The titlebar contains history controls and Return to source
+while inspecting an Entity, and the Entity page
+header contains nearby previews.
+Overview places Component view choices above its properties without repeating
+the preview image. It selects a content view independently of the detail panels. Back/Forward
+traverse actual visits; Esc returns to the declared source. Sample 003's File
+view supplies a gallery over existing specimen Entities; Sample 009 demonstrates
+an unavailable image and Sample 013 has no content view.
 
-The Windows title bar uses native window controls and the overlay's CSS safe
-area. Dark tokens and the host background are aligned before the window shows.
-The Entity page has a centered virtual grid of fixed-size cards and single
-selection. Development loads offline synthetic records from `app/preview/entities.ts`; the production
-renderer excludes that module and shows an empty list until backend integration.
-Selection links the grid to Overview and the selected item's File/Image panels.
-Its page header sits above a workspace containing both the grid and inspector.
-The outer shell owns only the title bar, navigation, footer and page outlet.
-Home and Setting retain their minimal headings.
+View choices are temporary, independent values in Entity page state. They remain
+available during inspection/history navigation, but leaving the page or restarting
+clears them. No database, localStorage or HTTP preference adapter is involved.
+Eventual persistence belongs in the database per Entity; its read/update/save flow
+is deferred to design and may accompany other Entity information. This UI selects
+neither a dedicated preference API nor a storage schema.
+
+The specimens and gallery are presentation inputs, not seeded domain records or
+a Model backend. There is no real-path import, library browsing or persistent
+write in this UI iteration.

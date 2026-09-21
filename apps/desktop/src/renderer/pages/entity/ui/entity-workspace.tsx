@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { motion, useReducedMotion } from "motion/react"
 import type { EntityItem } from "@/entities/entity"
-import { useEntitySelection } from "@/features/entity-selection"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyDescription, EmptyHeader } from "@/shared/ui/empty"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/shared/ui/resizable"
@@ -12,9 +11,16 @@ import { minimumEntityGridWidth } from "./entity-grid-layout"
 import { entityPanels, type EntityPanelId } from "./entity-panels"
 import { CopyIdentityButton } from "./copy-identity-button"
 
-export function EntityWorkspace({ entities }: { entities: readonly EntityItem[] }) {
-  const { selectedEntity, selectEntity } = useEntitySelection()
-  const panels = entityPanels(selectedEntity)
+export function EntityWorkspace({ entities, selectedEntity, viewing, onSelect, onOpen, content, viewSelection }: {
+  entities: readonly EntityItem[]
+  selectedEntity: EntityItem | null
+  viewing: boolean
+  onSelect: (entity: EntityItem) => void
+  onOpen: (entity: EntityItem) => void
+  content: ReactNode
+  viewSelection: ReactNode
+}) {
+  const panels = entityPanels(selectedEntity, viewSelection)
   const [activePanelId, setActivePanelId] = useState<EntityPanelId | null>(null)
   const missingPanel = activePanelId !== null && !panels.some((panel) => panel.id === activePanelId)
   const activePanel = activePanelId === null ? null : panels.find((panel) => panel.id === activePanelId) ?? panels[0]
@@ -35,9 +41,12 @@ export function EntityWorkspace({ entities }: { entities: readonly EntityItem[] 
     <div data-slot="entity-workspace" className="flex min-h-0 flex-1">
       <ResizablePanelGroup orientation="horizontal" className="min-w-0 flex-1">
         <ResizablePanel id="entity-grid-panel" minSize={minimumEntityGridWidth}>
-          {entities.length > 0
-            ? <EntityGrid entities={entities} selectedId={selectedEntity?.id} onSelect={selectEntity} />
+          {viewing
+            ? content
+            : entities.length > 0
+            ? <EntityGrid entities={entities} selectedId={selectedEntity?.id} onSelect={onSelect} onOpen={onOpen} revealSelectionOnMount={selectedEntity !== null} />
             : <Empty className="h-full"><EmptyHeader><EmptyDescription>No entities yet.</EmptyDescription></EmptyHeader></Empty>}
+
         </ResizablePanel>
         {activePanel && (
           <>

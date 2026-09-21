@@ -1,4 +1,5 @@
 import type { EntityItem } from "@/entities/entity"
+import type { RelatedCollection } from "@/pages/entity"
 
 // Synthetic, offline UI specimens. The route imports this module only in dev;
 // none of these records or thumbnails enter the production renderer bundle.
@@ -20,7 +21,7 @@ const specimens = palettes.flatMap(([background, foreground, accent]) => (
 export const previewEntities: readonly EntityItem[] = Array.from({ length: 240 }, (_, index) => {
   const number = String(index + 1).padStart(3, "0")
   // One long-name/UUID specimen exercises narrow inspector layouts.
-  const id = index === 1 ? "01995c68-7200-7000-8000-000000000002" : `sample-${number}`
+  const id = `01995c68-7200-7000-8000-${String(index + 1).padStart(12, "0")}`
   if ((index + 1) % 13 === 0) return { id, name: `Sample ${number}`, components: [] }
   const fileOnly = (index + 1) % 7 === 0
   const name = index === 1
@@ -39,10 +40,16 @@ export const previewEntities: readonly EntityItem[] = Array.from({ length: 240 }
       ...(fileOnly ? [] : [{
         kind: "image" as const, id: `${id}-image`, format: "PNG",
         width: specimen.width, height: specimen.height,
-        thumbnail: specimen.thumbnail,
+        thumbnail: index === 8 ? "data:image/png;base64,broken-preview" : specimen.thumbnail,
         colorMode: index % 3 === 0 ? "RGBA" : "RGB",
         bitsPerChannel: 8, hasAlphaChannel: index % 3 === 0,
       }]),
     ],
   }
 })
+
+// Supplied UI collection over existing Entities; no Model or persisted relation.
+export const previewCollections: readonly RelatedCollection[] = [{
+  id: "sample-gallery", name: "Sample gallery", ownerId: previewEntities[2].id,
+  viewId: "file.info", entityIds: [previewEntities[0].id, previewEntities[1].id, previewEntities[8].id, previewEntities[12].id],
+}]

@@ -14,10 +14,13 @@ type EntityGridProps = {
   entities: readonly EntityItem[]
   selectedId: string | undefined
   onSelect: (entity: EntityItem) => void
+  onOpen: (entity: EntityItem) => void
+  revealSelectionOnMount: boolean
 }
 
-export function EntityGrid({ entities, selectedId, onSelect }: EntityGridProps) {
+export function EntityGrid({ entities, selectedId, onSelect, onOpen, revealSelectionOnMount }: EntityGridProps) {
   const viewport = useRef<HTMLDivElement>(null)
+  const revealSelection = useRef(revealSelectionOnMount)
   const resizeAnchor = useRef<{ index: number; align: "auto" | "start" } | undefined>(undefined)
   const gridId = useId()
   const [width, setWidth] = useState(0)
@@ -81,6 +84,15 @@ export function EntityGrid({ entities, selectedId, onSelect }: EntityGridProps) 
     }
   }, [columns, virtualizer, width])
 
+  useLayoutEffect(() => {
+    if (!revealSelection.current || width === 0 || selectedRow < 0) return
+    revealSelection.current = false
+    // The viewer unmounts the grid. Locate the shared selection only after the
+    // new viewport width establishes its current column count, then return focus.
+    virtualizer.scrollToIndex(selectedRow, { align: "auto" })
+    viewport.current?.focus({ preventScroll: true })
+  }, [selectedRow, virtualizer, width])
+
   function select(index: number) {
     viewport.current?.focus({ preventScroll: true })
     onSelect(entities[index])
@@ -88,6 +100,13 @@ export function EntityGrid({ entities, selectedId, onSelect }: EntityGridProps) 
 
   function navigate(event: KeyboardEvent<HTMLDivElement>) {
     if (event.altKey || event.shiftKey) return
+    if (event.key === "Enter") {
+      if (selectedIndex >= 0) {
+        event.preventDefault()
+        onOpen(entities[selectedIndex])
+      }
+      return
+    }
     let index = Math.max(0, selectedIndex)
     const rowStart = Math.floor(index / columns) * columns
     switch (event.key) {
@@ -142,6 +161,7 @@ export function EntityGrid({ entities, selectedId, onSelect }: EntityGridProps) 
                 aria-selected={entity.id === selectedId}
                 className="min-h-0 min-w-0 cursor-default rounded-xl outline-offset-[-2px] select-none aria-selected:outline-2 aria-selected:outline-ring"
                 onClick={() => select(row.index * columns + column)}
+                onDoubleClick={() => onOpen(entity)}
               >
                 <EntityCard entity={entity} titleId={`${cellId(entity.id)}-title`} />
               </div>

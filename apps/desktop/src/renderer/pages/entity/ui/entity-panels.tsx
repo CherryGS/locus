@@ -12,12 +12,12 @@ type EntityPanel = {
   content: ReactNode
 }
 
-export function entityPanels(entity: EntityItem | null): EntityPanel[] {
+export function entityPanels(entity: EntityItem | null, viewSelection?: ReactNode): EntityPanel[] {
   return [
     {
       id: "overview", label: "Overview", icon: PanelRightIcon,
       identity: entity ? { label: "Entity ID", value: entity.id } : undefined,
-      content: <EntityOverview entity={entity} />,
+      content: <EntityOverview entity={entity} viewSelection={viewSelection} />,
     },
     ...(entity?.components.map((component) => ({
       id: component.kind,

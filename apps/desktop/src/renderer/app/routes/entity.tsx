@@ -1,14 +1,28 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { EntityPage } from "@/pages/entity"
-import type { EntityItem } from "@/entities/entity"
+import { createFileRoute, useRouterState } from "@tanstack/react-router"
+import { EntityPage, entitySearch } from "@/pages/entity"
 
 export const Route = createFileRoute("/entity")({
-  loader: async (): Promise<readonly EntityItem[]> => import.meta.env.DEV
-    ? (await import("../preview/entities")).previewEntities
-    : [],
+  validateSearch: entitySearch,
+  loader: async () =>
+    import.meta.env.DEV
+      ? await import("../preview/entities")
+      : { previewEntities: [], previewCollections: [] },
   component: EntityRoute,
 })
 
 function EntityRoute() {
-  return <EntityPage entities={Route.useLoaderData()} />
+  const data = Route.useLoaderData()
+  const navigate = Route.useNavigate()
+  const key = useRouterState({ select: (state) => state.location.state.__TSR_key ?? "initial" })
+  return (
+    <EntityPage
+      entities={data.previewEntities}
+      collections={data.previewCollections}
+      destination={Route.useSearch()}
+      visitKey={key}
+      navigate={(search, replace) => {
+        void navigate({ search, replace })
+      }}
+    />
+  )
 }
