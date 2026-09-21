@@ -68,3 +68,16 @@ test("retained dimensions remain usable after a File change without rewriting th
   assert.deepEqual(changed, before)
   assert.equal(changed.id, entity.id)
 })
+
+test("Video contributes a static poster and duration while missing facts keep other slots usable", () => {
+  const video = { kind: "video", id: "video", thumbnail: "video-poster", durationSeconds: 3605 }
+  const components = [file, video]
+  assert.deepEqual(entityCardDisplay({ ...entity, components }), {
+    title: "original.png", preview: { src: "video-poster" }, summary: "1:00:05",
+  })
+  assert.equal(entityCardDisplay({ ...entity, components: [video, image, file] }).summary, "1200 × 800")
+  assert.equal(entityCardDisplay({ ...entity, components: [file, { ...video, durationSeconds: 0 }] }).summary, "0:00")
+  assert.deepEqual(entityCardDisplay({ ...entity, components: [file, { kind: "video", id: "video" }] }), {
+    title: "original.png", preview: undefined, summary: "2 KiB",
+  })
+})

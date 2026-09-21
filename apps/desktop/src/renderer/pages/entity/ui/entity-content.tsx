@@ -6,6 +6,7 @@ import { ScrollArea } from "@/shared/ui/scroll-area"
 import type { ContentViewId } from "../model/content-views"
 import type { RelatedCollection } from "../model/navigation"
 import { ImageInspection } from "./image-inspection"
+import { VideoInspection } from "./video-inspection"
 
 export function EntityContent({
   entity,
@@ -25,6 +26,7 @@ export function EntityContent({
     if (document.activeElement === document.body) focus.current?.focus({ preventScroll: true })
   }, [])
   const image = entity.components.find((component) => component.kind === "image")
+  const video = entity.components.find((component) => component.kind === "video")
   const file = entity.components.find((component) => component.kind === "file")
   return (
     <section
@@ -40,6 +42,13 @@ export function EntityContent({
         <ImageInspection
           key={`${entity.id}:${image?.id}:${image?.thumbnail}`}
           src={image?.thumbnail}
+          name={entity.name}
+        />
+      ) : viewId === "video.play" ? (
+        <VideoInspection
+          key={`${entity.id}:${video?.id}:${video?.src}`}
+          src={video?.src}
+          poster={video?.thumbnail}
           name={entity.name}
         />
       ) : viewId === "file.info" && file ? (

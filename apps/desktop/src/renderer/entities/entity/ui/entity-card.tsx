@@ -9,7 +9,11 @@ export function EntityCard({ entity, titleId }: { entity: EntityItem; titleId: s
   return (
     <Card size="sm" className="h-full gap-0 py-0">
       <div className="min-h-0 flex-1 bg-muted/20">
-        <EntityThumbnail src={display.preview?.src} hasFile={entity.components.some((component) => component.kind === "file")} />
+        <EntityThumbnail
+          src={display.preview?.src}
+          hasFile={entity.components.some((component) => component.kind === "file")}
+          hasVideo={entity.components.some((component) => component.kind === "video")}
+        />
       </div>
       <CardHeader className="h-16 shrink-0 py-2">
         <CardTitle id={titleId} className="truncate">{display.title ?? entity.name}</CardTitle>

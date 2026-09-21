@@ -1,4 +1,5 @@
 import { formatFileSize } from "../lib/format-file-size.ts"
+import { formatDuration } from "../lib/format-duration.ts"
 import type { EntityItem } from "./entity-item"
 
 export type ImageDisplayItem = { src: string }
@@ -21,5 +22,16 @@ export const imageDisplayItems = {
   dimensions(entity: EntityItem): string | undefined {
     const image = entity.components.find((component) => component.kind === "image")
     return image ? `${image.width} × ${image.height}` : undefined
+  },
+}
+
+export const videoDisplayItems = {
+  preview(entity: EntityItem): ImageDisplayItem | undefined {
+    const src = entity.components.find((component) => component.kind === "video")?.thumbnail
+    return src ? { src } : undefined
+  },
+  duration(entity: EntityItem): string | undefined {
+    const seconds = entity.components.find((component) => component.kind === "video")?.durationSeconds
+    return seconds === undefined ? undefined : formatDuration(seconds)
   },
 }

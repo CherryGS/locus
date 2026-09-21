@@ -38,6 +38,16 @@ test("views resolve the supplied choice without skipping empty Entities", () => 
   assert.equal(resolveView(file, "image.inspect"), "file.info")
   assert.equal(resolveView(empty, "image.inspect"), null)
 })
+
+test("Video remains a content choice without a playable source and follows the full Entity sequence", () => {
+  const video = { id: "v", components: [{ kind: "file" }, { kind: "video" }] }
+  assert.equal(resolveView(video, null), "video.play")
+  assert.equal(resolveView(video, "file.info"), "file.info")
+  assert.equal(resolveView(video, "image.inspect"), "video.play")
+  assert.equal(resolveView(image, "video.play"), "image.inspect")
+  assert.equal(adjacentEntity([image, video, file, empty], "a", 1), video)
+  assert.equal(adjacentEntity([image, video, file, empty], "v", 1), file)
+})
 test("router history records M P Q separately while Esc addresses its declared source", () => {
   const history = createMemoryHistory({ initialEntries: ["/entity"] })
   const grid = { entityId: "M", mode: "grid", collectionId: "library" }

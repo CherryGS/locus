@@ -1,10 +1,12 @@
 import type { ReactNode } from "react"
-import { BoxIcon, FileIcon, ImageIcon, MousePointer2Icon } from "lucide-react"
+import { BoxIcon, MousePointer2Icon } from "lucide-react"
 import { Badge } from "@/shared/ui/badge"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 import { Separator } from "@/shared/ui/separator"
 import type { EntityComponent, EntityItem } from "../model/entity-item"
 import { formatFileSize } from "../lib/format-file-size"
+import { formatDuration } from "../lib/format-duration"
+import { componentAppearance } from "./component-appearance"
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -65,12 +67,15 @@ export function EntityOverview({ entity, viewSelection }: { entity: EntityItem |
         {viewSelection ?? <div className="flex flex-wrap gap-2">
           {entity.components.length === 0 ? (
             <p className="flex items-center gap-2 text-xs text-muted-foreground"><BoxIcon className="size-4" aria-hidden="true" />No components</p>
-          ) : entity.components.map((component) => (
-            <Badge key={component.id} variant="outline">
-              {component.kind === "file" ? <FileIcon data-icon="inline-start" /> : <ImageIcon data-icon="inline-start" />}
-              {component.kind === "file" ? "File" : "Image"}
-            </Badge>
-          ))}
+          ) : entity.components.map((component) => {
+            const { label, icon: Icon } = componentAppearance[component.kind]
+            return (
+              <Badge key={component.id} variant="outline">
+                <Icon data-icon="inline-start" />
+                {label}
+              </Badge>
+            )
+          })}
         </div>}
       </DetailSection>
       <Separator />
@@ -94,6 +99,24 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
               {component.bytes >= 1024 && <span className="block text-[11px] leading-4 text-muted-foreground">{component.bytes.toLocaleString()} bytes</span>}
             </Detail>
             <Detail label="Imported"><ImportTime value={component.importedAt} /></Detail>
+          </dl>
+        </DetailSection>
+      ) : component.kind === "video" ? (
+        <DetailSection title="Properties">
+          <dl>
+            <Detail label="Format">{component.format ?? "Unknown"}</Detail>
+            <Detail label="Dimensions">
+              {component.width && component.height
+                ? `${component.width.toLocaleString()} × ${component.height.toLocaleString()} px`
+                : "Unknown"}
+            </Detail>
+            <Detail label="Duration">
+              {component.durationSeconds === undefined ? "Unknown" : formatDuration(component.durationSeconds)}
+            </Detail>
+            <Detail label="Frame rate">
+              {component.frameRate === undefined ? "Unknown" : `${component.frameRate.toLocaleString(undefined, { maximumFractionDigits: 3 })} fps`}
+            </Detail>
+            <Detail label="Codec">{component.codec ?? "Unknown"}</Detail>
           </dl>
         </DetailSection>
       ) : (

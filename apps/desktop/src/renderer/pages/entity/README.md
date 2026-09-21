@@ -23,6 +23,10 @@ so its source navigation and temporary view state remain page-owned. Below the p
 EntityWorkspace mounts either the grid or current content alongside the existing
 resizable inspector and component rail. No inactive grid/content tree is retained.
 The inspector's open state and last width remain with the mounted workspace.
+Its resize separator occupies its own strip, with the visible border next to the
+grid scrollbar. Pointer hit testing uses that actual box rather than an expanded
+region overlapping the scrollbar; clicking the track scrolls, while dragging the
+separator resizes. The strip is wider for coarse pointers.
 
 Cards are fixed at 280 by 274 pixels, with a 4:3 preview area containing the
 original image ratio and a 64-pixel caption. Both grid gaps remain 16 pixels.
@@ -42,10 +46,27 @@ browsing elsewhere, it retains the first visible entity. Card height is constant
 only column changes regroup rows.
 
 Double-click or Enter opens every Entity, including File-only and empty items.
-Image inspection and File information are the initial static Component views;
+Image inspection, Video playback and File information are static Component views;
 no available view produces a placeholder. Previous/next and arrow keys follow the
 complete supplied order and wrap. One-item selection does not append a visit or
 reset the content. Missing or failed image resources remain in the chosen view.
+
+Video plays an explicitly supplied source with native inline controls and
+metadata preloading. It opens paused, preserves the whole frame within the pane,
+and does not automatically advance to another Entity on completion. The active
+view owns one player; leaving it pauses playback, clears the source and calls
+`load()` to release that media element's resource. Reopening starts at zero.
+History contains no player or playback-position cache. Native browser caching is
+not an immediate memory-eviction guarantee.
+
+While a video/control has focus, native seek and volume keys take precedence over
+the page's left/right Entity navigation. The neighboring strip, titlebar history
+and source-return action keep their existing behavior; Esc returns to the source.
+Fullscreen, Picture-in-Picture and remote-playback UI are not offered in this
+inline iteration. Missing sources and load/decode failures show a simple error
+without skipping the Entity, changing its chosen view or starting transcoding.
+Playback support is the embedded browser's support for the supplied file; this
+does not promise playback of every format the backend can probe.
 
 Grid selection replaces the current location. Opening inspection, entering a
 related collection and moving to a different Entity append real router visits.
@@ -87,16 +108,16 @@ transforms; it does not yet request an original-resolution resource.
 Card presentation uses static per-slot candidates in
 `entities/entity/model/entity-card-display.ts`. Component display items live in
 `component-display-items.ts`; `display-slot.ts` picks the first defined value.
-The initial card mapping uses File's original name, Image's preview, and Image
-dimensions before File size for the summary. Missing contributions leave the
+The card mapping uses File's original name, Image's preview before Video's poster,
+and Image dimensions before Video duration before File size for the summary. Missing contributions leave the
 card's existing label/icon/Entity-text fallback in charge. These mappings are UI
 choices, not domain fields or persisted preferences. Supplied retained metadata
 remains eligible; there is no input-age check, fetch scheduler or remembered winner.
-Thumbnail resources sit with the Image projection. Overview reads its data
+Static thumbnail resources sit with the Image or Video projection. Overview reads its data
 directly and does not consume card slots. Grid cell names refer to the rendered
 card title while selection and virtual row identity still use Entity IDs.
 
-Overview is always available. File and Image appear only for components present
+Overview is always available. File, Image and Video appear only for components present
 on the selected entity. If the active component disappears, the open inspector
 returns to Overview. Clicking the active panel closes it; another button switches
 content. Selection updates content without opening a closed inspector. Inspector
@@ -104,11 +125,11 @@ width starts at 256 pixels and is retained when closed/reopened within this page
 Selection belongs to the route. Inspector state belongs to the mounted Entity
 page; navigating to another page unmounts this workspace.
 
-The inspector keeps its title visible while details scroll; switching panels
+The inspector keeps its identity header visible while details scroll; switching panels
 starts the newly selected panel at the top. Overview presents available Component
 view choices first, then properties including the full name, without a preview
-image. The entity or component identity
-follows its panel title. The ID button truncates in a narrow pane but retains
+image. The header shows only the entity or component ID; panel names remain on
+the vertical rail and in accessible region labels. The ID button truncates in a narrow pane but retains
 the full value in its hover title and copies that full value to the clipboard.
 It has no icon, and the hover title contains only the ID. Successful copying
 briefly shows "Copied"; failures are reported without claiming success.
@@ -138,7 +159,13 @@ alpha channel. Alpha presence does not claim that any pixel is transparent.
 These remain explicit UI specimens until Media retains and exposes those facts;
 the current backend only supplies Image format and dimensions.
 
-The app route supplies offline development specimens with image, file-only and
+Video's first property set is format, pixel dimensions, duration, frame rate and
+codec. Missing facts display "Unknown" instead of fabricated zero values. These
+are supplied renderer facts and are independent of whether playback succeeds;
+native playback events do not overwrite retained metadata. Video resource access
+and real-library data flow remain separate integration work.
+
+The app route supplies offline development specimens with image, video, file-only and
 component-free items, including a long-name/UUID specimen for narrow panes.
 Production builds omit these fixtures and use the empty state until a real
 library read is connected. This UI has no persistent writes and does not create

@@ -31,6 +31,18 @@ traverse actual visits; Esc returns to the declared source. Sample 003's File
 view supplies a gallery over existing specimen Entities; Sample 009 demonstrates
 an unavailable image and Sample 013 has no content view.
 
+Video uses the browser's native inline playback controls. Sample 005 is landscape,
+Sample 006 is portrait, Sample 012 has an invalid video resource, and Sample 016
+has a Video component without a playable source or known metadata. The first two
+are eight-second, synthetic MP4 clips with a silent audio track. They load only
+in the development specimen route; grids and neighboring previews use static
+posters rather than mounting players.
+
+To regenerate the checked-in media fixtures, run
+`node apps/desktop/scripts/generate-video-specimens.mjs` from the repository root
+with ffmpeg on PATH, or set `LOCUS_FFMPEG` to its executable. This is a development
+fixture tool, not a desktop runtime dependency or a real-library import path.
+
 View choices are temporary, independent values in Entity page state. They remain
 available during inspection/history navigation, but leaving the page or restarting
 clears them. No database, localStorage or HTTP preference adapter is involved.

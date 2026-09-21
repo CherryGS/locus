@@ -1,5 +1,6 @@
 import type { EntityItem } from "@/entities/entity"
 import type { RelatedCollection } from "@/pages/entity"
+import { videoSpecimens } from "./videos"
 
 // Synthetic, offline UI specimens. The route imports this module only in dev;
 // none of these records or thumbnails enter the production renderer bundle.
@@ -24,9 +25,10 @@ export const previewEntities: readonly EntityItem[] = Array.from({ length: 240 }
   const id = `01995c68-7200-7000-8000-${String(index + 1).padStart(12, "0")}`
   if ((index + 1) % 13 === 0) return { id, name: `Sample ${number}`, components: [] }
   const fileOnly = (index + 1) % 7 === 0
+  const video = videoSpecimens.get(index + 1)
   const name = index === 1
     ? "Sample 002 — coastline-study_evening-light_colour-and-texture-references_final-version.png"
-    : `Sample ${number}.${fileOnly ? "txt" : "png"}`
+    : `Sample ${number}.${video ? "mp4" : fileOnly ? "txt" : "png"}`
   const specimen = specimens[index % specimens.length]
   return {
     id,
@@ -37,7 +39,7 @@ export const previewEntities: readonly EntityItem[] = Array.from({ length: 240 }
         bytes: fileOnly ? 2048 : 240000 + index * 3120,
         importedAt: new Date(Date.UTC(2026, 8, 20, 2) + index * 60_000).toISOString(),
       },
-      ...(fileOnly ? [] : [{
+      ...(video ? [{ kind: "video" as const, id: `${id}-video`, ...video }] : fileOnly ? [] : [{
         kind: "image" as const, id: `${id}-image`, format: "PNG",
         width: specimen.width, height: specimen.height,
         thumbnail: index === 8 ? "data:image/png;base64,broken-preview" : specimen.thumbnail,
@@ -51,5 +53,5 @@ export const previewEntities: readonly EntityItem[] = Array.from({ length: 240 }
 // Supplied UI collection over existing Entities; no Model or persisted relation.
 export const previewCollections: readonly RelatedCollection[] = [{
   id: "sample-gallery", name: "Sample gallery", ownerId: previewEntities[2].id,
-  viewId: "file.info", entityIds: [previewEntities[0].id, previewEntities[1].id, previewEntities[8].id, previewEntities[12].id],
+  viewId: "file.info", entityIds: [previewEntities[0].id, previewEntities[1].id, previewEntities[4].id, previewEntities[8].id, previewEntities[12].id],
 }]

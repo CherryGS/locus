@@ -1,6 +1,6 @@
-import { FileIcon, ImageIcon, PanelRightIcon, type LucideIcon } from "lucide-react"
+import { PanelRightIcon, type LucideIcon } from "lucide-react"
 import type { ReactNode } from "react"
-import { EntityComponentDetails, EntityOverview, type EntityComponent, type EntityItem } from "@/entities/entity"
+import { componentAppearance, EntityComponentDetails, EntityOverview, type EntityComponent, type EntityItem } from "@/entities/entity"
 
 export type EntityPanelId = "overview" | EntityComponent["kind"]
 
@@ -21,9 +21,9 @@ export function entityPanels(entity: EntityItem | null, viewSelection?: ReactNod
     },
     ...(entity?.components.map((component) => ({
       id: component.kind,
-      label: component.kind === "file" ? "File" : "Image",
+      label: componentAppearance[component.kind].label,
       identity: { label: "Component ID", value: component.id },
-      icon: component.kind === "file" ? FileIcon : ImageIcon,
+      icon: componentAppearance[component.kind].icon,
       content: <EntityComponentDetails component={component} />,
     })) ?? []),
   ]

@@ -46,7 +46,8 @@ export function EntityFilmstrip({ entities, selectedId, canNavigate, viewFor, on
       </Button>
       <div data-slot="entity-filmstrip-track" className="relative h-full shrink-0 overflow-hidden" style={{ width: trackWidth }}>
         {neighbors.map(({ entity, offset }) => {
-          const image = entity.components.find((component) => component.kind === "image")
+          const thumbnail = entity.components.find((component) => component.kind === "image")?.thumbnail
+            ?? entity.components.find((component) => component.kind === "video")?.thumbnail
           const name = entity.components.find((component) => component.kind === "file")?.originalName ?? entity.name
           const selected = entity.id === selectedId
           const viewId = viewFor(entity)
@@ -72,7 +73,12 @@ export function EntityFilmstrip({ entities, selectedId, canNavigate, viewFor, on
                   : "border-border/50 bg-muted/40 group-hover/button:border-muted-foreground/40 group-hover/button:bg-muted/60"
               )}>
                 <span className="flex size-full items-center justify-center [&_svg]:size-6">
-                  <EntityThumbnail key={`${entity.id}:${image?.thumbnail}`} src={image?.thumbnail} hasFile={entity.components.some((component) => component.kind === "file")} />
+                  <EntityThumbnail
+                    key={`${entity.id}:${thumbnail}`}
+                    src={thumbnail}
+                    hasFile={entity.components.some((component) => component.kind === "file")}
+                    hasVideo={entity.components.some((component) => component.kind === "video")}
+                  />
                 </span>
                 <span
                   id={componentLabelId}

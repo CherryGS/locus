@@ -18,6 +18,18 @@ export type EntityComponent =
       bitsPerChannel: number
       hasAlphaChannel: boolean
     }
+  | {
+      kind: "video"
+      id: string
+      format?: string
+      width?: number
+      height?: number
+      durationSeconds?: number
+      frameRate?: number
+      codec?: string
+      thumbnail?: string
+      src?: string
+    }
 
 export type EntityItem = {
   id: string

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type KeyboardEvent } from "react"
 import { useRouter } from "@tanstack/react-router"
-import { CornerDownLeftIcon, FileIcon, ImageIcon } from "lucide-react"
-import type { EntityItem } from "@/entities/entity"
+import { CornerDownLeftIcon } from "lucide-react"
+import { componentAppearance, type EntityItem } from "@/entities/entity"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyDescription, EmptyHeader } from "@/shared/ui/empty"
 import { Separator } from "@/shared/ui/separator"
@@ -104,9 +104,11 @@ export function EntityPage({
   function keys(event: KeyboardEvent<HTMLElement>) {
     if (event.defaultPrevented) return
     if (!viewing || event.altKey || event.ctrlKey || event.metaKey) return
+    // Native video controls own seek/volume keys while focused; the filmstrip
+    // remains available for Entity navigation.
     if (
       (event.target as HTMLElement).closest(
-        "input, textarea, select, [contenteditable=true], [role=separator], [role=slider], [data-slot=toggle-group]"
+        "input, textarea, select, video, [contenteditable=true], [role=separator], [role=slider], [data-slot=toggle-group]"
       )
     )
       return
@@ -129,25 +131,24 @@ export function EntityPage({
             chooseView(value)
           }}
         >
-          {views.map((view) => (
-            <ToggleGroupItem
-              key={view.id}
-              value={view.id}
-              aria-label={`Use ${view.label} view`}
-              onClick={() => {
-                if (view.id === viewId) {
-                  chooseView(view.id)
-                }
-              }}
-            >
-              {view.kind === "image" ? (
-                <ImageIcon data-icon="inline-start" />
-              ) : (
-                <FileIcon data-icon="inline-start" />
-              )}
-              {view.label}
-            </ToggleGroupItem>
-          ))}
+          {views.map((view) => {
+            const Icon = componentAppearance[view.kind].icon
+            return (
+              <ToggleGroupItem
+                key={view.id}
+                value={view.id}
+                aria-label={`Use ${view.label} view`}
+                onClick={() => {
+                  if (view.id === viewId) {
+                    chooseView(view.id)
+                  }
+                }}
+              >
+                <Icon data-icon="inline-start" />
+                {view.label}
+              </ToggleGroupItem>
+            )
+          })}
         </ToggleGroup>
       </div>
     ) : undefined

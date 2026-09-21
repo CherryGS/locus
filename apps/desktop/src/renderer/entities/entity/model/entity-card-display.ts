@@ -1,4 +1,4 @@
-import { fileDisplayItems, imageDisplayItems, type ImageDisplayItem } from "./component-display-items.ts"
+import { fileDisplayItems, imageDisplayItems, videoDisplayItems, type ImageDisplayItem } from "./component-display-items.ts"
 import { resolveDisplaySlot, type DisplayCandidate } from "./display-slot.ts"
 import type { EntityItem } from "./entity-item"
 
@@ -6,8 +6,8 @@ import type { EntityItem } from "./entity-item"
 // slot; it does not rank entire component kinds or depend on attachment order.
 const cardSlots = {
   title: [fileDisplayItems.originalName],
-  preview: [imageDisplayItems.preview],
-  summary: [imageDisplayItems.dimensions, fileDisplayItems.size],
+  preview: [imageDisplayItems.preview, videoDisplayItems.preview],
+  summary: [imageDisplayItems.dimensions, videoDisplayItems.duration, fileDisplayItems.size],
 } as const satisfies {
   title: readonly DisplayCandidate<string>[]
   preview: readonly DisplayCandidate<ImageDisplayItem>[]

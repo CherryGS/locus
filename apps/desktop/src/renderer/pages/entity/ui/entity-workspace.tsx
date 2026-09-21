@@ -39,7 +39,13 @@ export function EntityWorkspace({ entities, selectedEntity, viewing, onSelect, o
 
   return (
     <div data-slot="entity-workspace" className="flex min-h-0 flex-1">
-      <ResizablePanelGroup orientation="horizontal" className="min-w-0 flex-1">
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="min-w-0 flex-1"
+        // The separator owns its whole hit area. Expanding into its neighboring
+        // scrollbar lets the same pointer-down start both resize and scrolling.
+        resizeTargetMinimumSize={{ fine: 0, coarse: 0 }}
+      >
         <ResizablePanel id="entity-grid-panel" minSize={minimumEntityGridWidth}>
           {viewing
             ? content
@@ -50,7 +56,10 @@ export function EntityWorkspace({ entities, selectedEntity, viewing, onSelect, o
         </ResizablePanel>
         {activePanel && (
           <>
-            <ResizableHandle aria-label="Resize auxiliary panel" />
+            <ResizableHandle
+              aria-label="Resize auxiliary panel"
+              className="w-2.5 border-l bg-sidebar after:hidden [@media(pointer:coarse)]:w-5"
+            />
             <ResizablePanel
               id="auxiliary-content"
               defaultSize={panelDefaultWidth}
@@ -60,22 +69,20 @@ export function EntityWorkspace({ entities, selectedEntity, viewing, onSelect, o
             >
               <motion.aside
                 id="auxiliary-panel"
-                aria-labelledby="auxiliary-heading"
+                aria-label={activePanel.label}
                 className="flex h-full min-h-0 flex-col bg-sidebar"
                 initial={{ opacity: reduceMotion ? 1 : 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.12 }}
               >
-                <header className="flex h-11 min-w-0 shrink-0 items-center gap-2 px-4">
-                  <h2 id="auxiliary-heading" className="shrink-0 text-sm font-medium">{activePanel.label}</h2>
-                  {activePanel.identity && (
-                    <>
-                      <span aria-hidden="true" className="text-muted-foreground">·</span>
+                {activePanel.identity && (
+                  <>
+                    <header className="flex h-11 min-w-0 shrink-0 items-center px-4">
                       <CopyIdentityButton key={activePanel.identity.value} {...activePanel.identity} />
-                    </>
-                  )}
-                </header>
-                <Separator />
+                    </header>
+                    <Separator />
+                  </>
+                )}
                 <ScrollArea key={activePanel.id} className="min-h-0 flex-1">
                   {activePanel.content}
                 </ScrollArea>
