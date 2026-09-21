@@ -9,6 +9,11 @@
   - ✨ feat · 🩹 fix · ♻️ refactor · 🔧 chore · 🎨 style · ⚡ perf · ✅ test · 🏗️ build · 🚦 ci · ⏪ revert · 📝 docs
 - Commit when a task goal is achieved, then verify `git status --short` is clean.
 
+## Subagent preferences
+
+- Use `gpt-6-astra` with `medium` reasoning for coder subagents.
+- Use `gpt-6-astra` with `high` reasoning for all other subagents.
+
 ## Project authority
 
 - Intent: `project-doc/INTENT.md`; its confirmation state is recorded in `project-doc/_scratch.md`.
