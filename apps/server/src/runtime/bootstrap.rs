@@ -1,6 +1,11 @@
 use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
-use std::{io::Read, path::PathBuf};
+use std::{
+    ffi::OsString,
+    fs::File,
+    io::{BufRead, BufReader, ErrorKind, Read},
+    path::PathBuf,
+};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -33,13 +38,16 @@ impl Bootstrap {
         Ok(value)
     }
     pub fn into_config(self) -> anyhow::Result<super::registry::ServerConfig> {
-        let root = match self.library_root {
-            Some(root) => root,
-            None => configured_root()?,
-        };
-        if !root.is_absolute() {
-            bail!("library_root must be absolute");
-        }
+        let root = resolve_root(
+            self.library_root,
+            std::env::var_os("LOCUS_DATA_DIR"),
+            || {
+                Ok(directories::BaseDirs::new()
+                    .context("resolve local application-data directory")?
+                    .data_local_dir()
+                    .join("Locus"))
+            },
+        )?;
         Ok(super::registry::ServerConfig::new(self.credential, root))
     }
 }
@@ -54,15 +62,49 @@ pub(super) fn validate_credential(value: &str) -> anyhow::Result<()> {
     }
     Ok(())
 }
-fn configured_root() -> anyhow::Result<PathBuf> {
-    if let Some(root) = std::env::var_os("LOCUS_DATA_DIR") {
+fn resolve_root(
+    explicit_root: Option<PathBuf>,
+    environment_root: Option<OsString>,
+    application_data: impl FnOnce() -> anyhow::Result<PathBuf>,
+) -> anyhow::Result<PathBuf> {
+    let root = if let Some(root) = explicit_root {
+        root
+    } else if let Some(root) = environment_root {
         if root.is_empty() {
             bail!("LOCUS_DATA_DIR must not be empty");
         }
-        return Ok(root.into());
+        root.into()
+    } else {
+        root_from_path_file(application_data()?)?
+    };
+    if !root.is_absolute() {
+        bail!("library_root must be absolute");
     }
-    Ok(directories::BaseDirs::new()
-        .context("resolve local application-data directory")?
-        .data_local_dir()
-        .join("Locus"))
+    Ok(root)
 }
+
+fn root_from_path_file(application_data: PathBuf) -> anyhow::Result<PathBuf> {
+    // The locator stays in application data even when the library lives elsewhere.
+    // Only an absent/empty locator falls back; an unreadable one must not silently
+    // open a different library.
+    let locator = application_data.join("path");
+    let file = match File::open(&locator) {
+        Ok(file) => file,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(application_data),
+        Err(error) => return Err(error).with_context(|| format!("open {}", locator.display())),
+    };
+    let mut line = String::new();
+    BufReader::new(file)
+        .read_line(&mut line)
+        .with_context(|| format!("read first line of {}", locator.display()))?;
+    let root = line.strip_prefix('\u{feff}').unwrap_or(&line).trim();
+    Ok(if root.is_empty() {
+        application_data
+    } else {
+        PathBuf::from(root)
+    })
+}
+
+#[cfg(test)]
+#[path = "bootstrap_tests.rs"]
+mod tests;
