@@ -35,6 +35,14 @@ async function contracts() {
     console.log(outcome.file);
     console.log(outcome.diagnostic.kind, outcome.progress?.file_id);
   }
+  const registered = await client.POST("/api/v1/registered-import-batches", { body: { request_id: "request", items: [{ twitter: { post_id: "123456789" } }, { file_id: "file" }] } });
+  if (registered.data?.status === "accepted") console.log(registered.data.receipt.task_id);
+  // @ts-expect-error Registered File identities are strings.
+  const badFile: components["schemas"]["RegisteredImportItem"] = { file_id: 123 };
+  void badFile;
+  // @ts-expect-error Captures do not supply mutable local record revisions.
+  const badSnapshot: components["schemas"]["TwitterSnapshot"] = { post_id: "123456789", revision: "7" };
+  void badSnapshot;
   return file;
 }
 void contracts;

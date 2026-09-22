@@ -56,6 +56,7 @@ pub enum OutcomeResponse {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum Submission {
+    AdmissionPending,
     Accepted { receipt: Receipt },
     Rejected { error: super::error::ApiError },
     DirectPending,

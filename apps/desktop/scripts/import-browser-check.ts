@@ -6,6 +6,7 @@ import { chromium } from "playwright"
 import { fixture, outputDirectory } from "./fixture.ts"
 import { browserPreview } from "./browser-preview.ts"
 import { fixturePng } from "../../../packages/locus-client/smoke-png.ts"
+import { registeredImportBrowser } from "./registered-import-browser.ts"
 const data = await fixture(),
   backend = await data.start(),
   preview = await browserPreview(backend)
@@ -187,6 +188,8 @@ try {
   assert.equal(await page.getByRole("button", { name: /Tasks.*need attention/ }).count(), 0)
   await page.screenshot({ path: join(output, "imported-library.png") })
   assert.equal((await page.locator('img[src^="blob:"]').count()) > 0, true)
+  assert.deepEqual(errors, [])
+  await registeredImportBrowser(page, backend, data.library, sources, output)
   assert.deepEqual(errors, [])
   await writeFile(
     join(output, "result.json"),

@@ -19,6 +19,7 @@ const readable = (value: string) => value.replaceAll("_", " ")
 function label(item: Wire<"ImportItem">) {
   if (item.active_request_id) return "Processing"
   if (item.current.complete) return "Complete"
+  if (item.current.confirmed_file_id && !item.current.confirmed_entity_id) return "File registered; entry incomplete"
   if (item.current.base.state === "success") return "Admitted / processing incomplete"
   if (item.current.base.state === "uncertain") return "Admission unconfirmed"
   return "Not admitted"
@@ -26,10 +27,15 @@ function label(item: Wire<"ImportItem">) {
 function Details({ result }: { result: Wire<"ImportResult"> }) {
   const rows = [
     ["Copy", result.copy],
-    ["Admission", result.base],
+    ["File registration", result.registration],
+    ["Entity establishment", result.base],
+    ["File attachment", result.file_attachment],
+    ["Twitter snapshot and attachment", result.twitter],
+    ["Source/File association", result.association],
   ] as const
   return (
     <div className="flex flex-col gap-2 text-xs">
+      {result.overall && <p>Overall result: {result.overall}</p>}
       {result.observation_problem && <p>Result observation: {result.observation_problem}</p>}
       {rows.map(([name, step]) => (
         <p key={name}>
@@ -39,9 +45,10 @@ function Details({ result }: { result: Wire<"ImportResult"> }) {
       ))}
       {result.file_id && (
         <p className="break-all">
-          {result.base.state === "success" ? "Confirmed" : "Candidate"} File: {result.file_id}
+          {result.confirmed_file_id ? "Registered" : "Candidate"} File: {result.file_id}
         </p>
       )}
+      {result.twitter_id && <p className="break-all">Twitter snapshot: {result.twitter_id}</p>}
       {result.entity_id && (
         <p className="break-all">
           {result.base.state === "success" ? "Confirmed" : "Candidate"} Entity: {result.entity_id}
@@ -111,13 +118,13 @@ export function ImportDetails({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-medium">
-          Files <span className="ml-1 text-muted-foreground">{items.length}</span>
+          Items <span className="ml-1 text-muted-foreground">{items.length}</span>
         </h3>
         <Button
           size="icon-sm"
           variant="ghost"
           aria-label="Check results"
-          title="Refresh file results"
+          title="Refresh import results"
           disabled={c.observing}
           onClick={() => void c.observe()}
         >
@@ -183,7 +190,7 @@ export function ImportDetails({
                   <FileIcon className="mt-1 size-4 shrink-0 text-muted-foreground" />
                   <div className="flex min-w-0 flex-1 basis-32 flex-col gap-1">
                     <p className="truncate text-sm font-medium" title={item.source_path}>
-                      {item.source_path.split(/[\\/]/).pop() || item.source_path}
+                      {item.supplied ? (item.requested_file ? (item.requested_twitter ? "Registered File + Twitter" : "Registered File") : "Twitter only") : item.source_path.split(/[\\/]/).pop() || item.source_path}
                     </p>
                     <p className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
                       {(item.active_request_id && !ended.has(item.active_request_id)) ||
@@ -204,7 +211,7 @@ export function ImportDetails({
                     </p>
                   </div>
                   <div className="ml-auto flex max-w-full flex-wrap gap-1.5">
-                    {item.current.base.state === "success" && item.current.entity_id && (
+                    {item.current.confirmed_entity_id && (!item.requested_file || item.current.file_attachment.state === "success") && (
                       <Button
                         size="sm"
                         variant="ghost"
@@ -228,7 +235,7 @@ export function ImportDetails({
                         >
                           {action === "confirm"
                             ? "Check original result"
-                            : item.current.base.state === "success"
+                            : item.current.confirmed_file_id || item.supplied
                               ? "Complete processing"
                               : "Reuse completed copy"}
                         </Button>
@@ -258,7 +265,7 @@ export function ImportDetails({
                     Details
                   </summary>
                   <div className="mt-3 flex min-w-0 flex-col gap-4 rounded-lg bg-muted/30 p-3">
-                    <p className="break-all text-xs text-muted-foreground">{item.source_path}</p>
+                    <p className="break-all text-xs text-muted-foreground">{item.supplied ? `Supplied scope: ${item.requested_file ? "registered File" : "no File requested"}${item.requested_twitter ? " / Twitter snapshot" : ""}` : item.source_path}</p>
                     <div className="flex min-w-0 flex-col gap-2">
                       <h4 className="text-xs font-medium">Current processing details</h4>
                       <Details result={item.current} />

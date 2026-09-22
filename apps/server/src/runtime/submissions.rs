@@ -20,6 +20,7 @@ pub(crate) enum Arguments {
         change: crate::api::settings::dto::SettingsChange,
     },
     ImportBatch(crate::api::imports::dto::BatchImportRequest),
+    RegisteredImport(crate::api::imports::dto::RegisteredImportRequest),
     RecoverImport(crate::api::imports::dto::ImportRecoveryRequest),
     Import(ImportRequest),
     CreateEntity,
@@ -49,20 +50,43 @@ impl Shared {
         F: FnOnce(TaskContext) -> Fut + Send + 'static,
         Fut: Future<Output = TaskOutcome> + Send + 'static,
     {
+        self.public_claimed(id, arguments, label, None, operation)
+    }
+    pub(super) fn public_claimed<F, Fut>(
+        self: &Arc<Self>,
+        id: String,
+        arguments: Arguments,
+        label: &str,
+        inputs: Option<Vec<crate::imports::RegisteredInput>>,
+        operation: F,
+    ) -> Result<Receipt, ApiError>
+    where
+        F: FnOnce(TaskContext) -> Fut + Send + 'static,
+        Fut: Future<Output = TaskOutcome> + Send + 'static,
+    {
         let mut registry = self.lock();
         if let Some(binding) = registry.requests.get(&id) {
             check(binding, &arguments)?;
-            return match &binding.result {
-                Submission::Accepted { receipt } => Ok(receipt.clone()),
-                Submission::Rejected { error } => Err(error.clone()),
-                _ => Err(conflict()),
-            };
+            if !(inputs.is_some() && matches!(binding.result, Submission::AdmissionPending)) {
+                return match &binding.result {
+                    Submission::Accepted { receipt } => Ok(receipt.clone()),
+                    Submission::Rejected { error } => Err(error.clone()),
+                    _ => Err(conflict()),
+                };
+            }
         }
         self.admit(&mut registry)?;
+        if let Some(inputs) = inputs {
+            self.imports.reserve_registered(&id, inputs);
+        }
         let descriptor = match &arguments {
             Arguments::ImportBatch(r) => TaskOperation::ImportBatch {
                 batch_id: r.request_id.clone(),
                 item_count: r.source_paths.len(),
+            },
+            Arguments::RegisteredImport(r) => TaskOperation::ImportBatch {
+                batch_id: r.request_id.clone(),
+                item_count: r.items.len(),
             },
             Arguments::RecoverImport(r) => TaskOperation::ImportRecovery {
                 batch_id: r.batch_id.clone(),
@@ -107,6 +131,9 @@ impl Shared {
             Err(error) => {
                 match &arguments {
                     Arguments::ImportBatch(r) => self.imports.release(&r.request_id, None, &id),
+                    Arguments::RegisteredImport(r) => {
+                        self.imports.release(&r.request_id, None, &id)
+                    }
                     Arguments::RecoverImport(r) => {
                         self.imports.release(&r.batch_id, Some(&r.item_id), &id)
                     }
@@ -262,13 +289,13 @@ impl Shared {
             .map_err(|e| ApiError::new(ErrorCode::OperationFailed, e.to_string()))?
     }
 }
-fn conflict() -> ApiError {
+pub(super) fn conflict() -> ApiError {
     ApiError::new(
         ErrorCode::RequestConflict,
         "Request ID is already bound to another operation or argument set",
     )
 }
-fn check(binding: &Binding, arguments: &Arguments) -> Result<(), ApiError> {
+pub(super) fn check(binding: &Binding, arguments: &Arguments) -> Result<(), ApiError> {
     if &binding.arguments == arguments {
         Ok(())
     } else {

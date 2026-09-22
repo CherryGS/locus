@@ -31,3 +31,8 @@ mod settings;
 pub(crate) mod settings_setup;
 #[cfg(test)]
 mod settings_tests;
+
+mod registered_imports;
+
+#[cfg(test)]
+mod registered_import_tests;

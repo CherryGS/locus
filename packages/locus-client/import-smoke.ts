@@ -41,8 +41,31 @@ try {
   assert.deepEqual(recovered.batches[0].items[2].attempts[0], batch.items[2].attempts[0]);
   assert.deepEqual((await client.POST("/api/v1/import-recoveries", { body: recovery })).data, accepted.data);
   assert.equal(await readFile(plain, "utf8"), "ordinary file");
+  const suppliedFile = await client.POST("/api/v1/imports", { body: { request_id: randomUUID(), source_path: image } }); assert(suppliedFile.data);
+  let fileId = "";
+  while (!fileId) {
+    const result: { data?: components["schemas"]["OutcomeResponse"] } = await client.GET("/api/v1/tasks/{task_id}/outcome", { params: { path: { task_id: suppliedFile.data.task_id } }, signal: deadline });
+    if (result.data?.status === "complete") { assert.equal(result.data.outcome.status, "imported"); if (result.data.outcome.status === "imported") fileId = result.data.outcome.file.file_id; }
+    if (!fileId) await delay(10, undefined, { signal: deadline });
+  }
+  const registered = { request_id: randomUUID(), items: [{ twitter: { post_id: "123456789" } }, { file_id: fileId, twitter: { post_id: "123456789", text: "", hashtags: [] } }] };
+  const submitted = await client.POST("/api/v1/registered-import-batches", { body: registered }); assert(submitted.data);
+  const supplied = await until(s => s.batches.some(b => b.batch_id === registered.request_id && b.original_ended));
+  const registeredBatch = supplied.batches.find(b => b.batch_id === registered.request_id)!;
+  assert.equal(registeredBatch.original_overall, "success");
+  assert.equal(registeredBatch.items[0].current.registration.state, "not_requested");
+  assert.equal(registeredBatch.items[0].current.kinds.length, 0);
+  assert.equal(registeredBatch.items[1].current.confirmed_file_id, fileId);
+  assert.equal(registeredBatch.items[1].current.association.state, "success");
+  assert.equal(registeredBatch.items[1].current.overall, "success");
+  const repeated = await client.POST("/api/v1/registered-import-batches", { body: registered }); assert.equal(repeated.data?.status, "accepted");
+  const rejected = { request_id: randomUUID(), items: [{ file_id: fileId }] };
+  await client.POST("/api/v1/registered-import-batches", { body: rejected });
+  let binding: components["schemas"]["Submission"] | undefined;
+  do { binding = (await client.GET("/api/v1/requests/{request_id}", { params: { path: { request_id: rejected.request_id } }, signal: deadline })).data; if (binding?.status === "admission_pending") await delay(10, undefined, { signal: deadline }); } while (binding?.status === "admission_pending");
+  assert.equal(binding?.status, "rejected");
   await client.POST("/api/v1/drain"); await exited;
   await mkdir(join(workspace, "target"), { recursive: true });
-  await writeFile(join(workspace, "target/import-client-smoke.json"), JSON.stringify({ passed: true, root, snapshot: recovered }, null, 2));
+  await writeFile(join(workspace, "target/import-client-smoke.json"), JSON.stringify({ passed: true, root, snapshot: supplied }, null, 2));
   console.log(`PASS generated-client mixed File/Image import, duplicate delivery, attributed preview bytes, explicit recopy and immutable attempts, drain. Fixtures retained: ${root}`);
 } finally { if (child.exitCode === null) { child.kill(); await exited; } }

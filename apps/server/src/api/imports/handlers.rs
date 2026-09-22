@@ -13,6 +13,18 @@ use axum::{
     http::StatusCode,
 };
 use std::sync::Arc;
+#[utoipa::path(tag="imports", post, path="/api/v1/registered-import-batches", request_body=RegisteredImportRequest, responses((status=202, body=crate::api::dto::Submission)))]
+async fn registered(
+    State(state): State<Arc<Shared>>,
+    json: Result<Json<RegisteredImportRequest>, JsonRejection>,
+) -> Result<(StatusCode, Json<crate::api::dto::Submission>), ApiError> {
+    let request = body(json)?;
+    canonical_id(&request.request_id)?;
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(state.registered_import(request)?),
+    ))
+}
 #[utoipa::path(tag="imports", post, path="/api/v1/import-batches", request_body=BatchImportRequest, responses((status=202, body=Receipt)))]
 async fn submit(
     State(state): State<Arc<Shared>>,
@@ -53,6 +65,7 @@ pub(crate) fn router() -> utoipa_axum::router::OpenApiRouter<Arc<Shared>> {
     // the unrelated small-operation body limit or an invented file-count quota.
     OpenApiRouter::new()
         .routes(routes!(submit, observe))
+        .routes(routes!(registered))
         .layer(axum::extract::DefaultBodyLimit::disable())
         .routes(routes!(recover))
 }

@@ -2958,6 +2958,117 @@
         }
       }
     },
+    "/api/v1/registered-import-batches": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "operationId": "registered",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisteredImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/requests/{request_id}": {
       "get": {
         "tags": [
@@ -4997,6 +5108,16 @@
           },
           "original_ended": {
             "type": "boolean"
+          },
+          "original_overall": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ImportOverall"
+              }
+            ]
           }
         }
       },
@@ -5005,6 +5126,9 @@
         "required": [
           "item_id",
           "source_path",
+          "supplied",
+          "requested_file",
+          "requested_twitter",
           "current",
           "attempts",
           "actions"
@@ -5034,8 +5158,17 @@
           "item_id": {
             "type": "string"
           },
+          "requested_file": {
+            "type": "boolean"
+          },
+          "requested_twitter": {
+            "type": "boolean"
+          },
           "source_path": {
             "type": "string"
+          },
+          "supplied": {
+            "type": "boolean"
           }
         }
       },
@@ -5081,6 +5214,13 @@
             "$ref": "#/components/schemas/ImportStep"
           }
         }
+      },
+      "ImportOverall": {
+        "type": "string",
+        "enum": [
+          "success",
+          "failure"
+        ]
       },
       "ImportRecoveryRequest": {
         "type": "object",
@@ -5129,6 +5269,10 @@
         "type": "object",
         "required": [
           "copy",
+          "registration",
+          "file_attachment",
+          "twitter",
+          "association",
           "base",
           "managed_bytes_may_exist",
           "copy_complete",
@@ -5137,11 +5281,26 @@
           "effect_revision"
         ],
         "properties": {
+          "association": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
           "base": {
             "$ref": "#/components/schemas/ImportStep"
           },
           "complete": {
             "type": "boolean"
+          },
+          "confirmed_entity_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confirmed_file_id": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "copied_bytes": {
             "type": [
@@ -5164,6 +5323,9 @@
               "null"
             ]
           },
+          "file_attachment": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
           "file_id": {
             "type": [
               "string",
@@ -5180,6 +5342,28 @@
             "type": "boolean"
           },
           "observation_problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "overall": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ImportOverall"
+              }
+            ]
+          },
+          "registration": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
+          "twitter": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
+          "twitter_id": {
             "type": [
               "string",
               "null"
@@ -5229,6 +5413,7 @@
       "ImportStepState": {
         "type": "string",
         "enum": [
+          "not_requested",
           "pending",
           "running",
           "success",
@@ -6323,6 +6508,47 @@
           }
         }
       },
+      "RegisteredImportItem": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "twitter": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitterSnapshot"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegisteredImportRequest": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RegisteredImportItem"
+            }
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "RequestIdentity": {
         "type": "object",
         "required": [
@@ -6820,6 +7046,20 @@
       },
       "Submission": {
         "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "admission_pending"
+                ]
+              }
+            }
+          },
           {
             "type": "object",
             "required": [

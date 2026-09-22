@@ -17,11 +17,23 @@ type PauseSource = (
     std::sync::Arc<tokio::sync::Notify>,
 );
 
+#[cfg(test)]
+type PauseContent = (
+    std::sync::Arc<tokio::sync::Notify>,
+    std::sync::Arc<tokio::sync::Notify>,
+);
+
 #[derive(Default)]
 pub(crate) struct ImportStore {
     batches: Mutex<BTreeMap<String, Batch>>,
     #[cfg(test)]
     pub base_fault: Mutex<Option<BaseFault>>,
+    #[cfg(test)]
+    pub registration_fault: Mutex<Option<BaseFault>>,
+    #[cfg(test)]
+    pub source_fault: Mutex<Option<BaseFault>>,
+    #[cfg(test)]
+    pub association_fault: Mutex<Option<BaseFault>>,
     #[cfg(test)]
     pub fail_session: Mutex<bool>,
     #[cfg(test)]
@@ -30,6 +42,8 @@ pub(crate) struct ImportStore {
     pub fail_preview: Mutex<bool>,
     #[cfg(test)]
     pub pause_source: Mutex<Option<PauseSource>>,
+    #[cfg(test)]
+    pub pause_content: Mutex<Option<PauseContent>>,
 }
 impl ImportStore {
     pub fn lock(&self) -> MutexGuard<'_, BTreeMap<String, Batch>> {
@@ -51,6 +65,8 @@ impl ImportStore {
                         Item {
                             id: uuid::Uuid::now_v7().to_string(),
                             source: source.clone(),
+                            supplied: false,
+                            snapshot: None,
                             current: current.clone(),
                             attempts: vec![Attempt {
                                 id: id.into(),
@@ -63,6 +79,64 @@ impl ImportStore {
                         }
                     })
                     .collect(),
+            },
+        );
+    }
+    pub fn reserve_registered(
+        &self,
+        id: &str,
+        inputs: Vec<(
+            Option<locus_file::api::FileId>,
+            Option<locus_twitter::api::TwitterSnapshot>,
+        )>,
+    ) {
+        let items = inputs
+            .into_iter()
+            .map(|(file, snapshot)| {
+                let mut current = ResultState::new();
+                current.copy = Step::new(State::NotRequested);
+                current.file = file;
+                current.registration = if file.is_some() {
+                    Step::error(
+                        State::Success,
+                        "Previously registered input; not created by this attempt",
+                    )
+                } else {
+                    Step::new(State::NotRequested)
+                };
+                if file.is_none() {
+                    current.file_attachment = Step::new(State::NotRequested);
+                    current.kinds.clear();
+                }
+                if snapshot.is_some() {
+                    current.twitter = Step::new(State::Pending);
+                    if file.is_some() {
+                        current.association = Step::new(State::Pending);
+                    }
+                }
+                Item {
+                    id: uuid::Uuid::now_v7().to_string(),
+                    source: String::new(),
+                    supplied: true,
+                    snapshot,
+                    current: current.clone(),
+                    attempts: vec![Attempt {
+                        id: id.into(),
+                        action: Action::Original,
+                        ended: false,
+                        result: current,
+                    }],
+                    active: Some(id.into()),
+                    prepared: None,
+                }
+            })
+            .collect();
+        self.lock().insert(
+            id.into(),
+            Batch {
+                id: id.into(),
+                items,
+                ended: false,
             },
         );
     }
@@ -84,12 +158,19 @@ impl ImportStore {
         if action != Action::Confirm && item.current.uncertain() {
             return Err("Confirm the original outcome before creating more work".into());
         }
-        if action == Action::Recopy && item.current.base.state != State::Failed {
+        if action == Action::Recopy
+            && (item.supplied
+                || item.current.registration.success()
+                || item.current.registration.state == State::Uncertain
+                || item.current.base.state != State::Failed)
+        {
             return Err("Recopy requires definite base non-admission".into());
         }
         if action == Action::Retry
             && (item.current.complete()
-                || (!item.current.base.success() && item.prepared.is_none()))
+                || (!item.supplied
+                    && !item.current.registration.success()
+                    && item.prepared.is_none()))
         {
             return Err("No eligible unfinished work or retained preparation; use explicit recopy where available".into());
         }
@@ -165,6 +246,19 @@ impl ImportStore {
                 } else if matches!(item.current.base.state, State::Pending) {
                     item.current.base =
                         Step::error(State::Failed, "Execution ended before database admission");
+                }
+                for step in [
+                    &mut item.current.registration,
+                    &mut item.current.file_attachment,
+                    &mut item.current.twitter,
+                    &mut item.current.association,
+                ] {
+                    if step.state == State::Running {
+                        *step = Step::error(
+                            State::Uncertain,
+                            "Execution ended without an attributable commit outcome",
+                        );
+                    }
                 }
                 for kind in &mut item.current.kinds {
                     for step in [&mut kind.establishment, &mut kind.interpretation] {

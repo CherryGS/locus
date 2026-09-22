@@ -341,6 +341,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/registered-import-batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["registered"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/requests/{request_id}": {
         parameters: {
             query?: never;
@@ -700,6 +716,7 @@ export interface components {
             batch_id: string;
             items: components["schemas"]["ImportItem"][];
             original_ended: boolean;
+            original_overall?: null | components["schemas"]["ImportOverall"];
         };
         ImportItem: {
             actions: components["schemas"]["ImportAction"][];
@@ -707,7 +724,10 @@ export interface components {
             attempts: components["schemas"]["ImportAttempt"][];
             current: components["schemas"]["ImportResult"];
             item_id: string;
+            requested_file: boolean;
+            requested_twitter: boolean;
             source_path: string;
+            supplied: boolean;
         };
         ImportKindResult: {
             component_id?: string | null;
@@ -718,6 +738,8 @@ export interface components {
             preview: components["schemas"]["ImportStep"];
             recognition: components["schemas"]["ImportStep"];
         };
+        /** @enum {string} */
+        ImportOverall: "success" | "failure";
         ImportRecoveryRequest: {
             action: components["schemas"]["ImportAction"];
             batch_id: string;
@@ -732,17 +754,25 @@ export interface components {
             source_path: string;
         };
         ImportResult: {
+            association: components["schemas"]["ImportStep"];
             base: components["schemas"]["ImportStep"];
             complete: boolean;
+            confirmed_entity_id?: string | null;
+            confirmed_file_id?: string | null;
             copied_bytes?: string | null;
             copy: components["schemas"]["ImportStep"];
             copy_complete: boolean;
             effect_revision: string;
             entity_id?: string | null;
+            file_attachment: components["schemas"]["ImportStep"];
             file_id?: string | null;
             kinds: components["schemas"]["ImportKindResult"][];
             managed_bytes_may_exist: boolean;
             observation_problem?: string | null;
+            overall?: null | components["schemas"]["ImportOverall"];
+            registration: components["schemas"]["ImportStep"];
+            twitter: components["schemas"]["ImportStep"];
+            twitter_id?: string | null;
         };
         ImportSnapshot: {
             admission: components["schemas"]["AdmissionState"];
@@ -754,7 +784,7 @@ export interface components {
             state: components["schemas"]["ImportStepState"];
         };
         /** @enum {string} */
-        ImportStepState: "pending" | "running" | "success" | "no_match" | "failed" | "uncertain" | "conflict" | "skipped";
+        ImportStepState: "not_requested" | "pending" | "running" | "success" | "no_match" | "failed" | "uncertain" | "conflict" | "skipped";
         InterpretRequest: {
             request_id: string;
             target: components["schemas"]["MediaTarget"];
@@ -1009,6 +1039,14 @@ export interface components {
             run_id: string;
             task_id: string;
         };
+        RegisteredImportItem: {
+            file_id?: string | null;
+            twitter?: null | components["schemas"]["TwitterSnapshot"];
+        };
+        RegisteredImportRequest: {
+            items: components["schemas"]["RegisteredImportItem"][];
+            request_id: string;
+        };
         RequestIdentity: {
             request_id: string;
         };
@@ -1129,6 +1167,9 @@ export interface components {
             seconds: number;
         };
         Submission: {
+            /** @enum {string} */
+            status: "admission_pending";
+        } | {
             receipt: components["schemas"]["Receipt"];
             /** @enum {string} */
             status: "accepted";
@@ -3689,6 +3730,95 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    registered: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisteredImportRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Submission"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

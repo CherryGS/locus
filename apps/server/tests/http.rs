@@ -386,7 +386,7 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
         locus_server::api::openapi().unwrap().to_json().unwrap()
     );
     let schema: Value = serde_json::from_str(&one).unwrap();
-    assert_eq!(schema["paths"].as_object().unwrap().len(), 30);
+    assert_eq!(schema["paths"].as_object().unwrap().len(), 31);
     for (path, methods, tag) in [
         ("/api/v1/settings/definitions", &["get"][..], "settings"),
         ("/api/v1/settings/media-runtime", &["get"][..], "settings"),

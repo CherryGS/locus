@@ -13,7 +13,7 @@ export function taskRecords(
     if (!record) {
       record = {
         id,
-        label: "Import local files",
+        label: "Import content",
         summary: "Details unavailable",
         active: false,
         attention: false,
@@ -32,7 +32,7 @@ export function taskRecords(
       record.active ||= observation.task.state !== "terminal"
       record.attention ||= needsAttention(observation)
       if (operation.kind === "import_batch")
-        record.label = `Import ${operation.item_count} ${operation.item_count === 1 ? "file" : "files"}`
+        record.label = `Import ${operation.item_count} ${operation.item_count === 1 ? "item" : "items"}`
     } else {
       records.set(observation.task.task_id, {
         id: observation.task.task_id,
@@ -49,7 +49,9 @@ export function taskRecords(
   }
   for (const value of c.batches) {
     const record = batch(value.batch_id)
-    record.label = `Import ${value.items.length} ${value.items.length === 1 ? "file" : "files"}`
+    record.label = value.items.some((item) => item.supplied)
+      ? `Import ${value.items.length} ${value.items.length === 1 ? "item" : "items"}`
+      : `Import ${value.items.length} ${value.items.length === 1 ? "file" : "files"}`
     const ended = new Set(
       record.attempts.filter((a) => a.task.state === "terminal").map((a) => a.task.request_id),
     )

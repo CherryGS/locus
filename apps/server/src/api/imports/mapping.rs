@@ -7,6 +7,7 @@ fn step(s: &owner::Step) -> ImportStep {
     ImportStep {
         reason: s.reason.clone(),
         state: match s.state {
+            owner::State::NotRequested => ImportStepState::NotRequested,
             owner::State::Pending => ImportStepState::Pending,
             owner::State::Running => ImportStepState::Running,
             owner::State::Success => ImportStepState::Success,
@@ -18,10 +19,25 @@ fn step(s: &owner::Step) -> ImportStep {
         },
     }
 }
-fn result(r: &owner::ResultState) -> ImportResult {
+fn result(r: &owner::ResultState, ended: bool) -> ImportResult {
     ImportResult {
         observation_problem: r.observation_problem.clone(),
         copy: step(&r.copy),
+        registration: step(&r.registration),
+        file_attachment: step(&r.file_attachment),
+        twitter: step(&r.twitter),
+        association: step(&r.association),
+        twitter_id: r.twitter_id.map(|v| v.to_string()),
+        confirmed_file_id: r
+            .file
+            .filter(|_| r.registration.success())
+            .map(|v| v.to_string()),
+        confirmed_entity_id: r.entity.filter(|_| r.base.success()).map(|v| v.to_string()),
+        overall: ended.then_some(if r.complete() {
+            ImportOverall::Success
+        } else {
+            ImportOverall::Failure
+        }),
         base: step(&r.base),
         entity_id: r.entity.map(|id| id.to_string()),
         file_id: r.file.map(|id| id.to_string()),
@@ -64,6 +80,16 @@ fn result(r: &owner::ResultState) -> ImportResult {
 }
 pub(crate) fn batch(b: owner::Batch) -> ImportBatch {
     ImportBatch {
+        original_overall: b.ended.then_some(
+            if b.items
+                .iter()
+                .all(|i| i.attempts.first().is_some_and(|a| a.result.complete()))
+            {
+                ImportOverall::Success
+            } else {
+                ImportOverall::Failure
+            },
+        ),
         batch_id: b.id,
         original_ended: b.ended,
         items: b
@@ -76,7 +102,7 @@ pub(crate) fn batch(b: owner::Batch) -> ImportBatch {
                     vec![ImportAction::Confirm]
                 } else if i.current.complete() {
                     vec![]
-                } else if i.current.base.success() {
+                } else if i.current.registration.success() || i.supplied {
                     vec![ImportAction::Retry, ImportAction::Confirm]
                 } else if i.prepared.is_some() {
                     vec![ImportAction::Retry]
@@ -87,9 +113,12 @@ pub(crate) fn batch(b: owner::Batch) -> ImportBatch {
                 };
                 ImportItem {
                     item_id: i.id,
+                    supplied: i.supplied,
+                    requested_file: !i.supplied || i.current.file.is_some(),
+                    requested_twitter: i.snapshot.is_some(),
                     source_path: i.source,
-                    active_request_id: i.active,
-                    current: result(&i.current),
+                    active_request_id: i.active.clone(),
+                    current: result(&i.current, i.active.is_none()),
                     actions,
                     attempts: i
                         .attempts
@@ -103,7 +132,7 @@ pub(crate) fn batch(b: owner::Batch) -> ImportBatch {
                                 owner::Action::Confirm => ImportAttemptAction::Confirm,
                             },
                             ended: a.ended,
-                            result: result(&a.result),
+                            result: result(&a.result, a.ended),
                         })
                         .collect(),
                 }

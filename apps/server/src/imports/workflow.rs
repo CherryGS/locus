@@ -1,7 +1,7 @@
 use super::{model::*, store::ImportStore};
 use crate::runtime::composition::Domain;
 use locus_core::api::Membership;
-use locus_file::api::{CurrentInput, FILE_KIND, FileService, observe_input_in};
+use locus_file::api::{CurrentInput, FileService, observe_input_in};
 use locus_media::api::{
     ApplyOutcome, ExpectedInput, MediaError, MediaService, Recognition, Rendition,
 };
@@ -9,21 +9,51 @@ use locus_store::api::{Session, StoreError};
 use locus_task::api::TaskContext;
 use std::sync::{Arc, Mutex};
 
-fn uncertain(error: &anyhow::Error) -> bool {
-    fn store(error: &StoreError) -> bool {
+pub(super) fn uncertain(error: &anyhow::Error) -> bool {
+    fn store(e: &StoreError) -> bool {
         matches!(
-            error,
+            e,
             StoreError::CommitOutcomeUnknown(_) | StoreError::RollbackFailed { .. }
         )
     }
-    error.chain().any(|error| {
-        error.downcast_ref::<StoreError>().is_some_and(store)
-        || matches!(error.downcast_ref::<MediaError>(), Some(MediaError::Store(e)) if store(e))
-        || matches!(error.downcast_ref::<locus_file::api::FileError>(), Some(locus_file::api::FileError::Store(e)) if store(e))
-        || matches!(error.downcast_ref::<locus_core::api::CoreError>(), Some(locus_core::api::CoreError::Store(e)) if store(e))
+    fn core(e: &locus_core::api::CoreError) -> bool {
+        matches!(e, locus_core::api::CoreError::Store(e) if store(e))
+    }
+    fn file(e: &locus_file::api::FileError) -> bool {
+        match e {
+            locus_file::api::FileError::Store(e) => store(e),
+            locus_file::api::FileError::Core(e) => core(e),
+            _ => false,
+        }
+    }
+    fn media(e: &MediaError) -> bool {
+        match e {
+            MediaError::Store(e) => store(e),
+            MediaError::Core(e) => core(e),
+            MediaError::File(e) => file(e),
+            _ => false,
+        }
+    }
+    fn twitter(e: &locus_twitter::api::TwitterError) -> bool {
+        match e {
+            locus_twitter::api::TwitterError::Store(e) => store(e),
+            locus_twitter::api::TwitterError::Core(e) => core(e),
+            locus_twitter::api::TwitterError::File(e) => file(e),
+            _ => false,
+        }
+    }
+    error.chain().any(|e| {
+        e.downcast_ref::<StoreError>().is_some_and(store)
+            || e.downcast_ref::<locus_core::api::CoreError>()
+                .is_some_and(core)
+            || e.downcast_ref::<locus_file::api::FileError>()
+                .is_some_and(file)
+            || e.downcast_ref::<MediaError>().is_some_and(media)
+            || e.downcast_ref::<locus_twitter::api::TwitterError>()
+                .is_some_and(twitter)
     })
 }
-fn failed(error: anyhow::Error) -> Step {
+pub(super) fn failed(error: anyhow::Error) -> Step {
     Step::error(
         if uncertain(&error) {
             State::Uncertain
@@ -40,7 +70,7 @@ fn failed(error: anyhow::Error) -> Step {
         error,
     )
 }
-fn candidate<T: Copy>(cell: &Mutex<Option<T>>) -> Option<T> {
+pub(super) fn candidate<T: Copy>(cell: &Mutex<Option<T>>) -> Option<T> {
     *cell.lock().unwrap_or_else(|e| e.into_inner())
 }
 
@@ -100,107 +130,16 @@ impl ImportStore {
         if action == Action::Confirm {
             return self.confirm(d, &mut session, item).await;
         }
-        if !item.current.base.success() {
-            if action == Action::Recopy {
-                let effect = item.current.effect;
-                item.current = ResultState::new();
-                item.current.effect = effect;
-                item.prepared = None;
-            }
-            if item.prepared.is_none() {
-                item.current.copy = Step::new(State::Running);
-                self.publish(batch, item);
-                match d.files.prepare_task(task, &item.source).await {
-                    Ok(prepared) => {
-                        item.current.file = Some(prepared.id());
-                        item.current.progress = Some(prepared.progress().clone());
-                        item.current.copy = Step::new(State::Success);
-                        item.prepared = Some(prepared);
-                    }
-                    Err(error) => {
-                        item.current.file = Some(error.progress.id);
-                        item.current.progress = Some(*error.progress);
-                        item.current.copy = Step::error(State::Failed, &error.source);
-                        item.current.base = Step::error(
-                            State::Failed,
-                            "Copy did not complete; explicit recopy reads the source again and may import changed bytes",
-                        );
-                        return Ok(());
-                    }
-                }
-            }
-            item.current.base = Step::new(State::Running);
-            self.publish(batch, item);
-            let Some(prepared) = item.prepared.clone() else {
-                return Ok(());
-            };
-            let candidate_entity = Arc::new(Mutex::new(None));
-            let cell = candidate_entity.clone();
-            let files = d.files.clone();
-            let kernel = d.kernel.clone();
-            #[cfg(test)]
-            let fault = self.base_fault.lock().unwrap().take();
-            let committed = session
-                .transaction_named("Import File and Entity", move |c| {
-                    Box::pin(async move {
-                        let file = files.register_in(&kernel, c, &prepared).await?;
-                        let entity = kernel.create_entity_in(c).await?;
-                        *cell.lock().unwrap_or_else(|e| e.into_inner()) = Some(entity);
-                        kernel
-                            .attach_in(
-                                c,
-                                Membership {
-                                    entity,
-                                    kind: FILE_KIND,
-                                    component: file.id.component(),
-                                },
-                            )
-                            .await?;
-                        #[cfg(test)]
-                        if matches!(fault, Some(super::store::BaseFault::Rollback)) {
-                            anyhow::bail!("test: reject combined unit after all participants");
-                        }
-                        Ok::<_, anyhow::Error>(entity)
-                    })
-                })
+        if !item.supplied && !item.current.registration.success() {
+            self.admit_local(d, task, &mut session, batch, item, action)
                 .await;
-            #[cfg(test)]
-            let committed =
-                if committed.is_ok() && matches!(fault, Some(super::store::BaseFault::Unknown)) {
-                    Err(anyhow::Error::from(StoreError::CommitOutcomeUnknown(
-                        diesel::result::Error::RollbackTransaction,
-                    )))
-                } else {
-                    committed
-                };
-            item.current.entity = candidate(&candidate_entity);
-            match committed {
-                Ok(entity) => {
-                    item.current.entity = Some(entity);
-                    item.current.base = Step::new(State::Success);
-                    item.current.effect += 1;
-                }
-                Err(error) => {
-                    if error.chain().any(|e| {
-                        matches!(
-                            e.downcast_ref::<locus_file::api::FileError>(),
-                            Some(
-                                locus_file::api::FileError::PreparedCopyChanged(_)
-                                    | locus_file::api::FileError::Access { .. }
-                            )
-                        )
-                    }) {
-                        item.prepared = None;
-                        item.current.copy = Step::error(
-                            State::Failed,
-                            "Completed preparation is no longer reusable; explicit recopy reads source bytes again and they may have changed",
-                        );
-                    }
-                    item.current.base = failed(error);
-                    return Ok(());
-                }
+            if !item.current.registration.success() {
+                return Ok(());
             }
-            self.publish(batch, item);
+        }
+        self.establish(d, &mut session, batch, item).await;
+        if !item.current.file_attachment.success() {
+            return Ok(());
         }
         let (Some(entity), Some(file)) = (item.current.entity, item.current.file) else {
             return Ok(());
@@ -450,9 +389,13 @@ impl ImportStore {
     ) -> anyhow::Result<()> {
         // Positive coherent evidence can confirm a candidate. Absence never proves
         // historical rollback: removed effects must not be silently recreated.
+        self.confirm_content(d, session, item).await?;
         let (Some(entity), Some(file)) = (item.current.entity, item.current.file) else {
             return Ok(());
         };
+        if !item.current.file_attachment.success() || item.current.observation_problem.is_some() {
+            return Ok(());
+        }
         let kernel = d.kernel.clone();
         let kinds = item.current.kinds.clone();
         let evidence = session

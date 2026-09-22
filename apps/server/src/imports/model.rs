@@ -1,10 +1,12 @@
 use locus_core::api::EntityId;
 use locus_file::api::{CopyProgress, FileId, PreparedFile};
 use locus_media::api::{MediaId, MediaKind, Preview};
+use locus_twitter::api::{TwitterId, TwitterSnapshot};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum State {
+    NotRequested,
     Pending,
     Running,
     Success,
@@ -74,6 +76,12 @@ impl KindResult {
 pub(crate) struct ResultState {
     pub observation_problem: Option<String>,
     pub copy: Step,
+    pub registration: Step,
+    pub file_attachment: Step,
+    pub twitter: Step,
+    pub association: Step,
+    pub twitter_id: Option<TwitterId>,
+    pub twitter_revision: Option<i64>,
     pub base: Step,
     pub entity: Option<EntityId>,
     pub file: Option<FileId>,
@@ -86,6 +94,12 @@ impl ResultState {
         Self {
             observation_problem: None,
             copy: Step::new(State::Pending),
+            registration: Step::new(State::Pending),
+            file_attachment: Step::new(State::Pending),
+            twitter: Step::new(State::NotRequested),
+            association: Step::new(State::NotRequested),
+            twitter_id: None,
+            twitter_revision: None,
             base: Step::new(State::Pending),
             entity: None,
             file: None,
@@ -98,10 +112,28 @@ impl ResultState {
         }
     }
     pub fn complete(&self) -> bool {
-        self.base.success() && self.kinds.iter().all(KindResult::complete)
+        self.observation_problem.is_none()
+            && self.base.success()
+            && [
+                &self.registration,
+                &self.file_attachment,
+                &self.twitter,
+                &self.association,
+            ]
+            .iter()
+            .all(|s| s.success() || s.state == State::NotRequested)
+            && self.kinds.iter().all(KindResult::complete)
     }
     pub fn uncertain(&self) -> bool {
-        self.base.state == State::Uncertain
+        [
+            &self.base,
+            &self.registration,
+            &self.file_attachment,
+            &self.twitter,
+            &self.association,
+        ]
+        .iter()
+        .any(|s| s.state == State::Uncertain)
             || self.kinds.iter().any(|k| {
                 k.establishment.state == State::Uncertain
                     || k.interpretation.state == State::Uncertain
@@ -126,6 +158,8 @@ pub(crate) struct Attempt {
 pub(crate) struct Item {
     pub id: String,
     pub source: String,
+    pub supplied: bool,
+    pub snapshot: Option<TwitterSnapshot>,
     pub current: ResultState,
     pub attempts: Vec<Attempt>,
     pub active: Option<String>,
@@ -137,3 +171,5 @@ pub(crate) struct Batch {
     pub items: Vec<Item>,
     pub ended: bool,
 }
+
+pub(crate) type RegisteredInput = (Option<FileId>, Option<TwitterSnapshot>);

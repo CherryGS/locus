@@ -7,6 +7,18 @@ pub struct BatchImportRequest {
     pub request_id: String,
     pub source_paths: Vec<String>,
 }
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RegisteredImportRequest {
+    pub request_id: String,
+    pub items: Vec<RegisteredImportItem>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RegisteredImportItem {
+    pub file_id: Option<String>,
+    pub twitter: Option<crate::api::twitter::dto::TwitterSnapshot>,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ImportAction {
@@ -25,6 +37,7 @@ pub struct ImportRecoveryRequest {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ImportStepState {
+    NotRequested,
     Pending,
     Running,
     Success,
@@ -53,6 +66,14 @@ pub struct ImportKindResult {
 pub struct ImportResult {
     pub observation_problem: Option<String>,
     pub copy: ImportStep,
+    pub registration: ImportStep,
+    pub file_attachment: ImportStep,
+    pub twitter: ImportStep,
+    pub association: ImportStep,
+    pub twitter_id: Option<String>,
+    pub confirmed_file_id: Option<String>,
+    pub confirmed_entity_id: Option<String>,
+    pub overall: Option<ImportOverall>,
     pub base: ImportStep,
     pub entity_id: Option<String>,
     pub file_id: Option<String>,
@@ -62,6 +83,12 @@ pub struct ImportResult {
     pub kinds: Vec<ImportKindResult>,
     pub complete: bool,
     pub effect_revision: String,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ImportOverall {
+    Success,
+    Failure,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -82,6 +109,9 @@ pub struct ImportAttempt {
 pub struct ImportItem {
     pub item_id: String,
     pub source_path: String,
+    pub supplied: bool,
+    pub requested_file: bool,
+    pub requested_twitter: bool,
     pub active_request_id: Option<String>,
     pub current: ImportResult,
     pub attempts: Vec<ImportAttempt>,
@@ -91,6 +121,7 @@ pub struct ImportItem {
 pub struct ImportBatch {
     pub batch_id: String,
     pub original_ended: bool,
+    pub original_overall: Option<ImportOverall>,
     pub items: Vec<ImportItem>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]

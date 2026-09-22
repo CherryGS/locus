@@ -10,15 +10,20 @@ use crate::{
 use std::sync::Arc;
 impl Shared {
     pub fn import_snapshot(&self) -> ImportSnapshot {
+        // Use the admission lock through collection: reservation and launch are
+        // one boundary, so a rejected launch cannot leak a provisional batch.
+        let registry = self.lock();
+        let admission = if registry.open {
+            crate::api::dto::AdmissionState::Open
+        } else {
+            crate::api::dto::AdmissionState::Draining
+        };
+        let batches = self.imports.snapshots();
+        drop(registry);
         ImportSnapshot {
-            admission: self.status().admission,
+            admission,
             run_id: self.run_id.clone(),
-            batches: self
-                .imports
-                .snapshots()
-                .into_iter()
-                .map(mapping::batch)
-                .collect(),
+            batches: batches.into_iter().map(mapping::batch).collect(),
         }
     }
     pub fn import_batch(
@@ -61,7 +66,7 @@ impl Shared {
         self.public(
             request.request_id.clone(),
             Arguments::RecoverImport(request),
-            "Recover imported file",
+            "Recover imported content",
             move |task| async move {
                 state
                     .imports

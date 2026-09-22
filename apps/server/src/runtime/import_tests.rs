@@ -83,7 +83,7 @@ async fn whole_base_rollback_retains_copy_and_retry_reuses_identity_without_sour
                 .unwrap()
             )
             .await
-            .is_err()
+            .is_ok()
     );
     assert!(
         server
@@ -199,7 +199,7 @@ async fn uncertain_combined_commit_confirms_candidates_but_missing_effect_never_
 async fn unusable_preparation_requires_explicit_fresh_copy_and_launch_rejection_releases_ownership()
 {
     let (_root, server, source) = app().await;
-    *server.state.imports.base_fault.lock().unwrap() = Some(BaseFault::Rollback);
+    *server.state.imports.registration_fault.lock().unwrap() = Some(BaseFault::Rollback);
     let request = BatchImportRequest {
         request_id: id(),
         source_paths: vec![source.clone()],
