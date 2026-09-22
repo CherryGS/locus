@@ -47,3 +47,8 @@ export function authorizedHeaders(
   if (!Object.keys(clean).some((key) => key.toLowerCase() === "x-locus-run")) clean["X-Locus-Run"] = runId
   return { requestHeaders: clean }
 }
+
+/** Only an explicit fullscreen request from the owned renderer is admitted. */
+export function rendererPermission(permission: string, owned: boolean, mainFrame: boolean, url: string | undefined, origin: string | undefined) {
+  return permission === "fullscreen" && owned && mainFrame && !!url && !!origin && isRendererPage(url, origin)
+}

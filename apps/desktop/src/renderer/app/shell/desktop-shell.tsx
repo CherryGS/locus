@@ -1,17 +1,17 @@
 import { Outlet } from "@tanstack/react-router"
 import { useState } from "react"
 import { Separator } from "@/shared/ui/separator"
-import { TitlebarActionsTarget } from "@/shared/ui/titlebar-actions"
+import { SourceReturnContext } from "@/shared/source-return"
 import { LeftNavigation } from "./left-navigation"
 import { ImportActions } from "./import-actions"
 import { HistoryNavigation } from "./history-navigation"
 import { TaskWorkspace } from "./task-workspace"
 
 export function DesktopShell() {
-  const [actionsTarget, setActionsTarget] = useState<HTMLDivElement | null>(null)
+  const [action, setAction] = useState<(() => void) | undefined>()
 
   return (
-    <TitlebarActionsTarget.Provider value={actionsTarget}>
+    <SourceReturnContext.Provider value={{ action, setAction }}>
       <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
         <header className="title-bar shrink-0 bg-sidebar">
           <div className="title-bar-content flex items-center gap-3 px-4 text-xs font-medium text-muted-foreground">
@@ -19,7 +19,6 @@ export function DesktopShell() {
             <div className="flex items-center gap-0.5">
               <HistoryNavigation />
               <ImportActions />
-              <div ref={setActionsTarget} className="contents" />
             </div>
           </div>
         </header>
@@ -31,6 +30,6 @@ export function DesktopShell() {
           </main>
         </TaskWorkspace>
       </div>
-    </TitlebarActionsTarget.Provider>
+    </SourceReturnContext.Provider>
   )
 }

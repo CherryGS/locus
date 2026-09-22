@@ -8,6 +8,8 @@ import {
   type EntitySource,
   type EntityReader,
 } from "@/entities/entity"
+import type { PlaybackCoordinator } from "@/features/video-playback"
+import { LiveVideo } from "./live-video"
 import type { BackendApi } from "@/shared/api"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
 import { Button } from "@/shared/ui/button"
@@ -29,7 +31,7 @@ export function EntityContent({
   entity: EntityItem
   viewId: ContentViewId | null
   source: EntitySource
-  live?: { api: BackendApi; reader: EntityReader }
+  live?: { api: BackendApi; reader: EntityReader; playback: PlaybackCoordinator }
   collections: readonly RelatedCollection[]
   onRelated: (collection: RelatedCollection, entity: EntityItem) => void
 }) {
@@ -70,7 +72,7 @@ export function EntityContent({
           />
         )
       ) : viewId === "video.play" ? (
-        <VideoInspection
+        live && video ? <LiveVideo {...live} entityId={entity.id} video={video} name={entityLabel(entity)} /> : <VideoInspection
           key={`${entity.id}:${video?.id}:${video?.src}`}
           src={video?.src}
           poster={video?.thumbnail}

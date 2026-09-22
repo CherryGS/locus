@@ -161,7 +161,7 @@ export function EntityWorkspace({
       <Separator orientation="vertical" />
       <aside
         aria-label="Auxiliary panels"
-        className="flex w-12 shrink-0 flex-col items-center gap-2 bg-sidebar py-2"
+        className="flex w-12 shrink-0 flex-col items-center gap-1 bg-sidebar py-2"
       >
         {panels.map(({ id, label, icon: Icon }) => (
           <Button
@@ -171,7 +171,7 @@ export function EntityWorkspace({
               else panelTriggers.current.delete(id)
             }}
             variant={activePanel?.id === id ? "secondary" : "ghost"}
-            className="h-auto w-10 flex-col gap-2 py-3"
+            className="h-auto w-10 flex-col gap-1 py-2"
             aria-label={label}
             title={label}
             aria-expanded={activePanel?.id === id}

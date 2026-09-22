@@ -129,6 +129,11 @@ export class BackendApi {
       await this.client.GET("/api/v1/requests/{request_id}", { params: { path: { request_id: id } } }),
     )
   }
+  originalUrl(id: string) {
+    // Host injects authorization/run headers for this exact origin, including
+    // media-element range requests. No credential or managed path enters a URL.
+    return new URL(`/api/v1/files/${encodeURIComponent(id)}/bytes`, this.context.origin).href
+  }
   async bytes(id: string, signal: AbortSignal) {
     const value = await this.client.GET("/api/v1/files/{file_id}/bytes", {
       params: { path: { file_id: id } },

@@ -1,9 +1,12 @@
-import { useEffect } from "react"
+import { useContext, useEffect } from "react"
 import { useRouter } from "@tanstack/react-router"
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react"
+import { ArrowLeftIcon, ArrowRightIcon, CornerDownLeftIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 
+import { SourceReturnContext } from "@/shared/source-return"
+
 export function HistoryNavigation() {
+  const { action } = useContext(SourceReturnContext)
   const router = useRouter()
 
   useEffect(() => {
@@ -26,6 +29,9 @@ export function HistoryNavigation() {
       </Button>
       <Button variant="ghost" size="icon-sm" aria-label="Forward" title="Forward (Alt+→)" onClick={() => router.history.forward()}>
         <ArrowRightIcon data-icon="inline-start" />
+      </Button>
+      <Button variant="ghost" size="icon-sm" aria-label="Return to source" title="Return to source (Esc)" disabled={!action} onClick={action}>
+        <CornerDownLeftIcon data-icon="inline-start" />
       </Button>
     </nav>
   )

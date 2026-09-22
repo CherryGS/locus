@@ -1,0 +1,67 @@
+import assert from "node:assert/strict"
+import { test } from "node:test"
+import { PlaybackCoordinator } from "../src/renderer/features/video-playback/model/playback-coordinator.ts"
+
+test("departure retains only current-input progress, audio is shared and restart resets both", () => {
+  const state = new PlaybackCoordinator()
+  let pausedA = 0,
+    pausedB = 0
+  const a = state.activate("a", "f1", () => pausedA++)
+  assert.equal(a.position, 0)
+  a.save(31, 0.4, true)
+  a.release()
+  const b = state.activate("b", "f2", () => pausedB++)
+  assert.equal(b.position, 0)
+  assert.equal(state.volume, 0.4)
+  assert.equal(state.muted, true)
+  b.save(2, 0.6, false)
+  b.release()
+  assert.equal(state.activate("a", "f1", () => {}).position, 31)
+  assert.equal(pausedA, 1)
+  assert.equal(pausedB, 1)
+  assert.equal(state.volume, 0.6)
+  const restarted = new PlaybackCoordinator()
+  assert.equal(restarted.position("a", "f1"), 0)
+  assert.equal(restarted.volume, 1)
+  assert.equal(restarted.muted, false)
+})
+test("replacement discards prior File progress and departed leases cannot alter position or audio", () => {
+  const state = new PlaybackCoordinator()
+  const old = state.activate("a", "f1", () => {})
+  old.save(15, 0.3, false)
+  const current = state.activate("a", "f2", () => {})
+  assert.equal(current.position, 0)
+  old.save(99, 0.8, true)
+  assert.equal(state.position("a", "f2"), 0)
+  assert.equal(state.volume, 0.3)
+  current.release()
+  assert.equal(state.position("a", "f1"), 0)
+  state.forget("a")
+  assert.equal(state.position("a", "f1"), 0)
+})
+test("normal close pauses without releasing progress and canceled close does not resume", () => {
+  const state = new PlaybackCoordinator()
+  let paused = 0
+  const lease = state.activate("a", "f", () => paused++)
+  lease.save(4, 1, false)
+  state.pause()
+  assert.equal(paused, 1)
+  assert.equal(state.position("a", "f"), 4)
+  assert.equal(paused, 1)
+})
+
+test("confirmed inactive replacement and removal discard progress before a later F1 return", () => {
+  const state = new PlaybackCoordinator()
+  const first = state.activate("a", "f1", () => {})
+  first.save(9, 0.5, false)
+  first.release()
+  state.observe("a", "f2")
+  state.observe("a", "f1")
+  assert.equal(state.position("a", "f1"), 0)
+  const current = state.activate("a", "f1", () => {})
+  current.save(8, 0.5, false)
+  state.observe("a")
+  current.save(8, 0.5, false)
+  current.release()
+  assert.equal(state.position("a", "f1"), 0)
+})

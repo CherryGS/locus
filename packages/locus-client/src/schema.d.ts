@@ -1904,6 +1904,10 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Single byte range; malformed/multiple ranges are ignored. */
+                Range?: string | null;
+                /** @description No validator is published; conditional ranges return the complete representation. */
+                "If-Range"?: string | null;
                 /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
                 "X-Locus-Run": string;
             };
@@ -1914,8 +1918,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Complete original attachment. Range is ignored. Length is from the opened file. */
+            /** @description Complete original attachment; opened-file length. */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Single partial range with Content-Range and exact Content-Length. */
+            206: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1976,6 +1989,13 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+            /** @description Unsatisfiable range; Content-Range bytes *\/length and empty body. */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Operation failure */
             500: {
                 headers: {
@@ -2010,7 +2030,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Same representation headers as GET; no body */
+            /** @description Complete representation headers; Range is ignored and no body is sent. */
             200: {
                 headers: {
                     [name: string]: unknown;

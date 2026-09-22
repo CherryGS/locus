@@ -5,7 +5,7 @@ export function availableViews(entity: EntityItem | null) {
   const views: { id: ContentViewId; kind: EntityComponent["kind"]; label: string }[] = []
   if (entity?.components.some((component) => component.kind === "image"))
     views.push({ id: "image.inspect", kind: "image", label: "Image" })
-  if (!entity?.live && entity?.components.some((component) => component.kind === "video"))
+  if (entity?.components.some((component) => component.kind === "video"))
     views.push({ id: "video.play", kind: "video", label: "Video" })
   if (!entity?.live && entity?.components.some((component) => component.kind === "twitter"))
     views.push({ id: "twitter.read", kind: "twitter", label: "Twitter" })

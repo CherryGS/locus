@@ -56,6 +56,7 @@ export function mediaProjection(value: Wire<"MediaView">): EntityComponent {
   return {
     ...base,
     kind: "video",
+    inputFileId: current,
     format: facts?.container,
     codec: facts?.codec ?? undefined,
     width: facts?.width ?? undefined,

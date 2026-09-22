@@ -28,7 +28,7 @@ async function memory(pid: number) {
         "-Command",
         `Get-Process -Id ${pid} | Select-Object WorkingSet64,PeakWorkingSet64,PrivateMemorySize64 | ConvertTo-Json -Compress`,
       ],
-      { windowsHide: true }
+      { windowsHide: true },
     )
     return { pid, ...JSON.parse(value.stdout) }
   }
@@ -55,7 +55,10 @@ try {
   await page.goto(`${preview.origin}/#/entity`)
   await page.locator(`[data-entity-count="${count}"]`).waitFor()
   const readinessMs = performance.now() - start
-  assert.equal(await page.locator(`[data-entity-count="${count}"]`).getAttribute("data-id-bytes"), String(count * 16))
+  assert.equal(
+    await page.locator(`[data-entity-count="${count}"]`).getAttribute("data-id-bytes"),
+    String(count * 16),
+  )
   const sequence = await readEntityIds(backend.client)
   const navigation = []
   const grid = page.getByRole("grid", { name: "Entities" })
@@ -74,9 +77,33 @@ try {
     await grid.waitFor()
     assert.equal(
       await grid.getAttribute("aria-activedescendant"),
-      await page.locator('[role="gridcell"][aria-selected="true"]').getAttribute("id")
+      await page.locator('[role="gridcell"][aria-selected="true"]').getAttribute("id"),
     )
     navigation.push({ position, elapsedMs: performance.now() - started })
+  }
+  for (const viewport of [
+    { width: 720, height: 480 },
+    { width: 1200, height: 800 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.waitForFunction(() => {
+      const grid = document.querySelector('[role="grid"]')!
+      const selected = grid.querySelector('[role="gridcell"][aria-selected="true"]')
+      if (!selected) return false
+      const cell = selected.getBoundingClientRect(),
+        bounds = grid.getBoundingClientRect()
+      return (
+        cell.top >= bounds.top &&
+        cell.bottom <= bounds.bottom + 1 &&
+        cell.left >= bounds.left &&
+        cell.right <= bounds.right + 1
+      )
+    })
+    assert.equal(
+      await grid.getAttribute("aria-activedescendant"),
+      await page.locator('[role="gridcell"][aria-selected="true"]').getAttribute("id"),
+      "resizing retains the selected identity and keyboard anchor",
+    )
   }
   await grid.evaluate((element) => {
     element.scrollTop = (element.scrollHeight - element.clientHeight) / 2
@@ -96,7 +123,7 @@ try {
         const box = cell.getBoundingClientRect()
         return box.top > 80 && box.bottom < innerHeight
       })
-      .map((cell) => cell.id)
+      .map((cell) => cell.id),
   )
   assert(visible.length > 0)
   const middleCell = page.locator(`[id="${visible[Math.floor(visible.length / 2)]}"]`)
@@ -104,13 +131,11 @@ try {
   await page.locator('[data-slot="entity-inspection"]').waitFor()
   await page.keyboard.press("Escape")
   await grid.waitFor()
-  const caches = await page
-    .locator('section[aria-label="Entity"]')
-    .evaluate((element) => ({
-      metadata: Number(element.getAttribute("data-metadata-cache")),
-      preferences: Number(element.getAttribute("data-preference-cache")),
-      pending: Number(element.getAttribute("data-pending-metadata")),
-    }))
+  const caches = await page.locator('section[aria-label="Entity"]').evaluate((element) => ({
+    metadata: Number(element.getAttribute("data-metadata-cache")),
+    preferences: Number(element.getAttribute("data-preference-cache")),
+    pending: Number(element.getAttribute("data-pending-metadata")),
+  }))
   assert(caches.metadata <= 256)
   assert(caches.preferences <= 256)
   assert((await page.getByRole("gridcell").count()) < 150)
@@ -118,7 +143,10 @@ try {
   assert(physicalHeight <= 8_000_001)
   const rendererMemory = await processes()
   const heap = await page.evaluate(
-    () => (performance as any).memory?.toJSON?.() ?? { usedJSHeapSize: (performance as any).memory?.usedJSHeapSize }
+    () =>
+      (performance as any).memory?.toJSON?.() ?? {
+        usedJSHeapSize: (performance as any).memory?.usedJSHeapSize,
+      },
   )
   await page.screenshot({ path: join(output, "million-entity-grid.png") })
   const result = {

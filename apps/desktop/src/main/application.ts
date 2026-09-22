@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto"
 import { join } from "node:path"
 import type { ChildProcessWithoutNullStreams } from "node:child_process"
 import { externalLinkHandler } from "./external-links"
-import { authorizedHeaders, isRendererPage } from "./authorization"
+import { authorizedHeaders, isRendererPage, rendererPermission } from "./authorization"
 import { launchBackend, drainBackend, type Backend } from "./backend"
 import { CloseGate } from "./close-gate"
 import {
@@ -309,7 +309,10 @@ export function startDesktop() {
       if (close.state.phase !== "idle")
         void unavailable("The renderer is not responding. Preference preparation is unavailable.")
     })
-    ownedSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
+    const permissionAllowed = (contents: Electron.WebContents | null, permission: string, details: { isMainFrame: boolean; requestingUrl?: string }) =>
+      rendererPermission(permission, contents === window?.webContents, details.isMainFrame, details.requestingUrl,
+        connection.status === "ready" && close.state.phase === "idle" ? backend?.origin : undefined)
+    ownedSession.setPermissionRequestHandler((contents, permission, callback, details) => callback(permissionAllowed(contents, permission, details)))
     const redirects = new Set<number>()
     ownedSession.webRequest.onBeforeRedirect((details) => redirects.add(details.id))
     ownedSession.webRequest.onCompleted((details) => redirects.delete(details.id))

@@ -1142,6 +1142,30 @@
             }
           },
           {
+            "name": "Range",
+            "in": "header",
+            "description": "Single byte range; malformed/multiple ranges are ignored.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "If-Range",
+            "in": "header",
+            "description": "No validator is published; conditional ranges return the complete representation.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
             "name": "X-Locus-Run",
             "in": "header",
             "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
@@ -1153,12 +1177,22 @@
         ],
         "responses": {
           "200": {
-            "description": "Complete original attachment. Range is ignored. Length is from the opened file.",
+            "description": "Complete original attachment; opened-file length.",
             "content": {
               "application/octet-stream": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
+                }
+              }
+            }
+          },
+          "206": {
+            "description": "Single partial range with Content-Range and exact Content-Length.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -1223,6 +1257,9 @@
               }
             }
           },
+          "416": {
+            "description": "Unsatisfiable range; Content-Range bytes */length and empty body."
+          },
           "500": {
             "description": "Operation failure",
             "content": {
@@ -1271,7 +1308,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Same representation headers as GET; no body"
+            "description": "Complete representation headers; Range is ignored and no body is sent."
           },
           "400": {
             "description": "Invalid request",

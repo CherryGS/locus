@@ -1,3 +1,4 @@
+import { PlaybackCoordinator } from "@/features/video-playback"
 import { BackendApi } from "@/shared/api"
 import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
 import { ImportCoordinator } from "@/features/file-import"
@@ -11,6 +12,7 @@ declare global {
   }
 }
 export class LibrarySession {
+  readonly playback = new PlaybackCoordinator()
   readonly api: BackendApi
   readonly reader: EntityReader
   readonly preferences: PreferenceCoordinator
@@ -30,7 +32,7 @@ export class LibrarySession {
     if (initial.connection.origin !== location.origin)
       throw new Error("The desktop connection is not this renderer's origin.")
     this.api = new BackendApi(initial.connection)
-    this.reader = new EntityReader(this.api)
+    this.reader = new EntityReader(this.api, 256, (entityId, fileId) => this.playback.observe(entityId, fileId))
     this.preferences = new PreferenceCoordinator(this.api)
     this.imports = new ImportCoordinator(this.api, bridge, (items) => {
       this.reader.importEffects(items)
@@ -41,6 +43,7 @@ export class LibrarySession {
       void this.imports.observe()
     })
     this.unobserve = bridge.observe((state) => {
+      if (state.close.phase !== "idle" || state.connection.status !== "ready") this.playback.pause()
       this.imports.host(state)
       if (state.connection.status !== "ready" || state.connection.runId !== this.api.context.runId)
         this.tasks.dispose()
@@ -54,6 +57,7 @@ export class LibrarySession {
     this.preferences.demand(ids)
   }
   readonly dispose = () => {
+    this.playback.pause()
     this.unobserve()
     this.tasks.dispose()
     this.imports.dispose()

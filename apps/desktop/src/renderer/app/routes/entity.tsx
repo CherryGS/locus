@@ -32,7 +32,7 @@ function EntityRoute() {
   return (
     <EntityPage
       source={session?.source() ?? previewSource}
-      live={session ? { reader: session.reader, preferences: session.preferences, api: session.api } : undefined}
+      live={session ? { reader: session.reader, preferences: session.preferences, api: session.api, playback: session.playback } : undefined}
       collections={data.previewCollections}
       destination={Route.useSearch()}
       visitKey={key}

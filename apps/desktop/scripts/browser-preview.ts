@@ -36,6 +36,7 @@ export async function browserPreview(backend: Awaited<ReturnType<typeof startSer
         )
           headers.set(key, Array.isArray(value) ? value.join(",") : value)
       headers.set("Origin", backend.context.origin)
+      headers.set("Accept-Encoding", "identity")
       const body = request.method === "GET" || request.method === "HEAD" ? undefined : await bytes(request)
       const controller = new AbortController()
       response.once("close", () => controller.abort())
@@ -47,35 +48,41 @@ export async function browserPreview(backend: Awaited<ReturnType<typeof startSer
       })
       const outputHeaders = Object.fromEntries(upstream.headers)
       delete outputHeaders["transfer-encoding"]
-      delete outputHeaders["content-length"]
-      if (upstream.headers.get("content-type")?.includes("text/event-stream") && upstream.body) {
-        response.writeHead(upstream.status, outputHeaders)
-        response.flushHeaders()
-        const reader = upstream.body.getReader()
-        try {
-          while (!controller.signal.aborted) {
-            const chunk = await reader.read()
-            if (chunk.done) break
-            if (!response.write(Buffer.from(chunk.value))) await once(response, "drain", { signal: controller.signal })
-          }
-          response.end()
-        } finally {
-          await reader.cancel().catch(() => {})
-          reader.releaseLock()
-        }
+      // HEAD reports the representation length, not the empty response body.
+      if (request.method === "HEAD") {
+        response.writeHead(upstream.status, outputHeaders).end()
         return
       }
-      const content = Buffer.from(await upstream.arrayBuffer())
-      const output =
-        (target.pathname === "/" || target.pathname === "/index.html") && upstream.ok
-          ? Buffer.from(content.toString().replace("<head>", '<head><script src="/__desktop-preview.js"></script>'))
-          : content
-      outputHeaders["content-length"] = String(output.length)
+      if ((target.pathname === "/" || target.pathname === "/index.html") && upstream.ok) {
+        const content = await upstream.text()
+        const output = Buffer.from(content.replace("<head>", '<head><script src="/__desktop-preview.js"></script>'))
+        outputHeaders["content-length"] = String(output.length)
+        response.writeHead(upstream.status, outputHeaders).end(output)
+        return
+      }
+      // Preserve partial-response headers and backpressure for media as well as
+      // SSE; the verification proxy must not eagerly buffer an entire video.
       response.writeHead(upstream.status, outputHeaders)
-      response.end(output)
+      response.flushHeaders()
+      if (!upstream.body) {
+        response.end()
+        return
+      }
+      const reader = upstream.body.getReader()
+      try {
+        while (!controller.signal.aborted) {
+          const chunk = await reader.read()
+          if (chunk.done) break
+          if (!response.write(Buffer.from(chunk.value))) await once(response, "drain", { signal: controller.signal })
+        }
+        response.end()
+      } finally {
+        await reader.cancel().catch(() => {})
+        reader.releaseLock()
+      }
     } catch {
-      if (!response.headersSent) response.writeHead(502, { "content-type": "text/plain" })
-      response.end("Isolated backend unavailable")
+      if (response.headersSent) response.destroy()
+      else response.writeHead(502, { "content-type": "text/plain" }).end("Isolated backend unavailable")
     }
   })
   server.listen(0, "127.0.0.1")

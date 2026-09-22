@@ -249,3 +249,78 @@ test("import effects reread only demanded subjects and retain latest queued effe
   assert(reads.length <= 3)
   f.reader.demand(["b"]); await tick(); assert(reads.some(ids => ids.includes("b")))
 })
+
+const videoKind = "f4be9375-60f1-4d04-8f07-8c9ad765e230"
+const video = (file = "f1", applicability) => ({
+  record: { target: { kind: "video", component_id: "v" }, revision: "1", basis: file,
+    facts: { kind: "video", container: "mp4", stream_index: 0 },
+    last_failure: { code: "unsupported", detail: "Earlier interpretation failed" } },
+  applicability: applicability ?? { status: "matching", file_id: file },
+})
+function videoFixture() {
+  return fixture({
+    memberships: async () => [{ status: "present", entity_id: "a", memberships: [
+      { entity_id: "a", component_id: "v", kind_id: videoKind },
+      { entity_id: "a", component_id: "i", kind_id: imageKind },
+    ] }],
+    media: async (kind) => kind === "video" ? video() : image("i"),
+  })
+}
+test("Video resource attempts distinguish metadata refresh, retry, and failed current-input observation", async () => {
+  const { reader, api } = videoFixture()
+  reader.demand(["a"]); await tick()
+  const attempt = reader.playbackRevision("a")
+  reader.resourceResult("a", "v:f1", attempt, "Video decode failed")
+  reader.resourceResult("a", "i:file-i", reader.resourceRevision("a"), "Image decode failed")
+  reader.importEffects([{ current: { entity_id: "a", kinds: [] } }]); await tick()
+  assert.equal(reader.playbackRevision("a"), attempt)
+  assert(reader.get("a").problems.some(p => p.message === "Video decode failed"))
+  assert(reader.get("a").problems.some(p => p.message === "Image decode failed"))
+  reader.retryResource("a", "i:file-i")
+  assert.equal(reader.playbackRevision("a"), attempt)
+  assert.equal(reader.playbackPending("a"), false)
+  const held = deferred()
+  api.media = async kind => kind === "video" ? held.promise : image("i")
+  reader.retryResource("a"); await tick()
+  assert(reader.playbackPending("a"))
+  reader.resourceResult("a", "v:f1", attempt)
+  assert(reader.get("a").problems.some(p => p.message === "Video decode failed"))
+  held.resolve(video()); await tick()
+  const retry = reader.playbackRevision("a")
+  assert.notEqual(retry, attempt)
+  reader.resourceResult("a", "v:f1", attempt)
+  assert(reader.get("a").problems.some(p => p.message === "Video decode failed"))
+  reader.resourceResult("a", "v:f1", retry)
+  assert(!reader.get("a").problems.some(p => p.message === "Video decode failed"))
+  assert(reader.get("a").problems.some(p => p.message.includes("Earlier interpretation failed")))
+  assert(reader.get("a").problems.some(p => p.message === "Image decode failed"))
+  api.media = async kind => kind === "video" ? video("f1", { status: "error", diagnostic: { owner: "file", error: { kind: "access", message: "Context unavailable" } } }) : image("i")
+  reader.retryResource("a"); await tick()
+  const retained = reader.get("a").components.find(c => c.kind === "video")
+  assert.equal(retained.inputFileId, "f1")
+  assert.equal(retained.inputPrevious, true)
+  assert.equal(reader.playbackRevision("a"), retry)
+  assert.equal(reader.playbackPending("a"), false)
+  api.media = async kind => kind === "video" ? video("f2") : image("i")
+  await reader.reread("a"); await tick()
+  assert.equal(reader.get("a").components.find(c => c.kind === "video").inputFileId, "f2")
+  reader.resourceResult("a", "v:f1", retry, "obsolete")
+  assert(!reader.get("a").problems.some(p => p.message === "obsolete"))
+})
+
+test("only successful Video input observations inform the run-local playback owner", async () => {
+  const { api } = videoFixture()
+  const observed = []
+  const reader = new EntityReader(api, 256, (id, file) => observed.push([id, file]))
+  reader.demand(["a"]); await tick()
+  assert.deepEqual(observed, [["a", "f1"]])
+  api.media = async () => { throw new Error("Context read failed") }
+  await reader.reread("a"); await tick()
+  assert.deepEqual(observed, [["a", "f1"]])
+  api.media = async kind => kind === "video" ? video("f2") : image("i")
+  await reader.reread("a"); await tick()
+  assert.deepEqual(observed.at(-1), ["a", "f2"])
+  api.memberships = async () => [{ status: "present", entity_id: "a", memberships: [] }]
+  await reader.reread("a"); await tick()
+  assert.deepEqual(observed.at(-1), ["a", undefined])
+})

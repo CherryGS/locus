@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { useRouter } from "@tanstack/react-router"
-import { CheckIcon, CornerDownLeftIcon, RefreshCwIcon } from "lucide-react"
+import { CheckIcon, LayoutGridIcon, RefreshCwIcon } from "lucide-react"
 import {
   componentAppearance,
   entityLabel,
@@ -17,9 +17,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { Badge } from "@/shared/ui/badge"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
 import { Spinner } from "@/shared/ui/spinner"
+import { Skeleton } from "@/shared/ui/skeleton"
 import { Separator } from "@/shared/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
-import { TitlebarActions } from "@/shared/ui/titlebar-actions"
+import { useSourceReturn } from "@/shared/source-return"
+import type { PlaybackCoordinator } from "@/features/video-playback"
 import {
   adjacentId,
   inspectionDestination,
@@ -48,7 +50,7 @@ export function EntityPage({
   destination: EntityDestination
   visitKey: string
   navigate: (destination: EntityDestination, replace?: boolean) => void
-  live?: { reader: EntityReader; preferences: PreferenceCoordinator; api: BackendApi }
+  live?: { reader: EntityReader; preferences: PreferenceCoordinator; api: BackendApi; playback: PlaybackCoordinator }
 }) {
   const router = useRouter()
   const collection = collections.find((item) => item.id === destination.collectionId)
@@ -136,11 +138,13 @@ export function EntityPage({
     setExplanation(result.explanation)
     navigate(next)
   }, [destination, navigate, library.sequence, collections, live?.reader.sequence])
+  useSourceReturn(viewing ? exit : undefined)
   useEffect(() => {
     if (!viewing) return
     function exitOnEscape(event: globalThis.KeyboardEvent) {
       if (
         event.defaultPrevented ||
+        document.fullscreenElement ||
         event.key !== "Escape" ||
         event.altKey ||
         event.ctrlKey ||
@@ -187,7 +191,7 @@ export function EntityPage({
   const recover = (problem: ReadProblem) => {
     if (!selected || !live) return
     if (problem.recovery === "entity") void live.reader.reread(selected.id)
-    if (problem.recovery === "resource") live.reader.retryResource(selected.id)
+    if (problem.recovery === "resource") live.reader.retryResource(selected.id, problem.key.slice("resource:".length))
     if (problem.recovery === "preference-read") void live.preferences.read([selected.id])
     if (problem.recovery === "preference-save") live.preferences.retry(selected.id)
     if (problem.recovery === "preference-check") void live.preferences.recover(selected.id)
@@ -366,19 +370,6 @@ export function EntityPage({
       data-preference-cache={live?.preferences.cacheSize}
       data-pending-metadata={live?.reader.pendingCount}
     >
-      {viewing && (
-        <TitlebarActions>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Return to source"
-            title="Return to source (Esc)"
-            onClick={exit}
-          >
-            <CornerDownLeftIcon data-icon="inline-start" />
-          </Button>
-        </TitlebarActions>
-      )}
       <header data-slot="entity-page-header" className="flex shrink-0 items-center gap-3 px-4">
         {viewing && selected ? (
           <EntityFilmstrip
@@ -403,10 +394,17 @@ export function EntityPage({
             onNavigate={adjacent}
           />
         ) : (
-          <h1 className="flex h-16 flex-1 items-center gap-3 text-xl font-semibold tracking-tight">
-            Entity <Badge variant="outline">{source.sequence.length.toLocaleString()}</Badge>
+          <h1 className="flex h-14 flex-1 items-center gap-2 text-lg font-semibold tracking-tight">
+            <LayoutGridIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+            Entity{" "}
+            {sequence && (!live || live.reader.sequence) ? (
+              <Badge variant="secondary">{source.sequence.length.toLocaleString()}</Badge>
+            ) : (
+              <Skeleton className="h-5 w-8" />
+            )}
           </h1>
         )}
+        {!viewing && selected && <span className="text-xs text-muted-foreground">1 selected</span>}
         {live && (
           <Button
             variant="ghost"
@@ -421,7 +419,7 @@ export function EntityPage({
         )}
       </header>
       {collection && (
-        <div className="px-6 pb-2 text-xs text-muted-foreground">
+        <div className="px-4 pb-2 text-xs text-muted-foreground">
           {collection.name} · from {entityLabel(library.get(collection.ownerId))}
         </div>
       )}

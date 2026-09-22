@@ -65,7 +65,7 @@ export function LiveImage({
           </EmptyDescription>
         </EmptyHeader>
         {fileId && (
-          <Button variant="outline" onClick={() => reader.retryResource(entityId)}>
+          <Button variant="outline" onClick={() => reader.retryResource(entityId, basis)}>
             Retry image
           </Button>
         )}
@@ -91,7 +91,7 @@ export function LiveImage({
         onFailed={() =>
           reader.resourceResult(entityId, basis, generation, "The current File bytes could not be decoded as an image.")
         }
-        onRetry={() => reader.retryResource(entityId)}
+        onRetry={() => reader.retryResource(entityId, basis)}
       />
     </>
   )

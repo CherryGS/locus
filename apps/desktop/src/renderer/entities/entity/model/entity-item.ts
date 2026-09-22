@@ -40,6 +40,8 @@ export type EntityComponent = Observation &
         record?: Wire<"MediaRecord">
         applicability?: Wire<"Applicability">
         streamIndex?: number
+        inputFileId?: string
+        inputPrevious?: boolean
         durationPrecision?: string
       }
     | { kind: "unknown"; id: string; kindId: string }

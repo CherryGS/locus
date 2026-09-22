@@ -10,6 +10,8 @@ type Entry = {
   pending: boolean
   resources: Map<string, ReadProblem>
   resourceRevision: number
+  playbackRevision: number
+  playbackPending: boolean
   membershipObserved: boolean
   epoch: number
 }
@@ -42,6 +44,7 @@ export class EntityReader {
   constructor(
     private readonly api: ReadApi,
     readonly capacity = 256,
+    private readonly observeVideoInput?: (entityId: string, fileId?: string) => void,
   ) {}
   private changed() {
     this.revision++
@@ -68,18 +71,24 @@ export class EntityReader {
   resourceRevision(id: string) {
     return this.entries.get(id)?.resourceRevision ?? 0
   }
+  playbackRevision(id: string) {
+    return this.entries.get(id)?.playbackRevision ?? 0
+  }
+  playbackPending(id: string) {
+    return this.entries.get(id)?.playbackPending ?? false
+  }
   resourceResult(id: string, basis: string, generation: number, message?: string) {
     const entry = this.entries.get(id)
-    if (
-      !entry ||
-      entry.resourceRevision !== generation ||
-      !entry.item.components.some((c) => c.kind === "image" && `${c.id}:${c.inputFileId}` === basis)
-    )
-      return
+    const component = entry?.item.components.find((c) =>
+      (c.kind === "image" || c.kind === "video") && `${c.id}:${c.inputFileId}` === basis)
+    if (!entry || !component ||
+      (component.kind === "video"
+        ? entry.playbackPending || entry.playbackRevision !== generation
+        : entry.resourceRevision !== generation)) return
     if (message)
       entry.resources.set(basis, {
         key: `resource:${basis}`,
-        subject: `Image resource ${basis}`,
+        subject: `${component.kind === "video" ? "Video" : "Image"} resource ${basis}`,
         message,
         recovery: "resource",
       })
@@ -93,10 +102,14 @@ export class EntityReader {
     }
     this.changed()
   }
-  retryResource(id: string) {
+  retryResource(id: string, basis?: string) {
     const entry = this.entries.get(id)
     if (entry) {
       entry.resourceRevision = ++this.resourceGeneration
+      if (entry.item.components.some((c) => c.kind === "video" && (!basis || basis.startsWith(`${c.id}:`)))) {
+        entry.playbackPending = true
+        void this.read([id], true)
+      }
       this.changed()
     }
   }
@@ -165,7 +178,11 @@ export class EntityReader {
   }
   reread(id: string) {
     const entry = this.entries.get(id)
-    if (entry?.resources.size) entry.resourceRevision = ++this.resourceGeneration
+    if (entry?.resources.size) {
+      entry.resourceRevision = ++this.resourceGeneration
+      if (entry.item.components.some((c) => c.kind === "video" && entry.resources.has(`${c.id}:${c.inputFileId}`)))
+        entry.playbackPending = true
+    }
     return this.read([id], true)
   }
   private async read(ids: string[], explicit = false) {
@@ -204,6 +221,8 @@ export class EntityReader {
         pending: true,
         resources: old?.resources ?? new Map(),
         resourceRevision: old?.resourceRevision ?? ++this.resourceGeneration,
+        playbackRevision: old?.playbackRevision ?? ++this.resourceGeneration,
+        playbackPending: old?.playbackPending ?? false,
         membershipObserved: old?.membershipObserved ?? false,
         epoch: this.listRevision,
       }
@@ -219,6 +238,7 @@ export class EntityReader {
         const { id, entry } = tickets[index]
         if (this.entries.get(id) !== entry) continue
         if (membership.status === "missing") {
+          this.observeVideoInput?.(id)
           entry.item = {
             id,
             live: true,
@@ -244,10 +264,11 @@ export class EntityReader {
           const previous = entry.item.components.find((c) => c.id === m.component_id && c.kindId === m.kind_id)
           return previous ? { ...previous, readStatus: "loading" as const } : membershipProjection(m)
         })
+        if (!components.some((c) => c.kind === "video")) this.observeVideoInput?.(id)
         const present = new Set(components.map((c) => c.id))
         entry.membershipObserved = true
         for (const key of entry.resources.keys())
-          if (!components.some((c) => c.kind === "image" && key.startsWith(`${c.id}:`)))
+          if (!components.some((c) => (c.kind === "image" || c.kind === "video") && key.startsWith(`${c.id}:`)))
             entry.resources.delete(key)
         const problems = (entry.item.problems ?? []).filter(
           (problem) =>
@@ -284,12 +305,21 @@ export class EntityReader {
                   ? await this.api.file(component.id)
                   : await this.api.media(component.kind as "image" | "video", component.id)
               if (this.entries.get(id) !== entry) return
-              const next =
+              let next =
                 "file_id" in value
                   ? fileProjection(value)
                   : { ...mediaProjection(value), kindId: component.kindId }
               if (next.id !== component.id || next.kind !== component.kind)
                 throw new Error("The record result did not match the requested Component.")
+              if (next.kind === "video") {
+                if (next.applicability?.status === "error" && component.kind === "video")
+                  next = { ...next, inputFileId: component.inputFileId, inputPrevious: !!component.inputFileId }
+                else {
+                  this.observeVideoInput?.(id, next.inputFileId)
+                  if (entry.playbackPending) entry.playbackRevision = ++this.resourceGeneration
+                }
+                entry.playbackPending = false
+              }
               entry.item = {
                 ...entry.item,
                 components: entry.item.components.map((c) => (c.id === component.id ? next : c)),
@@ -341,9 +371,10 @@ export class EntityReader {
                   }
                 }
               }
-              if (next.kind === "image") {
+              if (next.kind === "image" || next.kind === "video") {
                 const basis = `${next.id}:${next.inputFileId}`
-                for (const key of entry.resources.keys()) if (key !== basis) entry.resources.delete(key)
+                for (const key of entry.resources.keys())
+                  if (key.startsWith(`${next.id}:`) && key !== basis) entry.resources.delete(key)
                 entry.item = {
                   ...entry.item,
                   problems: [
@@ -354,12 +385,14 @@ export class EntityReader {
               }
             } catch (error) {
               if (this.entries.get(id) !== entry) return
+              if (component.kind === "video") entry.playbackPending = false
               const current = entry.item.components.find((c) => c.id === component.id)!
               const absent =
                 error instanceof ApiFailure &&
                 (error.detail.code === "missing_file" ||
                   (error.detail.diagnostic?.owner === "media" &&
                     error.detail.diagnostic.error.code === "missing_record"))
+              if (absent && component.kind === "video") this.observeVideoInput?.(id)
               const previous =
                 !absent &&
                 current.readStatus === "loading" &&
@@ -413,6 +446,7 @@ export class EntityReader {
           },
         ])
         entry.pending = false
+        entry.playbackPending = false
       }
       this.changed()
     } finally {

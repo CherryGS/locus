@@ -4,7 +4,14 @@ import { ScrollArea } from "@/shared/ui/scroll-area"
 import { entityGridLayout } from "./entity-grid-layout"
 import { scrollMapping } from "../model/scroll-mapping"
 
-const { gap, cardWidth, cardHeight: rowHeight, horizontalInset, verticalInset } = entityGridLayout
+const {
+  gap,
+  cardWidth,
+  maximumCardWidth,
+  cardHeight: rowHeight,
+  horizontalInset,
+  verticalInset,
+} = entityGridLayout
 const stride = rowHeight + gap
 export function EntityGrid({
   source,
@@ -27,12 +34,15 @@ export function EntityGrid({
   const [scroll, setScroll] = useState(0)
   const columns = Math.max(
     1,
-    Math.min(sequence.length, Math.floor((size.width - 2 * horizontalInset + gap) / (cardWidth + gap)))
+    Math.min(sequence.length, Math.floor((size.width - 2 * horizontalInset + gap) / (cardWidth + gap))),
   )
   const rows = Math.ceil(sequence.length / columns)
   const mapping = scrollMapping(rows * stride - gap + 2 * verticalInset, size.height)
   const logical = mapping.logical(scroll)
-  const selectedIndex = useMemo(() => (selectedId ? sequence.indexOf(selectedId) : -1), [sequence, selectedId])
+  const selectedIndex = useMemo(
+    () => (selectedId ? sequence.indexOf(selectedId) : -1),
+    [sequence, selectedId],
+  )
   const selectedRow = selectedIndex < 0 ? -1 : Math.floor(selectedIndex / columns)
   const first = Math.max(0, Math.floor((logical - verticalInset) / stride) - 2)
   const last = Math.min(rows - 1, Math.ceil((logical + size.height - verticalInset) / stride) + 2)
@@ -40,8 +50,8 @@ export function EntityGrid({
   if (selectedRow >= 0 && !visible.includes(selectedRow)) visible.push(selectedRow)
   const ids = visible.flatMap((row) =>
     Array.from({ length: Math.min(columns, sequence.length - row * columns) }, (_, column) =>
-      sequence.at(row * columns + column)!
-    )
+      sequence.at(row * columns + column)!,
+    ),
   )
   const demandKey = ids.join(",")
   useEffect(() => {
@@ -72,12 +82,17 @@ export function EntityGrid({
       const previous = layout.current
       const newColumns = Math.max(
         1,
-        Math.min(sequence.length, Math.floor((element.clientWidth - 2 * horizontalInset + gap) / (cardWidth + gap)))
+        Math.min(
+          sequence.length,
+          Math.floor((element.clientWidth - 2 * horizontalInset + gap) / (cardWidth + gap)),
+        ),
       )
       if (previous.columns !== newColumns) {
         const top = previous.selectedRow * stride + verticalInset
         anchor.current =
-          previous.selectedRow >= 0 && top + rowHeight > previous.logical && top < previous.logical + previous.height
+          previous.selectedRow >= 0 &&
+          top + rowHeight > previous.logical &&
+          top < previous.logical + previous.height
             ? previous.selectedIndex
             : Math.max(0, Math.floor((previous.logical - verticalInset + gap) / stride)) * previous.columns
       }
@@ -156,7 +171,14 @@ export function EntityGrid({
     select(index)
     scrollToRow(Math.floor(index / columns))
   }
-  const rowWidth = columns * cardWidth + (columns - 1) * gap
+  // Fill the row at ordinary widths while keeping a short result set from
+  // stretching a single card across the workspace. Row height stays fixed for
+  // virtual scrolling; column changes retain the existing identity anchor.
+  const fittedCardWidth = Math.min(
+    maximumCardWidth,
+    Math.max(cardWidth, (size.width - 2 * horizontalInset - (columns - 1) * gap) / columns),
+  )
+  const rowWidth = columns * fittedCardWidth + (columns - 1) * gap
   return (
     <ScrollArea
       className="h-full min-h-0"
@@ -188,11 +210,11 @@ export function EntityGrid({
             aria-rowindex={row + 1}
             className="absolute top-0 grid grid-rows-1"
             style={{
-              left: Math.max(horizontalInset, (size.width - rowWidth) / 2),
+              left: horizontalInset,
               width: rowWidth,
               height: rowHeight,
               gap,
-              gridTemplateColumns: `repeat(${columns}, ${cardWidth}px)`,
+              gridTemplateColumns: `repeat(${columns}, ${fittedCardWidth}px)`,
               transform: `translateY(${row < first || row > last ? -10000 : scroll + verticalInset + row * stride - logical}px)`,
             }}
           >
@@ -207,7 +229,8 @@ export function EntityGrid({
                   aria-colindex={column + 1}
                   aria-labelledby={`${cellId(id)}-title`}
                   aria-selected={id === selectedId}
-                  className="min-h-0 min-w-0 cursor-default rounded-xl outline-offset-[-2px] select-none aria-selected:outline-2 aria-selected:outline-ring"
+                  aria-busy={!!entity.loading}
+                  className="min-h-0 min-w-0 cursor-default rounded-xl outline-offset-[-2px] transition-shadow select-none hover:outline-1 hover:outline-ring/60 aria-selected:outline-2 aria-selected:outline-primary/60"
                   onClick={() => select(row * columns + column)}
                   onDoubleClick={() => onOpen(entity)}
                 >

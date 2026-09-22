@@ -205,7 +205,7 @@ async fn image_sequence_truthful_views_cache_evidence_and_bytes() {
         .headers_mut()
         .insert("range", "bytes=0-1".parse().unwrap());
     let original = server.router().oneshot(range).await.unwrap();
-    assert_eq!(original.status(), StatusCode::OK);
+    assert_eq!(original.status(), StatusCode::PARTIAL_CONTENT);
     assert_eq!(
         original.headers()["content-type"],
         "application/octet-stream"
@@ -214,7 +214,7 @@ async fn image_sequence_truthful_views_cache_evidence_and_bytes() {
     assert_eq!(original.headers()["cache-control"], "no-store");
     assert_eq!(
         original.into_body().collect().await.unwrap().to_bytes(),
-        std::fs::read(&source).unwrap()
+        std::fs::read(&source).unwrap()[..2]
     );
     // Leave byte transfer entirely unpolled; another real DB mutation still ends.
     let held = response(&server, "GET", &original_path, None).await;
@@ -509,4 +509,106 @@ async fn original_truncated_after_open_fails_http_body_instead_of_empty_success(
         .unwrap();
     assert!(result.into_body().collect().await.is_err());
     assert_eq!(std::fs::read(source).unwrap(), b"original remains");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn original_single_ranges_and_ignored_conditions_preserve_safe_representation() {
+    let (root, server) = app().await;
+    for input in [b"0123456789".as_slice(), b"".as_slice()] {
+        let source = root.path().join(format!("range-{}", input.len()));
+        std::fs::write(&source, input).unwrap();
+        let file = import(&server, &source).await;
+        let path = format!("/api/v1/files/{}/bytes", file["file_id"].as_str().unwrap());
+        for (range, expected, content_range) in [
+            ("bytes=2-4", Some(&b"234"[..]), "bytes 2-4/10"),
+            ("bytes=7-", Some(&b"789"[..]), "bytes 7-9/10"),
+            ("bytes=-3", Some(&b"789"[..]), "bytes 7-9/10"),
+            ("bytes=-99", Some(input), "bytes 0-9/10"),
+            (
+                "bytes=8-999999999999999999999999",
+                Some(&b"89"[..]),
+                "bytes 8-9/10",
+            ),
+            ("bytes=10-", None, "bytes */10"),
+            ("bytes=-0", None, "bytes */10"),
+            ("bytes=999999999999999999999999-", None, "bytes */10"),
+        ] {
+            let mut request = request(&server, "GET", &path, None);
+            request
+                .headers_mut()
+                .insert("range", range.parse().unwrap());
+            let result = server.router().oneshot(request).await.unwrap();
+            let expected = if input.is_empty() { None } else { expected };
+            assert_eq!(
+                result.status(),
+                if expected.is_some() {
+                    StatusCode::PARTIAL_CONTENT
+                } else {
+                    StatusCode::RANGE_NOT_SATISFIABLE
+                },
+                "{range}"
+            );
+            assert_eq!(
+                result.headers()["content-range"],
+                if input.is_empty() {
+                    "bytes */0"
+                } else {
+                    content_range
+                }
+            );
+            assert_eq!(
+                result.headers()["content-length"],
+                expected.unwrap_or_default().len().to_string()
+            );
+            assert_eq!(result.headers()["accept-ranges"], "bytes");
+            assert_eq!(result.headers()["content-type"], "application/octet-stream");
+            assert_eq!(result.headers()["content-disposition"], "attachment");
+            assert_eq!(result.headers()["x-content-type-options"], "nosniff");
+            assert_eq!(
+                result.into_body().collect().await.unwrap().to_bytes(),
+                expected.unwrap_or_default()
+            );
+        }
+        for (method, range, condition) in [
+            ("GET", "bytes=0-1,4-5", None),
+            ("GET", "bytes=bad", None),
+            ("GET", "bytes=8-2", None),
+            ("GET", "items=0-1", None),
+            ("GET", "bytes=0-1", Some("\"unknown\"")),
+            ("GET", "bytes=0-1", Some("Wed, 21 Oct 2015 07:28:00 GMT")),
+            ("HEAD", "bytes=0-1", None),
+            ("HEAD", "bytes=999-", None),
+        ] {
+            let mut request = request(&server, method, &path, None);
+            request
+                .headers_mut()
+                .insert("range", range.parse().unwrap());
+            if let Some(condition) = condition {
+                request
+                    .headers_mut()
+                    .insert("if-range", condition.parse().unwrap());
+            }
+            let result = server.router().oneshot(request).await.unwrap();
+            assert_eq!(result.status(), StatusCode::OK);
+            assert_eq!(result.headers()["content-length"], input.len().to_string());
+            assert!(!result.headers().contains_key("content-range"));
+            assert_eq!(
+                result.into_body().collect().await.unwrap().to_bytes(),
+                if method == "HEAD" { &[][..] } else { input }
+            );
+        }
+        let mut repeated = request(&server, "GET", &path, None);
+        repeated
+            .headers_mut()
+            .append("range", "bytes=0-1".parse().unwrap());
+        repeated
+            .headers_mut()
+            .append("range", "bytes=3-4".parse().unwrap());
+        let result = server.router().oneshot(repeated).await.unwrap();
+        assert_eq!(result.status(), StatusCode::OK);
+        assert_eq!(
+            result.into_body().collect().await.unwrap().to_bytes(),
+            input
+        );
+    }
 }

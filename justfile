@@ -173,3 +173,7 @@ desktop-import-native:
 
 desktop-shared-tasks:
     {{ npm }} --prefix apps/desktop run verify:shared-tasks
+
+# Real Video transfer, playback and native lifecycle with owned synthetic inputs.
+desktop-video-test: server-build desktop-build
+    npm --prefix apps/desktop run verify:video

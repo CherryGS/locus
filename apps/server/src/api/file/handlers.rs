@@ -14,7 +14,7 @@ use axum::{
     },
 };
 use axum::{
-    http::{Method, StatusCode},
+    http::{HeaderMap, Method, StatusCode},
     response::Response,
 };
 use std::sync::Arc;
@@ -47,24 +47,29 @@ pub(super) async fn read(
         .map_err(|_| ApiError::invalid("file_id must be a UUIDv7"))?;
     state.read(id).await.map(Json)
 }
-#[utoipa::path(tag="file", operation_id="read_original_bytes", get, path="/api/v1/files/{file_id}/bytes", params(("file_id"=String,Path)),responses((status=200,body=String,content_type="application/octet-stream",description="Complete original attachment. Range is ignored. Length is from the opened file."),(status=404,body=ApiError)))]
+#[utoipa::path(tag="file", operation_id="read_original_bytes", get, path="/api/v1/files/{file_id}/bytes", params(("file_id"=String,Path),("Range"=Option<String>,Header,description="Single byte range; malformed/multiple ranges are ignored."),("If-Range"=Option<String>,Header,description="No validator is published; conditional ranges return the complete representation.")),responses((status=200,body=String,content_type="application/octet-stream",description="Complete original attachment; opened-file length."),(status=206,body=String,content_type="application/octet-stream",description="Single partial range with Content-Range and exact Content-Length."),(status=416,description="Unsatisfiable range; Content-Range bytes */length and empty body."),(status=404,body=ApiError)))]
 pub(super) async fn original(
     State(state): State<Arc<Shared>>,
     path: Result<Path<String>, PathRejection>,
     method: Method,
+    headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let id = path_id(path)?;
     let uuid = canonical_id(&id)?;
     let file = locus_file::api::FileId::from_bytes(uuid.as_bytes())
         .map_err(|_| ApiError::invalid("file_id must be UUIDv7"))?;
-    bytes::response(state.original(file).await?, method == Method::HEAD, false)
+    bytes::original(
+        state.original(file).await?,
+        method == Method::HEAD,
+        &headers,
+    )
 }
-#[utoipa::path(tag="file", head, path="/api/v1/files/{file_id}/bytes", params(("file_id"=String,Path)),responses((status=200,description="Same representation headers as GET; no body"),(status=404,body=ApiError)))]
+#[utoipa::path(tag="file", head, path="/api/v1/files/{file_id}/bytes", params(("file_id"=String,Path)),responses((status=200,description="Complete representation headers; Range is ignored and no body is sent."),(status=404,body=ApiError)))]
 pub(super) async fn original_head(
     state: State<Arc<Shared>>,
     path: Result<Path<String>, PathRejection>,
 ) -> Result<Response, ApiError> {
-    original(state, path, Method::HEAD).await
+    original(state, path, Method::HEAD, HeaderMap::new()).await
 }
 pub(crate) fn router() -> utoipa_axum::router::OpenApiRouter<Arc<Shared>> {
     use utoipa_axum::{router::OpenApiRouter, routes};
