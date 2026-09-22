@@ -22,6 +22,8 @@
     "verify:shared-tasks": "tsx scripts/shared-task-browser-check.ts",
     "verify:browser": "tsx scripts/browser-check.ts",
     "verify:electron": "tsx scripts/electron-smoke.ts && tsx scripts/electron-close-check.ts",
+    "verify:twitter-browser": "tsx scripts/twitter-browser-check.ts",
+    "verify:twitter-native": "tsx scripts/twitter-electron-check.ts",
     "verify:video": "tsx scripts/video-electron-check.ts",
     "verify:scale": "tsx scripts/renderer-scale.ts"
   },

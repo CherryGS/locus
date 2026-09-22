@@ -44,7 +44,7 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
   )
 }
 function ComponentDetailsContent({ component }: { component: EntityComponent }) {
-  if (component.kind === "twitter") return <TwitterDetails component={component} />
+  if (component.kind === "twitter") return <TwitterDetails key={component.id} component={component} />
   if (component.kind === "unknown")
     return (
       <>

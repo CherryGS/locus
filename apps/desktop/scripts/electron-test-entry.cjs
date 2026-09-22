@@ -1,6 +1,6 @@
 // Test-only entry: suppress native dialogs before the actual production host is
 // imported. All choices are controlled by the isolated test, never user focus.
-const { app, dialog } = require("electron")
+const { app, dialog, shell } = require("electron")
 app.commandLine.appendSwitch("disable-background-timer-throttling")
 app.commandLine.appendSwitch("disable-renderer-backgrounding")
 app.commandLine.appendSwitch("disable-backgrounding-occluded-windows")
@@ -8,6 +8,10 @@ const childProcess = require("node:child_process")
 const { syncBuiltinESMExports } = require("node:module")
 const { writeFileSync } = require("node:fs")
 globalThis.__desktopTest = {
+  externalLinks: [],
+  rejectExternal: true,
+  holdExternal: false,
+  externalRejections: [],
   dialogs: [],
   fileDialogs: [],
   fileSelections: [],
@@ -81,5 +85,12 @@ dialog.showMessageBox = async (_window, options) => {
 dialog.showOpenDialog = async (_window, options) => {
   globalThis.__desktopTest.fileDialogs.push(options)
   return globalThis.__desktopTest.fileSelections.shift() ?? { canceled: true, filePaths: [] }
+}
+if (process.env.LOCUS_TEST_EXTERNAL_LINKS === "1") {
+  shell.openExternal = async url => {
+    globalThis.__desktopTest.externalLinks.push(url)
+    if (globalThis.__desktopTest.holdExternal) return new Promise((_resolve, reject) => globalThis.__desktopTest.externalRejections.push(() => reject(new Error("Delayed test rejection"))))
+    if (globalThis.__desktopTest.rejectExternal) throw new Error("Test-owned rejected browser handoff")
+  }
 }
 void import("../out/main/index.js")

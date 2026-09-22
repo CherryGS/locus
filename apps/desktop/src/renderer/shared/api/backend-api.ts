@@ -42,6 +42,8 @@ function diagnosticKind(value: unknown): string | undefined {
 }
 function diagnosticDetail(value: unknown): string {
   if (!value || typeof value !== "object") return "Observation failed"
+  if ("version" in value && "code" in value && (value.code === "payload_version" || value.code === "schema_version"))
+    return `Unsupported ${value.code === "payload_version" ? "payload" : "schema"} version ${value.version}`
   if ("diagnostic" in value) return diagnosticDetail(value.diagnostic)
   if ("error" in value) return diagnosticDetail(value.error)
   if ("failure" in value) return diagnosticDetail(value.failure)
@@ -110,6 +112,9 @@ export class BackendApi {
         params: { path: { kind, component_id: id } },
       }),
     )
+  }
+  async twitter(id: string) {
+    return result(await this.client.GET("/api/v1/twitter/{component_id}/view", { params: { path: { component_id: id } } }))
   }
   async preferences(ids: string[]) {
     return result(

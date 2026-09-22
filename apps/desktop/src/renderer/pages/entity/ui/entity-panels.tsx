@@ -40,7 +40,7 @@ export function entityPanels(
       label: componentAppearance[component.kind].label,
       identity: { label: "Component ID", value: component.id },
       icon: componentAppearance[component.kind].icon,
-      content: <EntityComponentDetails component={component} />,
+      content: <EntityComponentDetails key={`${entity.id}:${component.id}`} component={component} />,
     })) ?? []),
   ]
 }

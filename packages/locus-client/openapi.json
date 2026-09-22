@@ -3516,6 +3516,115 @@
           }
         }
       }
+    },
+    "/api/v1/twitter/{component_id}/view": {
+      "get": {
+        "tags": [
+          "twitter"
+        ],
+        "operationId": "view_twitter",
+        "parameters": [
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwitterView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4043,6 +4152,24 @@
                 "type": "string",
                 "enum": [
                   "media"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "owner"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/TwitterFailure"
+              },
+              "owner": {
+                "type": "string",
+                "enum": [
+                  "twitter"
                 ]
               }
             }
@@ -5981,6 +6108,708 @@
             "items": {
               "$ref": "#/components/schemas/PublicTask"
             }
+          }
+        }
+      },
+      "TwitterApplicability": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unmounted"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "host",
+              "comparison",
+              "status"
+            ],
+            "properties": {
+              "comparison": {
+                "$ref": "#/components/schemas/TwitterComparison"
+              },
+              "file_error": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Diagnostic"
+                  }
+                ]
+              },
+              "host": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "input"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "status"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/TwitterFailure"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "error"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "TwitterAuthorObservation": {
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "handle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profile_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "user_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "TwitterCaptureIssue": {
+        "type": "object",
+        "description": "A producer-reported failure/unavailability, not a backend diagnosis.",
+        "required": [
+          "portion",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "portion": {
+            "$ref": "#/components/schemas/TwitterCapturePortion"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TwitterCapturePortion": {
+        "type": "string",
+        "enum": [
+          "post_text",
+          "author",
+          "publication_time",
+          "hashtags",
+          "references",
+          "media_occurrence",
+          "selected_representation",
+          "remote_preview"
+        ]
+      },
+      "TwitterComparison": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "file_id",
+              "status"
+            ],
+            "properties": {
+              "file_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "matching"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "basis",
+              "current",
+              "status"
+            ],
+            "properties": {
+              "basis": {
+                "type": "string"
+              },
+              "current": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "current",
+              "status"
+            ],
+            "properties": {
+              "basis": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "current": {
+                "$ref": "#/components/schemas/CurrentInput"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "incomplete"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "TwitterFailure": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "core"
+                ]
+              },
+              "error": {
+                "$ref": "#/components/schemas/CoreFailure"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "file"
+                ]
+              },
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "store"
+                ]
+              },
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component_id",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "missing_record"
+                ]
+              },
+              "component_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "corrupt"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "version",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "payload_version"
+                ]
+              },
+              "version": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "version",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "schema_version"
+                ]
+              },
+              "version": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "other"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "TwitterMediaClaims": {
+        "type": "object",
+        "description": "Claims remain scoped to the group containing them; no intrinsic facts are written.",
+        "properties": {
+          "bitrate_bps": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_ms": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "height": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "mime_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quality": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "width": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "TwitterMediaLabel": {
+        "type": "string",
+        "enum": [
+          "photo",
+          "video",
+          "animated_image"
+        ]
+      },
+      "TwitterMediaOccurrence": {
+        "type": "object",
+        "properties": {
+          "alt_text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capture_local_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Producer-local identifier, never promoted into a platform media ID."
+          },
+          "claims": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitterMediaClaims"
+              }
+            ]
+          },
+          "label": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitterMediaLabel"
+              }
+            ]
+          },
+          "media_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_order": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Explicitly observed zero-based source order, never inferred from array position.",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "TwitterProviderReference": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/TwitterReferenceKind"
+          },
+          "page_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "post_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "TwitterRecord": {
+        "type": "object",
+        "required": [
+          "component_id",
+          "kind_id",
+          "revision",
+          "snapshot"
+        ],
+        "properties": {
+          "basis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "component_id": {
+            "type": "string"
+          },
+          "kind_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "description": "Exact decimal revision; not a JavaScript floating-point number."
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/TwitterSnapshot"
+          }
+        }
+      },
+      "TwitterReferenceKind": {
+        "type": "string",
+        "enum": [
+          "reply_to",
+          "quote",
+          "repost"
+        ]
+      },
+      "TwitterRemotePreview": {
+        "type": "object",
+        "properties": {
+          "claims": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitterMediaClaims"
+              }
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "TwitterSelectedRepresentation": {
+        "type": "object",
+        "properties": {
+          "claims": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitterMediaClaims"
+              }
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "TwitterSnapshot": {
+        "type": "object",
+        "description": "Submitted observations, never independently verified remote facts.\n`None` means not acquired; `Some(\"\")` and `Some(vec![])` retain observed emptiness.",
+        "properties": {
+          "author": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitterAuthorObservation"
+              }
+            ]
+          },
+          "hashtags": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "issues": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TwitterCaptureIssue"
+            }
+          },
+          "observed_at_unix_ms": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Producer's observation time, Unix milliseconds; not backend acceptance time."
+          },
+          "occurrence": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitterMediaOccurrence"
+              }
+            ]
+          },
+          "page_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "post_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preview": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitterRemotePreview"
+              }
+            ]
+          },
+          "published_at_unix_ms": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Producer-reported post publication time, Unix milliseconds; never inferred."
+          },
+          "references": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TwitterProviderReference"
+            }
+          },
+          "representation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitterSelectedRepresentation"
+              }
+            ]
+          },
+          "requested_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The producer's requested URL, which need not be the subject post page."
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "TwitterView": {
+        "type": "object",
+        "required": [
+          "record",
+          "applicability"
+        ],
+        "properties": {
+          "applicability": {
+            "$ref": "#/components/schemas/TwitterApplicability"
+          },
+          "record": {
+            "$ref": "#/components/schemas/TwitterRecord"
           }
         }
       },

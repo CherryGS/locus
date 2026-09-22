@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { externalLinkHandler } from "../src/main/external-links.ts"
+import { externalLinkHandler, openExternalLink } from "../src/main/external-links.ts"
 
 test("web links go to the supplied browser opener without creating an Electron window", () => {
   const opened = []
@@ -17,4 +17,14 @@ test("captured links cannot invoke OS protocols, local files or credential-beari
     assert.deepEqual(handle({ url }), { action: "deny" })
   }
   assert.deepEqual(opened, [])
+})
+
+test("explicit native web action reports exact target and observed handoff outcome", async () => {
+  const calls=[]
+  const open=async url=>{calls.push(url)}
+  assert.deepEqual(await openExternalLink("https://x.com/post",open),{url:"https://x.com/post",status:"handed_off"})
+  for(const url of ["file:///secret", "javascript:alert(1)", "https://user:pass@x.com", "bad", null])
+    assert.equal((await openExternalLink(url,open)).status,"failed")
+  assert.equal(calls.length,1)
+  assert.equal((await openExternalLink("https://x.com/post",async()=>{throw Error("rejected")})).status,"failed")
 })

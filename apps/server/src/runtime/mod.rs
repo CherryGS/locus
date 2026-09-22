@@ -9,6 +9,7 @@ mod preferences;
 mod registry;
 mod server;
 mod submissions;
+mod twitter;
 
 pub use bootstrap::{Bootstrap, Ready};
 pub use registry::ServerConfig;

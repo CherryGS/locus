@@ -81,7 +81,7 @@ export function EntityContent({
       ) : viewId === "twitter.read" && twitter ? (
         <ScrollArea className="min-h-0 flex-1">
           <div className="p-6">
-            <TwitterPost component={twitter} />
+            <TwitterPost key={`${entity.id}:${twitter.id}`} component={twitter} onReread={live ? () => void live.reader.reread(entity.id) : undefined} />
           </div>
         </ScrollArea>
       ) : viewId === "file.info" && file ? (

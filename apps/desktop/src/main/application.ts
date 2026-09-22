@@ -12,7 +12,7 @@ import {
 import { randomUUID } from "node:crypto"
 import { join } from "node:path"
 import type { ChildProcessWithoutNullStreams } from "node:child_process"
-import { externalLinkHandler } from "./external-links"
+import { externalLinkHandler, openExternalLink } from "./external-links"
 import { authorizedHeaders, isRendererPage, rendererPermission } from "./authorization"
 import { launchBackend, drainBackend, type Backend } from "./backend"
 import { CloseGate } from "./close-gate"
@@ -26,6 +26,7 @@ import {
 } from "../shared/desktop-bridge"
 
 export function startDesktop() {
+  const openWeb = (url: string) => shell.openExternal(url)
   app.setName("Locus")
   nativeTheme.themeSource = "dark"
   Menu.setApplicationMenu(null)
@@ -189,6 +190,10 @@ export function startDesktop() {
   }
 
   let selectingFiles = false
+  ipcMain.handle(channels.openExternalLink, async (event, url: unknown) => {
+    sender(event)
+    return openExternalLink(url, openWeb)
+  })
   ipcMain.handle(channels.selectImportFiles, async (event) => {
     sender(event)
     if (
@@ -294,7 +299,7 @@ export function startDesktop() {
     window.once("ready-to-show", () => {
       if (process.env.LOCUS_DESKTOP_HIDDEN !== "1") window?.show()
     })
-    window.webContents.setWindowOpenHandler(externalLinkHandler((url) => shell.openExternal(url)))
+    window.webContents.setWindowOpenHandler(externalLinkHandler(openWeb))
     window.webContents.on("will-navigate", (event, url) => {
       if (!backend || !isRendererPage(url, backend.origin)) event.preventDefault()
     })

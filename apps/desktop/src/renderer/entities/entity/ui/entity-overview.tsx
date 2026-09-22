@@ -101,6 +101,20 @@ export function EntityOverview({
           </Button>
         )}
       </div>
+      {entity.components.filter(c => c.kind === "twitter" && c.record).map(component => component.kind === "twitter" && (
+        <DetailSection key={component.id} title="Twitter association">
+          <p className="text-xs text-muted-foreground">{component.record?.basis ? `This capture was associated with File ${component.record.basis}.` : "This saved capture has no local File association."}</p>
+          {component.record?.basis && component.applicability?.status === "input" && (
+            <p className="text-xs text-muted-foreground">
+              {component.applicability.comparison.status === "matching"
+                ? "The current File identity matches the saved association."
+                : component.applicability.comparison.status === "changed"
+                  ? "A different File is currently attached."
+                  : "No current File is available for this association."}
+            </p>
+          )}
+        </DetailSection>
+      ))}
       {viewSelection && (
         <>
           <Separator />

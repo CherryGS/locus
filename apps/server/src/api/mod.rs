@@ -13,6 +13,7 @@ mod request;
 pub(crate) mod routes;
 pub(crate) mod store;
 pub mod task;
+pub mod twitter;
 
 pub use crate::runtime::{Bootstrap, Ready, Server, ServerConfig};
 pub use core::dto::*;
@@ -23,5 +24,6 @@ pub use media::dto::*;
 pub use preferences::dto::*;
 pub use routes::openapi;
 pub use task::dto::*;
+pub use twitter::dto::*;
 
 pub mod imports;

@@ -48,6 +48,8 @@ export type EntityComponent = Observation &
     | {
         kind: "twitter"
         id: string
+        record?: Wire<"TwitterRecord">
+        applicability?: Wire<"TwitterApplicability">
         postId?: string
         postUrl?: string
         text?: string

@@ -1,7 +1,7 @@
 import { ApiFailure, errorText, type BackendApi, type Wire } from "@/shared/api"
 import type { EntityItem } from "./entity-item"
 import type { IdentitySequence } from "./identity-sequence"
-import { fileProjection, mediaProblems, mediaProjection, membershipProjection } from "./live-projection"
+import { fileProjection, mediaProblems, mediaProjection, membershipProjection, twitterProjection, twitterProblems } from "./live-projection"
 import type { ReadProblem } from "./read-problem"
 
 type Entry = {
@@ -15,7 +15,7 @@ type Entry = {
   membershipObserved: boolean
   epoch: number
 }
-type ReadApi = Pick<BackendApi, "identities" | "memberships" | "file" | "media"> &
+type ReadApi = Pick<BackendApi, "identities" | "memberships" | "file" | "media" | "twitter"> &
   Partial<Pick<BackendApi, "previewBytes">>
 
 export class EntityReader {
@@ -303,13 +303,17 @@ export class EntityReader {
               const value =
                 component.kind === "file"
                   ? await this.api.file(component.id)
-                  : await this.api.media(component.kind as "image" | "video", component.id)
+                  : component.kind === "twitter"
+                    ? await this.api.twitter(component.id)
+                    : await this.api.media(component.kind as "image" | "video", component.id)
               if (this.entries.get(id) !== entry) return
               let next =
                 "file_id" in value
                   ? fileProjection(value)
-                  : { ...mediaProjection(value), kindId: component.kindId }
-              if (next.id !== component.id || next.kind !== component.kind)
+                  : "snapshot" in value.record
+                    ? twitterProjection(value as Wire<"TwitterView">)
+                    : { ...mediaProjection(value as Wire<"MediaView">), kindId: component.kindId }
+              if (next.id !== component.id || next.kind !== component.kind || (next.kindId && next.kindId !== component.kindId))
                 throw new Error("The record result did not match the requested Component.")
               if (next.kind === "video") {
                 if (next.applicability?.status === "error" && component.kind === "video")
@@ -329,7 +333,7 @@ export class EntityReader {
                 `${component.id}:`,
                 "file_id" in value
                   ? []
-                  : mediaProblems(value).map((p) => ({ ...p, key: `${component.id}:${p.key}` })),
+                  : ("snapshot" in value.record ? twitterProblems(value as Wire<"TwitterView">, id) : mediaProblems(value as Wire<"MediaView">)).map((p) => ({ ...p, key: `${component.id}:${p.key}` })),
               )
               if (
                 (next.kind === "image" || next.kind === "video") &&
@@ -390,6 +394,7 @@ export class EntityReader {
               const absent =
                 error instanceof ApiFailure &&
                 (error.detail.code === "missing_file" ||
+                  (error.detail.diagnostic?.owner === "twitter" && error.detail.diagnostic.error.code === "missing_record") ||
                   (error.detail.diagnostic?.owner === "media" &&
                     error.detail.diagnostic.error.code === "missing_record"))
               if (absent && component.kind === "video") this.observeVideoInput?.(id)

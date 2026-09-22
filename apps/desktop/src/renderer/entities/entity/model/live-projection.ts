@@ -9,10 +9,11 @@ export const supportedKinds = {
   "9fd73d3d-d35d-41bc-8b73-402e12f5c017": "file",
   "aadf84d2-0dc0-4a81-8cdb-901162c78321": "image",
   "f4be9375-60f1-4d04-8f07-8c9ad765e230": "video",
+  "88ace9d7-8f02-4cc6-8f5b-add4dc6faf51": "twitter",
 } as const
 export function membershipProjection(membership: Wire<"Membership">): EntityComponent {
   const kind =
-    (supportedKinds as Record<string, "file" | "image" | "video" | undefined>)[membership.kind_id] ?? "unknown"
+    (supportedKinds as Record<string, "file" | "image" | "video" | "twitter" | undefined>)[membership.kind_id] ?? "unknown"
   return {
     id: membership.component_id,
     kind,
@@ -78,5 +79,48 @@ export function mediaProblems(view: Wire<"MediaView">): ReadProblem[] {
   if (context.status === "error") add("input", diagnosticText(context.diagnostic))
   if (context.status === "incomplete" && context.current.status !== "file")
     add("input", `Current File input is unavailable (${context.current.status.replaceAll("_", " ")}).`)
+  return problems
+}
+
+// Retain the complete wire snapshot as well as the small card/reading projection.
+// A successful reread replaces this object, so absent fields cannot inherit old values.
+export function twitterProjection(value: Wire<"TwitterView">): EntityComponent {
+  const { record, applicability } = value
+  const s = record.snapshot
+  const time = (value: string | null | undefined) => {
+    if (value == null) return undefined
+    const date = new Date(Number(value))
+    return Number.isNaN(date.valueOf()) ? undefined : date.toISOString()
+  }
+  return {
+    kind: "twitter", id: record.component_id, kindId: record.kind_id, readStatus: "ready",
+    record, applicability, postId: s.post_id ?? undefined, postUrl: s.page_url ?? undefined,
+    text: s.text ?? undefined,
+    author: s.author ? { displayName: s.author.display_name ?? undefined, handle: s.author.handle ?? undefined,
+      userId: s.author.user_id ?? undefined, profileUrl: s.author.profile_url ?? undefined } : undefined,
+    publishedAt: time(s.published_at_unix_ms), capturedAt: time(s.observed_at_unix_ms),
+    sourceOrder: s.occurrence?.source_order ?? undefined, altText: s.occurrence?.alt_text ?? undefined,
+    references: s.references?.map(r => ({ kind: r.kind === "reply_to" ? "reply" : r.kind,
+      postId: r.post_id ?? undefined, url: r.page_url ?? undefined })) ?? undefined,
+  }
+}
+export function twitterProblems(view: Wire<"TwitterView">, entityId: string): ReadProblem[] {
+  const problems: ReadProblem[] = []
+  const subject = `Twitter ${view.record.component_id}`
+  const add = (key: string, message: string) => problems.push({ key, subject, message, recovery: "entity" })
+  for (const [index, issue] of (view.record.snapshot.issues ?? []).entries())
+    add(`capture:${index}`, `Producer reported ${issue.portion.replaceAll("_", " ")}: ${issue.message ?? issue.code} (${issue.code}).`)
+  const context = view.applicability
+  if (context.status === "error") add("context", diagnosticText({ owner: "twitter", error: context.error }))
+  if (context.status === "unmounted" && view.record.basis)
+    add("association", "The saved Twitter association has no current hosting Entity.")
+  if (context.status === "input") {
+    if (context.host !== entityId) add("host", `The observed Twitter host is Entity ${context.host}; reread this Entity's memberships.`)
+    const comparison = context.comparison
+    if (comparison.status === "changed") add("association", `The saved capture is associated with File ${comparison.basis}; current input is File ${comparison.current}.`)
+    if (comparison.status === "incomplete" && comparison.basis && comparison.current.status !== "file")
+      add("association", `The saved Twitter association has no current File input (${comparison.current.status.replaceAll("_", " ")}).`)
+    if (context.file_error) add("file", `Current File: ${context.file_error.message} (${context.file_error.kind}).`)
+  }
   return problems
 }

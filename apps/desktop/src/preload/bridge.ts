@@ -9,6 +9,7 @@ import {
 } from "../shared/desktop-bridge"
 
 const bridge: DesktopBridge = Object.freeze({
+  openExternalLink: (url: string) => ipcRenderer.invoke(channels.openExternalLink, url),
   selectImportFiles: () => ipcRenderer.invoke(channels.selectImportFiles),
   state: () => ipcRenderer.invoke(channels.state),
   ready: () => ipcRenderer.invoke(channels.ready),

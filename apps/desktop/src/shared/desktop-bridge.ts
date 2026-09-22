@@ -20,7 +20,10 @@ export type CloseCommit = { attemptId: string; revision: number }
 export type LocalFileSelection =
   { status: "selected"; paths: string[] } | { status: "canceled" } | { status: "failed"; message: string }
 
+export type ExternalLinkResult = { url: string; status: "handed_off" | "failed"; message?: string }
+
 export interface DesktopBridge {
+  openExternalLink(url: string): Promise<ExternalLinkResult>
   selectImportFiles(): Promise<LocalFileSelection>
   state(): Promise<DesktopState>
   ready(): Promise<void>
@@ -31,6 +34,7 @@ export interface DesktopBridge {
 }
 
 export const desktopChannels = {
+  openExternalLink: "locus:open-external-link",
   selectImportFiles: "locus:select-import-files",
   state: "locus:state",
   ready: "locus:renderer-ready",

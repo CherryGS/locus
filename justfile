@@ -177,3 +177,14 @@ desktop-shared-tasks:
 # Real Video transfer, playback and native lifecycle with owned synthetic inputs.
 desktop-video-test: server-build desktop-build
     npm --prefix apps/desktop run verify:video
+
+# Offline provider-owned snapshots; refuses an existing metadata database.
+server-twitter-fixture root video="":
+    cargo run --package locus-server --example twitter-reading-fixture --locked -- '{{ replace(root, "'", "''") }}' '{{ replace(video, "'", "''") }}'
+
+# Real saved captures and actual host/preload link results, with a test-owned opener.
+desktop-twitter-browser: server-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:twitter-browser
+
+desktop-twitter-native: server-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:twitter-native

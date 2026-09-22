@@ -5,6 +5,7 @@ use locus_file::api::{FileOwner, FileService};
 use locus_media::api::{ImageOwner, MediaConfig, MediaService, VideoOwner};
 use locus_store::api::TaskDatabase;
 use locus_task::api::TaskQueue;
+use locus_twitter::api::{TwitterOwner, TwitterService};
 use std::{path::Path, sync::Arc};
 
 #[derive(Clone)]
@@ -13,6 +14,7 @@ pub(crate) struct Domain {
     pub kernel: Kernel,
     pub files: FileService,
     pub media: MediaService,
+    pub twitter: TwitterService,
     pub preferences: PreferenceService,
 }
 impl Domain {
@@ -27,6 +29,7 @@ impl Domain {
         kernel.register(Arc::new(FileOwner))?;
         kernel.register(Arc::new(ImageOwner))?;
         kernel.register(Arc::new(VideoOwner))?;
+        kernel.register(Arc::new(TwitterOwner))?;
         let mut config = MediaConfig::default();
         if let Some(path) = std::env::var_os("LOCUS_FFPROBE") {
             config.ffprobe = path.into();
@@ -41,6 +44,7 @@ impl Domain {
             kernel,
             files,
             media,
+            twitter: TwitterService::new(),
             preferences,
         };
         let init = domain.clone();
@@ -50,6 +54,7 @@ impl Domain {
                 init.kernel.initialize(&mut session).await?;
                 init.files.initialize(&mut session).await?;
                 init.media.initialize(&mut session).await?;
+                init.twitter.initialize(&mut session).await?;
                 init.preferences.initialize(&mut session).await?;
                 Ok::<_, anyhow::Error>(())
             })?

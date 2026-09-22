@@ -421,6 +421,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/twitter/{component_id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view_twitter"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -544,6 +560,10 @@ export interface components {
             error: components["schemas"]["MediaFailure"];
             /** @enum {string} */
             owner: "media";
+        } | {
+            error: components["schemas"]["TwitterFailure"];
+            /** @enum {string} */
+            owner: "twitter";
         } | {
             error: components["schemas"]["PreferenceFailure"];
             /** @enum {string} */
@@ -990,6 +1010,160 @@ export interface components {
             revision: string;
             run_id: string;
             tasks: components["schemas"]["PublicTask"][];
+        };
+        TwitterApplicability: {
+            /** @enum {string} */
+            status: "unmounted";
+        } | {
+            comparison: components["schemas"]["TwitterComparison"];
+            file_error?: null | components["schemas"]["Diagnostic"];
+            host: string;
+            /** @enum {string} */
+            status: "input";
+        } | {
+            error: components["schemas"]["TwitterFailure"];
+            /** @enum {string} */
+            status: "error";
+        };
+        TwitterAuthorObservation: {
+            display_name?: string | null;
+            handle?: string | null;
+            profile_url?: string | null;
+            user_id?: string | null;
+        };
+        /** @description A producer-reported failure/unavailability, not a backend diagnosis. */
+        TwitterCaptureIssue: {
+            code: string;
+            message?: string | null;
+            portion: components["schemas"]["TwitterCapturePortion"];
+        };
+        /** @enum {string} */
+        TwitterCapturePortion: "post_text" | "author" | "publication_time" | "hashtags" | "references" | "media_occurrence" | "selected_representation" | "remote_preview";
+        TwitterComparison: {
+            file_id: string;
+            /** @enum {string} */
+            status: "matching";
+        } | {
+            basis: string;
+            current: string;
+            /** @enum {string} */
+            status: "changed";
+        } | {
+            basis?: string | null;
+            current: components["schemas"]["CurrentInput"];
+            /** @enum {string} */
+            status: "incomplete";
+        };
+        TwitterFailure: {
+            /** @enum {string} */
+            code: "core";
+            error: components["schemas"]["CoreFailure"];
+        } | {
+            /** @enum {string} */
+            code: "file";
+            diagnostic: components["schemas"]["Diagnostic"];
+        } | {
+            /** @enum {string} */
+            code: "store";
+            diagnostic: components["schemas"]["Diagnostic"];
+        } | {
+            /** @enum {string} */
+            code: "missing_record";
+            component_id: string;
+        } | {
+            /** @enum {string} */
+            code: "corrupt";
+            message: string;
+        } | {
+            /** @enum {string} */
+            code: "payload_version";
+            /** Format: int32 */
+            version: number;
+        } | {
+            /** @enum {string} */
+            code: "schema_version";
+            /** Format: int32 */
+            version: number;
+        } | {
+            /** @enum {string} */
+            code: "other";
+            message: string;
+        };
+        /** @description Claims remain scoped to the group containing them; no intrinsic facts are written. */
+        TwitterMediaClaims: {
+            bitrate_bps?: string | null;
+            duration_ms?: string | null;
+            /** Format: int32 */
+            height?: number | null;
+            mime_type?: string | null;
+            quality?: string | null;
+            /** Format: int32 */
+            width?: number | null;
+        };
+        /** @enum {string} */
+        TwitterMediaLabel: "photo" | "video" | "animated_image";
+        TwitterMediaOccurrence: {
+            alt_text?: string | null;
+            /** @description Producer-local identifier, never promoted into a platform media ID. */
+            capture_local_id?: string | null;
+            claims?: null | components["schemas"]["TwitterMediaClaims"];
+            label?: null | components["schemas"]["TwitterMediaLabel"];
+            media_id?: string | null;
+            /**
+             * Format: int32
+             * @description Explicitly observed zero-based source order, never inferred from array position.
+             */
+            source_order?: number | null;
+        };
+        TwitterProviderReference: {
+            kind: components["schemas"]["TwitterReferenceKind"];
+            page_url?: string | null;
+            post_id?: string | null;
+        };
+        TwitterRecord: {
+            basis?: string | null;
+            component_id: string;
+            kind_id: string;
+            /** @description Exact decimal revision; not a JavaScript floating-point number. */
+            revision: string;
+            snapshot: components["schemas"]["TwitterSnapshot"];
+        };
+        /** @enum {string} */
+        TwitterReferenceKind: "reply_to" | "quote" | "repost";
+        TwitterRemotePreview: {
+            claims?: null | components["schemas"]["TwitterMediaClaims"];
+            description?: string | null;
+            url?: string | null;
+        };
+        TwitterSelectedRepresentation: {
+            claims?: null | components["schemas"]["TwitterMediaClaims"];
+            url?: string | null;
+        };
+        /**
+         * @description Submitted observations, never independently verified remote facts.
+         *     `None` means not acquired; `Some("")` and `Some(vec![])` retain observed emptiness.
+         */
+        TwitterSnapshot: {
+            author?: null | components["schemas"]["TwitterAuthorObservation"];
+            hashtags?: string[] | null;
+            issues?: components["schemas"]["TwitterCaptureIssue"][] | null;
+            /** @description Producer's observation time, Unix milliseconds; not backend acceptance time. */
+            observed_at_unix_ms?: string | null;
+            occurrence?: null | components["schemas"]["TwitterMediaOccurrence"];
+            page_url?: string | null;
+            post_id?: string | null;
+            preview?: null | components["schemas"]["TwitterRemotePreview"];
+            /** @description Producer-reported post publication time, Unix milliseconds; never inferred. */
+            published_at_unix_ms?: string | null;
+            references?: components["schemas"]["TwitterProviderReference"][] | null;
+            representation?: null | components["schemas"]["TwitterSelectedRepresentation"];
+            /** @description The producer's requested URL, which need not be the subject post page. */
+            requested_url?: string | null;
+            text?: string | null;
+        };
+        TwitterView: {
+            applicability: components["schemas"]["TwitterApplicability"];
+            record: components["schemas"]["TwitterRecord"];
         };
         UpdateViewPreference: {
             /**
@@ -3773,6 +3947,93 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    view_twitter: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                component_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TwitterView"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

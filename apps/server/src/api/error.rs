@@ -103,10 +103,25 @@ pub struct Diagnostic {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(tag = "owner", rename_all = "snake_case")]
 pub enum DomainDiagnostic {
-    Core { error: CoreFailure },
-    File { diagnostic: Diagnostic },
-    Media { error: MediaFailure },
-    Preferences { error: PreferenceFailure },
-    Store { diagnostic: Diagnostic },
-    Executor { message: String },
+    Core {
+        error: CoreFailure,
+    },
+    File {
+        diagnostic: Diagnostic,
+    },
+    Media {
+        error: MediaFailure,
+    },
+    Twitter {
+        error: super::twitter::dto::TwitterFailure,
+    },
+    Preferences {
+        error: PreferenceFailure,
+    },
+    Store {
+        diagnostic: Diagnostic,
+    },
+    Executor {
+        message: String,
+    },
 }
