@@ -12,13 +12,12 @@ pub(crate) fn registry() -> Result<Registry, locus_settings::api::SettingsError>
 pub(crate) async fn prepare(
     queue: &TaskQueue,
     database: &TaskDatabase,
-) -> anyhow::Result<(SettingsService, MediaConfig, MediaSettingsRuntime)> {
-    let settings = SettingsService::new(registry()?);
+    settings: &SettingsService,
+) -> anyhow::Result<(MediaConfig, MediaSettingsRuntime)> {
     let service = settings.clone();
     let database = database.clone();
     let saved=queue.submit("Prepare Media settings",move |task| async move {
         let mut session=database.session(&task).await?;
-        service.initialize_schema(&mut session).await?;
         let observation=match service.initialize(&mut session,MEDIA_TOOL_PATHS).await? {
             WriteOutcome::Saved(saved)=>Observation::Current { saved },
             WriteOutcome::Existing(value)=>value,
@@ -31,7 +30,7 @@ pub(crate) async fn prepare(
             },
             value=>value,
         };
-        match observation { Observation::Current { saved }=>Ok(saved), value=>anyhow::bail!("Media saved settings unavailable: {value:?}") }
+        match observation { Observation::Current { saved }=>Ok(saved), value=>anyhow::bail!("{}", unavailable(value)) }
     })?.result().await??;
     let paths: MediaToolPaths = serde_json::from_value(saved.value.clone())?;
     let ffprobe = effective("LOCUS_FFPROBE", paths.ffprobe)?;
@@ -46,7 +45,7 @@ pub(crate) async fn prepare(
         ffprobe,
         ffmpeg,
     };
-    Ok((settings, config, runtime))
+    Ok((config, runtime))
 }
 fn effective(variable: &str, saved: String) -> anyhow::Result<EffectiveToolPath> {
     match std::env::var_os(variable) {
@@ -60,5 +59,25 @@ fn effective(variable: &str, saved: String) -> anyhow::Result<EffectiveToolPath>
             path: saved,
             environment: None,
         }),
+    }
+}
+
+fn unavailable(value: Observation) -> String {
+    match value {
+        Observation::Corrupt { message, .. } | Observation::Invalid { message, .. } => {
+            format!("Saved Media settings are invalid: {message}")
+        }
+        Observation::Unsupported { metadata, .. } => format!(
+            "Saved Media settings version {} is unsupported by this application",
+            metadata.version
+        ),
+        Observation::Unavailable { .. } => {
+            "The saved Media settings definition is unavailable".into()
+        }
+        Observation::Absent { .. } => "Saved Media settings were not initialized".into(),
+        Observation::ConversionRequired { .. } => {
+            "Saved Media settings require conversion before Media can start".into()
+        }
+        Observation::Current { .. } => "Media settings preparation failed".into(),
     }
 }

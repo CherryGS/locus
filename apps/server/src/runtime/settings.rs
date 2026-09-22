@@ -18,8 +18,13 @@ impl Shared {
     }
     pub async fn media_settings_runtime(
         self: &Arc<Self>,
-    ) -> Result<MediaSettingsRuntime, ApiError> {
-        let value = self.domain.media_settings.clone();
+    ) -> Result<MediaRuntimeObservation, ApiError> {
+        let value = match &self.domain {
+            Some(domain) => MediaRuntimeObservation::Active {
+                runtime: domain.media_settings.clone(),
+            },
+            None => MediaRuntimeObservation::Unavailable,
+        };
         self.query(
             "Media runtime configuration",
             move |_| async move { Ok(value) },
@@ -30,7 +35,7 @@ impl Shared {
         self: &Arc<Self>,
         id: GroupId,
     ) -> Result<SettingsObservation, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.library.clone();
         self.query("Read settings", move |task| async move {
             let mut session = domain
                 .database
@@ -51,7 +56,7 @@ impl Shared {
         id: GroupId,
         input: ChangeSettings,
     ) -> Result<MutationOutcome, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.library.clone();
         self.mutation(
             input.request_id.clone(),
             Arguments::Settings {

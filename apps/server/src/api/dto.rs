@@ -106,7 +106,14 @@ pub enum AdmissionState {
     Drained,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum Availability {
+    Normal,
+    Restricted { message: String },
+}
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 pub struct ServerStatus {
+    pub availability: Availability,
     pub run_id: String,
     pub admission: AdmissionState,
     /// Includes private direct-response work until actual queue completion.

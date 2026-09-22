@@ -20,7 +20,7 @@ async fn entity_enumeration_releases_db_before_unconsumed_http_body_and_retains_
     use tower::ServiceExt;
     let (_root, server) = app().await;
     // Create directly inside a coordinated stage, with no mutation receipt.
-    let domain = server.state.domain.clone();
+    let domain = server.state.business().unwrap().clone();
     server
         .state
         .query("fixture", move |task| async move {
@@ -30,7 +30,7 @@ async fn entity_enumeration_releases_db_before_unconsumed_http_body_and_retains_
         })
         .await
         .unwrap();
-    let database = server.state.domain.database.clone();
+    let database = server.state.library.database.clone();
     let (locked_tx, locked_rx) = oneshot::channel();
     let (release_tx, release_rx) = oneshot::channel();
     let holder = server
@@ -142,7 +142,7 @@ async fn duplicate_claim_conflict_and_recovery_retain_one_real_copy() {
     assert_eq!(server.state.lock().tasks.len(), 1);
     assert_eq!(std::fs::read(&source).unwrap(), b"retained original");
     assert_eq!(
-        std::fs::read(server.state.domain.files.root().join(file.relative_path)).unwrap(),
+        std::fs::read(server.state.library.files.root().join(file.relative_path)).unwrap(),
         b"retained original"
     );
     server.state.close();
@@ -244,7 +244,7 @@ async fn read_uses_shared_database_gate_and_survives_handler_loss() {
         uuid::Uuid::parse_str(&file.file_id).unwrap().as_bytes(),
     )
     .unwrap();
-    let database = server.state.domain.database.clone();
+    let database = server.state.library.database.clone();
     let (locked_tx, locked_rx) = oneshot::channel();
     let (release_tx, release_rx) = oneshot::channel();
     let holder = server
@@ -318,7 +318,7 @@ async fn queued_public_import_remains_recoverable_during_drain() {
     let (root, server) = app().await;
     let source = root.path().join("queued-original");
     std::fs::write(&source, b"queued").unwrap();
-    let database = server.state.domain.database.clone();
+    let database = server.state.library.database.clone();
     let (locked_tx, locked_rx) = oneshot::channel();
     let (release_tx, release_rx) = oneshot::channel();
     let holder = server
@@ -439,7 +439,7 @@ async fn imports_continue_beyond_old_retention_cap_without_losing_prior_results(
 #[tokio::test(flavor = "multi_thread")]
 async fn lost_direct_mutation_is_pending_then_recovered_after_drain_and_launch_failure() {
     let (_root, server) = app().await;
-    let database = server.state.domain.database.clone();
+    let database = server.state.library.database.clone();
     let (locked_tx, locked_rx) = oneshot::channel();
     let (release_tx, release_rx) = oneshot::channel();
     let holder = server
@@ -613,7 +613,7 @@ async fn media_and_membership_recovery_retains_one_mutation_and_task_claim() {
 async fn mixed_entity_view_keeps_corrupt_entry_and_valid_other_kind() {
     use diesel_async::RunQueryDsl;
     let (_root, server) = app().await;
-    let domain = server.state.domain.clone();
+    let domain = server.state.business().unwrap().clone();
     let entity = server
         .state
         .queue

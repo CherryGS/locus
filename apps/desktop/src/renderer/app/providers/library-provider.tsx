@@ -1,15 +1,18 @@
+import { SettingsPanel } from "@/features/settings"
+import { Button } from "@/shared/ui/button"
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
 import { Spinner } from "@/shared/ui/spinner"
-import { openLibrarySession, type LibrarySession } from "./library-session"
+import { openLibrarySession, LibrarySession, type DesktopSession } from "./library-session"
 import { ClosePreparation } from "./close-preparation"
 
 const Context = createContext<LibrarySession | undefined>(undefined)
 export const useLibrarySession = () => useContext(Context)
-export const specimenMode = import.meta.env.DEV && new URLSearchParams(location.search).get("preview") === "specimens"
+export const specimenMode =
+  import.meta.env.DEV && new URLSearchParams(location.search).get("preview") === "specimens"
 export function LibraryProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<LibrarySession>()
+  const [session, setSession] = useState<DesktopSession>()
   const [error, setError] = useState<string>()
   useEffect(() => {
     if (specimenMode) return
@@ -32,7 +35,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         <Alert>
           <AlertTitle>Specimen preview</AlertTitle>
           <AlertDescription>
-            Example content and view choices are temporary. This preview does not open a library or save preferences.
+            Example content and view choices are temporary. This preview does not open a library or save
+            preferences.
           </AlertDescription>
         </Alert>
         {children}
@@ -47,6 +51,32 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           <EmptyDescription>{error ?? "Connecting to the desktop backend."}</EmptyDescription>
         </EmptyHeader>
       </Empty>
+    )
+  if (!(session instanceof LibrarySession))
+    return (
+      <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+        <header className="title-bar shrink-0 bg-sidebar">
+          <div className="title-bar-content px-4 text-xs text-muted-foreground">Locus · Settings repair</div>
+        </header>
+        <ClosePreparation session={session} />
+        <div className="min-h-0 flex-1">
+          <SettingsPanel
+            settings={session.settings}
+            restart={() => session.bridge.requestLifecycle("restart")}
+            restricted={
+              session.initial.connection.status === "ready" &&
+              session.initial.connection.availability?.status === "restricted"
+                ? session.initial.connection.availability.message
+                : "Required services unavailable"
+            }
+          />
+        </div>
+        <div className="shrink-0 px-6 py-3">
+          <Button variant="outline" onClick={() => void session.bridge.requestLifecycle("close")}>
+            Exit Locus
+          </Button>
+        </div>
+      </div>
     )
   return (
     <Context.Provider value={session}>

@@ -29,10 +29,10 @@ async fn settings_definitions(
 ) -> Result<Json<Vec<SettingsDefinition>>, ApiError> {
     state.settings_definitions().await.map(Json)
 }
-#[utoipa::path(tag="settings",get,path="/api/v1/settings/media-runtime",responses((status=200,body=MediaSettingsRuntime)))]
+#[utoipa::path(tag="settings",get,path="/api/v1/settings/media-runtime",responses((status=200,body=MediaRuntimeObservation)))]
 async fn settings_runtime(
     State(state): State<Arc<Shared>>,
-) -> Result<Json<MediaSettingsRuntime>, ApiError> {
+) -> Result<Json<MediaRuntimeObservation>, ApiError> {
     state.media_settings_runtime().await.map(Json)
 }
 #[utoipa::path(tag="settings",get,path="/api/v1/settings/groups/{group_id}",params(("group_id"=String,Path)),responses((status=200,body=SettingsObservation)))]

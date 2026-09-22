@@ -25,6 +25,7 @@ impl Shared {
         self: &Arc<Self>,
         request: BatchImportRequest,
     ) -> Result<Receipt, ApiError> {
+        let domain = self.business()?.clone();
         let state = self.clone();
         let id = request.request_id.clone();
         self.public(
@@ -42,7 +43,7 @@ impl Shared {
                 for item in ids {
                     state
                         .imports
-                        .execute(&state.domain, &task, &id, &item, Action::Original)
+                        .execute(&domain, &task, &id, &item, Action::Original)
                         .await;
                 }
                 state.imports.finish_batch(&id);
@@ -54,6 +55,7 @@ impl Shared {
         self: &Arc<Self>,
         request: ImportRecoveryRequest,
     ) -> Result<Receipt, ApiError> {
+        let domain = self.business()?.clone();
         let state = self.clone();
         let operation = request.clone();
         self.public(
@@ -64,7 +66,7 @@ impl Shared {
                 state
                     .imports
                     .execute(
-                        &state.domain,
+                        &domain,
                         &task,
                         &operation.batch_id,
                         &operation.item_id,

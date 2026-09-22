@@ -1,20 +1,49 @@
+import type { components } from "@locus/client"
+export type Availability = components["schemas"]["Availability"]
+export type LifecycleIntent = "close" | "restart"
+export type SettingsReadiness = { revision: number; draft: boolean; blocked?: string }
 export type Connection =
   | { status: "starting" }
-  | { status: "ready"; origin: string; runId: string }
+  | { status: "ready"; origin: string; runId: string; availability?: Availability }
   | { status: "failed" | "lost"; message: string }
 
 export type UnconfirmedChoice = { entityId: string; viewId: string; reason: string }
 export type CloseState =
   | { phase: "idle" }
-  | { phase: "preparing"; attemptId: string }
-  | { phase: "unconfirmed"; attemptId: string; revision: number; items: UnconfirmedChoice[] }
-  | { phase: "sealing"; attemptId: string; revision: number; continueExit: boolean }
-  | { phase: "draining"; attemptId: string; active?: string }
+  | { phase: "preparing"; attemptId: string; intent?: LifecycleIntent }
+  | {
+      phase: "unconfirmed"
+      attemptId: string
+      intent?: LifecycleIntent
+      settings?: SettingsReadiness
+      revision: number
+      items: UnconfirmedChoice[]
+    }
+  | {
+      phase: "sealing"
+      attemptId: string
+      intent?: LifecycleIntent
+      settings?: SettingsReadiness
+      revision: number
+      continueExit: boolean
+    }
+  | { phase: "draining"; attemptId: string; intent?: LifecycleIntent; active?: string }
 
 export type DesktopState = { connection: Connection; close: CloseState }
-export type Preparation = { attemptId: string; revision: number; items: UnconfirmedChoice[] }
-export type CloseAction = { attemptId: string; action: "return" | "continue"; revision?: number }
-export type CloseCommit = { attemptId: string; revision: number }
+export type Preparation = {
+  attemptId: string
+  intent?: LifecycleIntent
+  settings?: SettingsReadiness
+  revision: number
+  items: UnconfirmedChoice[]
+}
+export type CloseAction = {
+  attemptId: string
+  action: "return" | "continue"
+  revision?: number
+  settingsRevision?: number
+}
+export type CloseCommit = { attemptId: string; revision: number; settingsRevision?: number }
 
 /** No credential, generic IPC, process or filesystem capability crosses this seam. */
 export type LocalFileSelection =
@@ -23,6 +52,7 @@ export type LocalFileSelection =
 export type ExternalLinkResult = { url: string; status: "handed_off" | "failed"; message?: string }
 
 export interface DesktopBridge {
+  requestLifecycle(intent: LifecycleIntent): Promise<void>
   openExternalLink(url: string): Promise<ExternalLinkResult>
   selectImportFiles(): Promise<LocalFileSelection>
   state(): Promise<DesktopState>
@@ -34,6 +64,7 @@ export interface DesktopBridge {
 }
 
 export const desktopChannels = {
+  lifecycle: "locus:lifecycle",
   openExternalLink: "locus:open-external-link",
   selectImportFiles: "locus:select-import-files",
   state: "locus:state",
@@ -53,10 +84,15 @@ export function isPreparation(value: unknown): value is Preparation {
     record(value) &&
     identity(value.attemptId) &&
     revision(value.revision) &&
+    (value.settings === undefined ||
+      (record(value.settings) &&
+        revision(value.settings.revision) &&
+        typeof value.settings.draft === "boolean" &&
+        (value.settings.blocked === undefined || typeof value.settings.blocked === "string"))) &&
     Array.isArray(value.items) &&
     value.items.every(
       (item) =>
-        record(item) && identity(item.entityId) && identity(item.viewId) && typeof item.reason === "string",
+        record(item) && identity(item.entityId) && identity(item.viewId) && typeof item.reason === "string"
     )
   )
 }
@@ -64,9 +100,17 @@ export function isCloseAction(value: unknown): value is CloseAction {
   return (
     record(value) &&
     identity(value.attemptId) &&
-    (value.action === "return" || (value.action === "continue" && revision(value.revision)))
+    (value.action === "return" ||
+      (value.action === "continue" &&
+        revision(value.revision) &&
+        (value.settingsRevision === undefined || revision(value.settingsRevision))))
   )
 }
 export function isCloseCommit(value: unknown): value is CloseCommit {
-  return record(value) && identity(value.attemptId) && revision(value.revision)
+  return (
+    record(value) &&
+    identity(value.attemptId) &&
+    revision(value.revision) &&
+    (value.settingsRevision === undefined || revision(value.settingsRevision))
+  )
 }

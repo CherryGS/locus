@@ -16,24 +16,19 @@ pub(crate) struct Domain {
     pub media: MediaService,
     pub twitter: TwitterService,
     pub preferences: PreferenceService,
-    pub settings: locus_settings::api::SettingsService,
     pub media_settings: crate::api::settings::dto::MediaSettingsRuntime,
 }
 impl Domain {
-    pub async fn open(queue: &TaskQueue, root: &Path) -> anyhow::Result<Self> {
-        let files = FileService::new(root)
-            .await
-            .context("open managed File root")?;
-        let database = TaskDatabase::open(queue, files.root().join("metadata.sqlite"))
-            .await
-            .context("open task-bound database")?;
+    pub async fn open(queue: &TaskQueue, library: &Library) -> anyhow::Result<Self> {
+        let files = library.files.clone();
+        let database = library.database.clone();
         let mut kernel = Kernel::new();
         kernel.register(Arc::new(FileOwner))?;
         kernel.register(Arc::new(ImageOwner))?;
         kernel.register(Arc::new(VideoOwner))?;
         kernel.register(Arc::new(TwitterOwner))?;
-        let (settings, config, media_settings) =
-            super::settings_setup::prepare(queue, &database).await?;
+        let (config, media_settings) =
+            super::settings_setup::prepare(queue, &database, &library.settings).await?;
         let media = MediaService::new(files.root(), config)?;
         let preferences = PreferenceService::new(kernel.clone());
         let domain = Self {
@@ -43,7 +38,6 @@ impl Domain {
             media,
             twitter: TwitterService::new(),
             preferences,
-            settings,
             media_settings,
         };
         let init = domain.clone();
@@ -60,5 +54,40 @@ impl Domain {
             .result()
             .await??;
         Ok(domain)
+    }
+}
+
+/// Minimal library capability remains usable when required business construction fails.
+#[derive(Clone)]
+pub(crate) struct Library {
+    pub database: TaskDatabase,
+    pub files: FileService,
+    pub settings: locus_settings::api::SettingsService,
+}
+impl Library {
+    pub async fn open(queue: &TaskQueue, root: &Path) -> anyhow::Result<Self> {
+        let files = FileService::new(root)
+            .await
+            .context("open managed File root")?;
+        let database = TaskDatabase::open(queue, files.root().join("metadata.sqlite"))
+            .await
+            .context("open task-bound database")?;
+        let settings =
+            locus_settings::api::SettingsService::new(super::settings_setup::registry()?);
+        let library = Self {
+            database,
+            files,
+            settings,
+        };
+        let init = library.clone();
+        queue
+            .submit("Initialize Settings access", move |task| async move {
+                let mut session = init.database.session(&task).await?;
+                init.settings.initialize_schema(&mut session).await?;
+                Ok::<_, anyhow::Error>(())
+            })?
+            .result()
+            .await??;
+        Ok(library)
     }
 }

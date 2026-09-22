@@ -6,7 +6,8 @@ app.commandLine.appendSwitch("disable-renderer-backgrounding")
 app.commandLine.appendSwitch("disable-backgrounding-occluded-windows")
 const childProcess = require("node:child_process")
 const { syncBuiltinESMExports } = require("node:module")
-const { writeFileSync } = require("node:fs")
+const { writeFileSync, appendFileSync, readFileSync } = require("node:fs")
+const { createHash } = require("node:crypto")
 globalThis.__desktopTest = {
   externalLinks: [],
   rejectExternal: true,
@@ -35,6 +36,10 @@ globalThis.fetch = async (...args) => {
   const response = await originalFetch(request)
   if (request.method === "POST" && new URL(request.url).pathname === "/api/v1/drain") {
     globalThis.__desktopTest.drainRequests++
+    if (process.env.LOCUS_TEST_RELAUNCH_LOG) {
+      const status = await response.clone().json()
+      appendFileSync(process.env.LOCUS_TEST_RELAUNCH_LOG, JSON.stringify({at:Date.now(),host:process.pid,event:"drain",active:status.active_operations,run:status.run_id}) + "\n")
+    }
     globalThis.__desktopTest.drainDeliveries.push({
       method: request.method,
       url: request.url,
@@ -70,6 +75,11 @@ childProcess.spawn = (...args) => {
 syncBuiltinESMExports()
 dialog.showMessageBox = async (_window, options) => {
   globalThis.__desktopTest.dialogs.push(options)
+  if (process.env.LOCUS_TEST_RETRY_BINARY && !globalThis.__desktopTest.retriedBinary) {
+    globalThis.__desktopTest.retriedBinary = true
+    process.env.LOCUS_SERVER_BINARY = process.env.LOCUS_TEST_RETRY_BINARY
+    return { response: 0, checkboxChecked: false }
+  }
   if (process.env.LOCUS_TEST_DIALOG_RESPONSE !== undefined) {
     if (process.env.LOCUS_TEST_DIALOG_LOG)
       writeFileSync(
@@ -94,3 +104,32 @@ if (process.env.LOCUS_TEST_EXTERNAL_LINKS === "1") {
   }
 }
 void import("../out/main/index.js")
+
+// Optional process-level restart evidence. Never write the bootstrap credential.
+if (process.env.LOCUS_TEST_RELAUNCH_LOG) {
+  const log = process.env.LOCUS_TEST_RELAUNCH_LOG
+  const emit = value => appendFileSync(log, JSON.stringify({ at: Date.now(), host: process.pid, ...value }) + "\n")
+  const alive = pid => { try { process.kill(pid, 0); return true } catch { return false } }
+  const prior = (() => { try { return readFileSync(log,"utf8").trim().split("\n").filter(Boolean).map(JSON.parse) } catch { return [] } })()
+  const replacement = process.argv.includes("--locus-require-existing")
+  const previous = prior.findLast(event => event.event === "ready")
+  emit({ event:"host-start", replacement, previousHostAlive: previous ? alive(previous.host) : undefined, previousBackendAlive: previous ? alive(previous.backend) : undefined })
+  const relaunch = app.relaunch.bind(app)
+  app.relaunch = options => { emit({ event:"relaunch", args:options.args }); return relaunch(options) }
+  app.on("quit", () => emit({event:"host-quit"}))
+  app.on("browser-window-created", (_event, window) => {
+    window.webContents.on("did-finish-load", async () => {
+      const test = globalThis.__desktopTest
+      const ready = test.ready, bootstrap = test.bootstrap, child = test.children.at(-1)
+      if (!ready || !bootstrap) return
+      child.once("exit", (code, signal) => emit({event:"backend-exit",backend:child.pid,code,signal}))
+      const read = async path => (await originalFetch(ready.origin+path,{headers:{Authorization:`Bearer ${bootstrap.credential}`,"X-Locus-Run":ready.run_id}})).json()
+      emit({event:"ready",backend:child.pid,run:ready.run_id,library:ready.library_root,availability:ready.availability,credentialDigest:createHash("sha256").update(bootstrap.credential).digest("hex"),runtime:await read("/api/v1/settings/media-runtime"),page:await window.webContents.executeJavaScript("({hash:location.hash,history:history.length,settingsFields:document.querySelectorAll('#media-ffprobe').length})")})
+      if (replacement || process.env.LOCUS_TEST_CLOSE_READY === "1") {
+        // The replacement is bounded and exits through its actual fresh renderer/host gate.
+        await window.webContents.executeJavaScript("window.locusDesktop.ready().then(()=>window.locusDesktop.requestLifecycle('close'))")
+      }
+    })
+  })
+  setTimeout(() => { emit({event:"test-deadline"}); for(const child of globalThis.__desktopTest.children) if(child.exitCode===null) child.kill(); app.exit(91) }, 90000).unref()
+}

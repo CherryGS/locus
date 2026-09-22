@@ -13,12 +13,16 @@ pub struct Bootstrap {
     pub credential: String,
     pub library_root: Option<PathBuf>,
     pub renderer_root: Option<PathBuf>,
+    #[serde(default)]
+    pub require_existing: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Ready {
     pub origin: String,
     pub run_id: String,
+    pub library_root: PathBuf,
+    pub availability: crate::api::dto::Availability,
 }
 
 impl Bootstrap {
@@ -39,6 +43,9 @@ impl Bootstrap {
         Ok(value)
     }
     pub fn into_config(self) -> anyhow::Result<super::registry::ServerConfig> {
+        if self.require_existing && self.library_root.is_none() {
+            bail!("Existing-library startup requires an explicit locator");
+        }
         let root = resolve_root(
             self.library_root,
             std::env::var_os("LOCUS_DATA_DIR"),
@@ -51,6 +58,7 @@ impl Bootstrap {
         )?;
         let mut config = super::registry::ServerConfig::new(self.credential, root);
         config.renderer_root = self.renderer_root;
+        config.require_existing = self.require_existing;
         Ok(config)
     }
 }

@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { Button } from "@/shared/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/shared/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/shared/ui/dialog"
 import { Spinner } from "@/shared/ui/spinner"
-import type { LibrarySession } from "./library-session"
+import type { DesktopSession } from "./library-session"
 
-export function ClosePreparation({ session }: { session: LibrarySession }) {
+export function ClosePreparation({ session }: { session: DesktopSession }) {
   const [state, setState] = useState(session.initial)
   const [failure, setFailure] = useState<string>()
   const current = useRef(state)
@@ -15,11 +22,14 @@ export function ClosePreparation({ session }: { session: LibrarySession }) {
     const receive = (next: typeof state) => {
       current.current = next
       setState(next)
-      if (next.connection.status === "lost" || next.connection.status === "failed")
+      if (next.connection.status === "lost" || next.connection.status === "failed") {
         session.preferences.lost(next.connection.message)
+        session.settings.lost(next.connection.message)
+      }
       if (next.close.phase === "idle") {
         generation.current++
         session.preferences.returnToApplication()
+        session.settings.returnToApplication()
       }
     }
     const stop = session.bridge.observe((next) => {
@@ -39,7 +49,10 @@ export function ClosePreparation({ session }: { session: LibrarySession }) {
     let disposed = false
     async function prepare() {
       const ticket = ++generation.current
-      const result = await session.preferences.prepare()
+      const [result, settings] = await Promise.all([
+        session.preferences.prepare(),
+        session.settings.prepare(),
+      ])
       const actual = current.current.close
       if (
         disposed ||
@@ -50,21 +63,33 @@ export function ClosePreparation({ session }: { session: LibrarySession }) {
       )
         return
       await session.bridge
-        .prepared({ attemptId, ...result })
+        .prepared({ attemptId, ...result, settings })
         .catch(() => setFailure("Close preparation could not reach the native host."))
     }
     if (close.phase === "sealing") {
-      if (session.preferences.seal(close.revision, close.continueExit)) {
-        void session.bridge.commitClose({ attemptId: close.attemptId, revision: close.revision }).catch(async () => {
-          setFailure("The close handoff could not be confirmed. Waiting for the host's actual close state.")
-          const before = current.current
-          const observed = await session.bridge.state().catch(() => undefined)
-          if (observed && current.current === before) {
-            current.current = observed
-            setState(observed)
-            if (observed.close.phase === "idle") session.preferences.returnToApplication()
-          }
-        })
+      const restart = close.intent === "restart"
+      const settingsRevision = close.settings?.revision
+      if (
+        settingsRevision !== undefined &&
+        session.settings.canSeal(settingsRevision, close.continueExit, restart) &&
+        session.preferences.seal(close.revision, !restart && close.continueExit) &&
+        session.settings.seal(settingsRevision, close.continueExit, restart)
+      ) {
+        void session.bridge
+          .commitClose({ attemptId: close.attemptId, revision: close.revision, settingsRevision })
+          .catch(async () => {
+            setFailure("The close handoff could not be confirmed. Waiting for the host's actual close state.")
+            const before = current.current
+            const observed = await session.bridge.state().catch(() => undefined)
+            if (observed && current.current === before) {
+              current.current = observed
+              setState(observed)
+              if (observed.close.phase === "idle") {
+                session.preferences.returnToApplication()
+                session.settings.returnToApplication()
+              }
+            }
+          })
       } else void prepare()
       return () => {
         disposed = true
@@ -73,12 +98,15 @@ export function ClosePreparation({ session }: { session: LibrarySession }) {
     void prepare()
     // A newer accepted intent/result invalidates earlier reports. Preparing
     // observes final choices even when their Entity is no longer mounted.
-    const stop = session.preferences.subscribe(() => {
+    const changed = () => {
       if (current.current.close.phase !== "sealing") void prepare()
-    })
+    }
+    const stop = session.preferences.subscribe(changed)
+    const stopSettings = session.settings.subscribe(changed)
     return () => {
       disposed = true
       stop()
+      stopSettings()
     }
   }, [session, state.close])
   const close = state.close
@@ -119,17 +147,30 @@ export function ClosePreparation({ session }: { session: LibrarySession }) {
                 ? "Finishing accepted work"
                 : close.phase === "unconfirmed"
                   ? "Some choices are not confirmed saved"
-                  : "Preparing to close"}
+                  : close.phase !== "idle" && close.intent === "restart"
+                    ? "Preparing to restart"
+                    : "Preparing to close"}
             </DialogTitle>
             <DialogDescription>
               {close.phase === "draining"
-                ? "Locus will close when the backend has finished all accepted operations."
-                : "Confirming the current view choices, including Entities you have left."}
+                ? close.intent === "restart"
+                  ? "Locus will restart into a fresh library session after all accepted work finishes."
+                  : "Locus will close when the backend has finished all accepted operations."
+                : "Confirming current view choices and Settings writes, including edits on pages you have left."}
             </DialogDescription>
           </DialogHeader>
           {failure && (
             <Alert variant="destructive">
               <AlertDescription>{failure}</AlertDescription>
+            </Alert>
+          )}
+          {close.phase === "unconfirmed" && (close.settings?.draft || close.settings?.blocked) && (
+            <Alert>
+              <AlertTitle>Media settings</AlertTitle>
+              <AlertDescription>
+                {close.settings.blocked ??
+                  "There are unsubmitted edits. Restart can discard this exact draft after your confirmation."}
+              </AlertDescription>
             </Alert>
           )}
           {close.phase === "unconfirmed" ? (
@@ -156,19 +197,21 @@ export function ClosePreparation({ session }: { session: LibrarySession }) {
               <Button variant="outline" onClick={returning}>
                 Return to Locus
               </Button>
-              {close.phase === "unconfirmed" && (
-                <Button
-                  onClick={() =>
-                    void session.bridge.closeAction({
-                      attemptId: close.attemptId,
-                      action: "continue",
-                      revision: close.revision,
-                    })
-                  }
-                >
-                  Continue closing
-                </Button>
-              )}
+              {close.phase === "unconfirmed" &&
+                (close.intent !== "restart" || (!close.items.length && !close.settings?.blocked)) && (
+                  <Button
+                    onClick={() =>
+                      void session.bridge.closeAction({
+                        attemptId: close.attemptId,
+                        action: "continue",
+                        revision: close.revision,
+                        settingsRevision: close.settings?.revision,
+                      })
+                    }
+                  >
+                    {close.intent === "restart" ? "Discard draft and restart" : "Continue closing"}
+                  </Button>
+                )}
             </DialogFooter>
           )}
         </DialogContent>

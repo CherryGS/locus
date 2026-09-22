@@ -160,7 +160,7 @@ async fn uncertain_combined_commit_confirms_candidates_but_missing_effect_never_
             .as_bytes(),
     )
     .unwrap();
-    let domain = server.state.domain.clone();
+    let domain = server.state.business().unwrap().clone();
     server
         .state
         .query("remove original Entity", move |task| async move {
@@ -416,7 +416,7 @@ async fn original_context_restored_externally_can_retry_preview_without_reinterp
         first(&server).current.kinds[0].interpretation,
         initial.current.kinds[0].interpretation
     );
-    let d = server.state.domain.clone();
+    let d = server.state.business().unwrap().clone();
     let original_for_change = original.clone();
     let replacement = server
         .state
@@ -463,7 +463,7 @@ async fn original_context_restored_externally_can_retry_preview_without_reinterp
         conflict.current.kinds[0].establishment.state,
         ImportStepState::Success
     );
-    let d = server.state.domain.clone();
+    let d = server.state.business().unwrap().clone();
     let restore = original.clone();
     server
         .state

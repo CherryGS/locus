@@ -12,7 +12,7 @@ use locus_file::api::FileId;
 use std::sync::Arc;
 impl Shared {
     pub fn import(self: &Arc<Self>, request: ImportRequest) -> Result<Receipt, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         let source = request.source_path.clone();
         self.public(
             request.request_id.clone(),
@@ -45,7 +45,7 @@ impl Shared {
         )
     }
     pub async fn read(self: &Arc<Self>, id: FileId) -> Result<FileMetadata, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         let receiver = self.direct("Read File metadata", move |task| async move {
             let mut session =
                 domain.database.session(&task).await.map_err(|error| {
@@ -69,7 +69,7 @@ impl Shared {
             .map_err(|error| ApiError::new(ErrorCode::OperationFailed, error.to_string()))?
     }
     pub async fn original(self: &Arc<Self>, id: FileId) -> Result<OpenedBytes, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.query("Open original bytes", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|e| {
                 ApiError::domain(DomainDiagnostic::Store {

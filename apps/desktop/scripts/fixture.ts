@@ -33,7 +33,7 @@ export async function startServer(library: string, renderer = join(desktop, "out
     }),
   ])
   lines.close()
-  const value = JSON.parse(String(line)) as { origin: string; run_id: string }
+  const value = JSON.parse(String(line)) as { origin: string; run_id: string; availability: import("../src/shared/desktop-bridge").Availability }
   const context = { origin: value.origin, runId: value.run_id }
   const authorizedFetch: typeof fetch = (input, init) => {
     const request = new Request(input, init)
@@ -48,7 +48,7 @@ export async function startServer(library: string, renderer = join(desktop, "out
     await client.POST("/api/v1/drain")
     await exited
   }
-  return { context, child, exited, client, authorizedFetch, stop }
+  return { context, availability: value.availability, child, exited, client, authorizedFetch, stop }
 }
 async function complete(client: LocusClient, taskId: string): Promise<TaskOutcome> {
   const deadline = AbortSignal.timeout(30_000)

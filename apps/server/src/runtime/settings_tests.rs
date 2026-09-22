@@ -137,7 +137,7 @@ async fn http_settings_auth_guards_recovery_invalid_metadata_and_saved_runtime_s
         http(&server, "POST", &path, bad, true, None).await.1["diagnostic"]["error"]["code"],
         "invalid"
     );
-    let domain = server.state.domain.clone();
+    let domain = server.state.business().unwrap().clone();
     server
         .state
         .query("corrupt fixture", move |task| async move {
@@ -173,7 +173,7 @@ async fn http_settings_auth_guards_recovery_invalid_metadata_and_saved_runtime_s
         .1,
         before
     );
-    let domain = server.state.domain.clone();
+    let domain = server.state.business().unwrap().clone();
     server
         .state
         .query("large version fixture", move |task| async move {
@@ -198,7 +198,7 @@ async fn http_settings_auth_guards_recovery_invalid_metadata_and_saved_runtime_s
     let large = http(&server, "GET", &path, Value::Null, true, None).await.1;
     assert_eq!(large["status"], "unsupported");
     assert_eq!(large["metadata"]["version"], "9223372036854775807");
-    let domain = server.state.domain.clone();
+    let domain = server.state.business().unwrap().clone();
     server
         .state
         .query("failed observation fixture", move |task| async move {
@@ -225,8 +225,14 @@ async fn http_settings_auth_guards_recovery_invalid_metadata_and_saved_runtime_s
 #[tokio::test(flavor = "multi_thread")]
 async fn settings_lost_handler_is_retained_and_accepted_work_drains() {
     let (_root, server) = app().await;
-    let captured = server.state.domain.media_settings.captured.clone();
-    let database = server.state.domain.database.clone();
+    let captured = server
+        .state
+        .business()
+        .unwrap()
+        .media_settings
+        .captured
+        .clone();
+    let database = server.state.library.database.clone();
     let (entered_tx, entered_rx) = tokio::sync::oneshot::channel();
     let (release_tx, release_rx) = tokio::sync::oneshot::channel();
     let holder = server
@@ -293,7 +299,7 @@ async fn settings_lost_handler_is_retained_and_accepted_work_drains() {
 #[tokio::test(flavor = "multi_thread")]
 async fn invalid_saved_settings_fail_first_load_without_default_repair() {
     let (root, server) = app().await;
-    let database = server.state.domain.database.clone();
+    let database = server.state.library.database.clone();
     server
         .state
         .query("corrupt fixture", move |task| async move {
@@ -317,9 +323,118 @@ async fn invalid_saved_settings_fail_first_load_without_default_repair() {
         "settings-test-credential-at-least-32-characters".into(),
         root.path().join("library"),
     );
-    assert!(Server::bind(config).await.is_err());
+    let repair = Server::bind(config).await.unwrap();
     assert!(matches!(
-        server.state.settings_read(MEDIA_TOOL_PATHS).await.unwrap(),
-        SettingsObservation::Invalid { .. }
+        repair.state.availability,
+        crate::api::dto::Availability::Restricted { .. }
     ));
+    assert!(repair.state.domain.is_none());
+    let path = format!("/api/v1/settings/groups/{MEDIA_TOOL_PATHS}");
+    let broken = http(&repair, "GET", &path, Value::Null, true, None).await.1;
+    assert_eq!(broken["status"], "invalid");
+    assert_eq!(
+        http(&repair, "GET", "/api/v1/entities", Value::Null, true, None)
+            .await
+            .0,
+        503
+    );
+    assert_eq!(
+        http(&repair, "GET", "/api/v1/events", Value::Null, true, None)
+            .await
+            .0,
+        503
+    );
+    assert_eq!(
+        http(
+            &repair,
+            "GET",
+            "/api/v1/settings/media-runtime",
+            Value::Null,
+            true,
+            None
+        )
+        .await
+        .1["status"],
+        "unavailable"
+    );
+    let reset = json!({"request_id":uuid::Uuid::now_v7().to_string(),"change":{"operation":"reset","expected_revision":broken["metadata"]["revision"]}});
+    let saved = http(&repair, "POST", &path, reset.clone(), true, None)
+        .await
+        .1;
+    assert_eq!(saved["status"], "settings_saved");
+    assert_eq!(
+        http(&repair, "POST", &path, reset, true, None).await.1,
+        saved
+    );
+    assert!(repair.state.domain.is_none());
+    repair.close_admission();
+    repair.state.wait_drained().await;
+    let normal = Server::bind(ServerConfig::new(
+        "settings-test-credential-at-least-32-characters".into(),
+        root.path().join("library"),
+    ))
+    .await
+    .unwrap();
+    assert!(matches!(
+        normal.state.availability,
+        crate::api::dto::Availability::Normal
+    ));
+    assert!(matches!(
+        normal.state.settings_read(MEDIA_TOOL_PATHS).await.unwrap(),
+        SettingsObservation::Current { .. }
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn existing_library_requirement_does_not_create_missing_database() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("missing");
+    let mut config = ServerConfig::new(
+        "settings-test-credential-at-least-32-characters".into(),
+        path.clone(),
+    );
+    config.require_existing = true;
+    assert!(Server::bind(config).await.is_err());
+    assert!(!path.exists());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn required_media_construction_failure_keeps_settings_and_same_queue_usable() {
+    let root = tempfile::tempdir().unwrap();
+    let library = root.path().join("library");
+    std::fs::create_dir_all(&library).unwrap();
+    std::fs::write(library.join("media-cache-v1"), b"test-owned blocking file").unwrap();
+    let server = Server::bind(ServerConfig::new(
+        "settings-test-credential-at-least-32-characters".into(),
+        library,
+    ))
+    .await
+    .unwrap();
+    assert!(matches!(
+        server.state.availability,
+        crate::api::dto::Availability::Restricted { .. }
+    ));
+    let current = server.state.settings_read(MEDIA_TOOL_PATHS).await.unwrap();
+    let SettingsObservation::Current { saved } = current else {
+        panic!("Settings remains readable")
+    };
+    assert!(matches!(
+        server
+            .state
+            .settings_change(
+                MEDIA_TOOL_PATHS,
+                ChangeSettings {
+                    request_id: uuid::Uuid::now_v7().to_string(),
+                    change: SettingsChange::Reset {
+                        expected_revision: saved.metadata.revision
+                    }
+                }
+            )
+            .await
+            .unwrap(),
+        MutationOutcome::SettingsSaved { .. }
+    ));
+    assert!(server.state.domain.is_none());
+    server.close_admission();
+    server.state.wait_drained().await;
 }

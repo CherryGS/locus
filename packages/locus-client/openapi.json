@@ -3531,7 +3531,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MediaSettingsRuntime"
+                  "$ref": "#/components/schemas/MediaRuntimeObservation"
                 }
               }
             }
@@ -4224,6 +4224,42 @@
           }
         }
       },
+      "Availability": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "normal"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "status"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "restricted"
+                ]
+              }
+            }
+          }
+        ]
+      },
       "BatchImportRequest": {
         "type": "object",
         "required": [
@@ -4842,6 +4878,7 @@
           "invalid_request",
           "request_conflict",
           "admission_closed",
+          "restricted",
           "launch_rejected",
           "unknown_request",
           "unknown_task",
@@ -5609,6 +5646,42 @@
           }
         }
       },
+      "MediaRuntimeObservation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "runtime",
+              "status"
+            ],
+            "properties": {
+              "runtime": {
+                "$ref": "#/components/schemas/MediaSettingsRuntime"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "active"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unavailable"
+                ]
+              }
+            }
+          }
+        ]
+      },
       "MediaSettingsRuntime": {
         "type": "object",
         "description": "Captured is the saved startup value; changes to saved values do not reconfigure\nthis run. Effective paths also include explicit process environment overrides.",
@@ -6302,6 +6375,7 @@
       "ServerStatus": {
         "type": "object",
         "required": [
+          "availability",
           "run_id",
           "admission",
           "active_operations"
@@ -6313,6 +6387,9 @@
           },
           "admission": {
             "$ref": "#/components/schemas/AdmissionState"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/Availability"
           },
           "run_id": {
             "type": "string"

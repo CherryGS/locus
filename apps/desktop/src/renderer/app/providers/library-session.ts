@@ -1,3 +1,4 @@
+import { SettingsCoordinator } from "@/features/settings"
 import { PlaybackCoordinator } from "@/features/video-playback"
 import { BackendApi } from "@/shared/api"
 import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
@@ -11,29 +12,33 @@ declare global {
     locusDesktop?: DesktopBridge
   }
 }
-export class LibrarySession {
-  readonly playback = new PlaybackCoordinator()
+export class DesktopSession {
   readonly api: BackendApi
-  readonly reader: EntityReader
   readonly preferences: PreferenceCoordinator
-  readonly imports: ImportCoordinator
-  readonly tasks: TaskObserver
-  private readonly unobserve: () => void
+  readonly settings: SettingsCoordinator
   constructor(
     readonly bridge: DesktopBridge,
-    readonly initial: DesktopState,
+    readonly initial: DesktopState
   ) {
-    if (initial.connection.status !== "ready")
-      throw new Error(
-        initial.connection.status === "starting"
-          ? "The backend is still starting."
-          : initial.connection.message,
-      )
+    if (initial.connection.status !== "ready") throw new Error("The backend is unavailable.")
     if (initial.connection.origin !== location.origin)
       throw new Error("The desktop connection is not this renderer's origin.")
     this.api = new BackendApi(initial.connection)
-    this.reader = new EntityReader(this.api, 256, (entityId, fileId) => this.playback.observe(entityId, fileId))
     this.preferences = new PreferenceCoordinator(this.api)
+    this.settings = new SettingsCoordinator(this.api)
+  }
+}
+export class LibrarySession extends DesktopSession {
+  readonly playback = new PlaybackCoordinator()
+  readonly reader: EntityReader
+  readonly imports: ImportCoordinator
+  readonly tasks: TaskObserver
+  private readonly unobserve: () => void
+  constructor(bridge: DesktopBridge, initial: DesktopState) {
+    super(bridge, initial)
+    this.reader = new EntityReader(this.api, 256, (entityId, fileId) =>
+      this.playback.observe(entityId, fileId)
+    )
     this.imports = new ImportCoordinator(this.api, bridge, (items) => {
       this.reader.importEffects(items)
     })
@@ -72,15 +77,18 @@ export class LibrarySession {
   }
 }
 
-let active: Promise<LibrarySession> | undefined
+let active: Promise<DesktopSession> | undefined
 export function openLibrarySession() {
   return (active ??= (async () => {
     const bridge = window.locusDesktop
     if (!bridge)
       throw new Error(
-        "No desktop connection. Open Locus through the desktop entry or the isolated desktop-ui preview.",
+        "No desktop connection. Open Locus through the desktop entry or the isolated desktop-ui preview."
       )
-    const session = new LibrarySession(bridge, await bridge.state())
+    const initial = await bridge.state()
+    if (initial.connection.status === "ready" && initial.connection.availability?.status === "restricted")
+      return new DesktopSession(bridge, initial)
+    const session = new LibrarySession(bridge, initial)
     void session.reader.refresh()
     return session
   })())

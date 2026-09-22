@@ -46,6 +46,19 @@ pub(super) async fn authorize(
             "Expected backend run does not match; do not replay work automatically",
         ));
     }
+    let path = request.uri().path();
+    if state.domain.is_none()
+        && path.starts_with("/api/")
+        && !(path == "/api/v1/server"
+            || path == "/api/v1/drain"
+            || path.starts_with("/api/v1/settings/")
+            || path.starts_with("/api/v1/requests/"))
+    {
+        return Err(ApiError::new(
+            ErrorCode::Restricted,
+            "Business routes unavailable during Settings repair",
+        ));
+    }
     let mut response = next.run(request).await;
     response.headers_mut().insert(
         axum::http::header::CACHE_CONTROL,

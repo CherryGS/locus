@@ -524,6 +524,14 @@ export interface components {
             code: components["schemas"]["AttemptCode"];
             detail: string;
         };
+        Availability: {
+            /** @enum {string} */
+            status: "normal";
+        } | {
+            message: string;
+            /** @enum {string} */
+            status: "restricted";
+        };
         BatchImportRequest: {
             request_id: string;
             source_paths: string[];
@@ -666,7 +674,7 @@ export interface components {
             status: "missing";
         };
         /** @enum {string} */
-        ErrorCode: "unauthorized" | "foreign_origin" | "wrong_run" | "invalid_request" | "request_conflict" | "admission_closed" | "launch_rejected" | "unknown_request" | "unknown_task" | "missing_file" | "missing_bytes" | "access_denied" | "preview_unavailable" | "operation_failed" | "not_found" | "method_not_allowed";
+        ErrorCode: "unauthorized" | "foreign_origin" | "wrong_run" | "invalid_request" | "request_conflict" | "admission_closed" | "restricted" | "launch_rejected" | "unknown_request" | "unknown_task" | "missing_file" | "missing_bytes" | "access_denied" | "preview_unavailable" | "operation_failed" | "not_found" | "method_not_allowed";
         /** @enum {string} */
         FailureKind: "input_missing" | "managed_bytes_missing" | "access_denied" | "not_regular_file" | "io" | "commit_outcome_unknown" | "database" | "domain" | "executor";
         FileMetadata: {
@@ -837,6 +845,14 @@ export interface components {
             last_failure?: null | components["schemas"]["AttemptFailure"];
             revision: string;
             target: components["schemas"]["MediaTarget"];
+        };
+        MediaRuntimeObservation: {
+            runtime: components["schemas"]["MediaSettingsRuntime"];
+            /** @enum {string} */
+            status: "active";
+        } | {
+            /** @enum {string} */
+            status: "unavailable";
         };
         /**
          * @description Captured is the saved startup value; changes to saved values do not reconfigure
@@ -1011,6 +1027,7 @@ export interface components {
             /** @description Includes private direct-response work until actual queue completion. */
             active_operations: string;
             admission: components["schemas"]["AdmissionState"];
+            availability: components["schemas"]["Availability"];
             run_id: string;
         };
         SettingsChange: {
@@ -4177,7 +4194,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MediaSettingsRuntime"];
+                    "application/json": components["schemas"]["MediaRuntimeObservation"];
                 };
             };
             /** @description Invalid request */

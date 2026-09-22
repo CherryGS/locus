@@ -17,6 +17,7 @@ pub struct ServerConfig {
     pub library_root: PathBuf,
     /// Explicit trusted build output, never a library or request-selected path.
     pub renderer_root: Option<PathBuf>,
+    pub require_existing: bool,
 }
 impl ServerConfig {
     pub fn new(credential: String, library_root: PathBuf) -> Self {
@@ -24,6 +25,7 @@ impl ServerConfig {
             credential,
             library_root,
             renderer_root: None,
+            require_existing: false,
         }
     }
 }
@@ -51,12 +53,18 @@ pub(crate) struct Shared {
     pub origin: String,
     pub run_id: String,
     pub queue: TaskQueue,
-    pub domain: super::composition::Domain,
+    pub domain: Option<super::composition::Domain>,
+    pub library: super::composition::Library,
+    pub availability: Availability,
     pub registry: Mutex<Registry>,
     pub changes: watch::Sender<u64>,
     pub drained: watch::Sender<bool>,
 }
 impl Shared {
+    pub fn business(&self) -> Result<&super::composition::Domain, ApiError> {
+        self.domain.as_ref().ok_or_else(|| ApiError::new(ErrorCode::Restricted, "Library business services unavailable; repair Settings and restart the application"))
+    }
+
     pub fn lock(&self) -> MutexGuard<'_, Registry> {
         self.registry
             .lock()
@@ -68,6 +76,7 @@ impl Shared {
     fn status_in(&self, registry: &Registry) -> ServerStatus {
         ServerStatus {
             run_id: self.run_id.clone(),
+            availability: self.availability.clone(),
             admission: if registry.open {
                 AdmissionState::Open
             } else if registry.active == 0 {

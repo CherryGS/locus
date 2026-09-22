@@ -1,3 +1,4 @@
+import { relaunchArguments, startupLocator } from "./relaunch"
 import {
   app,
   BrowserWindow,
@@ -22,6 +23,7 @@ import {
   isCloseCommit,
   isPreparation,
   type Connection,
+  type LifecycleIntent,
   type DesktopState,
 } from "../shared/desktop-bridge"
 
@@ -34,6 +36,7 @@ export function startDesktop() {
   let child: ChildProcessWithoutNullStreams | undefined
   let backend: Backend | undefined
   let connection: Connection = { status: "starting" }
+  let relaunchScheduled = false
   let exiting = false
   let pageAvailable = false
   let nativePrompt = false
@@ -62,13 +65,25 @@ export function startDesktop() {
     window?.destroy()
     app.quit()
   }
+  async function finishRestart() {
+    if (exiting || relaunchScheduled || !backend) return
+    try {
+      app.relaunch({ args: relaunchArguments(app.isPackaged, process.argv, backend.libraryRoot) })
+      relaunchScheduled = true
+      finish()
+    } catch {
+      await unavailable(
+        "The old backend finished, but the application relaunch could not be scheduled. Close Locus and start it explicitly."
+      )
+    }
+  }
   function waitForPreparation() {
     clearTimeout(preparationTimer)
     const attempt = close.state
     preparationTimer = setTimeout(() => {
       if (close.state === attempt)
         void unavailable(
-          "The renderer has not completed the preference-preparation handoff. Saving readiness cannot be established.",
+          "The renderer has not completed the preference-preparation handoff. Saving readiness cannot be established."
         )
     }, 15_000)
   }
@@ -87,10 +102,11 @@ export function startDesktop() {
   async function drain() {
     changed()
     if (!backend || backend.child.exitCode !== null || backend.child.signalCode !== null) {
-      if (backend?.child.exitCode === 0) finish()
+      if (backend?.child.exitCode === 0 && close.state.phase !== "idle" && close.state.intent !== "restart")
+        finish()
       else
         await unavailable(
-          "The backend is unavailable. Preference confirmation and accepted-work completion cannot be established.",
+          "The backend is unavailable. Preference confirmation and accepted-work completion cannot be established."
         )
       return
     }
@@ -98,12 +114,18 @@ export function startDesktop() {
       const result = await drainBackend(backend)
       if (close.state.phase === "draining") close.state = { ...close.state, active: result.active_operations }
       changed()
-      await backend.exited
+      const ended = await backend.exited
+      if (ended.code === 0) {
+        if (close.state.phase !== "idle" && close.state.intent === "restart") await finishRestart()
+        else finish()
+      } else
+        await unavailable("The backend ended unexpectedly during drain. The application was not restarted.")
     } catch {
-      if (backend.child.exitCode === 0) finish()
+      if (backend.child.exitCode === 0 && close.state.phase !== "idle" && close.state.intent !== "restart")
+        finish()
       else
         await unavailable(
-          "Closing could not confirm backend drain. New admissions may already be closed; Locus cannot return to ordinary saving. Check closing to repeat the same drain request.",
+          "Closing could not confirm backend drain. New admissions may already be closed; Locus cannot return to ordinary saving. Check closing to repeat the same drain request."
         )
     }
   }
@@ -113,6 +135,7 @@ export function startDesktop() {
     clearTimeout(preparationTimer)
     const alive = !!backend && backend.child.exitCode === null && backend.child.signalCode === null
     const irreversible = drainCommitted
+    const restart = close.state.phase !== "idle" && close.state.intent === "restart"
     const nativeAttempt = close.state.phase === "idle" ? undefined : close.state.attemptId
     const result = await dialog.showMessageBox(window, {
       type: "warning",
@@ -122,9 +145,11 @@ export function startDesktop() {
         ? alive
           ? ["Keep waiting", "Check closing"]
           : ["Close Locus"]
-        : alive
-          ? ["Return to Locus", "Continue closing"]
-          : ["Return to Locus", "Close Locus"],
+        : restart
+          ? ["Return to Locus"]
+          : alive
+            ? ["Return to Locus", "Continue closing"]
+            : ["Return to Locus", "Close Locus"],
       defaultId: 0,
       cancelId: 0,
       detail: irreversible
@@ -150,7 +175,7 @@ export function startDesktop() {
       return
     }
     if (nativeAttempt && (close.state.phase === "idle" || close.state.attemptId !== nativeAttempt)) return
-    if (result.response === 0) {
+    if (result.response === 0 || restart) {
       close.state = { phase: "idle" }
       changed()
       return
@@ -169,7 +194,7 @@ export function startDesktop() {
       child.kill()
     }
   }
-  function requestClose() {
+  function requestClose(intent: LifecycleIntent = "close") {
     if (exiting || nativePrompt) return
     if (drainCommitted) {
       void unavailable("Locus is waiting for accepted work to finish.")
@@ -177,18 +202,24 @@ export function startDesktop() {
     }
     if (close.state.phase !== "idle") return
     if (connection.status !== "ready" || !pageAvailable) {
+      if (intent === "restart") close.begin(randomUUID(), intent)
       void unavailable(
         connection.status === "failed" || connection.status === "lost"
           ? connection.message
-          : "The renderer cannot prepare preferences for closing.",
+          : "The renderer cannot prepare preferences for closing."
       )
       return
     }
-    close.begin(randomUUID())
+    close.begin(randomUUID(), intent)
     changed()
     waitForPreparation()
   }
 
+  ipcMain.handle(channels.lifecycle, (event, intent: unknown) => {
+    sender(event)
+    if (intent !== "close" && intent !== "restart") throw new Error("Invalid application action")
+    requestClose(intent)
+  })
   let selectingFiles = false
   ipcMain.handle(channels.openExternalLink, async (event, url: unknown) => {
     sender(event)
@@ -201,6 +232,7 @@ export function startDesktop() {
       !window ||
       window.isDestroyed() ||
       connection.status !== "ready" ||
+      connection.availability?.status === "restricted" ||
       close.state.phase !== "idle" ||
       drainCommitted
     )
@@ -226,13 +258,17 @@ export function startDesktop() {
       )
         return {
           status: "failed",
-          message: "The application connection or close state changed during selection. No import was submitted.",
+          message:
+            "The application connection or close state changed during selection. No import was submitted.",
         }
       return result.canceled || !result.filePaths.length
         ? { status: "canceled" }
         : { status: "selected", paths: result.filePaths }
     } catch (error) {
-      return { status: "failed", message: error instanceof Error ? error.message : "Local file selection failed." }
+      return {
+        status: "failed",
+        message: error instanceof Error ? error.message : "Local file selection failed.",
+      }
     } finally {
       selectingFiles = false
     }
@@ -307,17 +343,29 @@ export function startDesktop() {
     window.webContents.on("will-attach-webview", (event) => event.preventDefault())
     window.webContents.on("render-process-gone", () => {
       pageAvailable = false
-      if (!drainCommitted) close.state = { phase: "idle" }
+      if (!drainCommitted && (close.state.phase === "idle" || close.state.intent !== "restart"))
+        close.state = { phase: "idle" }
       void unavailable("The renderer stopped. Preference preparation is unavailable.")
     })
     window.webContents.on("unresponsive", () => {
       if (close.state.phase !== "idle")
         void unavailable("The renderer is not responding. Preference preparation is unavailable.")
     })
-    const permissionAllowed = (contents: Electron.WebContents | null, permission: string, details: { isMainFrame: boolean; requestingUrl?: string }) =>
-      rendererPermission(permission, contents === window?.webContents, details.isMainFrame, details.requestingUrl,
-        connection.status === "ready" && close.state.phase === "idle" ? backend?.origin : undefined)
-    ownedSession.setPermissionRequestHandler((contents, permission, callback, details) => callback(permissionAllowed(contents, permission, details)))
+    const permissionAllowed = (
+      contents: Electron.WebContents | null,
+      permission: string,
+      details: { isMainFrame: boolean; requestingUrl?: string }
+    ) =>
+      rendererPermission(
+        permission,
+        contents === window?.webContents,
+        details.isMainFrame,
+        details.requestingUrl,
+        connection.status === "ready" && close.state.phase === "idle" ? backend?.origin : undefined
+      )
+    ownedSession.setPermissionRequestHandler((contents, permission, callback, details) =>
+      callback(permissionAllowed(contents, permission, details))
+    )
     const redirects = new Set<number>()
     ownedSession.webRequest.onBeforeRedirect((details) => redirects.add(details.id))
     ownedSession.webRequest.onCompleted((details) => redirects.delete(details.id))
@@ -348,36 +396,93 @@ export function startDesktop() {
           backend.origin,
           backend.runId,
           backend.credential,
-          details.requestHeaders,
-        ),
+          details.requestHeaders
+        )
       )
     })
-    try {
-      backend = await launchBackend((value) => {
-        child = value
-      }, startup.signal)
-      if (exiting) return
-      connection = { status: "ready", origin: backend.origin, runId: backend.runId }
-      void backend.exited.then(({ code }) => {
+    async function start() {
+      try {
+        backend = await launchBackend(
+          (value) => {
+            child = value
+          },
+          startup.signal,
+          startupLocator(process.argv)
+        )
         if (exiting) return
         connection = {
-          status: "lost",
-          message:
-            "The backend stopped. Restart Locus to reconnect; pending choices have not been confirmed saved.",
+          status: "ready",
+          origin: backend.origin,
+          runId: backend.runId,
+          availability: backend.availability,
         }
-        changed()
-        if (drainCommitted && code === 0) finish()
-        else if (drainCommitted || !pageAvailable || close.state.phase !== "idle")
-          void unavailable(connection.message)
-      })
-      await window.loadURL(`${backend.origin}/#/entity`)
-    } catch (error) {
-      if (exiting || window.isDestroyed()) return
-      connection = { status: "failed", message: error instanceof Error ? error.message : "Locus could not start." }
-      if (!backend && child && child.exitCode === null) child.kill()
-      if (process.env.LOCUS_DESKTOP_HIDDEN !== "1") window.show()
-      void unavailable(connection.message)
+        const startedBackend = backend
+        void backend.exited.then(({ code }) => {
+          if (exiting || backend !== startedBackend) return
+          connection = {
+            status: "lost",
+            message:
+              "The backend stopped. Restart Locus to reconnect; pending choices have not been confirmed saved.",
+          }
+          changed()
+          if (
+            drainCommitted &&
+            close.state.phase !== "idle" &&
+            close.state.intent === "restart" &&
+            code === 0
+          )
+            return
+          if (drainCommitted && code === 0) finish()
+          else if (drainCommitted || !pageAvailable || close.state.phase !== "idle")
+            void unavailable(connection.message)
+        })
+        await window!.loadURL(
+          `${backend.origin}/#/${backend.availability.status === "restricted" ? "setting" : "entity"}`
+        )
+      } catch (error) {
+        if (exiting || !window || window.isDestroyed()) return
+        connection = {
+          status: "failed",
+          message: error instanceof Error ? error.message : "Locus could not start.",
+        }
+        const failedBackend = backend
+        backend = undefined
+        if (
+          failedBackend &&
+          failedBackend.child.exitCode === null &&
+          failedBackend.child.signalCode === null
+        ) {
+          try {
+            await drainBackend(failedBackend)
+          } catch {
+            backend = failedBackend
+            drainCommitted = true
+            close.state = { phase: "draining", intent: "close", attemptId: randomUUID() }
+            await unavailable(
+              "Startup presentation failed and backend drain could not be confirmed. Check closing to finish accepted work before another application attempt."
+            )
+            return
+          }
+          await failedBackend.exited
+        }
+        if (!failedBackend && child && child.exitCode === null && child.signalCode === null) child.kill()
+        if (process.env.LOCUS_DESKTOP_HIDDEN !== "1") window.show()
+        nativePrompt = true
+        const result = await dialog.showMessageBox(window, {
+          type: "error",
+          title: "Locus could not start",
+          message: connection.message,
+          detail: "Check the intended library and built artifacts. Retry starts a new owned backend attempt.",
+          buttons: ["Retry", "Exit Locus"],
+          defaultId: 0,
+          cancelId: 1,
+        })
+        nativePrompt = false
+        if (result.response === 0 && !exiting) await start()
+        else finish()
+      }
     }
+    await start()
   })
   app.on("before-quit", (event) => {
     if (!exiting) {

@@ -19,7 +19,7 @@ impl Shared {
         self: &Arc<Self>,
         entity: EntityId,
     ) -> Result<EntityViewPreference, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.query("Read Entity view preference", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|error| {
                 ApiError::domain(DomainDiagnostic::Store {
@@ -40,7 +40,7 @@ impl Shared {
         self: &Arc<Self>,
         entities: Vec<EntityId>,
     ) -> Result<Vec<EntityViewPreference>, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.query(
             "Read Entity view preference batch",
             move |task| async move {
@@ -67,7 +67,7 @@ impl Shared {
         view: ViewDefinitionId,
         revision: Option<SavedRevision>,
     ) -> Result<MutationOutcome, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.mutation(
             request_id,
             Arguments::UpdateViewPreference {

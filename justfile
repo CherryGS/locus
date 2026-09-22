@@ -194,3 +194,10 @@ desktop-twitter-native: server-build desktop-build
 
 server-settings-smoke: server-build client-check
     {{ npm }} --prefix packages/locus-client run smoke:settings
+
+# Actual Settings UI and bounded native full-restart verification on isolated libraries.
+desktop-settings-browser: server-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:settings-browser
+
+desktop-settings-native: server-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:settings-native

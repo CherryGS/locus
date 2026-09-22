@@ -72,7 +72,7 @@ async fn preference_launch_rejection_is_retained_and_changed_arguments_conflict(
 #[tokio::test(flavor = "multi_thread")]
 async fn accepted_preference_survives_lost_handler_and_drains_with_original_recovery() {
     let (_root, server, entity) = app().await;
-    let database = server.state.domain.database.clone();
+    let database = server.state.library.database.clone();
     let (locked_tx, locked_rx) = oneshot::channel();
     let (release_tx, release_rx) = oneshot::channel();
     let holder = server

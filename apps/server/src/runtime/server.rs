@@ -1,6 +1,6 @@
 use super::{
     bootstrap::{Ready, validate_credential},
-    composition::Domain,
+    composition::{Domain, Library},
     registry::{ServerConfig, Shared, initial_registry},
 };
 use crate::api::routes;
@@ -25,7 +25,19 @@ impl Server {
             .context("bind IPv4 loopback")?;
         let origin = format!("http://{}", listener.local_addr()?);
         let queue = TaskQueue::new();
-        let domain = Domain::open(&queue, &config.library_root).await?;
+        if config.require_existing && !config.library_root.join("metadata.sqlite").is_file() {
+            bail!("Intended library database is missing; refusing to create a replacement");
+        }
+        let library = Library::open(&queue, &config.library_root).await?;
+        let (domain, availability) = match Domain::open(&queue, &library).await {
+            Ok(domain) => (Some(domain), crate::api::dto::Availability::Normal),
+            Err(error) => (
+                None,
+                crate::api::dto::Availability::Restricted {
+                    message: format!("Required library services could not start: {error:#}"),
+                },
+            ),
+        };
         let state = Arc::new(Shared {
             imports: crate::imports::ImportStore::default(),
             credential: config.credential,
@@ -33,6 +45,8 @@ impl Server {
             run_id: uuid::Uuid::now_v7().to_string(),
             queue,
             domain,
+            library,
+            availability,
             registry: Mutex::new(initial_registry()),
             changes: watch::channel(0).0,
             drained: watch::channel(false).0,
@@ -48,6 +62,8 @@ impl Server {
         Ready {
             origin: self.state.origin.clone(),
             run_id: self.state.run_id.clone(),
+            library_root: self.state.library.files.root().to_path_buf(),
+            availability: self.state.availability.clone(),
         }
     }
     pub fn router(&self) -> axum::Router {

@@ -11,7 +11,7 @@ export type Wire<K extends keyof components["schemas"]> = components["schemas"][
 export class ApiFailure extends Error {
   constructor(
     public readonly detail: Wire<"ApiError">,
-    public readonly status: number,
+    public readonly status: number
   ) {
     super(detail.message)
   }
@@ -42,7 +42,11 @@ function diagnosticKind(value: unknown): string | undefined {
 }
 function diagnosticDetail(value: unknown): string {
   if (!value || typeof value !== "object") return "Observation failed"
-  if ("version" in value && "code" in value && (value.code === "payload_version" || value.code === "schema_version"))
+  if (
+    "version" in value &&
+    "code" in value &&
+    (value.code === "payload_version" || value.code === "schema_version")
+  )
     return `Unsupported ${value.code === "payload_version" ? "payload" : "schema"} version ${value.version}`
   if ("diagnostic" in value) return diagnosticDetail(value.diagnostic)
   if ("error" in value) return diagnosticDetail(value.error)
@@ -60,9 +64,25 @@ export class BackendApi {
   readonly client: LocusClient
   constructor(
     readonly context: BackendContext,
-    transport?: typeof fetch,
+    transport?: typeof fetch
   ) {
     this.client = createLocusClient(context, transport)
+  }
+  async settingsDefinitions() {
+    return result(await this.client.GET("/api/v1/settings/definitions"))
+  }
+  async settingsRead(group_id: string) {
+    return result(
+      await this.client.GET("/api/v1/settings/groups/{group_id}", { params: { path: { group_id } } })
+    )
+  }
+  async settingsChange(group_id: string, body: Wire<"ChangeSettings">) {
+    return result(
+      await this.client.POST("/api/v1/settings/groups/{group_id}", { params: { path: { group_id } }, body })
+    )
+  }
+  async mediaRuntime() {
+    return result(await this.client.GET("/api/v1/settings/media-runtime"))
   }
   async importBatch(body: Wire<"BatchImportRequest">) {
     return result(await this.client.POST("/api/v1/import-batches", { body }))
@@ -78,7 +98,7 @@ export class BackendApi {
   }
   async taskOutcome(id: string) {
     return result(
-      await this.client.GET("/api/v1/tasks/{task_id}/outcome", { params: { path: { task_id: id } } }),
+      await this.client.GET("/api/v1/tasks/{task_id}/outcome", { params: { path: { task_id: id } } })
     )
   }
   async taskEvents(signal: AbortSignal, receive: (snapshot: Wire<"TaskSnapshot">) => void) {
@@ -94,7 +114,7 @@ export class BackendApi {
         params: { path: { locator } },
         parseAs: "blob",
         signal,
-      }),
+      })
     )
   }
   identities() {
@@ -110,15 +130,17 @@ export class BackendApi {
     return result(
       await this.client.GET("/api/v1/media/{kind}/{component_id}/view", {
         params: { path: { kind, component_id: id } },
-      }),
+      })
     )
   }
   async twitter(id: string) {
-    return result(await this.client.GET("/api/v1/twitter/{component_id}/view", { params: { path: { component_id: id } } }))
+    return result(
+      await this.client.GET("/api/v1/twitter/{component_id}/view", { params: { path: { component_id: id } } })
+    )
   }
   async preferences(ids: string[]) {
     return result(
-      await this.client.POST("/api/v1/entities/view-preferences/batch", { body: { entity_ids: ids } }),
+      await this.client.POST("/api/v1/entities/view-preferences/batch", { body: { entity_ids: ids } })
     )
   }
   async savePreference(id: string, body: Wire<"UpdateViewPreference">) {
@@ -126,12 +148,12 @@ export class BackendApi {
       await this.client.PUT("/api/v1/entities/{entity_id}/view-preference", {
         params: { path: { entity_id: id } },
         body,
-      }),
+      })
     )
   }
   async submission(id: string) {
     return result(
-      await this.client.GET("/api/v1/requests/{request_id}", { params: { path: { request_id: id } } }),
+      await this.client.GET("/api/v1/requests/{request_id}", { params: { path: { request_id: id } } })
     )
   }
   originalUrl(id: string) {

@@ -18,6 +18,7 @@ pub enum ErrorCode {
     InvalidRequest,
     RequestConflict,
     AdmissionClosed,
+    Restricted,
     LaunchRejected,
     UnknownRequest,
     UnknownTask,
@@ -62,7 +63,7 @@ impl ApiError {
             ErrorCode::ForeignOrigin | ErrorCode::AccessDenied => StatusCode::FORBIDDEN,
             ErrorCode::WrongRun | ErrorCode::RequestConflict => StatusCode::CONFLICT,
             ErrorCode::InvalidRequest => StatusCode::BAD_REQUEST,
-            ErrorCode::AdmissionClosed | ErrorCode::LaunchRejected => {
+            ErrorCode::Restricted | ErrorCode::AdmissionClosed | ErrorCode::LaunchRejected => {
                 StatusCode::SERVICE_UNAVAILABLE
             }
             ErrorCode::UnknownRequest

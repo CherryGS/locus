@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron"
 import {
   desktopChannels as channels,
   type DesktopBridge,
+  type LifecycleIntent,
   type DesktopState,
   type Preparation,
   type CloseAction,
@@ -9,6 +10,7 @@ import {
 } from "../shared/desktop-bridge"
 
 const bridge: DesktopBridge = Object.freeze({
+  requestLifecycle: (intent: LifecycleIntent) => ipcRenderer.invoke(channels.lifecycle, intent),
   openExternalLink: (url: string) => ipcRenderer.invoke(channels.openExternalLink, url),
   selectImportFiles: () => ipcRenderer.invoke(channels.selectImportFiles),
   state: () => ipcRenderer.invoke(channels.state),

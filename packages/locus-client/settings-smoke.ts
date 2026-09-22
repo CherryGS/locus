@@ -11,7 +11,7 @@ async function read(client:LocusClient) {
   const result = await client.GET(route,{params}); assert(result.data?.status === "current",JSON.stringify(result)); return result.data.saved;
 }
 async function active(client:LocusClient) {
-  const result = await client.GET("/api/v1/settings/media-runtime");assert(result.data,JSON.stringify(result.error));return result.data;
+  const result = await client.GET("/api/v1/settings/media-runtime");assert(result.data?.status === "active",JSON.stringify(result.error));return result.data.runtime;
 }
 async function change(client:LocusClient,change:components["schemas"]["SettingsChange"],request_id=randomUUID()) {
   const result=await client.POST(route,{params,body:{request_id,change}});assert(result.data,JSON.stringify(result.error));return result.data;

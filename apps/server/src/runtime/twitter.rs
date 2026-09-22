@@ -10,7 +10,7 @@ impl Shared {
         self: &Arc<Self>,
         id: locus_twitter::api::TwitterId,
     ) -> Result<TwitterView, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.query("Read Twitter capture", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|e| {
                 ApiError::domain(DomainDiagnostic::Store {

@@ -1,3 +1,15 @@
+import { useLibrarySession } from "@/app/providers/library-provider"
+import { SettingsPanel } from "@/features/settings"
 export function SettingPage() {
-  return <section className="h-full overflow-auto p-6"><h1 className="text-xl font-semibold tracking-tight">Setting</h1></section>
+  const session = useLibrarySession()
+  if (!session)
+    return (
+      <section className="p-6">
+        <h1>Settings</h1>
+        <p>A live library connection is required.</p>
+      </section>
+    )
+  return (
+    <SettingsPanel settings={session.settings} restart={() => session.bridge.requestLifecycle("restart")} />
+  )
 }

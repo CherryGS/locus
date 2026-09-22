@@ -112,3 +112,10 @@ pub struct MediaSettingsRuntime {
     pub ffprobe: EffectiveToolPath,
     pub ffmpeg: EffectiveToolPath,
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum MediaRuntimeObservation {
+    Active { runtime: MediaSettingsRuntime },
+    Unavailable,
+}

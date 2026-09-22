@@ -17,7 +17,7 @@ impl Shared {
         self: &Arc<Self>,
         request: CreateMedia,
     ) -> Result<MutationOutcome, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         let kind = match request.kind {
             MediaKind::Image => locus_media::api::MediaKind::Image,
             MediaKind::Video => locus_media::api::MediaKind::Video,
@@ -50,7 +50,7 @@ impl Shared {
         .await
     }
     pub async fn media_read(self: &Arc<Self>, id: MediaId) -> Result<MediaRecord, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.query("Read Media", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|e| {
                 ApiError::domain(DomainDiagnostic::Store {
@@ -67,7 +67,7 @@ impl Shared {
         .await
     }
     pub async fn media_view(self: &Arc<Self>, id: MediaId) -> Result<MediaView, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.query("View Media", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|e| {
                 ApiError::domain(DomainDiagnostic::Store {
@@ -87,7 +87,7 @@ impl Shared {
         self: &Arc<Self>,
         entity: EntityId,
     ) -> Result<Vec<MediaEntry>, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.query("View entity Media", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|e| {
                 ApiError::domain(DomainDiagnostic::Store {
@@ -108,7 +108,7 @@ impl Shared {
         request: InterpretRequest,
         id: MediaId,
     ) -> Result<Receipt, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.public(
             request.request_id,
             Arguments::Interpret(request.target),
@@ -153,7 +153,7 @@ impl Shared {
         id: MediaId,
     ) -> Result<Receipt, ApiError> {
         let state = self.clone();
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.public(
             request.request_id,
             Arguments::Preview {
@@ -226,7 +226,7 @@ impl Shared {
                     "Unknown preview locator in this run",
                 )
             })?;
-        let media = self.domain.media.clone();
+        let media = self.business()?.media.clone();
         self.query("Open derived bytes",move |task|async move {
             let file=media.open_preview(&task,&preview).await.map_err(|e| {
                 let code=if matches!(&e,locus_media::api::MediaError::PreviewAccess(e) if e.kind()==std::io::ErrorKind::PermissionDenied) { ErrorCode::AccessDenied } else { ErrorCode::OperationFailed };

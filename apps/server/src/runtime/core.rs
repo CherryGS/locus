@@ -9,7 +9,7 @@ use locus_core::api::{EntityId, Membership as CoreMembership};
 use std::sync::Arc;
 impl Shared {
     pub async fn entity_ids(self: &Arc<Self>) -> Result<Vec<u8>, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.query("Enumerate Entity identities", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|e| {
                 ApiError::domain(DomainDiagnostic::Store {
@@ -30,7 +30,7 @@ impl Shared {
         self: &Arc<Self>,
         entities: Vec<EntityId>,
     ) -> Result<Vec<EntityMemberships>, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.query("Read membership batch", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|e| {
                 ApiError::domain(DomainDiagnostic::Store {
@@ -60,7 +60,7 @@ impl Shared {
     }
 
     pub async fn create_entity(self: &Arc<Self>, id: String) -> Result<MutationOutcome, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.mutation(
             id,
             Arguments::CreateEntity,
@@ -93,7 +93,7 @@ impl Shared {
         membership: CoreMembership,
         attach: bool,
     ) -> Result<MutationOutcome, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         let arguments = if attach {
             Arguments::Attach(request.membership)
         } else {
@@ -147,7 +147,7 @@ impl Shared {
         self: &Arc<Self>,
         entity: EntityId,
     ) -> Result<Vec<Membership>, ApiError> {
-        let domain = self.domain.clone();
+        let domain = self.business()?.clone();
         self.query("Read memberships", move |task| async move {
             let mut session = domain.database.session(&task).await.map_err(|e| {
                 ApiError::domain(DomainDiagnostic::Store {
