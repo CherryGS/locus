@@ -300,3 +300,18 @@ microseconds over 10,000 calls; midpoint/last identity scans took 5.1/5.9 ms. Th
 measurements include runtime/transport overhead and are a local sample, not a
 throughput target, unlimited-size claim or SLA. Rerun the command on the target
 machine/build to assess its actual costs.
+
+
+Settings definitions and complete defaults are exported from the registered Rust
+providers by `just client-generate`. `src/settings.ts` contains generated value
+types and fresh default factories; callers should not maintain another default
+object. Export generation rejects unsafe or lossy numeric defaults and conflicting
+names. `just client-drift` checks both the wire contract and these exports.
+
+Settings mutations use the normal same-run request identity and recovery path.
+`settings_saved` confirms persistence, not runtime application. Media's runtime
+response separately identifies the startup-captured saved value/revision and the
+effective paths, including explicit environment overrides. Saving or resetting
+never reconfigures the active Media service. A later application run captures the
+saved value. `just server-settings-smoke` exercises that distinction using isolated
+libraries, child-only overrides and actual Video execution.

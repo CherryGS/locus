@@ -89,7 +89,10 @@ server-schema path="packages/locus-client/openapi.json":
 client-install:
     {{ npm }} --prefix packages/locus-client ci --ignore-scripts
 
-client-generate: server-schema
+server-settings path="packages/locus-client/settings.json":
+    cargo run --package locus-server --bin locus-server --locked -- export-settings '{{ replace(path, "'", "''") }}'
+
+client-generate: server-schema server-settings
     {{ npm }} --prefix packages/locus-client run generate
 
 client-check:
@@ -188,3 +191,6 @@ desktop-twitter-browser: server-build desktop-build
 
 desktop-twitter-native: server-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:twitter-native
+
+server-settings-smoke: server-build client-check
+    {{ npm }} --prefix packages/locus-client run smoke:settings

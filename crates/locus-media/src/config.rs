@@ -15,9 +15,10 @@ pub struct MediaConfig {
 }
 impl Default for MediaConfig {
     fn default() -> Self {
+        let paths = crate::settings::MediaToolPaths::default();
         Self {
-            ffprobe: "ffprobe".into(),
-            ffmpeg: "ffmpeg".into(),
+            ffprobe: paths.ffprobe.into(),
+            ffmpeg: paths.ffmpeg.into(),
             max_input_bytes: 512 * 1024 * 1024,
             max_dimension: 32768,
             max_pixels: 40_000_000,

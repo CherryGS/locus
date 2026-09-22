@@ -15,6 +15,10 @@ use std::{future::Future, sync::Arc};
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Arguments {
+    Settings {
+        group: uuid::Uuid,
+        change: crate::api::settings::dto::SettingsChange,
+    },
     ImportBatch(crate::api::imports::dto::BatchImportRequest),
     RecoverImport(crate::api::imports::dto::ImportRecoveryRequest),
     Import(ImportRequest),

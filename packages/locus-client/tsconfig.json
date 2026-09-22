@@ -9,5 +9,5 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "support/**/*.ts", "smoke.ts", "import-smoke.ts", "media-smoke.ts", "smoke-png.ts", "entity-smoke.ts", "entity-scale.ts", "preference-smoke.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "support/**/*.ts", "smoke.ts", "import-smoke.ts", "media-smoke.ts", "smoke-png.ts", "entity-smoke.ts", "entity-scale.ts", "preference-smoke.ts", "settings-smoke.ts"]
 }

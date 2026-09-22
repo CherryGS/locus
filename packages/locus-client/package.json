@@ -5,20 +5,24 @@
   "type": "module",
   "exports": "./src/index.ts",
   "scripts": {
-    "generate": "openapi-typescript openapi.json --output src/schema.d.ts",
+    "generate": "openapi-typescript openapi.json --output src/schema.d.ts && node scripts/generate-settings.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/entities.test.ts",
+    "test": "tsx --test tests/*.test.ts",
     "smoke": "tsx smoke.ts",
     "smoke:imports": "tsx import-smoke.ts",
     "smoke:media": "tsx media-smoke.ts",
     "smoke:video": "tsx media-smoke.ts --video",
     "smoke:entities": "tsx entity-smoke.ts",
     "smoke:preferences": "tsx preference-smoke.ts",
-    "scale:entities": "node --expose-gc --import tsx entity-scale.ts"
+    "scale:entities": "node --expose-gc --import tsx entity-scale.ts",
+    "smoke:settings": "tsx settings-smoke.ts"
   },
-  "dependencies": { "openapi-fetch": "0.17.0" },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
   "devDependencies": {
     "@types/node": "26.6.2",
+    "json-schema-to-typescript": "15.0.4",
     "openapi-typescript": "7.13.0",
     "tsx": "4.23.13",
     "typescript": "5.9.3"

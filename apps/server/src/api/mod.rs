@@ -27,3 +27,5 @@ pub use task::dto::*;
 pub use twitter::dto::*;
 
 pub mod imports;
+pub mod settings;
+pub use settings::{dto::*, settings_definitions};

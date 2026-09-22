@@ -34,6 +34,7 @@ fn registered() -> OpenApiRouter<Arc<Shared>> {
         .merge(media::router())
         .merge(super::twitter::router())
         .merge(preferences::router())
+        .merge(super::settings::router())
         .merge(task::router())
         .merge(handlers::router())
 }

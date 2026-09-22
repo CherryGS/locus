@@ -2,7 +2,7 @@ use crate::preferences::service::PreferenceService;
 use anyhow::Context;
 use locus_core::api::Kernel;
 use locus_file::api::{FileOwner, FileService};
-use locus_media::api::{ImageOwner, MediaConfig, MediaService, VideoOwner};
+use locus_media::api::{ImageOwner, MediaService, VideoOwner};
 use locus_store::api::TaskDatabase;
 use locus_task::api::TaskQueue;
 use locus_twitter::api::{TwitterOwner, TwitterService};
@@ -16,6 +16,8 @@ pub(crate) struct Domain {
     pub media: MediaService,
     pub twitter: TwitterService,
     pub preferences: PreferenceService,
+    pub settings: locus_settings::api::SettingsService,
+    pub media_settings: crate::api::settings::dto::MediaSettingsRuntime,
 }
 impl Domain {
     pub async fn open(queue: &TaskQueue, root: &Path) -> anyhow::Result<Self> {
@@ -30,13 +32,8 @@ impl Domain {
         kernel.register(Arc::new(ImageOwner))?;
         kernel.register(Arc::new(VideoOwner))?;
         kernel.register(Arc::new(TwitterOwner))?;
-        let mut config = MediaConfig::default();
-        if let Some(path) = std::env::var_os("LOCUS_FFPROBE") {
-            config.ffprobe = path.into();
-        }
-        if let Some(path) = std::env::var_os("LOCUS_FFMPEG") {
-            config.ffmpeg = path.into();
-        }
+        let (settings, config, media_settings) =
+            super::settings_setup::prepare(queue, &database).await?;
         let media = MediaService::new(files.root(), config)?;
         let preferences = PreferenceService::new(kernel.clone());
         let domain = Self {
@@ -46,6 +43,8 @@ impl Domain {
             media,
             twitter: TwitterService::new(),
             preferences,
+            settings,
+            media_settings,
         };
         let init = domain.clone();
         queue

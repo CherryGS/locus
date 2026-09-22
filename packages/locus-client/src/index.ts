@@ -3,3 +3,4 @@ export type { BackendContext, LocusClient, TaskSnapshot, TaskOutcome, ImportOutc
 export { readEntityIds, EntityReadError } from "./entities.js";
 export type { EntitySequence } from "./entities.js";
 export type { components, paths } from "./schema.js";
+export * from "./settings.js";

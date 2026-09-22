@@ -103,6 +103,9 @@ pub struct Diagnostic {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(tag = "owner", rename_all = "snake_case")]
 pub enum DomainDiagnostic {
+    Settings {
+        error: super::settings::dto::SettingsFailure,
+    },
     Core {
         error: CoreFailure,
     },

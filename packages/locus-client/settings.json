@@ -1,0 +1,29 @@
+[
+  {
+    "group_id": "25c3fd2a-4148-4cb3-aca4-47c3ce3402e5",
+    "name": "MediaToolPaths",
+    "version": 1,
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "ffmpeg": {
+          "type": "string"
+        },
+        "ffprobe": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ffprobe",
+        "ffmpeg"
+      ],
+      "title": "MediaToolPaths",
+      "type": "object"
+    },
+    "defaults": {
+      "ffmpeg": "ffmpeg",
+      "ffprobe": "ffprobe"
+    }
+  }
+]

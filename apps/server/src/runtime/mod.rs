@@ -27,3 +27,7 @@ mod imports;
 
 #[cfg(test)]
 mod import_tests;
+mod settings;
+pub(crate) mod settings_setup;
+#[cfg(test)]
+mod settings_tests;

@@ -18,12 +18,17 @@ export async function entityFixture(label: "smoke" | "scale") {
   const root = await mkdtemp(join(tmpdir(), `locus-entity-${label}-`));
   const library = join(root, "library");
   const children: ReturnType<typeof spawn>[] = [];
-  async function start() {
+  async function start(settingsEnvironment?: { ffprobe?: string; ffmpeg?: string }) {
     const credential = randomBytes(32).toString("hex");
     const deadline = AbortSignal.timeout(120_000);
+    const environment = { ...process.env };
+    delete environment.LOCUS_FFPROBE; delete environment.LOCUS_FFMPEG;
+    const overrides = settingsEnvironment ?? { ffprobe: join(root, "unavailable-ffprobe"), ffmpeg: join(root, "unavailable-ffmpeg") };
+    if (overrides.ffprobe !== undefined) environment.LOCUS_FFPROBE = overrides.ffprobe;
+    if (overrides.ffmpeg !== undefined) environment.LOCUS_FFMPEG = overrides.ffmpeg;
     const child = spawn(binary, [], {
       stdio: ["pipe", "pipe", "pipe"], windowsHide: true,
-      env: { ...process.env, LOCUS_FFPROBE: join(root, "unavailable-ffprobe"), LOCUS_FFMPEG: join(root, "unavailable-ffmpeg") },
+      env: environment,
     });
     children.push(child);
     let diagnostics = "";

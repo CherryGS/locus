@@ -22,7 +22,16 @@ try {
   const generated = join(temporary, "schema.d.ts");
   run(process.execPath, [join(root, "packages/locus-client/node_modules/openapi-typescript/bin/cli.js"), first, "--output", generated]);
   if (await readFile(generated, "utf8") !== await readFile(join(root, "packages/locus-client/src/schema.d.ts"), "utf8")) throw new Error("Generated client has drifted; run just client-generate");
-  console.log("OpenAPI deterministic; checked-in schema and TypeScript match regeneration.");
+  for (const suffix of ["first", "second"]) {
+    run(binary, ["export-settings", join(temporary, `settings-${suffix}.json`)]);
+    run(process.execPath, [join(root, "packages/locus-client/scripts/generate-settings.mjs"), join(temporary, `settings-${suffix}.json`), join(temporary, `settings-${suffix}.ts`)]);
+  }
+  for (const [extension, checked] of [["json", "settings.json"], ["ts", "src/settings.ts"]]) {
+    const actual = await readFile(join(temporary, `settings-first.${extension}`), "utf8");
+    if (actual !== await readFile(join(temporary, `settings-second.${extension}`), "utf8")) throw new Error("Settings generation is nondeterministic");
+    if (actual !== await readFile(join(root, "packages/locus-client", checked), "utf8")) throw new Error("Settings generation drift; run just client-generate");
+  }
+  console.log("Settings exports/factories deterministic. OpenAPI deterministic; checked-in schema and TypeScript match regeneration.");
 } finally {
   if (!resolve(temporary).startsWith(resolve(tmpdir()) + "/") && !resolve(temporary).startsWith(resolve(tmpdir()) + "\\")) throw new Error("Unexpected temporary path");
   await rm(temporary, { recursive: true, force: true });

@@ -15,4 +15,5 @@ mod preview;
 mod recognition;
 mod record;
 mod service;
+mod settings;
 mod view;
