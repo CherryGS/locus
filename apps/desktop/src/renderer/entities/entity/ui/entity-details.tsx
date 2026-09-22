@@ -1,13 +1,9 @@
-import type { ReactNode } from "react"
-import { BoxIcon, MousePointer2Icon } from "lucide-react"
-import { Badge } from "@/shared/ui/badge"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
+import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { Separator } from "@/shared/ui/separator"
 import { Spinner } from "@/shared/ui/spinner"
-import type { EntityComponent, EntityItem } from "../model/entity-item"
+import type { EntityComponent } from "../model/entity-item"
 import { formatFileSize } from "../lib/format-file-size"
 import { formatDuration } from "../lib/format-duration"
-import { componentAppearance } from "./component-appearance"
 import { Detail, DetailSection, DetailTime } from "./detail-fields"
 import { TwitterDetails } from "./twitter-details"
 
@@ -21,98 +17,52 @@ function aspectRatio(width: number, height: number) {
   while (b !== 0) [a, b] = [b, a % b]
   return `${width / a}:${height / a}`
 }
-export function EntityOverview({
-  entity,
-  viewSelection,
-  representedKinds = [],
-}: {
-  entity: EntityItem | null
-  viewSelection?: ReactNode
-  representedKinds?: readonly EntityComponent["kind"][]
-}) {
-  if (!entity)
-    return (
-      <Empty className="px-4 py-10">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <MousePointer2Icon />
-          </EmptyMedia>
-          <EmptyTitle>No entity selected</EmptyTitle>
-          <EmptyDescription>Select an entity to see its details.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    )
+export function EntityComponentDetails({ component }: { component: EntityComponent }) {
   return (
     <div className="flex min-w-0 flex-col pb-1">
-      <DetailSection title="Components">
-        {entity.loading && (
-          <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Spinner />
-            Reading Entity metadata…
-          </p>
-        )}
-        {viewSelection}
-        <div className="flex flex-wrap gap-2">
-          {entity.components.length === 0 &&
-          entity.membershipsStatus !== "loading" &&
-          entity.membershipsStatus !== "unread" &&
-          entity.membershipsStatus !== "failed" ? (
-            <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <BoxIcon className="size-4" aria-hidden="true" />
-              {entity.membershipsStatus === "missing" ? "Entity unavailable" : "No components"}
-            </p>
-          ) : (
-            entity.components
-              .filter((component) => !representedKinds.includes(component.kind))
-              .map((component) => {
-                const { label, icon: Icon } = componentAppearance[component.kind]
-                return (
-                  <Badge key={component.id} variant="outline">
-                    <Icon data-icon="inline-start" />
-                    {label}
-                  </Badge>
-                )
-              })
-          )}
-        </div>
-      </DetailSection>
-      {entity.name && (
-        <>
-          <Separator />
-          <DetailSection title="Properties">
-            <dl>
-              <Detail label="Name">{entity.name}</Detail>
-            </dl>
-          </DetailSection>
-        </>
+      {component.readStatus === "loading" && (
+        <p className="flex items-center gap-2 px-4 pt-4 text-xs text-muted-foreground">
+          <Spinner />
+          Reading metadata…
+        </p>
       )}
+      {(component.previous || component.readStatus === "failed") && (
+        <div className="px-4 pt-4">
+          <Alert>
+            <AlertTitle>{component.previous ? "Showing previous data" : "Metadata unavailable"}</AlertTitle>
+            <AlertDescription>
+              {component.previous
+                ? "Previous result · the latest reread failed."
+                : "The component could not be read."}{" "}
+              See Overview for details and recovery.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+      <ComponentDetailsContent component={component} />
     </div>
   )
 }
-export function EntityComponentDetails({ component }: { component: EntityComponent }) {
+function ComponentDetailsContent({ component }: { component: EntityComponent }) {
   if (component.kind === "twitter") return <TwitterDetails component={component} />
   if (component.kind === "unknown")
     return (
-      <DetailSection title="Membership">
-        <dl>
-          <Detail label="Kind ID">{component.kindId}</Detail>
-        </dl>
-        <p className="text-xs text-muted-foreground">This UI has no reader for this attached kind.</p>
-      </DetailSection>
+      <>
+        <DetailSection title="Component">
+          <p className="text-xs text-muted-foreground">This UI has no reader for this attached kind.</p>
+        </DetailSection>
+        <Separator />
+        <DetailSection title="Membership details">
+          <dl>
+            <Detail label="Kind ID">{component.kindId}</Detail>
+          </dl>
+        </DetailSection>
+      </>
     )
   const record = "record" in component ? component.record : undefined
   const applicability = "applicability" in component ? component.applicability : undefined
   return (
     <div className="flex min-w-0 flex-col pb-1">
-      {component.readStatus === "loading" && (
-        <div className="flex items-center gap-2 px-4 pt-3 text-xs text-muted-foreground">
-          <Spinner />
-          Reading metadata…
-        </div>
-      )}
-      {component.previous && (
-        <p className="px-4 pt-3 text-xs text-muted-foreground">Previous result · the latest reread failed.</p>
-      )}
       <DetailSection title="Properties">
         <dl>
           {component.kind === "file" ? (
@@ -124,18 +74,8 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
                 </>
               )}
               <Detail label="Size">
-                {component.bytes === undefined ? (
-                  "Not observed"
-                ) : (
-                  <>
-                    <span className="block">{formatFileSize(component.bytes)}</span>
-                    <span className="block text-muted-foreground">
-                      {BigInt(component.bytes).toLocaleString()} bytes
-                    </span>
-                  </>
-                )}
+                {component.bytes === undefined ? "Not observed" : formatFileSize(component.bytes)}
               </Detail>
-              {component.relativePath && <Detail label="Managed path">{component.relativePath}</Detail>}
               {component.importedAt && (
                 <Detail label="Imported">
                   <DetailTime value={component.importedAt} />
@@ -151,14 +91,16 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
                   ? `${component.width.toLocaleString()} × ${component.height.toLocaleString()} px`
                   : "Unknown"}
               </Detail>
-              {component.kind === "image" && component.width !== undefined && component.height !== undefined && (
-                <>
-                  <Detail label="Aspect ratio">{aspectRatio(component.width, component.height)}</Detail>
-                  <Detail label="Pixels">
-                    {(BigInt(component.width) * BigInt(component.height)).toLocaleString()} pixels
-                  </Detail>
-                </>
-              )}
+              {component.kind === "image" &&
+                component.width !== undefined &&
+                component.height !== undefined && (
+                  <>
+                    <Detail label="Aspect ratio">{aspectRatio(component.width, component.height)}</Detail>
+                    <Detail label="Pixels">
+                      {(BigInt(component.width) * BigInt(component.height)).toLocaleString()} pixels
+                    </Detail>
+                  </>
+                )}
               {component.kind === "video" && (
                 <>
                   <Detail label="Stream">{component.streamIndex ?? "Unknown"}</Detail>
@@ -169,7 +111,9 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
                       <>
                         {formatDuration(component.durationSeconds)}
                         {component.durationPrecision && (
-                          <span className="block text-muted-foreground">Precision: {component.durationPrecision}</span>
+                          <span className="block text-muted-foreground">
+                            Precision: {component.durationPrecision}
+                          </span>
                         )}
                       </>
                     )}
@@ -184,6 +128,19 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
           )}
         </dl>
       </DetailSection>
+      {component.kind === "file" && (component.relativePath || component.bytes !== undefined) && (
+        <>
+          <Separator />
+          <DetailSection title="Storage details">
+            <dl>
+              {component.bytes !== undefined && (
+                <Detail label="Exact size">{BigInt(component.bytes).toLocaleString()} bytes</Detail>
+              )}
+              {component.relativePath && <Detail label="Managed path">{component.relativePath}</Detail>}
+            </dl>
+          </DetailSection>
+        </>
+      )}
       {component.kind === "image" &&
         (component.colorMode !== undefined ||
           component.bitsPerChannel !== undefined ||
@@ -192,7 +149,9 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
             <Separator />
             <DetailSection title="Color">
               <dl>
-                {component.colorMode !== undefined && <Detail label="Color mode">{component.colorMode}</Detail>}
+                {component.colorMode !== undefined && (
+                  <Detail label="Color mode">{component.colorMode}</Detail>
+                )}
                 {component.bitsPerChannel !== undefined && (
                   <Detail label="Bit depth">{component.bitsPerChannel}-bit per channel</Detail>
                 )}
@@ -206,13 +165,17 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
       {record && (
         <>
           <Separator />
-          <DetailSection title="Observation">
+          <DetailSection title="Observation details">
             <dl>
               <Detail label="Revision">{record.revision}</Detail>
               <Detail label="Facts basis">{record.basis ?? "No accepted basis"}</Detail>
               <Detail label="Input status">{applicability?.status ?? "Not observed"}</Detail>
-              {applicability?.status === "matching" && <Detail label="Current File">{applicability.file_id}</Detail>}
-              {applicability?.status === "changed" && <Detail label="Current File">{applicability.current}</Detail>}
+              {applicability?.status === "matching" && (
+                <Detail label="Current File">{applicability.file_id}</Detail>
+              )}
+              {applicability?.status === "changed" && (
+                <Detail label="Current File">{applicability.current}</Detail>
+              )}
               {applicability?.status === "incomplete" && (
                 <Detail label="Current File">
                   {applicability.current.status === "file"

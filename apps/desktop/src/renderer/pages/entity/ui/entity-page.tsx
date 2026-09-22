@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { useRouter } from "@tanstack/react-router"
-import { CornerDownLeftIcon, RefreshCwIcon } from "lucide-react"
+import { CheckIcon, CornerDownLeftIcon, RefreshCwIcon } from "lucide-react"
 import {
   componentAppearance,
   entityLabel,
@@ -33,6 +33,7 @@ import { availableViews, resolveView } from "../model/content-views"
 import { EntityContent } from "./entity-content"
 import { EntityFilmstrip } from "./entity-filmstrip"
 import { EntityWorkspace } from "./entity-workspace"
+import { EntityProblems } from "./entity-problems"
 
 export function EntityPage({
   source: library,
@@ -53,12 +54,12 @@ export function EntityPage({
   const collection = collections.find((item) => item.id === destination.collectionId)
   const sequence = useMemo(
     () => contextSequence(destination, library.sequence, collections, suppliedSequence),
-    [destination.collectionId, library.sequence, collections]
+    [destination.collectionId, library.sequence, collections],
   )
   const source = { ...library, sequence: sequence ?? suppliedSequence([]) }
   const selectedIndex = useMemo(
     () => (destination.entityId && sequence ? sequence.indexOf(destination.entityId) : -1),
-    [destination.entityId, sequence]
+    [destination.entityId, sequence],
   )
   const selected = selectedIndex >= 0 && destination.entityId ? library.get(destination.entityId) : null
   const viewing = destination.mode === "inspect"
@@ -72,17 +73,25 @@ export function EntityPage({
     override?.entityId === selected?.id
       ? override?.viewId
       : (preference?.intended ??
-        (preference?.observation?.status === "saved" ? preference.observation.view_definition_id : undefined) ??
+        (preference?.observation?.status === "saved"
+          ? preference.observation.view_definition_id
+          : undefined) ??
         previewChoices.get(selected?.id ?? "") ??
         null)
   const viewId = resolveView(selected, preferred ?? null)
   const views = availableViews(selected)
   const preferenceWaiting =
-    !!live && !!selected && !override && !preference?.intended && !preference?.observation && !preference?.readProblem
+    !!live &&
+    !!selected &&
+    !override &&
+    !preference?.intended &&
+    !preference?.observation &&
+    !preference?.readProblem
   const structureWaiting =
     !!selected?.live && (selected.membershipsStatus === "unread" || selected.membershipsStatus === "loading")
   const contentWaiting = preferenceWaiting || structureWaiting
-  const failedAvailability = !!selected?.live && selected.membershipsStatus === "failed" && !selected.components.length
+  const failedAvailability =
+    !!selected?.live && selected.membershipsStatus === "failed" && !selected.components.length
 
   useEffect(
     () =>
@@ -92,7 +101,7 @@ export function EntityPage({
           setExplanation(undefined)
         }
       }),
-    [router]
+    [router],
   )
   function move(next: EntityDestination, replace = false) {
     setOverride(null)
@@ -119,7 +128,7 @@ export function EntityPage({
       library.sequence,
       collections,
       suppliedSequence,
-      !live || !!live.reader.sequence
+      !live || !!live.reader.sequence,
     )
     const next = result.destination
     const sourceView = destination.source?.viewId
@@ -149,7 +158,7 @@ export function EntityPage({
     if (event.defaultPrevented || !viewing || event.altKey || event.ctrlKey || event.metaKey) return
     if (
       (event.target as HTMLElement).closest(
-        "input, textarea, select, video, [contenteditable=true], [role=separator], [role=slider], [data-slot=toggle-group], [data-slot=dialog-content]"
+        "input, textarea, select, video, [contenteditable=true], [role=separator], [role=slider], [data-slot=toggle-group], [data-slot=dialog-content]",
       )
     )
       return
@@ -164,7 +173,12 @@ export function EntityPage({
     const success = await live.reader.refresh()
     if (!success || currentVisit.current !== requested) return
     const id = destination.entityId
-    if (selected && destination.collectionId === "library" && id && live.reader.sequence?.indexOf(id) === -1) {
+    if (
+      selected &&
+      destination.collectionId === "library" &&
+      id &&
+      live.reader.sequence?.indexOf(id) === -1
+    ) {
       setOverride(null)
       setExplanation("The Entity is no longer in the current list. Selection was cleared.")
       navigate({ mode: "grid", collectionId: "library" }, true)
@@ -211,9 +225,22 @@ export function EntityPage({
           })}
         </ToggleGroup>
       )}
+      {!views.length && (
+        <p className="text-xs text-muted-foreground">
+          {selected.loading || structureWaiting
+            ? "Views will appear as components are read."
+            : selected.membershipsStatus === "failed"
+              ? "Content views could not be determined."
+              : selected.membershipsStatus === "missing"
+                ? "Entity unavailable."
+                : "No content views available."}
+        </p>
+      )}
       {preference && (
         <div className="flex flex-col gap-1 text-xs text-muted-foreground" aria-live="polite">
-          <span>
+          <span className="flex items-center gap-1.5">
+            {(preference.readPending || preference.status === "saving") && <Spinner />}
+            {preference.status === "saved" && !preference.readPending && <CheckIcon className="size-3.5" />}
             {preference.readPending
               ? "Reading saved view…"
               : preference.status === "saving"
@@ -230,41 +257,14 @@ export function EntityPage({
                           ? "No saved choice"
                           : "Preference unavailable"}
           </span>
-          {preferred && preferred !== viewId && (!selected.live || selected.membershipsStatus === "present") && (
-            <span>
-              Preferred {preferred} is unavailable. Showing {viewId ?? "no preview"}; the preference is unchanged.
-            </span>
-          )}
-        </div>
-      )}
-      {live && (
-        <Button variant="outline" size="sm" onClick={() => void live.reader.reread(selected.id)}>
-          <RefreshCwIcon data-icon="inline-start" />
-          Reread Entity
-        </Button>
-      )}
-      {!!selected.problems?.length && (
-        <div className="flex flex-col gap-2" aria-label="Entity problems">
-          {selected.problems.map((problem) => (
-            <Alert key={problem.key} variant="destructive">
-              <AlertTitle className="break-all">{problem.subject}</AlertTitle>
-              <AlertDescription>
-                <p>{problem.message}</p>
-                {problem.previous && <p>Displayed facts are from the previous successful observation.</p>}
-                <Button variant="outline" size="xs" onClick={() => recover(problem)}>
-                  {problem.recovery === "preference-check"
-                    ? "Check saving"
-                    : problem.recovery === "preference-save"
-                      ? "Retry saving"
-                      : problem.recovery === "preference-read"
-                        ? "Retry preference read"
-                        : problem.recovery === "resource"
-                          ? "Retry image"
-                          : "Reread Entity"}
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ))}
+          {preferred &&
+            preferred !== viewId &&
+            (!selected.live || selected.membershipsStatus === "present") && (
+              <span>
+                Preferred {preferred} is unavailable. Showing {viewId ?? "no preview"}; the preference is
+                unchanged.
+              </span>
+            )}
         </div>
       )}
     </div>
@@ -396,7 +396,7 @@ export function EntityPage({
                         ? preference.observation.view_definition_id
                         : undefined) ??
                       previewChoices.get(entity.id) ??
-                      null
+                      null,
                   )
             }}
             onSelect={open}
@@ -436,7 +436,9 @@ export function EntityPage({
       {live?.reader.listError && !!live.reader.sequence && (
         <Alert variant="destructive">
           <AlertTitle>Library refresh failed</AlertTitle>
-          <AlertDescription>{live.reader.listError} The previous complete list is still shown.</AlertDescription>
+          <AlertDescription>
+            {live.reader.listError} The previous complete list is still shown.
+          </AlertDescription>
         </Alert>
       )}
       <Separator />
@@ -448,6 +450,12 @@ export function EntityPage({
         onOpen={open}
         content={content}
         viewSelection={viewSelection}
+        overviewFeedback={
+          selected?.problems?.length ? (
+            <EntityProblems problems={selected.problems} recover={recover} />
+          ) : undefined
+        }
+        onReread={selected && live ? () => void live.reader.reread(selected.id) : undefined}
         gridFeedback={gridFeedback}
       />
     </section>

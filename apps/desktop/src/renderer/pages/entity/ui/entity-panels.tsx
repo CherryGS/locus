@@ -7,7 +7,6 @@ import {
   type EntityComponent,
   type EntityItem,
 } from "@/entities/entity"
-import { availableViews } from "../model/content-views"
 
 export type EntityPanelId = string
 
@@ -19,20 +18,22 @@ type EntityPanel = {
   content: ReactNode
 }
 
-export function entityPanels(entity: EntityItem | null, viewSelection?: ReactNode): EntityPanel[] {
+export function entityPanels(
+  entity: EntityItem | null,
+  viewSelection: ReactNode,
+  overview: {
+    feedback?: ReactNode
+    onReread?: () => void
+    onOpenComponent: (component: EntityComponent) => void
+  },
+): EntityPanel[] {
   return [
     {
       id: "overview",
       label: "Overview",
       icon: PanelRightIcon,
       identity: entity ? { label: "Entity ID", value: entity.id } : undefined,
-      content: (
-        <EntityOverview
-          entity={entity}
-          viewSelection={viewSelection}
-          representedKinds={viewSelection ? availableViews(entity).map((view) => view.kind) : []}
-        />
-      ),
+      content: <EntityOverview entity={entity} viewSelection={viewSelection} {...overview} />,
     },
     ...(entity?.components.map((component) => ({
       id: component.kind === "unknown" ? component.id : component.kind,

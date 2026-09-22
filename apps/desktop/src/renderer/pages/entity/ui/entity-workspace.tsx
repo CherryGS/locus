@@ -10,6 +10,7 @@ import { EntityGrid } from "./entity-grid"
 import { minimumEntityGridWidth } from "./entity-grid-layout"
 import { entityPanels, type EntityPanelId } from "./entity-panels"
 import { CopyIdentityButton } from "@/shared/ui/copy-identity-button"
+import { XIcon } from "lucide-react"
 
 export function EntityWorkspace({
   source,
@@ -19,6 +20,8 @@ export function EntityWorkspace({
   onOpen,
   content,
   viewSelection,
+  overviewFeedback,
+  onReread,
   gridFeedback,
 }: {
   source: EntitySource
@@ -28,12 +31,24 @@ export function EntityWorkspace({
   onOpen: (entity: EntityItem) => void
   content: ReactNode
   viewSelection: ReactNode
+  overviewFeedback?: ReactNode
+  onReread?: () => void
   gridFeedback?: ReactNode
 }) {
-  const panels = entityPanels(selectedEntity, viewSelection)
   const [activePanelId, setActivePanelId] = useState<EntityPanelId | null>(null)
+  const panelTriggers = useRef(new Map<string, HTMLButtonElement>())
+  const panels = entityPanels(selectedEntity, viewSelection, {
+    feedback: overviewFeedback,
+    onReread,
+    onOpenComponent: (component) => {
+      const id = component.kind === "unknown" ? component.id : component.kind
+      panelTriggers.current.get(id)?.focus()
+      setActivePanelId(id)
+    },
+  })
   const missingPanel = activePanelId !== null && !panels.some((panel) => panel.id === activePanelId)
-  const activePanel = activePanelId === null ? null : (panels.find((panel) => panel.id === activePanelId) ?? panels[0])
+  const activePanel =
+    activePanelId === null ? null : (panels.find((panel) => panel.id === activePanelId) ?? panels[0])
   const [panelDefaultWidth, setPanelDefaultWidth] = useState(256)
   // Keep the mounted split pane's default stable during a drag; restore its
   // last live width only when reopening it.
@@ -101,16 +116,42 @@ export function EntityWorkspace({
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.12 }}
               >
-                {activePanel.identity && (
-                  <>
-                    <header className="flex h-11 min-w-0 shrink-0 items-center px-4">
-                      <CopyIdentityButton key={activePanel.identity.value} {...activePanel.identity} />
-                    </header>
-                    <Separator />
-                  </>
-                )}
+                <header className="flex h-12 min-w-0 shrink-0 items-center gap-2 px-4">
+                  <activePanel.icon className="size-4 text-muted-foreground" />
+                  <h2 className="min-w-0 flex-1 truncate text-sm font-medium">{activePanel.label}</h2>
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label="Close details panel"
+                    onClick={() => {
+                      panelTriggers.current.get(activePanel.id)?.focus()
+                      setActivePanelId(null)
+                    }}
+                  >
+                    <XIcon />
+                  </Button>
+                </header>
+                <Separator />
                 <ScrollArea key={activePanel.id} className="min-h-0 flex-1">
                   {activePanel.content}
+                  {activePanel.identity && (
+                    <>
+                      <Separator />
+                      <section
+                        key={activePanel.identity.value}
+                        aria-label="Identifiers"
+                        className="px-4 py-4"
+                      >
+                        <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                          Identifiers
+                        </h3>
+                        <div className="mt-3 flex min-w-0 flex-col gap-1">
+                          <p className="text-xs text-muted-foreground">{activePanel.identity.label}</p>
+                          <CopyIdentityButton {...activePanel.identity} />
+                        </div>
+                      </section>
+                    </>
+                  )}
                 </ScrollArea>
               </motion.aside>
             </ResizablePanel>
@@ -118,10 +159,17 @@ export function EntityWorkspace({
         )}
       </ResizablePanelGroup>
       <Separator orientation="vertical" />
-      <aside aria-label="Auxiliary panels" className="flex w-12 shrink-0 flex-col items-center gap-2 bg-sidebar py-2">
+      <aside
+        aria-label="Auxiliary panels"
+        className="flex w-12 shrink-0 flex-col items-center gap-2 bg-sidebar py-2"
+      >
         {panels.map(({ id, label, icon: Icon }) => (
           <Button
             key={id}
+            ref={(element) => {
+              if (element) panelTriggers.current.set(id, element)
+              else panelTriggers.current.delete(id)
+            }}
             variant={activePanel?.id === id ? "secondary" : "ghost"}
             className="h-auto w-10 flex-col gap-2 py-3"
             aria-label={label}

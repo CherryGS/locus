@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/shared/ui/button"
+import { CheckIcon, CopyIcon } from "lucide-react"
 
 export function CopyIdentityButton({ label, value }: { label: string; value: string }) {
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle")
@@ -20,21 +21,31 @@ export function CopyIdentityButton({ label, value }: { label: string; value: str
     }
   }
 
-  const feedback = status === "copied" ? `${label} copied.` : status === "failed" ? `Could not copy ${label.toLowerCase()}.` : ""
+  const feedback =
+    status === "copied"
+      ? `${label} copied.`
+      : status === "failed"
+        ? `Could not copy ${label.toLowerCase()}.`
+        : ""
 
   return (
     <>
       <Button
         variant={status === "failed" ? "destructive" : "ghost"}
         size="xs"
-        className="w-full min-w-0 shrink flex-1 justify-start px-0"
+        className="h-auto w-full min-w-0 shrink flex-1 items-start justify-start gap-2 px-0 py-1 whitespace-normal"
         aria-label={`Copy ${label.toLowerCase()}`}
         title={value}
         onClick={copy}
       >
-        <code className="min-w-0 flex-1 truncate text-left font-mono text-muted-foreground">{status === "copied" ? "Copied" : status === "failed" ? "Copy failed" : value}</code>
+        <code className="min-w-0 flex-1 break-all text-left font-mono text-muted-foreground">
+          {status === "copied" ? "Copied" : status === "failed" ? "Copy failed" : value}
+        </code>
+        {status === "copied" ? <CheckIcon data-icon="inline-end" /> : <CopyIcon data-icon="inline-end" />}
       </Button>
-      <span role="status" className="sr-only">{feedback}</span>
+      <span role="status" className="sr-only">
+        {feedback}
+      </span>
     </>
   )
 }
