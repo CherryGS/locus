@@ -7,6 +7,7 @@ pub mod file;
 mod handlers;
 pub(crate) mod mapping;
 pub mod media;
+pub mod model;
 pub mod preferences;
 mod renderer;
 mod request;

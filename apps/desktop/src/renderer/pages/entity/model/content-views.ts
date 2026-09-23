@@ -1,14 +1,20 @@
 import type { EntityComponent, EntityItem } from "@/entities/entity"
 
-export type ContentViewId = "image.inspect" | "video.play" | "twitter.read" | "file.info"
+export type ContentViewId = "image.inspect" | "video.play" | "twitter.read" | "model.read" | "file.info"
 export function availableViews(entity: EntityItem | null) {
-  const views: { id: ContentViewId; kind: EntityComponent["kind"]; label: string }[] = []
+  const views: {
+    id: ContentViewId
+    kind: EntityComponent["kind"]
+    label: string
+  }[] = []
   if (entity?.components.some((component) => component.kind === "image"))
     views.push({ id: "image.inspect", kind: "image", label: "Image" })
   if (entity?.components.some((component) => component.kind === "video"))
     views.push({ id: "video.play", kind: "video", label: "Video" })
   if (entity?.components.some((component) => component.kind === "twitter"))
     views.push({ id: "twitter.read", kind: "twitter", label: "Twitter" })
+  if (entity?.components.some((component) => component.kind === "model"))
+    views.push({ id: "model.read", kind: "model", label: "Model" })
   if (entity?.components.some((component) => component.kind === "file"))
     views.push({ id: "file.info", kind: "file", label: "File" })
   return views

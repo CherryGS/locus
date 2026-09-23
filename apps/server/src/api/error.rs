@@ -113,6 +113,9 @@ pub enum DomainDiagnostic {
     File {
         diagnostic: Diagnostic,
     },
+    Model {
+        error: super::model::dto::ModelFailure,
+    },
     Media {
         error: MediaFailure,
     },

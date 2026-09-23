@@ -4,6 +4,7 @@ pub(crate) mod composition;
 mod core;
 mod file;
 mod media;
+mod model;
 mod operations;
 mod ownership;
 #[cfg(test)]

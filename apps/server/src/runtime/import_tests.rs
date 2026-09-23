@@ -561,3 +561,392 @@ async fn original_context_restored_externally_can_retry_preview_without_reinterp
     assert_eq!(done.kinds[0].component, original.kinds[0].component);
     assert_eq!(done.file, original.file);
 }
+
+fn weight(path: &std::path::Path, valid: bool) {
+    let h = if valid {
+        r#"{"__metadata__":{"name":"file declaration"},"x":{"dtype":"F32","shape":[],"data_offsets":[0,4]}}"#
+    } else {
+        r#"{"x":{"dtype":"MYSTERY","shape":[],"data_offsets":[0,4]}}"#
+    };
+    let mut b = (h.len() as u64).to_le_bytes().to_vec();
+    b.extend(h.as_bytes());
+    b.extend([0; 4]);
+    std::fs::write(path, b).unwrap();
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn model_import_success_failure_same_identity_retry_and_read_only_view() {
+    let (root, server, _) = app().await;
+    let good = root.path().join("good.bin");
+    let bad = root.path().join("bad.bin");
+    weight(&good, true);
+    weight(&bad, false);
+    let request = BatchImportRequest {
+        request_id: id(),
+        source_paths: vec![good.to_string_lossy().into(), bad.to_string_lossy().into()],
+    };
+    let receipt = server.state.import_batch(request.clone()).unwrap();
+    terminal(&server.state, &receipt.task_id).await;
+    let batch = server.state.import_snapshot().batches.remove(0);
+    assert_eq!(batch.original_overall, Some(ImportOverall::Failure));
+    let successful = &batch.items[0];
+    let failed = &batch.items[1];
+    assert!(successful.current.complete);
+    assert_eq!(
+        successful.current.model.inspection.state,
+        ImportStepState::Success
+    );
+    assert!(
+        successful
+            .current
+            .kinds
+            .iter()
+            .all(|k| k.recognition.state == ImportStepState::NoMatch)
+    );
+    assert_eq!(
+        failed.current.model.recognition.state,
+        ImportStepState::Success
+    );
+    assert_eq!(
+        failed.current.model.establishment.state,
+        ImportStepState::Success
+    );
+    assert_eq!(
+        failed.current.model.inspection.state,
+        ImportStepState::Failed
+    );
+    assert!(failed.current.confirmed_entity_id.is_some());
+    let model = locus_model::api::ModelId::from_bytes(
+        uuid::Uuid::parse_str(successful.current.model.component_id.as_ref().unwrap())
+            .unwrap()
+            .as_bytes(),
+    )
+    .unwrap();
+    let before = server.state.model_view(model).await.unwrap();
+    assert_eq!(before.record.facts.as_ref().unwrap().element_count, "1");
+    assert_eq!(server.state.model_view(model).await.unwrap(), before);
+    let receipt = server
+        .state
+        .recover_import(recovery(
+            &server,
+            &request.request_id,
+            failed,
+            ImportAction::Retry,
+        ))
+        .unwrap();
+    terminal(&server.state, &receipt.task_id).await;
+    let after = server
+        .state
+        .import_snapshot()
+        .batches
+        .remove(0)
+        .items
+        .remove(1);
+    assert_eq!(
+        after.current.model.component_id,
+        failed.current.model.component_id
+    );
+    assert_eq!(after.current.file_id, failed.current.file_id);
+    assert_eq!(after.current.entity_id, failed.current.entity_id);
+    assert_eq!(
+        after.current.model.inspection.state,
+        ImportStepState::Failed
+    );
+    assert_eq!(after.attempts[0], failed.attempts[0]);
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn model_unknown_establishment_and_inspection_confirm_without_duplication() {
+    for establishment in [true, false] {
+        let (root, server, _) = app().await;
+        let path = root.path().join("weight");
+        weight(&path, true);
+        if establishment {
+            *server
+                .state
+                .imports
+                .model_establishment_fault
+                .lock()
+                .unwrap() = Some(BaseFault::Unknown)
+        } else {
+            *server
+                .state
+                .imports
+                .unknown_model_inspection
+                .lock()
+                .unwrap() = true
+        }
+        let request = BatchImportRequest {
+            request_id: id(),
+            source_paths: vec![path.to_string_lossy().into()],
+        };
+        let receipt = server.state.import_batch(request.clone()).unwrap();
+        terminal(&server.state, &receipt.task_id).await;
+        let old = first(&server);
+        assert!(old.actions.contains(&ImportAction::Confirm));
+        assert_eq!(
+            if establishment {
+                old.current.model.establishment.state
+            } else {
+                old.current.model.inspection.state
+            },
+            ImportStepState::Uncertain
+        );
+        assert!(
+            server
+                .state
+                .recover_import(recovery(
+                    &server,
+                    &request.request_id,
+                    &old,
+                    ImportAction::Retry
+                ))
+                .is_err()
+        );
+        let receipt = server
+            .state
+            .recover_import(recovery(
+                &server,
+                &request.request_id,
+                &old,
+                ImportAction::Confirm,
+            ))
+            .unwrap();
+        terminal(&server.state, &receipt.task_id).await;
+        let confirmed = first(&server);
+        assert_eq!(
+            confirmed.current.model.component_id,
+            old.current.model.component_id
+        );
+        if establishment {
+            let receipt = server
+                .state
+                .recover_import(recovery(
+                    &server,
+                    &request.request_id,
+                    &confirmed,
+                    ImportAction::Retry,
+                ))
+                .unwrap();
+            terminal(&server.state, &receipt.task_id).await;
+        }
+        assert!(first(&server).current.complete);
+        assert_eq!(first(&server).attempts[0], old.attempts[0]);
+    }
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn unchanged_failed_model_cannot_confirm_a_new_uncertain_attempt() {
+    let (root, server, _) = app().await;
+    let path = root.path().join("weight");
+    weight(&path, false);
+    let request = BatchImportRequest {
+        request_id: id(),
+        source_paths: vec![path.to_string_lossy().into()],
+    };
+    let receipt = server.state.import_batch(request.clone()).unwrap();
+    terminal(&server.state, &receipt.task_id).await;
+    let old = first(&server);
+    let batch = server.state.import_snapshot().batches[0].batch_id.clone();
+    // Test-only lost-commit evidence: the retained failure predates the uncertain attempt.
+    {
+        let mut all = server.state.imports.lock();
+        let state = &mut all.get_mut(&batch).unwrap().items[0].current;
+        state.model.inspection = crate::imports::Step::new(crate::imports::State::Uncertain);
+    }
+    let receipt = server
+        .state
+        .recover_import(recovery(
+            &server,
+            &request.request_id,
+            &old,
+            ImportAction::Confirm,
+        ))
+        .unwrap();
+    terminal(&server.state, &receipt.task_id).await;
+    let pending = first(&server);
+    assert_eq!(
+        pending.current.model.inspection.state,
+        ImportStepState::Uncertain
+    );
+    assert_eq!(pending.actions, vec![ImportAction::Confirm]);
+    let model = locus_model::api::ModelId::from_bytes(
+        uuid::Uuid::parse_str(old.current.model.component_id.as_ref().unwrap())
+            .unwrap()
+            .as_bytes(),
+    )
+    .unwrap();
+    let d = server.state.business().unwrap().clone();
+    server
+        .state
+        .queue
+        .submit("Another explicit inspection", move |task| async move {
+            let mut s = d.database.session(&task).await.unwrap();
+            d.model
+                .inspect(&d.kernel, &d.files, &mut s, model)
+                .await
+                .unwrap();
+        })
+        .unwrap()
+        .result()
+        .await
+        .unwrap();
+    let receipt = server
+        .state
+        .recover_import(recovery(
+            &server,
+            &request.request_id,
+            &pending,
+            ImportAction::Confirm,
+        ))
+        .unwrap();
+    terminal(&server.state, &receipt.task_id).await;
+    assert_eq!(
+        first(&server).current.model.inspection.state,
+        ImportStepState::Failed
+    );
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn model_match_and_media_match_keep_independent_requirements_and_reuse() {
+    let (root, server, _) = app().await;
+    let path = root.path().join("weight");
+    weight(&path, true);
+    *server.state.imports.force_image_match.lock().unwrap() = true;
+    let request = BatchImportRequest {
+        request_id: id(),
+        source_paths: vec![path.to_string_lossy().into()],
+    };
+    let receipt = server.state.import_batch(request.clone()).unwrap();
+    terminal(&server.state, &receipt.task_id).await;
+    let old = first(&server);
+    assert_eq!(old.current.model.inspection.state, ImportStepState::Success);
+    assert_eq!(
+        old.current.kinds[0].recognition.state,
+        ImportStepState::Success
+    );
+    assert_eq!(
+        old.current.kinds[0].interpretation.state,
+        ImportStepState::Failed
+    );
+    assert!(!old.current.complete);
+    let model = locus_model::api::ModelId::from_bytes(
+        uuid::Uuid::parse_str(old.current.model.component_id.as_ref().unwrap())
+            .unwrap()
+            .as_bytes(),
+    )
+    .unwrap();
+    let record = server.state.model_read(model).await.unwrap();
+    let receipt = server
+        .state
+        .recover_import(recovery(
+            &server,
+            &request.request_id,
+            &old,
+            ImportAction::Retry,
+        ))
+        .unwrap();
+    terminal(&server.state, &receipt.task_id).await;
+    let now = first(&server);
+    assert_eq!(
+        now.current.kinds[0].component_id,
+        old.current.kinds[0].component_id
+    );
+    assert_eq!(
+        now.current.model.component_id,
+        old.current.model.component_id
+    );
+    assert!(!now.current.complete);
+    assert_eq!(server.state.model_read(model).await.unwrap(), record);
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn model_competing_slot_is_conflict_without_adoption_or_extra_record() {
+    let (root, server, _) = app().await;
+    let path = root.path().join("weight");
+    weight(&path, true);
+    *server
+        .state
+        .imports
+        .model_establishment_fault
+        .lock()
+        .unwrap() = Some(BaseFault::Rollback);
+    let request = BatchImportRequest {
+        request_id: id(),
+        source_paths: vec![path.to_string_lossy().into()],
+    };
+    let receipt = server.state.import_batch(request.clone()).unwrap();
+    terminal(&server.state, &receipt.task_id).await;
+    let old = first(&server);
+    assert!(old.current.model.component_id.is_none());
+    let entity = locus_core::api::EntityId::from_bytes(
+        uuid::Uuid::parse_str(old.current.entity_id.as_ref().unwrap())
+            .unwrap()
+            .as_bytes(),
+    )
+    .unwrap();
+    let d = server.state.business().unwrap().clone();
+    let other = server
+        .state
+        .queue
+        .submit("Competing Model", move |task| async move {
+            let mut s = d.database.session(&task).await.unwrap();
+            let id = d.model.create(&d.kernel, &mut s).await.unwrap();
+            d.kernel
+                .attach(
+                    &mut s,
+                    locus_core::api::Membership {
+                        entity,
+                        kind: locus_model::api::MODEL_KIND,
+                        component: id.component(),
+                    },
+                )
+                .await
+                .unwrap();
+            id
+        })
+        .unwrap()
+        .result()
+        .await
+        .unwrap();
+    let receipt = server
+        .state
+        .recover_import(recovery(
+            &server,
+            &request.request_id,
+            &old,
+            ImportAction::Retry,
+        ))
+        .unwrap();
+    terminal(&server.state, &receipt.task_id).await;
+    let now = first(&server);
+    assert_eq!(
+        now.current.model.establishment.state,
+        ImportStepState::Conflict
+    );
+    assert!(now.current.model.component_id.is_none());
+    assert_eq!(server.state.model_read(other).await.unwrap().revision, "0");
+    let d = server.state.business().unwrap().clone();
+    let count = server
+        .state
+        .queue
+        .submit("Count fixture Models", move |task| async move {
+            use diesel_async::RunQueryDsl;
+            #[derive(diesel::QueryableByName)]
+            struct Count {
+                #[diesel(sql_type=diesel::sql_types::BigInt)]
+                n: i64,
+            }
+            let mut s = d.database.session(&task).await.unwrap();
+            s.transaction::<i64, locus_model::api::ModelError, _>(|c| {
+                Box::pin(async move {
+                    Ok(diesel::sql_query("SELECT count(*) AS n FROM locus_models")
+                        .get_result::<Count>(c.connection())
+                        .await?
+                        .n)
+                })
+            })
+            .await
+            .unwrap()
+        })
+        .unwrap()
+        .result()
+        .await
+        .unwrap();
+    assert_eq!(count, 1);
+}

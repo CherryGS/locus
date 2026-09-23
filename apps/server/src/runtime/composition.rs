@@ -14,6 +14,7 @@ pub(crate) struct Domain {
     pub kernel: Kernel,
     pub files: FileService,
     pub media: MediaService,
+    pub model: locus_model::api::ModelService,
     pub twitter: TwitterService,
     pub preferences: PreferenceService,
     pub media_settings: crate::api::settings::dto::MediaSettingsRuntime,
@@ -27,6 +28,7 @@ impl Domain {
         kernel.register(Arc::new(FileOwner))?;
         kernel.register(Arc::new(ImageOwner))?;
         kernel.register(Arc::new(VideoOwner))?;
+        kernel.register(Arc::new(locus_model::api::ModelOwner))?;
         kernel.register(Arc::new(TwitterOwner))?;
         let (config, media_settings) =
             super::settings_setup::prepare(queue, &database, &library.settings).await?;
@@ -39,6 +41,7 @@ impl Domain {
             kernel,
             files,
             media,
+            model: locus_model::api::ModelService::new(),
             twitter: TwitterService::new(),
             preferences,
             media_settings,
@@ -51,6 +54,7 @@ impl Domain {
                 init.kernel.initialize(&mut session).await?;
                 init.files.initialize(&mut session).await?;
                 init.media.initialize(&mut session).await?;
+                init.model.initialize(&mut session).await?;
                 init.twitter.initialize(&mut session).await?;
                 init.preferences.initialize(&mut session).await?;
                 Ok::<_, anyhow::Error>(())

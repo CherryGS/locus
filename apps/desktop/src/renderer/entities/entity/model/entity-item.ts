@@ -1,7 +1,11 @@
 // Renderer projections, not HTTP DTOs or independently editable domain records.
 import type { Wire } from "@/shared/api"
 import type { ReadProblem } from "./read-problem"
-type Observation = { readStatus?: "loading" | "ready" | "failed" | "unsupported"; previous?: boolean; kindId?: string }
+type Observation = {
+  readStatus?: "loading" | "ready" | "failed" | "unsupported"
+  previous?: boolean
+  kindId?: string
+}
 export type EntityComponent = Observation &
   (
     | {
@@ -43,6 +47,14 @@ export type EntityComponent = Observation &
         inputFileId?: string
         inputPrevious?: boolean
         durationPrecision?: string
+      }
+    | {
+        kind: "model"
+        id: string
+        record?: Wire<"ModelRecord">
+        applicability?: Wire<"Applicability">
+        host?: string | null
+        fileProblem?: Wire<"DomainDiagnostic"> | null
       }
     | { kind: "unknown"; id: string; kindId: string }
     | {

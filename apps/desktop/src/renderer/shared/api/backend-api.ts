@@ -136,6 +136,9 @@ export class BackendApi {
       })
     )
   }
+  async model(id: string) {
+    return result(await this.client.GET("/api/v1/models/{component_id}/view", { params: { path: { component_id: id } } }))
+  }
   async twitter(id: string) {
     return result(
       await this.client.GET("/api/v1/twitter/{component_id}/view", { params: { path: { component_id: id } } })

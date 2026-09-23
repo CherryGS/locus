@@ -9,6 +9,7 @@ import {
   type EntityReader,
 } from "@/entities/entity"
 import type { PlaybackCoordinator } from "@/features/video-playback"
+import { ModelReading } from "./model-reading"
 import { LiveVideo } from "./live-video"
 import type { BackendApi } from "@/shared/api"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
@@ -31,7 +32,11 @@ export function EntityContent({
   entity: EntityItem
   viewId: ContentViewId | null
   source: EntitySource
-  live?: { api: BackendApi; reader: EntityReader; playback: PlaybackCoordinator }
+  live?: {
+    api: BackendApi
+    reader: EntityReader
+    playback: PlaybackCoordinator
+  }
   collections: readonly RelatedCollection[]
   onRelated: (collection: RelatedCollection, entity: EntityItem) => void
 }) {
@@ -42,6 +47,7 @@ export function EntityContent({
   const image = entity.components.find((component) => component.kind === "image")
   const video = entity.components.find((component) => component.kind === "video")
   const file = entity.components.find((component) => component.kind === "file")
+  const model = entity.components.find((component) => component.kind === "model")
   const twitter = entity.components.find((component) => component.kind === "twitter")
   return (
     <section
@@ -72,18 +78,28 @@ export function EntityContent({
           />
         )
       ) : viewId === "video.play" ? (
-        live && video ? <LiveVideo {...live} entityId={entity.id} video={video} name={entityLabel(entity)} /> : <VideoInspection
-          key={`${entity.id}:${video?.id}:${video?.src}`}
-          src={video?.src}
-          poster={video?.thumbnail}
-          name={entityLabel(entity)}
-        />
+        live && video ? (
+          <LiveVideo {...live} entityId={entity.id} video={video} name={entityLabel(entity)} />
+        ) : (
+          <VideoInspection
+            key={`${entity.id}:${video?.id}:${video?.src}`}
+            src={video?.src}
+            poster={video?.thumbnail}
+            name={entityLabel(entity)}
+          />
+        )
       ) : viewId === "twitter.read" && twitter ? (
         <ScrollArea className="min-h-0 flex-1">
           <div className="p-6">
-            <TwitterPost key={`${entity.id}:${twitter.id}`} component={twitter} onReread={live ? () => void live.reader.reread(entity.id) : undefined} />
+            <TwitterPost
+              key={`${entity.id}:${twitter.id}`}
+              component={twitter}
+              onReread={live ? () => void live.reader.reread(entity.id) : undefined}
+            />
           </div>
         </ScrollArea>
+      ) : viewId === "model.read" && model ? (
+        <ModelReading key={`${entity.id}:${model.id}:${model.record?.revision}`} component={model} />
       ) : viewId === "file.info" && file ? (
         <ScrollArea className="min-h-0 flex-1">
           <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">

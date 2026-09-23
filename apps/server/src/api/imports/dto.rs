@@ -63,7 +63,15 @@ pub struct ImportKindResult {
     pub output: Option<PreviewMetadata>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct ImportModelResult {
+    pub component_id: Option<String>,
+    pub recognition: ImportStep,
+    pub establishment: ImportStep,
+    pub inspection: ImportStep,
+}
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct ImportResult {
+    pub model: ImportModelResult,
     pub observation_problem: Option<String>,
     pub copy: ImportStep,
     pub registration: ImportStep,

@@ -34,6 +34,14 @@ pub(super) fn uncertain(error: &anyhow::Error) -> bool {
             _ => false,
         }
     }
+    fn model(e: &locus_model::api::ModelError) -> bool {
+        match e {
+            locus_model::api::ModelError::Store(e) => store(e),
+            locus_model::api::ModelError::Core(e) => core(e),
+            locus_model::api::ModelError::File(e) => file(e),
+            _ => false,
+        }
+    }
     fn twitter(e: &locus_twitter::api::TwitterError) -> bool {
         match e {
             locus_twitter::api::TwitterError::Store(e) => store(e),
@@ -49,6 +57,8 @@ pub(super) fn uncertain(error: &anyhow::Error) -> bool {
             || e.downcast_ref::<locus_file::api::FileError>()
                 .is_some_and(file)
             || e.downcast_ref::<MediaError>().is_some_and(media)
+            || e.downcast_ref::<locus_model::api::ModelError>()
+                .is_some_and(model)
             || e.downcast_ref::<locus_twitter::api::TwitterError>()
                 .is_some_and(twitter)
     })
@@ -61,6 +71,15 @@ pub(super) fn failed(error: anyhow::Error) -> Step {
             matches!(
                 e.downcast_ref::<MediaError>(),
                 Some(MediaError::ContextChanged | MediaError::NewerAttempt)
+            ) || matches!(
+                e.downcast_ref::<locus_model::api::ModelError>(),
+                Some(
+                    locus_model::api::ModelError::ContextChanged
+                        | locus_model::api::ModelError::NewerAttempt
+                        | locus_model::api::ModelError::Core(
+                            locus_core::api::CoreError::SlotOccupied(_)
+                        )
+                )
             )
         }) {
             State::Conflict
@@ -170,6 +189,8 @@ impl ImportStore {
             self.publish(batch, item);
             match d.media.recognize(&d.files, &mut session, file).await {
                 Ok(found) => {
+                    #[cfg(test)]
+                    let force_image = std::mem::take(&mut *self.force_image_match.lock().unwrap());
                     for (kind, observed) in item
                         .current
                         .kinds
@@ -179,6 +200,13 @@ impl ImportStore {
                         if matches!(kind.recognition.state, State::Success | State::NoMatch) {
                             continue;
                         }
+                        #[cfg(test)]
+                        let observed =
+                            if force_image && kind.kind == locus_media::api::MediaKind::Image {
+                                Recognition::Match
+                            } else {
+                                observed
+                            };
                         kind.recognition = match observed {
                             Recognition::Match => Step::new(State::Success),
                             Recognition::NoMatch => Step::new(State::NoMatch),
@@ -202,6 +230,8 @@ impl ImportStore {
             }
             self.publish(batch, item);
         }
+        self.process_model(d, &mut session, batch, item, entity, file)
+            .await;
         for index in 0..item.current.kinds.len() {
             if !item.current.kinds[index].recognition.success()
                 || item.current.kinds[index].complete()
@@ -396,6 +426,7 @@ impl ImportStore {
         if !item.current.file_attachment.success() || item.current.observation_problem.is_some() {
             return Ok(());
         }
+        self.confirm_model(d, session, item).await;
         let kernel = d.kernel.clone();
         let kinds = item.current.kinds.clone();
         let evidence = session
@@ -491,4 +522,23 @@ async fn guard(d: &Domain, session: &mut Session, expected: ExpectedInput) -> an
             })
         })
         .await
+}
+
+#[cfg(test)]
+#[test]
+fn model_nested_uncertainty_is_never_definite_failure() {
+    use locus_model::api::ModelError;
+    use locus_store::api::StoreError;
+    let uncertain = || StoreError::CommitOutcomeUnknown(diesel::result::Error::RollbackTransaction);
+    for error in [
+        ModelError::Store(uncertain()),
+        ModelError::Core(locus_core::api::CoreError::Store(uncertain())),
+        ModelError::File(locus_file::api::FileError::Store(uncertain())),
+        ModelError::File(locus_file::api::FileError::Core(
+            locus_core::api::CoreError::Store(uncertain()),
+        )),
+    ] {
+        let step = failed(error.into());
+        assert_eq!(step.state, crate::imports::State::Uncertain);
+    }
 }

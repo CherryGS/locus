@@ -204,3 +204,9 @@ desktop-settings-browser: server-build desktop-build
 
 desktop-settings-native: server-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:settings-native
+
+server-model-fixture root:
+    cargo run --package locus-server --example model-reading-fixture --locked -- '{{ replace(root, "'", "''") }}'
+
+desktop-model-browser: server-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:model-browser

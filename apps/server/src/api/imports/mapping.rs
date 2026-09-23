@@ -21,6 +21,12 @@ fn step(s: &owner::Step) -> ImportStep {
 }
 fn result(r: &owner::ResultState, ended: bool) -> ImportResult {
     ImportResult {
+        model: ImportModelResult {
+            component_id: r.model.component.map(|id| id.component().to_string()),
+            recognition: step(&r.model.recognition),
+            establishment: step(&r.model.establishment),
+            inspection: step(&r.model.inspection),
+        },
         observation_problem: r.observation_problem.clone(),
         copy: step(&r.copy),
         registration: step(&r.registration),

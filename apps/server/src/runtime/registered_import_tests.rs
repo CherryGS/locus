@@ -588,3 +588,46 @@ async fn registered_launch_rejection_retains_claim_without_publishing_batch() {
     s.wait_drained().await;
     assert_eq!(s.lock().active, 0);
 }
+#[tokio::test(flavor = "multi_thread")]
+async fn model_success_is_reused_when_source_sibling_retries() {
+    let (_root, server, path) = app().await;
+    let header = b"{}";
+    let mut bytes = 2u64.to_le_bytes().to_vec();
+    bytes.extend(header);
+    std::fs::write(&path, bytes).unwrap();
+    let file = file(&server.state, path).await;
+    *server.state.imports.source_fault.lock().unwrap() = Some(BaseFault::Rollback);
+    let request = request(Some(file), true);
+    let receipt = accepted(&server.state, &request).await.unwrap();
+    terminal(&server.state, &receipt.task_id).await;
+    let before = item(&server.state, &request.request_id);
+    assert_eq!(before.current.twitter.state, ImportStepState::Failed);
+    assert_eq!(
+        before.current.model.inspection.state,
+        ImportStepState::Success
+    );
+    let model = locus_model::api::ModelId::from_bytes(
+        uuid::Uuid::parse_str(before.current.model.component_id.as_ref().unwrap())
+            .unwrap()
+            .as_bytes(),
+    )
+    .unwrap();
+    let record = server.state.model_read(model).await.unwrap();
+    let receipt = server
+        .state
+        .recover_import(ImportRecoveryRequest {
+            request_id: id(),
+            batch_id: batch_id(&server.state, &request.request_id),
+            item_id: before.item_id.clone(),
+            action: ImportAction::Retry,
+        })
+        .unwrap();
+    terminal(&server.state, &receipt.task_id).await;
+    let after = item(&server.state, &request.request_id);
+    assert!(after.current.complete);
+    assert_eq!(
+        after.current.model.component_id,
+        before.current.model.component_id
+    );
+    assert_eq!(server.state.model_read(model).await.unwrap(), record);
+}

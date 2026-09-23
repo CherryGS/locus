@@ -108,7 +108,7 @@ if (
   process.argv[1] &&
   new URL(import.meta.url).pathname.endsWith(process.argv[1].replaceAll("\\", "/").split("/").pop()!)
 ) {
-  const data = await fixture()
+  const data = process.env.LOCUS_PREVIEW_PROFILE === "model" ? await (await import("./model-fixture.ts")).modelFixture() : await fixture()
   const backend = await data.start()
   const preview = await browserPreview(backend)
   console.log(

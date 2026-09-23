@@ -28,11 +28,13 @@ function componentSummary(component: EntityComponent) {
       if (component.format) values.push(component.format)
       return (
         values.join(" · ") ||
-        (component.record && !component.record.facts
-          ? "No accepted interpretation"
-          : "Properties not observed")
+        (component.record && !component.record.facts ? "No accepted interpretation" : "Properties not observed")
       )
     }
+    case "model":
+      return component.record?.facts
+        ? `${component.record.facts.format} · ${component.record.facts.tensor_count} tensors in this file`
+        : "No accepted inspection"
     case "twitter":
       return component.author?.handle
         ? `@${component.author.handle}`
@@ -101,20 +103,29 @@ export function EntityOverview({
           </Button>
         )}
       </div>
-      {entity.components.filter(c => c.kind === "twitter" && c.record).map(component => component.kind === "twitter" && (
-        <DetailSection key={component.id} title="Twitter association">
-          <p className="text-xs text-muted-foreground">{component.record?.basis ? `This capture was associated with File ${component.record.basis}.` : "This saved capture has no local File association."}</p>
-          {component.record?.basis && component.applicability?.status === "input" && (
-            <p className="text-xs text-muted-foreground">
-              {component.applicability.comparison.status === "matching"
-                ? "The current File identity matches the saved association."
-                : component.applicability.comparison.status === "changed"
-                  ? "A different File is currently attached."
-                  : "No current File is available for this association."}
-            </p>
-          )}
-        </DetailSection>
-      ))}
+      {entity.components
+        .filter((c) => c.kind === "twitter" && c.record)
+        .map(
+          (component) =>
+            component.kind === "twitter" && (
+              <DetailSection key={component.id} title="Twitter association">
+                <p className="text-xs text-muted-foreground">
+                  {component.record?.basis
+                    ? `This capture was associated with File ${component.record.basis}.`
+                    : "This saved capture has no local File association."}
+                </p>
+                {component.record?.basis && component.applicability?.status === "input" && (
+                  <p className="text-xs text-muted-foreground">
+                    {component.applicability.comparison.status === "matching"
+                      ? "The current File identity matches the saved association."
+                      : component.applicability.comparison.status === "changed"
+                        ? "A different File is currently attached."
+                        : "No current File is available for this association."}
+                  </p>
+                )}
+              </DetailSection>
+            )
+        )}
       {viewSelection && (
         <>
           <Separator />

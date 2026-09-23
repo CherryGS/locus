@@ -1,12 +1,5 @@
 import { useState, useSyncExternalStore } from "react"
-import {
-  CheckIcon,
-  ChevronRightIcon,
-  FileIcon,
-  ImportIcon,
-  RefreshCwIcon,
-  TriangleAlertIcon,
-} from "lucide-react"
+import { CheckIcon, ChevronRightIcon, FileIcon, ImportIcon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
@@ -56,10 +49,23 @@ function Details({ result }: { result: Wire<"ImportResult"> }) {
       )}
       {result.copied_bytes !== null && (
         <p>
-          {result.copied_bytes} confirmed copied bytes{result.copy_complete ? " / completed preparation" : ""}
+          {result.copied_bytes} confirmed copied bytes
+          {result.copy_complete ? " / completed preparation" : ""}
           {result.managed_bytes_may_exist ? " / managed bytes retained" : ""}
         </p>
       )}
+      <div className="flex flex-col gap-1">
+        <p className="font-medium">
+          Model
+          {result.model.component_id ? ` / ${result.model.component_id}` : ""}
+        </p>
+        {(["recognition", "establishment", "inspection"] as const).map((name) => (
+          <p key={name}>
+            {readable(name)}: {readable(result.model[name].state)}
+            {result.model[name].reason ? ` - ${result.model[name].reason}` : ""}
+          </p>
+        ))}
+      </div>
       {result.kinds.map((kind) => (
         <div key={kind.kind} className="flex flex-col gap-1">
           <p className="font-medium">
@@ -84,10 +90,11 @@ export function ImportButton({ coordinator: c }: { coordinator: ImportCoordinato
       size="sm"
       variant="ghost"
       disabled={!c.available || c.selecting}
-      title="Retain library copies; originals remain. Supported images and videos are processed automatically."
+      title="Retain library copies; originals remain. Supported images, videos and model weights are processed automatically."
       onClick={() => void c.select()}
     >
-      {c.selecting ? <Spinner data-icon="inline-start" /> : <ImportIcon data-icon="inline-start" />}Import
+      {c.selecting ? <Spinner data-icon="inline-start" /> : <ImportIcon data-icon="inline-start" />}
+      Import
     </Button>
   )
 }
@@ -107,10 +114,24 @@ export function ImportDetails({
   useSyncExternalStore(c.subscribe, c.snapshot)
   const [viewError, setViewError] = useState<string>()
   const [viewing, setViewing] = useState<string>()
-  const ended = new Set(tasks.filter((task) => task.state === "terminal").map((task) => `${task.access_context}:${task.request_id}`))
-  const currentBatch = c.batches.find(batch => batch.batch_id === batchId)
-  const originalRequestId = currentBatch?.access_context === "external" ? undefined : pendingRequestId ?? currentBatch?.original_request_id ?? tasks.find(task => task.access_context === "desktop" && task.operation.kind === "import_batch" && task.operation.batch_id === batchId)?.request_id
-  const pending = [...c.submissions.values()].filter(s => "source_paths" in s.body ? s.body.request_id === originalRequestId : s.body.batch_id === batchId)
+  const ended = new Set(
+    tasks.filter((task) => task.state === "terminal").map((task) => `${task.access_context}:${task.request_id}`)
+  )
+  const currentBatch = c.batches.find((batch) => batch.batch_id === batchId)
+  const originalRequestId =
+    currentBatch?.access_context === "external"
+      ? undefined
+      : (pendingRequestId ??
+        currentBatch?.original_request_id ??
+        tasks.find(
+          (task) =>
+            task.access_context === "desktop" &&
+            task.operation.kind === "import_batch" &&
+            task.operation.batch_id === batchId
+        )?.request_id)
+  const pending = [...c.submissions.values()].filter((s) =>
+    "source_paths" in s.body ? s.body.request_id === originalRequestId : s.body.batch_id === batchId
+  )
   const items = c.batches.filter((b) => b.batch_id === batchId).flatMap((b) => b.items)
   async function show(id: string) {
     setViewing(id)
@@ -142,48 +163,41 @@ export function ImportDetails({
           <AlertDescription>{viewError ?? c.problem}</AlertDescription>
         </Alert>
       )}
-      {pending
-        .map((s) => (
-          <Alert key={s.body.request_id}>
-            <AlertTitle>
-              {s.pending
-                ? "Establishing admission..."
-                : s.accepted
-                  ? "Accepted; awaiting result observation"
-                  : "Submission unconfirmed"}
-            </AlertTitle>
-            <AlertDescription>
-              {s.problem ?? "Retaining the original request identity."}
-              {"source_paths" in s.body && <p className="break-all">{s.body.source_paths.join("; ")}</p>}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={s.pending}
-                onClick={() => void c.checkRequest(s.body.request_id)}
-              >
-                Check original submission
-              </Button>
-            </AlertDescription>
-          </Alert>
-        ))}
+      {pending.map((s) => (
+        <Alert key={s.body.request_id}>
+          <AlertTitle>
+            {s.pending
+              ? "Establishing admission..."
+              : s.accepted
+                ? "Accepted; awaiting result observation"
+                : "Submission unconfirmed"}
+          </AlertTitle>
+          <AlertDescription>
+            {s.problem ?? "Retaining the original request identity."}
+            {"source_paths" in s.body && <p className="break-all">{s.body.source_paths.join("; ")}</p>}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={s.pending}
+              onClick={() => void c.checkRequest(s.body.request_id)}
+            >
+              Check original submission
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ))}
       {!items.length && !pending.length && (
-          <Empty>
-            <EmptyHeader>
-              <EmptyTitle>Import details unavailable</EmptyTitle>
-              <EmptyDescription>
-                The task is known; check results to recover its business details.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>Import details unavailable</EmptyTitle>
+            <EmptyDescription>The task is known; check results to recover its business details.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
       {c.batches
         .filter((batch) => batch.batch_id === batchId)
         .map((batch) => (
-          <section
-            key={batch.batch_id}
-            className="flex min-w-0 flex-col"
-            aria-label={`Import batch ${batch.batch_id}`}
-          >
+          <section key={batch.batch_id} className="flex min-w-0 flex-col" aria-label={`Import batch ${batch.batch_id}`}>
             {batch.items.map((item, index) => (
               <article key={item.item_id} className="flex min-w-0 flex-col gap-3">
                 {index > 0 && <Separator />}
@@ -191,7 +205,13 @@ export function ImportDetails({
                   <FileIcon className="mt-1 size-4 shrink-0 text-muted-foreground" />
                   <div className="flex min-w-0 flex-1 basis-32 flex-col gap-1">
                     <p className="truncate text-sm font-medium" title={item.source_path}>
-                      {item.supplied ? (item.requested_file ? (item.requested_twitter ? "Registered File + Twitter" : "Registered File") : "Twitter only") : item.source_path.split(/[\\/]/).pop() || item.source_path}
+                      {item.supplied
+                        ? item.requested_file
+                          ? item.requested_twitter
+                            ? "Registered File + Twitter"
+                            : "Registered File"
+                          : "Twitter only"
+                        : item.source_path.split(/[\\/]/).pop() || item.source_path}
                     </p>
                     <p className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
                       {(item.active_request_id && !ended.has(`${batch.access_context}:${item.active_request_id}`)) ||
@@ -212,18 +232,20 @@ export function ImportDetails({
                     </p>
                   </div>
                   <div className="ml-auto flex max-w-full flex-wrap gap-1.5">
-                    {item.current.confirmed_entity_id && (!item.requested_file || item.current.file_attachment.state === "success") && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-disabled={viewing === item.current.entity_id}
-                        onClick={() => {
-                          if (viewing !== item.current.entity_id) void show(item.current.entity_id!)
-                        }}
-                      >
-                        {viewing === item.current.entity_id && <Spinner data-icon="inline-start" />}View
-                      </Button>
-                    )}
+                    {item.current.confirmed_entity_id &&
+                      (!item.requested_file || item.current.file_attachment.state === "success") && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-disabled={viewing === item.current.entity_id}
+                          onClick={() => {
+                            if (viewing !== item.current.entity_id) void show(item.current.entity_id!)
+                          }}
+                        >
+                          {viewing === item.current.entity_id && <Spinner data-icon="inline-start" />}
+                          View
+                        </Button>
+                      )}
                     {item.actions
                       .filter((a) => a !== "recopy" && batch.access_context === "desktop")
                       .map((action) => (
@@ -243,13 +265,17 @@ export function ImportDetails({
                       ))}
                   </div>
                 </div>
-                {batch.access_context === "external" && item.actions.length > 0 && <p className="text-sm text-muted-foreground">This external import can be recovered by a holder of the current shared Token.</p>}
+                {batch.access_context === "external" && item.actions.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    This external import can be recovered by a holder of the current shared Token.
+                  </p>
+                )}
                 {batch.access_context === "desktop" && item.actions.includes("recopy") && (
                   <Alert>
                     <AlertTitle>New copy required</AlertTitle>
                     <AlertDescription>
-                      {item.current.copy.reason ?? item.current.base.reason} The source is read again and its
-                      bytes may have changed. Earlier managed effects are retained.
+                      {item.current.copy.reason ?? item.current.base.reason} The source is read again and its bytes may
+                      have changed. Earlier managed effects are retained.
                       <Button
                         size="sm"
                         variant="outline"
@@ -267,7 +293,11 @@ export function ImportDetails({
                     Details
                   </summary>
                   <div className="mt-3 flex min-w-0 flex-col gap-4 rounded-lg bg-muted/30 p-3">
-                    <p className="break-all text-xs text-muted-foreground">{item.supplied ? `Supplied scope: ${item.requested_file ? "registered File" : "no File requested"}${item.requested_twitter ? " / Twitter snapshot" : ""}` : item.source_path}</p>
+                    <p className="break-all text-xs text-muted-foreground">
+                      {item.supplied
+                        ? `Supplied scope: ${item.requested_file ? "registered File" : "no File requested"}${item.requested_twitter ? " / Twitter snapshot" : ""}`
+                        : item.source_path}
+                    </p>
                     <div className="flex min-w-0 flex-col gap-2">
                       <h4 className="text-xs font-medium">Current processing details</h4>
                       <Details result={item.current} />
@@ -283,8 +313,10 @@ export function ImportDetails({
                             <Separator />
                             <p className="break-all text-xs">
                               {attempt.action} /{" "}
-                              {attempt.ended || ended.has(`${batch.access_context}:${attempt.request_id}`) ? "ended" : "active"} /{" "}
-                              {attempt.request_id}
+                              {attempt.ended || ended.has(`${batch.access_context}:${attempt.request_id}`)
+                                ? "ended"
+                                : "active"}{" "}
+                              / {attempt.request_id}
                             </p>
                             <Details result={attempt.result} />
                           </div>
@@ -303,16 +335,20 @@ export function ImportDetails({
               <div className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground">
                 <p>
                   Original results:{" "}
-                  {batch.items.filter((i) => i.attempts[0]?.ended && i.attempts[0].result.complete).length}{" "}
-                  complete,{" "}
-                  {batch.items.filter((i) => i.attempts[0]?.ended && !i.attempts[0].result.complete).length}{" "}
-                  incomplete,{" "}
-                  {batch.items.filter((i) => !i.attempts[0]?.ended && !ended.has(`${batch.access_context}:${batch.original_request_id}`)).length}{" "}
+                  {batch.items.filter((i) => i.attempts[0]?.ended && i.attempts[0].result.complete).length} complete,{" "}
+                  {batch.items.filter((i) => i.attempts[0]?.ended && !i.attempts[0].result.complete).length} incomplete,{" "}
+                  {
+                    batch.items.filter(
+                      (i) => !i.attempts[0]?.ended && !ended.has(`${batch.access_context}:${batch.original_request_id}`)
+                    ).length
+                  }{" "}
                   active
                 </p>
                 <p className="break-all">
                   Batch {batch.batch_id} / original{" "}
-                  {batch.original_ended || ended.has(`${batch.access_context}:${batch.original_request_id}`) ? "ended" : "processing"}
+                  {batch.original_ended || ended.has(`${batch.access_context}:${batch.original_request_id}`)
+                    ? "ended"
+                    : "processing"}
                 </p>
               </div>
             </details>

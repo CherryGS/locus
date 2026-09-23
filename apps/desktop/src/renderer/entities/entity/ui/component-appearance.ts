@@ -2,6 +2,7 @@ import { AtSignIcon, FileIcon, ImageIcon, VideoIcon, BoxIcon, type LucideIcon } 
 import type { EntityComponent } from "../model/entity-item"
 
 export const componentAppearance = {
+  model: { label: "Model", icon: BoxIcon },
   file: { label: "File", icon: FileIcon },
   image: { label: "Image", icon: ImageIcon },
   video: { label: "Video", icon: VideoIcon },

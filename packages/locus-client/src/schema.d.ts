@@ -357,6 +357,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/models/{component_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["read_model"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/models/{component_id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view_model"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/previews": {
         parameters: {
             query?: never;
@@ -863,6 +895,10 @@ export interface components {
             /** @enum {string} */
             owner: "file";
         } | {
+            error: components["schemas"]["ModelFailure"];
+            /** @enum {string} */
+            owner: "model";
+        } | {
             error: components["schemas"]["MediaFailure"];
             /** @enum {string} */
             owner: "media";
@@ -975,6 +1011,12 @@ export interface components {
             preview: components["schemas"]["ImportStep"];
             recognition: components["schemas"]["ImportStep"];
         };
+        ImportModelResult: {
+            component_id?: string | null;
+            establishment: components["schemas"]["ImportStep"];
+            inspection: components["schemas"]["ImportStep"];
+            recognition: components["schemas"]["ImportStep"];
+        };
         /** @enum {string} */
         ImportOverall: "success" | "failure";
         ImportRecoveryRequest: {
@@ -1005,6 +1047,7 @@ export interface components {
             file_id?: string | null;
             kinds: components["schemas"]["ImportKindResult"][];
             managed_bytes_may_exist: boolean;
+            model: components["schemas"]["ImportModelResult"];
             observation_problem?: string | null;
             overall?: null | components["schemas"]["ImportOverall"];
             registration: components["schemas"]["ImportStep"];
@@ -1142,6 +1185,87 @@ export interface components {
             component_id: string;
             entity_id: string;
             kind_id: string;
+        };
+        /** @enum {string} */
+        ModelAttemptCode: "missing_input" | "file_access" | "unsupported_input" | "structure" | "worker";
+        ModelAttemptFailure: {
+            code: components["schemas"]["ModelAttemptCode"];
+            detail: string;
+        };
+        ModelFailure: {
+            /** @enum {string} */
+            code: "core";
+            error: components["schemas"]["CoreFailure"];
+        } | {
+            /** @enum {string} */
+            code: "file";
+            diagnostic: components["schemas"]["Diagnostic"];
+        } | {
+            /** @enum {string} */
+            code: "store";
+            diagnostic: components["schemas"]["Diagnostic"];
+        } | {
+            /** @enum {string} */
+            code: "missing_record";
+            component_id: string;
+        } | {
+            /** @enum {string} */
+            code: "corrupt";
+            message: string;
+        } | {
+            /** @enum {string} */
+            code: "schema_version";
+            /** Format: int32 */
+            version: number;
+        } | {
+            /** @enum {string} */
+            code: "context_changed";
+        } | {
+            /** @enum {string} */
+            code: "newer_attempt";
+        } | {
+            /** @enum {string} */
+            code: "attempt";
+            failure: components["schemas"]["ModelAttemptFailure"];
+        } | {
+            /** @enum {string} */
+            code: "other";
+            message: string;
+        };
+        ModelInspection: {
+            coverage: string;
+            declarations?: {
+                [key: string]: string;
+            } | null;
+            element_count: string;
+            format: string;
+            storage_types: {
+                [key: string]: components["schemas"]["ModelStorageSummary"];
+            };
+            tensor_count: string;
+            tensors: components["schemas"]["ModelTensor"][];
+        };
+        ModelRecord: {
+            basis?: string | null;
+            component_id: string;
+            facts?: null | components["schemas"]["ModelInspection"];
+            last_failure?: null | components["schemas"]["ModelAttemptFailure"];
+            revision: string;
+        };
+        ModelStorageSummary: {
+            element_count: string;
+            tensor_count: string;
+        };
+        ModelTensor: {
+            name: string;
+            shape: string[];
+            storage_type: string;
+        };
+        ModelView: {
+            applicability: components["schemas"]["Applicability"];
+            file_problem?: null | components["schemas"]["DomainDiagnostic"];
+            host?: string | null;
+            record: components["schemas"]["ModelRecord"];
         };
         MutationOutcome: {
             revision: string;
@@ -3993,6 +4117,180 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EntityMemberships"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    read_model: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                component_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelRecord"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    view_model: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                component_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelView"];
                 };
             };
             /** @description Invalid request */

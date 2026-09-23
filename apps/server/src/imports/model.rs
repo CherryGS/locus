@@ -73,6 +73,31 @@ impl KindResult {
     }
 }
 #[derive(Debug, Clone)]
+pub(crate) struct ModelResult {
+    pub recognition: Step,
+    pub establishment: Step,
+    pub inspection: Step,
+    pub component: Option<locus_model::api::ModelId>,
+    pub revision: Option<i64>,
+}
+impl ModelResult {
+    pub fn new() -> Self {
+        Self {
+            recognition: Step::new(State::Pending),
+            establishment: Step::new(State::Pending),
+            inspection: Step::new(State::Pending),
+            component: None,
+            revision: None,
+        }
+    }
+    pub fn complete(&self) -> bool {
+        matches!(self.recognition.state, State::NotRequested | State::NoMatch)
+            || (self.recognition.success()
+                && self.establishment.success()
+                && self.inspection.success())
+    }
+}
+#[derive(Debug, Clone)]
 pub(crate) struct ResultState {
     pub observation_problem: Option<String>,
     pub copy: Step,
@@ -87,6 +112,7 @@ pub(crate) struct ResultState {
     pub file: Option<FileId>,
     pub progress: Option<CopyProgress>,
     pub kinds: Vec<KindResult>,
+    pub model: ModelResult,
     pub effect: u64,
 }
 impl ResultState {
@@ -104,6 +130,7 @@ impl ResultState {
             entity: None,
             file: None,
             progress: None,
+            model: ModelResult::new(),
             kinds: vec![
                 KindResult::new(MediaKind::Image),
                 KindResult::new(MediaKind::Video),
@@ -123,6 +150,7 @@ impl ResultState {
             .iter()
             .all(|s| s.success() || s.state == State::NotRequested)
             && self.kinds.iter().all(KindResult::complete)
+            && self.model.complete()
     }
     pub fn uncertain(&self) -> bool {
         [
@@ -134,6 +162,8 @@ impl ResultState {
         ]
         .iter()
         .any(|s| s.state == State::Uncertain)
+            || self.model.establishment.state == State::Uncertain
+            || self.model.inspection.state == State::Uncertain
             || self.kinds.iter().any(|k| {
                 k.establishment.state == State::Uncertain
                     || k.interpretation.state == State::Uncertain

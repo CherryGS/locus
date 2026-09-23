@@ -2930,6 +2930,224 @@
         }
       }
     },
+    "/api/v1/models/{component_id}": {
+      "get": {
+        "tags": [
+          "model"
+        ],
+        "operationId": "read_model",
+        "parameters": [
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{component_id}/view": {
+      "get": {
+        "tags": [
+          "model"
+        ],
+        "operationId": "view_model",
+        "parameters": [
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/previews": {
       "post": {
         "tags": [
@@ -6325,6 +6543,24 @@
             ],
             "properties": {
               "error": {
+                "$ref": "#/components/schemas/ModelFailure"
+              },
+              "owner": {
+                "type": "string",
+                "enum": [
+                  "model"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "owner"
+            ],
+            "properties": {
+              "error": {
                 "$ref": "#/components/schemas/MediaFailure"
               },
               "owner": {
@@ -6834,6 +7070,31 @@
           }
         }
       },
+      "ImportModelResult": {
+        "type": "object",
+        "required": [
+          "recognition",
+          "establishment",
+          "inspection"
+        ],
+        "properties": {
+          "component_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "establishment": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
+          "inspection": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
+          "recognition": {
+            "$ref": "#/components/schemas/ImportStep"
+          }
+        }
+      },
       "ImportOverall": {
         "type": "string",
         "enum": [
@@ -6887,6 +7148,7 @@
       "ImportResult": {
         "type": "object",
         "required": [
+          "model",
           "copy",
           "registration",
           "file_attachment",
@@ -6959,6 +7221,9 @@
           },
           "managed_bytes_may_exist": {
             "type": "boolean"
+          },
+          "model": {
+            "$ref": "#/components/schemas/ImportModelResult"
           },
           "observation_problem": {
             "type": [
@@ -7556,6 +7821,369 @@
           }
         },
         "additionalProperties": false
+      },
+      "ModelAttemptCode": {
+        "type": "string",
+        "enum": [
+          "missing_input",
+          "file_access",
+          "unsupported_input",
+          "structure",
+          "worker"
+        ]
+      },
+      "ModelAttemptFailure": {
+        "type": "object",
+        "required": [
+          "code",
+          "detail"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ModelAttemptCode"
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      },
+      "ModelFailure": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "core"
+                ]
+              },
+              "error": {
+                "$ref": "#/components/schemas/CoreFailure"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "file"
+                ]
+              },
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "store"
+                ]
+              },
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component_id",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "missing_record"
+                ]
+              },
+              "component_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "corrupt"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "version",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "schema_version"
+                ]
+              },
+              "version": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "context_changed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "newer_attempt"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "failure",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "attempt"
+                ]
+              },
+              "failure": {
+                "$ref": "#/components/schemas/ModelAttemptFailure"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "other"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "ModelInspection": {
+        "type": "object",
+        "required": [
+          "format",
+          "coverage",
+          "tensors",
+          "tensor_count",
+          "element_count",
+          "storage_types"
+        ],
+        "properties": {
+          "coverage": {
+            "type": "string"
+          },
+          "declarations": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "element_count": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "storage_types": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ModelStorageSummary"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "tensor_count": {
+            "type": "string"
+          },
+          "tensors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelTensor"
+            }
+          }
+        }
+      },
+      "ModelRecord": {
+        "type": "object",
+        "required": [
+          "component_id",
+          "revision"
+        ],
+        "properties": {
+          "basis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "component_id": {
+            "type": "string"
+          },
+          "facts": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ModelInspection"
+              }
+            ]
+          },
+          "last_failure": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ModelAttemptFailure"
+              }
+            ]
+          },
+          "revision": {
+            "type": "string"
+          }
+        }
+      },
+      "ModelStorageSummary": {
+        "type": "object",
+        "required": [
+          "tensor_count",
+          "element_count"
+        ],
+        "properties": {
+          "element_count": {
+            "type": "string"
+          },
+          "tensor_count": {
+            "type": "string"
+          }
+        }
+      },
+      "ModelTensor": {
+        "type": "object",
+        "required": [
+          "name",
+          "shape",
+          "storage_type"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "shape": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "storage_type": {
+            "type": "string"
+          }
+        }
+      },
+      "ModelView": {
+        "type": "object",
+        "required": [
+          "record",
+          "applicability"
+        ],
+        "properties": {
+          "applicability": {
+            "$ref": "#/components/schemas/Applicability"
+          },
+          "file_problem": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DomainDiagnostic"
+              }
+            ]
+          },
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record": {
+            "$ref": "#/components/schemas/ModelRecord"
+          }
+        }
       },
       "MutationOutcome": {
         "oneOf": [

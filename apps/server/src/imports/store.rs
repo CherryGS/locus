@@ -40,7 +40,13 @@ pub(crate) struct ImportStore {
     #[cfg(test)]
     pub unknown_interpretation: Mutex<bool>,
     #[cfg(test)]
+    pub model_establishment_fault: Mutex<Option<BaseFault>>,
+    #[cfg(test)]
+    pub unknown_model_inspection: Mutex<bool>,
+    #[cfg(test)]
     pub fail_preview: Mutex<bool>,
+    #[cfg(test)]
+    pub force_image_match: Mutex<bool>,
     #[cfg(test)]
     pub pause_source: Mutex<Option<PauseSource>>,
     #[cfg(test)]
@@ -117,6 +123,9 @@ impl ImportStore {
                 if file.is_none() {
                     current.file_attachment = Step::new(State::NotRequested);
                     current.kinds.clear();
+                    current.model.recognition = Step::new(State::NotRequested);
+                    current.model.establishment = Step::new(State::NotRequested);
+                    current.model.inspection = Step::new(State::NotRequested);
                 }
                 if snapshot.is_some() {
                     current.twitter = Step::new(State::Pending);

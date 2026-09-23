@@ -265,6 +265,12 @@ impl ImportStore {
 
     fn blocked_content(&self, item: &mut Item) {
         if !item.current.file_attachment.success() {
+            if item.current.model.recognition.state == State::Pending {
+                item.current.model.recognition =
+                    Step::error(State::Skipped, "Requires confirmed File attachment");
+                item.current.model.establishment = item.current.model.recognition.clone();
+                item.current.model.inspection = item.current.model.recognition.clone();
+            }
             for kind in &mut item.current.kinds {
                 if kind.recognition.state == State::Pending {
                     kind.recognition =
