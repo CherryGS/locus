@@ -7,6 +7,7 @@ use locus_task::api::TaskQueue;
 pub(crate) fn registry() -> Result<Registry, locus_settings::api::SettingsError> {
     let mut registry = Registry::new();
     registry.register(MediaToolPathsProvider)?;
+    registry.register(crate::access::settings::ExternalAddressProvider)?;
     Ok(registry)
 }
 pub(crate) async fn prepare(
@@ -60,6 +61,27 @@ fn effective(variable: &str, saved: String) -> anyhow::Result<EffectiveToolPath>
             environment: None,
         }),
     }
+}
+
+pub(crate) async fn prepare_external(
+    queue: &TaskQueue,
+    database: &TaskDatabase,
+    settings: &SettingsService,
+) -> anyhow::Result<crate::api::settings::dto::SavedSettings> {
+    let database = database.clone();
+    let service = settings.clone();
+    queue.submit("Prepare external address",move |task| async move {
+        let mut session=database.session(&task).await?;
+        let observation=match service.initialize(&mut session,crate::access::settings::EXTERNAL_ADDRESS).await? {
+            WriteOutcome::Saved(saved)=>Observation::Current{saved},
+            WriteOutcome::Existing(v)=>v,
+            WriteOutcome::Conflict(_)=>anyhow::bail!("External address changed during initialization"),
+        };
+        match observation {
+            Observation::Current{saved}=>Ok(crate::api::settings::mapping::saved(saved)),
+            _=>anyhow::bail!("Required external address configuration is unavailable; repair Settings and restart"),
+        }
+    })?.result().await?
 }
 
 fn unavailable(value: Observation) -> String {

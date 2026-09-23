@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 use tokio::{net::TcpListener, sync::watch};
 
 pub struct Server {
+    external_listener: Option<TcpListener>,
     pub(super) state: Arc<Shared>,
     listener: TcpListener,
     router: axum::Router,
@@ -20,15 +21,39 @@ impl Server {
         if !config.library_root.is_absolute() {
             bail!("invalid server configuration");
         }
+        let root = config.library_root.clone();
+        let require_existing = config.require_existing;
+        let ownership = Arc::new(
+            tokio::task::spawn_blocking(move || {
+                super::ownership::LibraryOwnership::acquire(&root, require_existing)
+            })
+            .await
+            .context("Library ownership worker failed")??,
+        );
+        // Startup owns its guard independently of the caller's wait. Every
+        // initialization TaskHandle is awaited to actual protected completion,
+        // even when a caller abandons Server::bind. An unclaimed finished Server
+        // is then dropped without publishing readiness or opening admissions.
+        tokio::spawn(Self::bind_owned(config, ownership))
+            .await
+            .context("Backend construction task failed")?
+    }
+    async fn bind_owned(
+        config: ServerConfig,
+        ownership: Arc<super::ownership::LibraryOwnership>,
+    ) -> anyhow::Result<Self> {
         let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
             .await
             .context("bind IPv4 loopback")?;
         let origin = format!("http://{}", listener.local_addr()?);
         let queue = TaskQueue::new();
-        if config.require_existing && !config.library_root.join("metadata.sqlite").is_file() {
-            bail!("Intended library database is missing; refusing to create a replacement");
-        }
-        let library = Library::open(&queue, &config.library_root).await?;
+        let library = Library::open(
+            &queue,
+            ownership.root(),
+            #[cfg(test)]
+            config.startup_probe,
+        )
+        .await?;
         let (domain, availability) = match Domain::open(&queue, &library).await {
             Ok(domain) => (Some(domain), crate::api::dto::Availability::Normal),
             Err(error) => (
@@ -38,7 +63,58 @@ impl Server {
                 },
             ),
         };
+        let database = library.database.clone();
+        let credential = if domain.is_some() {
+            queue
+                .submit("Initialize external access", move |task| async move {
+                    let mut session = database.session(&task).await?;
+                    session
+                        .transaction_named("Establish library external credential", |c| {
+                            Box::pin(crate::access::persistence::initialize(c))
+                        })
+                        .await
+                })?
+                .result()
+                .await?
+        } else {
+            Err(anyhow::anyhow!(
+                "External access is unavailable during restricted repair"
+            ))
+        };
+        let mut external_runtime = crate::api::external::dto::ExternalRuntime {
+            captured: domain.as_ref().map(|d| d.external_settings.clone()),
+            active_address: None,
+            override_address: config.external_address_override.map(|a| a.to_string()),
+            problem: None,
+        };
+        let external_listener = if let Some(domain) = &domain {
+            let settings: crate::access::settings::ExternalAddress =
+                serde_json::from_value(domain.external_settings.value.clone())?;
+            let address = config
+                .external_address_override
+                .unwrap_or(settings.address.parse()?);
+            if !address.ip().is_loopback() {
+                bail!("External test override must be loopback");
+            }
+            match TcpListener::bind(address).await {
+                Ok(listener) => {
+                    external_runtime.active_address = Some(listener.local_addr()?.to_string());
+                    Some(listener)
+                }
+                Err(e) => {
+                    external_runtime.problem = Some(format!("Could not bind {address}: {e}"));
+                    None
+                }
+            }
+        } else {
+            external_runtime.problem = Some("Required configuration is unavailable".into());
+            None
+        };
         let state = Arc::new(Shared {
+            _ownership: ownership,
+            uploads: crate::access::uploads::Uploads::default(),
+            stopping: watch::channel(false).0,
+            access: crate::access::state::AccessState::new(credential, external_runtime),
             imports: crate::imports::ImportStore::default(),
             credential: config.credential,
             origin,
@@ -53,6 +129,7 @@ impl Server {
         });
         let router = routes::router(state.clone(), config.renderer_root).await?;
         Ok(Self {
+            external_listener,
             state,
             listener,
             router,
@@ -72,7 +149,8 @@ impl Server {
     pub fn close_admission(&self) {
         self.state.close();
     }
-    pub async fn serve(self) -> anyhow::Result<()> {
+    pub async fn serve(mut self) -> anyhow::Result<()> {
+        let external_router = crate::api::external::routes::router(self.state.clone());
         let mut connections = tokio::task::JoinSet::new();
         let signal = tokio::signal::ctrl_c();
         tokio::pin!(signal);
@@ -104,6 +182,15 @@ impl Server {
                         }
                     }
                 }
+                accepted = async { match &self.external_listener {Some(listener)=>listener.accept().await,None=>std::future::pending().await} } => {
+                    match accepted {
+                        Ok((socket,_))=> {
+                            let service=hyper_util::service::TowerToHyperService::new(external_router.clone());
+                            connections.spawn(async move {let _=hyper::server::conn::http1::Builder::new().serve_connection(hyper_util::rt::TokioIo::new(socket),service).await;});
+                        }
+                        Err(error)=> {self.external_listener=None;let mut runtime=self.state.access.runtime.lock().unwrap_or_else(|e|e.into_inner());runtime.active_address=None;runtime.problem=Some(format!("External listener stopped: {error}"));}
+                    }
+                }
                 completed = connections.join_next(), if !connections.is_empty() => {
                     if let Some(Err(error)) = completed {
                         serve_error = Some(anyhow::Error::new(error).context("HTTP connection task failed"));
@@ -113,6 +200,7 @@ impl Server {
             }
         }
         drop(self.listener);
+        drop(self.external_listener);
         // Accepted work has finished. Give final HTTP/SSE responses a bounded
         // flush window, then abort owned passive connections, even when peers
         // stop reading or send an unfinished request body. No domain work is

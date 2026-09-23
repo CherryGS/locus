@@ -50,8 +50,8 @@ try {
   }
   const registered = { request_id: randomUUID(), items: [{ twitter: { post_id: "123456789" } }, { file_id: fileId, twitter: { post_id: "123456789", text: "", hashtags: [] } }] };
   const submitted = await client.POST("/api/v1/registered-import-batches", { body: registered }); assert(submitted.data);
-  const supplied = await until(s => s.batches.some(b => b.batch_id === registered.request_id && b.original_ended));
-  const registeredBatch = supplied.batches.find(b => b.batch_id === registered.request_id)!;
+  const supplied = await until(s => s.batches.some(b => b.original_request_id === registered.request_id && b.original_ended));
+  const registeredBatch = supplied.batches.find(b => b.original_request_id === registered.request_id)!;
   assert.equal(registeredBatch.original_overall, "success");
   assert.equal(registeredBatch.items[0].current.registration.state, "not_requested");
   assert.equal(registeredBatch.items[0].current.kinds.length, 0);

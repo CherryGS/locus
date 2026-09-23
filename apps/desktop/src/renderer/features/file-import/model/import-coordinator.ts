@@ -83,13 +83,12 @@ export class ImportCoordinator {
   }
   observeTasks(tasks: Wire<"PublicTask">[]) {
     for (const [id, saved] of new Map([...this.accepted, ...this.submissions])) {
-      const task = tasks.find((value) => value.request_id === id)
+      const task = tasks.find((value) => value.access_context === "desktop" && value.request_id === id)
       if (!task) continue
       const operation = task.operation
       const matches =
         "source_paths" in saved.body
           ? operation.kind === "import_batch" &&
-            operation.batch_id === id &&
             operation.item_count === saved.body.source_paths.length
           : operation.kind === "import_recovery" &&
             operation.batch_id === saved.body.batch_id &&
@@ -237,7 +236,7 @@ export class ImportCoordinator {
         if (
           snapshot.batches.some((b) =>
             "source_paths" in saved.body
-              ? b.batch_id === id
+              ? b.access_context === "desktop" && b.original_request_id === id
               : b.batch_id === saved.body.batch_id &&
                 b.items.some(
                   (i) =>

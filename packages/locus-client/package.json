@@ -10,6 +10,7 @@
     "test": "tsx --test tests/*.test.ts",
     "smoke": "tsx smoke.ts",
     "smoke:imports": "tsx import-smoke.ts",
+    "smoke:external": "tsx external-smoke.ts",
     "smoke:media": "tsx media-smoke.ts",
     "smoke:video": "tsx media-smoke.ts --video",
     "smoke:entities": "tsx entity-smoke.ts",

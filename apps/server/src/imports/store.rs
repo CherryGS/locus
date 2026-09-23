@@ -1,4 +1,5 @@
 use super::model::*;
+use crate::api::task::dto::AccessContext;
 use std::{
     collections::BTreeMap,
     sync::{Mutex, MutexGuard},
@@ -52,10 +53,17 @@ impl ImportStore {
     pub fn snapshots(&self) -> Vec<Batch> {
         self.lock().values().cloned().collect()
     }
-    pub fn reserve_batch(&self, id: &str, paths: &[String]) {
+    pub fn belongs_to(&self, id: &str, context: AccessContext) -> bool {
+        self.lock()
+            .get(id)
+            .is_some_and(|batch| batch.access_context == context)
+    }
+    pub fn reserve_batch(&self, id: &str, request: &str, context: AccessContext, paths: &[String]) {
         self.lock().insert(
             id.into(),
             Batch {
+                access_context: context,
+                original_request_id: request.into(),
                 id: id.into(),
                 ended: false,
                 items: paths
@@ -69,12 +77,12 @@ impl ImportStore {
                             snapshot: None,
                             current: current.clone(),
                             attempts: vec![Attempt {
-                                id: id.into(),
+                                id: request.into(),
                                 action: Action::Original,
                                 ended: false,
                                 result: current,
                             }],
-                            active: Some(id.into()),
+                            active: Some(request.into()),
                             prepared: None,
                         }
                     })
@@ -85,6 +93,8 @@ impl ImportStore {
     pub fn reserve_registered(
         &self,
         id: &str,
+        request: &str,
+        context: AccessContext,
         inputs: Vec<(
             Option<locus_file::api::FileId>,
             Option<locus_twitter::api::TwitterSnapshot>,
@@ -121,12 +131,12 @@ impl ImportStore {
                     snapshot,
                     current: current.clone(),
                     attempts: vec![Attempt {
-                        id: id.into(),
+                        id: request.into(),
                         action: Action::Original,
                         ended: false,
                         result: current,
                     }],
-                    active: Some(id.into()),
+                    active: Some(request.into()),
                     prepared: None,
                 }
             })
@@ -134,6 +144,8 @@ impl ImportStore {
         self.lock().insert(
             id.into(),
             Batch {
+                access_context: context,
+                original_request_id: request.into(),
                 id: id.into(),
                 items,
                 ended: false,
@@ -224,9 +236,9 @@ impl ImportStore {
         }
         self.publish(batch, &item);
     }
-    pub fn end_unfinished(&self, request: &str) {
+    pub fn end_unfinished(&self, context: AccessContext, request: &str) {
         let mut all = self.lock();
-        for batch in all.values_mut() {
+        for batch in all.values_mut().filter(|b| b.access_context == context) {
             for item in &mut batch.items {
                 if item.active.as_deref() != Some(request) {
                     continue;
@@ -283,7 +295,7 @@ impl ImportStore {
                     attempt.result = item.current.clone();
                 }
             }
-            if batch.id == request {
+            if batch.original_request_id == request {
                 batch.ended = true;
             }
         }

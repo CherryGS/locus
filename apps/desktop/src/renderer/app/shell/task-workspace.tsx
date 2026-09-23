@@ -50,10 +50,11 @@ function ConnectedWorkspace({ session, children }: { session: LibrarySession; ch
     [...new Set([observer.problem, c.problem, ...c.notices].filter(Boolean))].join("\n") || undefined
   useSyncExternalStore(c.subscribe, c.snapshot)
   useSyncExternalStore(observer.subscribe, observer.snapshot)
-  const all = taskRecords(c, observer, (id) => (
+  const all = taskRecords(c, observer, (id, pendingRequestId) => (
     <ImportDetails
       coordinator={c}
       batchId={id}
+      pendingRequestId={pendingRequestId}
       view={async (id) => {
         const error = await view(id)
         if (!error) setOpen(false)

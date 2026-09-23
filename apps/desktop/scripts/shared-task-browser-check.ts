@@ -7,10 +7,14 @@ import { chromium } from "playwright"
 import type { components } from "@locus/client"
 import { fixture, outputDirectory } from "./fixture.ts"
 import { browserPreview } from "./browser-preview.ts"
+import { externalTaskBrowser, saveIsolatedExternalAddress } from "./external-task-browser.ts"
 
-const data = await fixture(),
-  backend = await data.start(),
-  preview = await browserPreview(backend)
+const data = await fixture()
+let backend = await data.start()
+await saveIsolatedExternalAddress(backend)
+await backend.stop()
+backend = await data.start()
+const preview = await browserPreview(backend)
 const output = await outputDirectory("shared-tasks"),
   browser = await chromium.launch({ headless: true })
 async function terminal(id: string) {
@@ -277,11 +281,12 @@ try {
   assert.deepEqual(final.batches[0].items[1].attempts[0], originalSnapshot.batches[0].items[1].attempts[0])
   const tasks = (await backend.client.GET("/api/v1/tasks")).data as components["schemas"]["TaskSnapshot"]
   assert.equal(tasks.tasks.length, 6)
+  const externalFeedback = await externalTaskBrowser(page, backend, data.library)
   assert.deepEqual(errors, [])
   await writeFile(
     join(output, "result.json"),
     JSON.stringify(
-      { passed: true, tasks, batches: final, successOutcome, warningOutcome, listReads, errors },
+      { passed: true, tasks, batches: final, successOutcome, warningOutcome, listReads, errors, externalFeedback },
       null,
       2,
     ),

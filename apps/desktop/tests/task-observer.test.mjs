@@ -5,7 +5,7 @@ import { ApiFailure } from "../src/renderer/shared/api/backend-api.ts"
 import { readTaskEvents } from "../src/renderer/shared/api/task-events.ts"
 
 const task = (state = "running", operation = { kind: "import_batch", batch_id: "batch", item_count: 2 }) => ({
-  task_id: "task",
+  access_context: "desktop", task_id: "task",
   request_id: "batch",
   label: "untrusted label",
   operation,
@@ -32,6 +32,18 @@ function fixture() {
   }
   return { api, model: new TaskObserver(api, () => imports++), reads: () => reads, imports: () => imports }
 }
+test("equal request IDs in different access contexts remain independent and upload outcomes stay attributable", async () => {
+  const f = fixture()
+  const external = { ...task("running", { kind: "upload", upload_id: "upload", filename: null, byte_count: "0" }), access_context: "external", task_id: "external-task" }
+  f.model.accept(snapshot(1, [task(), external]))
+  assert.equal(f.model.records.size, 2)
+  f.api.taskOutcome = async () => ({ status: "complete", outcome: { status: "upload", result: { upload_id: "upload", byte_count: "0", confirmed_file_id: "confirmed", uncertain: false, actions: [] } } })
+  f.model.accept(snapshot(2, [task(), { ...external, state: "terminal", outcome_available: true }]))
+  await tick()
+  assert.equal(f.model.records.get("external-task").outcome.result.confirmed_file_id, "confirmed")
+  assert.throws(() => f.model.accept(snapshot(3, [task(), { ...external, access_context: "desktop" }])), /duplicate|identity/)
+  f.model.dispose()
+})
 test("SSE reads split CRLF, UTF-8 and multiline data before EOF", async () => {
   const value = snapshot(1, [{ ...task(), label: "图像" }])
   const json = JSON.stringify(value).replace(',"revision"', ',\n"revision"')

@@ -49,7 +49,7 @@ export async function registeredImportBrowser(page: Page, backend: Awaited<Retur
   while(!file){const r: { data?: components["schemas"]["OutcomeResponse"] }=await backend.client.GET("/api/v1/tasks/{task_id}/outcome",{params:{path:{task_id:receipt.data.task_id}},signal:fileDeadline}); if(r.data?.status==="complete"){assert.equal(r.data.outcome.status,"imported");if(r.data.outcome.status==="imported")file=r.data.outcome.file.file_id} if(!file)await delay(20,undefined,{signal:fileDeadline})}
   const request={request_id:randomUUID(),items:[{twitter:{post_id:"123456789"}},{file_id:file,twitter:{post_id:"123456789",text:"",hashtags:[]}}]}
   const response=await backend.client.POST("/api/v1/registered-import-batches",{body:request});assert(response.data)
-  await until(s=>s.batches.some(b=>b.batch_id===request.request_id&&b.original_ended))
+  await until(s=>s.batches.some(b=>b.original_request_id===request.request_id&&b.original_ended))
   await page.getByRole("button",{name:/^Tasks/}).click()
   await page.locator("[data-task-record]").filter({hasText:"Import 2 items"}).click()
   await page.getByText("Twitter only",{exact:true}).waitFor();await page.getByText("Registered File + Twitter",{exact:true}).waitFor()

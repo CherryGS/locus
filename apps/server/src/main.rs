@@ -1,5 +1,5 @@
 use anyhow::{Context, bail};
-use locus_server::api::{Bootstrap, Server, openapi};
+use locus_server::api::{Bootstrap, Server, StartupFailure, openapi};
 use std::io::{IsTerminal, Write};
 
 #[tokio::main]
@@ -29,8 +29,22 @@ async fn main() -> anyhow::Result<()> {
         );
     }
     let config = Bootstrap::read(std::io::stdin().lock())?.into_config()?;
-    let server = Server::bind(config).await?;
-    // stdout is a readiness protocol, never a diagnostics or credential channel.
+    let server = match Server::bind(config).await {
+        Ok(server) => server,
+        Err(error) => {
+            if let Some(failure) = StartupFailure::from_error(&error) {
+                writeln!(
+                    std::io::stdout().lock(),
+                    "{}",
+                    serde_json::to_string(&failure)?
+                )?;
+                std::io::stdout().flush()?;
+            }
+            return Err(error);
+        }
+    };
+    // stdout carries readiness or the bounded private failure reason, never
+    // arbitrary diagnostics, library contents or credentials.
     writeln!(
         std::io::stdout().lock(),
         "{}",

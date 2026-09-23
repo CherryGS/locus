@@ -8,13 +8,24 @@ use crate::api::{
     error::{ApiError, DomainDiagnostic, ErrorCode},
     file::dto::ImportRequest,
     media::dto::{MediaKind, MediaTarget},
-    task::dto::{PublicTask, PublicTaskState, TaskOperation},
+    task::dto::{AccessContext, PublicTask, PublicTaskState, TaskOperation},
 };
 use locus_task::api::{TaskContext, TaskError};
 use std::{future::Future, sync::Arc};
 
+pub(crate) struct Admission {
+    pub context: AccessContext,
+    pub authorization: Option<super::external::Authorization>,
+    pub batch: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Arguments {
+    Upload(crate::api::external::dto::UploadMetadata),
+    RecoverUpload(crate::api::external::dto::RecoverUpload),
+    ResetToken {
+        expected_revision: String,
+    },
     Settings {
         group: uuid::Uuid,
         change: crate::api::settings::dto::SettingsChange,
@@ -50,10 +61,22 @@ impl Shared {
         F: FnOnce(TaskContext) -> Fut + Send + 'static,
         Fut: Future<Output = TaskOutcome> + Send + 'static,
     {
-        self.public_claimed(id, arguments, label, None, operation)
+        self.public_claimed(
+            Admission {
+                context: AccessContext::Desktop,
+                authorization: None,
+                batch: None,
+            },
+            id,
+            arguments,
+            label,
+            None,
+            operation,
+        )
     }
-    pub(super) fn public_claimed<F, Fut>(
+    pub(crate) fn public_claimed<F, Fut>(
         self: &Arc<Self>,
+        admission: Admission,
         id: String,
         arguments: Arguments,
         label: &str,
@@ -64,10 +87,17 @@ impl Shared {
         F: FnOnce(TaskContext) -> Fut + Send + 'static,
         Fut: Future<Output = TaskOutcome> + Send + 'static,
     {
+        let Admission {
+            context,
+            authorization,
+            batch,
+        } = admission;
         let mut registry = self.lock();
-        if let Some(binding) = registry.requests.get(&id) {
+        if let Some(binding) = registry.requests.get(&(context, id.clone())) {
             check(binding, &arguments)?;
-            if !(inputs.is_some() && matches!(binding.result, Submission::AdmissionPending)) {
+            if !((inputs.is_some() || matches!(arguments, Arguments::Upload(_)))
+                && matches!(binding.result, Submission::AdmissionPending))
+            {
                 return match &binding.result {
                     Submission::Accepted { receipt } => Ok(receipt.clone()),
                     Submission::Rejected { error } => Err(error.clone()),
@@ -75,17 +105,29 @@ impl Shared {
                 };
             }
         }
+        if let Some(basis) = &authorization {
+            self.external_current(basis)?;
+        }
         self.admit(&mut registry)?;
         if let Some(inputs) = inputs {
-            self.imports.reserve_registered(&id, inputs);
+            self.imports
+                .reserve_registered(batch.as_deref().unwrap_or(&id), &id, context, inputs);
         }
         let descriptor = match &arguments {
+            Arguments::Upload(r) => TaskOperation::Upload {
+                upload_id: r.request_id.clone(),
+                filename: r.filename.clone(),
+                byte_count: r.byte_count.clone(),
+            },
+            Arguments::RecoverUpload(r) => TaskOperation::UploadRecovery {
+                upload_id: r.upload_id.clone(),
+            },
             Arguments::ImportBatch(r) => TaskOperation::ImportBatch {
-                batch_id: r.request_id.clone(),
+                batch_id: batch.clone().unwrap_or_else(|| r.request_id.clone()),
                 item_count: r.source_paths.len(),
             },
             Arguments::RegisteredImport(r) => TaskOperation::ImportBatch {
-                batch_id: r.request_id.clone(),
+                batch_id: batch.clone().unwrap_or_else(|| r.request_id.clone()),
                 item_count: r.items.len(),
             },
             Arguments::RecoverImport(r) => TaskOperation::ImportRecovery {
@@ -105,7 +147,13 @@ impl Shared {
             _ => return Err(conflict()),
         };
         match &arguments {
-            Arguments::ImportBatch(r) => self.imports.reserve_batch(&r.request_id, &r.source_paths),
+            Arguments::RecoverUpload(r) => self.uploads.reserve_recovery(r)?,
+            Arguments::ImportBatch(r) => self.imports.reserve_batch(
+                batch.as_deref().unwrap_or(&r.request_id),
+                &r.request_id,
+                context,
+                &r.source_paths,
+            ),
             Arguments::RecoverImport(r) => self
                 .imports
                 .reserve_recovery(
@@ -130,9 +178,14 @@ impl Shared {
             Ok(handle) => handle,
             Err(error) => {
                 match &arguments {
-                    Arguments::ImportBatch(r) => self.imports.release(&r.request_id, None, &id),
+                    Arguments::RecoverUpload(r) => self.uploads.release(r),
+                    Arguments::ImportBatch(r) => {
+                        self.imports
+                            .release(batch.as_deref().unwrap_or(&r.request_id), None, &id)
+                    }
                     Arguments::RegisteredImport(r) => {
-                        self.imports.release(&r.request_id, None, &id)
+                        self.imports
+                            .release(batch.as_deref().unwrap_or(&r.request_id), None, &id)
                     }
                     Arguments::RecoverImport(r) => {
                         self.imports.release(&r.batch_id, Some(&r.item_id), &id)
@@ -141,7 +194,7 @@ impl Shared {
                 }
                 let error = ApiError::new(ErrorCode::LaunchRejected, error.to_string());
                 registry.requests.insert(
-                    id,
+                    (context, id),
                     Binding {
                         arguments,
                         result: Submission::Rejected {
@@ -158,7 +211,7 @@ impl Shared {
             task_id: uuid::Uuid::now_v7().to_string(),
         };
         registry.requests.insert(
-            id.clone(),
+            (context, id.clone()),
             Binding {
                 arguments,
                 result: Submission::Accepted {
@@ -170,6 +223,7 @@ impl Shared {
             receipt.task_id.clone(),
             Entry {
                 projection: PublicTask {
+                    access_context: context,
                     task_id: receipt.task_id.clone(),
                     request_id: id,
                     label: label.into(),
@@ -206,7 +260,7 @@ impl Shared {
         let mut changes = self.changes.subscribe();
         {
             let mut registry = self.lock();
-            if let Some(binding) = registry.requests.get(&id) {
+            if let Some(binding) = registry.requests.get(&(AccessContext::Desktop, id.clone())) {
                 check(binding, &arguments)?;
             } else {
                 self.admit(&mut registry)?;
@@ -223,7 +277,7 @@ impl Shared {
                     Err(error) => {
                         let error = ApiError::new(ErrorCode::LaunchRejected, error.to_string());
                         registry.requests.insert(
-                            id.clone(),
+                            (AccessContext::Desktop, id.clone()),
                             Binding {
                                 arguments,
                                 result: Submission::Rejected { error },
@@ -231,8 +285,14 @@ impl Shared {
                         );
                     }
                     Ok(handle) => {
+                        let reset_basis = match &arguments {
+                            Arguments::ResetToken { expected_revision } => {
+                                Some(expected_revision.clone())
+                            }
+                            _ => None,
+                        };
                         registry.requests.insert(
-                            id.clone(),
+                            (AccessContext::Desktop, id.clone()),
                             Binding {
                                 arguments,
                                 result: Submission::DirectPending,
@@ -242,15 +302,30 @@ impl Shared {
                         let state = self.clone();
                         let id = id.clone();
                         tokio::spawn(async move {
-                            let outcome = handle.result().await.unwrap_or_else(|error| {
-                                MutationOutcome::Failed {
-                                    diagnostic: DomainDiagnostic::Executor {
-                                        message: error.to_string(),
-                                    },
-                                }
+                            let result = handle.result().await;
+                            let reset_failed = result.is_err();
+                            let outcome = result.unwrap_or_else(|error| MutationOutcome::Failed {
+                                diagnostic: DomainDiagnostic::Executor {
+                                    message: error.to_string(),
+                                },
                             });
                             let mut registry = state.lock();
-                            if let Some(binding) = registry.requests.get_mut(&id) {
+                            let lost_effective_state = reset_failed
+                                && reset_basis.is_some_and(|basis| {
+                                    state
+                                        .access
+                                        .lock()
+                                        .current
+                                        .as_ref()
+                                        .is_some_and(|c| c.revision == basis)
+                                });
+                            if lost_effective_state {
+                                state.access.establish(Err(anyhow::anyhow!("Credential execution ended without effective completion evidence")));
+                            }
+                            if let Some(binding) = registry
+                                .requests
+                                .get_mut(&(AccessContext::Desktop, id.clone()))
+                            {
                                 binding.result = Submission::DirectComplete { outcome };
                             }
                             state.changed(&mut registry);
@@ -295,7 +370,7 @@ pub(super) fn conflict() -> ApiError {
         "Request ID is already bound to another operation or argument set",
     )
 }
-pub(super) fn check(binding: &Binding, arguments: &Arguments) -> Result<(), ApiError> {
+pub(crate) fn check(binding: &Binding, arguments: &Arguments) -> Result<(), ApiError> {
     if &binding.arguments == arguments {
         Ok(())
     } else {

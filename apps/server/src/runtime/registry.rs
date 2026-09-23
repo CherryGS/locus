@@ -7,12 +7,16 @@ use locus_task::api::{TaskQueue, TaskSnapshot as QueueSnapshot, TaskState};
 use std::{
     collections::BTreeMap,
     path::PathBuf,
-    sync::{Mutex, MutexGuard},
+    sync::{Arc, Mutex, MutexGuard},
 };
 use tokio::sync::watch;
 
 /// Explicit host/test configuration. Credentials are never logged or persisted.
 pub struct ServerConfig {
+    #[cfg(test)]
+    pub(crate) startup_probe: Option<super::ownership_tests::StartupProbe>,
+    /// Trusted isolated fixtures only. Never persisted or represented as applied settings.
+    pub external_address_override: Option<std::net::SocketAddr>,
     pub credential: String,
     pub library_root: PathBuf,
     /// Explicit trusted build output, never a library or request-selected path.
@@ -22,6 +26,9 @@ pub struct ServerConfig {
 impl ServerConfig {
     pub fn new(credential: String, library_root: PathBuf) -> Self {
         Self {
+            #[cfg(test)]
+            startup_probe: None,
+            external_address_override: None,
             credential,
             library_root,
             renderer_root: None,
@@ -38,16 +45,23 @@ pub(crate) struct Entry {
     pub outcome: Option<TaskOutcome>,
 }
 pub(crate) struct Registry {
+    pub receivers: usize,
     pub open: bool,
     pub active: usize,
     pub revision: u64,
-    pub requests: BTreeMap<String, Binding>,
+    pub requests: BTreeMap<(AccessContext, String), Binding>,
     pub tasks: BTreeMap<String, Entry>,
     pub previews: BTreeMap<String, std::sync::Arc<locus_media::api::Preview>>,
     #[cfg(test)]
     pub reject_next_launch: bool,
 }
 pub(crate) struct Shared {
+    // Supervisors retain Shared through TaskHandle::result, including protected
+    // workers after an HTTP or operation waiter disappears.
+    pub(super) _ownership: Arc<super::ownership::LibraryOwnership>,
+    pub uploads: crate::access::uploads::Uploads,
+    pub stopping: watch::Sender<bool>,
+    pub access: crate::access::state::AccessState,
     pub imports: crate::imports::ImportStore,
     pub credential: String,
     pub origin: String,
@@ -79,7 +93,7 @@ impl Shared {
             availability: self.availability.clone(),
             admission: if registry.open {
                 AdmissionState::Open
-            } else if registry.active == 0 {
+            } else if registry.active == 0 && registry.receivers == 0 {
                 AdmissionState::Drained
             } else {
                 AdmissionState::Draining
@@ -90,7 +104,8 @@ impl Shared {
     pub fn close(&self) -> ServerStatus {
         let mut registry = self.lock();
         registry.open = false;
-        if registry.active == 0 {
+        self.stopping.send_replace(true);
+        if registry.active == 0 && registry.receivers == 0 {
             self.drained.send_replace(true);
         }
         self.status_in(&registry)
@@ -110,7 +125,7 @@ impl Shared {
     }
     pub fn complete(&self, registry: &mut Registry) {
         registry.active -= 1;
-        if !registry.open && registry.active == 0 {
+        if !registry.open && registry.active == 0 && registry.receivers == 0 {
             self.drained.send_replace(true);
         }
     }
@@ -122,6 +137,9 @@ impl Shared {
     }
     pub fn snapshot(&self) -> TaskSnapshot {
         let registry = self.lock();
+        self.snapshot_in(&registry)
+    }
+    pub(crate) fn snapshot_in(&self, registry: &Registry) -> TaskSnapshot {
         TaskSnapshot {
             run_id: self.run_id.clone(),
             revision: registry.revision.to_string(),
@@ -150,7 +168,7 @@ impl Shared {
         })
     }
     pub fn submission(&self, id: &str) -> Result<Submission, ApiError> {
-        self.lock().requests.get(id).map(|binding| binding.result.clone()).ok_or_else(|| ApiError::new(ErrorCode::UnknownRequest, "Unknown request in this run; this does not establish absence of durable effects"))
+        self.lock().requests.get(&(AccessContext::Desktop, id.to_owned())).map(|binding| binding.result.clone()).ok_or_else(|| ApiError::new(ErrorCode::UnknownRequest, "Unknown request in this run; this does not establish absence of durable effects"))
     }
     pub fn progress(&self, id: &str, snapshot: QueueSnapshot) {
         // Raw terminal notification precedes result receipt. finish() alone may
@@ -172,10 +190,26 @@ impl Shared {
             self.changed(&mut registry);
         }
     }
-    pub fn finish(&self, id: &str, outcome: TaskOutcome) {
+    pub fn finish(&self, id: &str, mut outcome: TaskOutcome) {
         let mut registry = self.lock();
         if let Some(entry) = registry.tasks.get_mut(id) {
-            self.imports.end_unfinished(&entry.projection.request_id);
+            self.imports.end_unfinished(
+                entry.projection.access_context,
+                &entry.projection.request_id,
+            );
+            if let TaskOperation::Upload { upload_id, .. }
+            | TaskOperation::UploadRecovery { upload_id } = &entry.projection.operation
+            {
+                self.uploads
+                    .end_unfinished(upload_id, &entry.projection.request_id);
+                if !matches!(outcome, TaskOutcome::Upload { .. })
+                    && let Ok(result) = self.upload_observation(upload_id)
+                {
+                    outcome = TaskOutcome::Upload {
+                        result: Box::new(result),
+                    };
+                }
+            }
             entry.outcome = Some(outcome);
             entry.projection.state = PublicTaskState::Terminal;
             entry.projection.outcome_available = true;
@@ -192,6 +226,7 @@ fn unknown_task() -> ApiError {
 }
 pub(crate) fn initial_registry() -> Registry {
     Registry {
+        receivers: 0,
         open: true,
         active: 0,
         revision: 0,

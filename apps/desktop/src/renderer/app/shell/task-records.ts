@@ -5,10 +5,10 @@ import { outcomeSummary, needsAttention, type FeedbackRecord } from "@/features/
 export function taskRecords(
   c: ImportCoordinator,
   observer: TaskObserver,
-  details: (id: string) => ReactNode,
+  details: (id: string, pendingRequestId?: string) => ReactNode,
 ): FeedbackRecord[] {
   const records = new Map<string, FeedbackRecord>()
-  function batch(id: string) {
+  function batch(id: string, pendingRequestId?: string) {
     let record = records.get(id)
     if (!record) {
       record = {
@@ -18,7 +18,7 @@ export function taskRecords(
         active: false,
         attention: false,
         attempts: [],
-        details: details(id),
+        details: details(id, pendingRequestId),
       }
       records.set(id, record)
     }
@@ -33,6 +33,17 @@ export function taskRecords(
       record.attention ||= needsAttention(observation)
       if (operation.kind === "import_batch")
         record.label = `Import ${operation.item_count} ${operation.item_count === 1 ? "item" : "items"}`
+    } else if (operation.kind === "upload" || operation.kind === "upload_recovery") {
+      const id = `upload:${operation.upload_id}`
+      const previous = records.get(id)
+      records.set(id, {
+        id,
+        label: operation.kind === "upload" ? `Upload ${operation.filename ?? "file"}` : previous?.label ?? "Uploaded File",
+        summary: outcomeSummary(observation),
+        active: (previous?.active ?? false) || observation.task.state !== "terminal",
+        attention: needsAttention(observation),
+        attempts: [...(previous?.attempts ?? []), observation],
+      })
     } else {
       records.set(observation.task.task_id, {
         id: observation.task.task_id,
@@ -58,7 +69,7 @@ export function taskRecords(
     const active = value.items.filter(
       (item) => item.active_request_id && !ended.has(item.active_request_id),
     ).length
-    record.active ||= active > 0 || (!value.original_ended && !ended.has(value.batch_id))
+    record.active ||= active > 0 || (!value.original_ended && !ended.has(value.original_request_id))
     const complete = value.items.filter((item) => !item.active_request_id && item.current.complete).length
     const attention = value.items.filter((item) => !item.active_request_id && !item.current.complete).length
     const stale = value.items.some((item) => item.active_request_id && ended.has(item.active_request_id))
@@ -66,10 +77,12 @@ export function taskRecords(
     record.summary = `${complete} complete - ${attention} need attention${active ? ` - ${active} processing` : ""}${c.problem || stale ? " - last known details" : ""}`
   }
   for (const submission of c.submissions.values()) {
-    const record = batch(
-      "source_paths" in submission.body ? submission.body.request_id : submission.body.batch_id,
-    )
-    const known = record.attempts.find((attempt) => attempt.task.request_id === submission.body.request_id)
+    const observed = [...observer.records.values()].find(a => a.task.access_context === "desktop" && a.task.request_id === submission.body.request_id)
+    const original = c.batches.find(b => b.access_context === "desktop" && b.original_request_id === submission.body.request_id)
+    const record = batch("source_paths" in submission.body
+      ? original?.batch_id ?? (observed?.task.operation.kind === "import_batch" ? observed.task.operation.batch_id : `pending:${submission.body.request_id}`)
+      : submission.body.batch_id, "source_paths" in submission.body ? submission.body.request_id : undefined)
+    const known = record.attempts.find((attempt) => attempt.task.access_context === "desktop" && attempt.task.request_id === submission.body.request_id)
     record.active ||= !known && (submission.pending || !!submission.accepted)
     record.attention ||= !!submission.problem || (!submission.pending && !submission.accepted)
     record.summary =

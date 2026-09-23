@@ -17,6 +17,7 @@ pub(crate) struct Domain {
     pub twitter: TwitterService,
     pub preferences: PreferenceService,
     pub media_settings: crate::api::settings::dto::MediaSettingsRuntime,
+    pub external_settings: crate::api::settings::dto::SavedSettings,
 }
 impl Domain {
     pub async fn open(queue: &TaskQueue, library: &Library) -> anyhow::Result<Self> {
@@ -29,6 +30,8 @@ impl Domain {
         kernel.register(Arc::new(TwitterOwner))?;
         let (config, media_settings) =
             super::settings_setup::prepare(queue, &database, &library.settings).await?;
+        let external_settings =
+            super::settings_setup::prepare_external(queue, &database, &library.settings).await?;
         let media = MediaService::new(files.root(), config)?;
         let preferences = PreferenceService::new(kernel.clone());
         let domain = Self {
@@ -39,6 +42,7 @@ impl Domain {
             twitter: TwitterService::new(),
             preferences,
             media_settings,
+            external_settings,
         };
         let init = domain.clone();
         queue
@@ -65,7 +69,11 @@ pub(crate) struct Library {
     pub settings: locus_settings::api::SettingsService,
 }
 impl Library {
-    pub async fn open(queue: &TaskQueue, root: &Path) -> anyhow::Result<Self> {
+    pub async fn open(
+        queue: &TaskQueue,
+        root: &Path,
+        #[cfg(test)] probe: Option<super::ownership_tests::StartupProbe>,
+    ) -> anyhow::Result<Self> {
         let files = FileService::new(root)
             .await
             .context("open managed File root")?;
@@ -84,6 +92,10 @@ impl Library {
             .submit("Initialize Settings access", move |task| async move {
                 let mut session = init.database.session(&task).await?;
                 init.settings.initialize_schema(&mut session).await?;
+                #[cfg(test)]
+                if let Some(probe) = probe {
+                    probe.run(&task, init.files.root()).await?;
+                }
                 Ok::<_, anyhow::Error>(())
             })?
             .result()

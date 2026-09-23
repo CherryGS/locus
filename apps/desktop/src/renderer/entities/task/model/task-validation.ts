@@ -7,6 +7,10 @@ function target(value: unknown) {
 function operation(value: unknown): value is Wire<"TaskOperation"> {
   if (!object(value)) return false
   switch (value.kind) {
+    case "upload":
+      return id(value.upload_id) && typeof value.byte_count === "string" && /^\d+$/.test(value.byte_count) && (value.filename === null || typeof value.filename === "string")
+    case "upload_recovery":
+      return id(value.upload_id)
     case "import_batch":
       return id(value.batch_id) && Number.isSafeInteger(value.item_count) && Number(value.item_count) > 0
     case "import_recovery":
@@ -26,9 +30,9 @@ export function validTask(value: unknown): value is Wire<"PublicTask"> {
     object(value) &&
     id(value.task_id) &&
     id(value.request_id) &&
+    ["desktop", "external"].includes(String(value.access_context)) &&
     typeof value.label === "string" &&
     operation(value.operation) &&
-    (value.operation.kind !== "import_batch" || value.operation.batch_id === value.request_id) &&
     ["submitted", "waiting", "running", "between_stages", "terminal"].includes(String(value.state)) &&
     [value.stage, value.message].every((field) => field === null || typeof field === "string") &&
     [value.completed, value.total].every(
@@ -43,6 +47,8 @@ export function validTask(value: unknown): value is Wire<"PublicTask"> {
 export function validOutcome(value: unknown): value is Wire<"TaskOutcome"> {
   if (!object(value)) return false
   switch (value.status) {
+    case "upload":
+      return object(value.result) && id(value.result.upload_id) && typeof value.result.byte_count === "string" && typeof value.result.uncertain === "boolean" && Array.isArray(value.result.actions) && (value.result.confirmed_file_id === null || id(value.result.confirmed_file_id))
     case "import_batch":
       return id(value.batch_id)
     case "import_recovery":

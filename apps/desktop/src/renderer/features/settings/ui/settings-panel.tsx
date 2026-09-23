@@ -16,15 +16,21 @@ import {
 } from "@/shared/ui/dialog"
 import { Spinner } from "@/shared/ui/spinner"
 import type { SettingsCoordinator } from "../model/settings-coordinator"
+import { ExternalAccessPanel } from "./external-access-panel"
+import type { externalAddressSettings, ExternalTokenCoordinator } from "../model/external-access"
 
 export function SettingsPanel({
   settings,
   restart,
   restricted,
+  externalSettings,
+  externalToken,
 }: {
   settings: SettingsCoordinator
   restart: () => Promise<void>
   restricted?: string
+  externalSettings: ReturnType<typeof externalAddressSettings>
+  externalToken: ExternalTokenCoordinator
 }) {
   useSyncExternalStore(settings.subscribe, settings.snapshot)
   const [reset, setReset] = useState<string>()
@@ -68,7 +74,8 @@ export function SettingsPanel({
             <AlertDescription>{hostError}</AlertDescription>
           </Alert>
         )}
-        <Card>
+        <ExternalAccessPanel settings={externalSettings} token={externalToken} restricted={restricted} />
+        <Card role="region" aria-label="Media settings">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle>Media</CardTitle>

@@ -23,6 +23,9 @@ pub struct Receipt {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum TaskOutcome {
+    Upload {
+        result: Box<super::external::dto::UploadObservation>,
+    },
     ImportBatch {
         batch_id: String,
     },
@@ -65,6 +68,13 @@ pub enum Submission {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum MutationOutcome {
+    TokenReset {
+        revision: String,
+    },
+    TokenResetFailed {
+        message: String,
+        uncertain: bool,
+    },
     SettingsSaved {
         saved: super::settings::dto::SavedSettings,
     },

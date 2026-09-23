@@ -38,6 +38,10 @@ export function outcomeSummary(record: TaskObservation): string {
       ? "Execution ended · outcome unavailable"
       : record.task.state.replaceAll("_", " ")
   switch (value.status) {
+    case "upload":
+      return value.result.confirmed_file_id
+        ? `File registered · ${value.result.byte_count} bytes · ready for import`
+        : `${value.result.uncertain ? "File registration unconfirmed · " : "File admission incomplete · "}${value.result.problem ?? "Inspect the original upload"}${value.result.managed_bytes_may_exist ? " · managed bytes retained" : ""}`
     case "import_batch":
       return "Original execution ended"
     case "import_recovery":
@@ -73,6 +77,7 @@ export function needsAttention(record: TaskObservation) {
       (!value ||
         value.status === "failed" ||
         value.status === "media_failed" ||
+        (value.status === "upload" && !value.result.confirmed_file_id) ||
         (value.status === "interpreted" &&
           (value.result.status !== "accepted" || !!value.result.record.last_failure))))
   )
@@ -196,7 +201,7 @@ function RecordDetails({
                         <ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open/attempt:rotate-90" />
                         <span className="flex min-w-0 flex-col gap-1">
                           <span className="font-medium">
-                            {attempt.task.operation.kind === "import_recovery" ? "Recovery" : "Original"}{" "}
+                            {["import_recovery", "upload_recovery"].includes(attempt.task.operation.kind) ? "Recovery" : "Original"}{" "}
                             execution <span className="text-muted-foreground">· {index + 1}</span>
                           </span>
                           <span className="break-words text-xs text-muted-foreground">
@@ -218,6 +223,10 @@ function RecordDetails({
       ) : (
         record.attempts.map((attempt) => (
           <div key={attempt.task.task_id} className="flex min-w-0 flex-col gap-6">
+            <div className="flex flex-col gap-1">
+              <h3 className="text-sm font-medium">{attempt.task.operation.kind === "upload_recovery" ? "Recovery execution" : "Original execution"}</h3>
+              <p className="break-all text-xs text-muted-foreground">Task {attempt.task.task_id}</p>
+            </div>
             <ExecutionDetails attempt={attempt} retryOutcome={retryOutcome} />
             <Separator />
             <RetainedResult attempt={attempt} />

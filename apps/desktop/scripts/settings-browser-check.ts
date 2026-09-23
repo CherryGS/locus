@@ -3,6 +3,8 @@ import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 import { join } from "node:path"
 import { writeFile } from "node:fs/promises"
+import { createServer } from "node:net"
+import { once } from "node:events"
 import { chromium } from "playwright"
 import { fixture, outputDirectory, workspace } from "./fixture.ts"
 import { browserPreview } from "./browser-preview.ts"
@@ -17,7 +19,11 @@ page.setDefaultTimeout(15_000)
 const errors: string[] = []
 page.on("pageerror", (error) => errors.push(error.message))
 let releaseRuntime: () => void = () => {}
-const runtimeResponse = new Promise<void>((resolve) => { releaseRuntime = resolve })
+const runtimeResponse = new Promise<void>((resolve) => {
+  releaseRuntime = resolve
+})
+let reservedPort: ReturnType<typeof createServer> | undefined
+const externalChecks: string[] = []
 try {
   await page.route("**/api/v1/settings/media-runtime", async (route) => {
     await runtimeResponse
@@ -28,7 +34,10 @@ try {
   await page.waitForFunction(() => !(document.querySelector("#media-ffprobe") as HTMLInputElement)?.disabled)
   assert.equal(await page.getByLabel("ffprobe", { exact: true }).inputValue(), "ffprobe")
   assert.equal(await page.getByText("Saved · restart required", { exact: true }).count(), 0)
-  assert.equal(await page.getByText("Media did not start; active tool paths are unavailable.", { exact: true }).count(), 0)
+  assert.equal(
+    await page.getByText("Media did not start; active tool paths are unavailable.", { exact: true }).count(),
+    0
+  )
   await page.getByText("Reading the current runtime configuration…", { exact: true }).waitFor()
   releaseRuntime()
   await page.locator("dd").filter({ hasText: "explicit-environment-probe" }).waitFor()
@@ -62,6 +71,123 @@ try {
   await page.keyboard.press("Tab")
   assert.equal(await page.locator(":focus").getAttribute("id"), "media-ffmpeg")
   await page.screenshot({ path: join(output, "narrow.png"), fullPage: true })
+  await page.setViewportSize({ width: 1200, height: 800 })
+  const external = page.getByRole("region", { name: "External connection", exact: true })
+  const token = page.getByRole("region", { name: "Shared Token", exact: true })
+  const initialRuntime = (await backend.client.GET("/api/v1/external-access/runtime")).data!
+  const initialToken = (await backend.client.GET("/api/v1/external-access/token")).data!
+  assert.equal(initialToken.status, "current")
+  await page.waitForFunction(() => !!(document.querySelector("#external-token") as HTMLInputElement)?.value)
+  assert.equal(await page.getByLabel("Current Token", { exact: true }).getAttribute("type"), "password")
+  await token.getByRole("button", { name: "Reveal Token", exact: true }).click()
+  assert.equal(await page.getByLabel("Current Token", { exact: true }).getAttribute("type"), "text")
+  await token.getByRole("button", { name: "Hide Token", exact: true }).click()
+  // This adapter checks UI copy feedback, not the user's OS clipboard. The
+  // production action still calls navigator.clipboard under the browser policy.
+  await page.evaluate(
+    "Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText(value) { window.__settingsCopied = value } } })"
+  )
+  await token.getByRole("button", { name: "Copy Token", exact: true }).click()
+  await token.getByText("Token copied.", { exact: true }).waitFor()
+  assert(
+    await page.evaluate(
+      () =>
+        (window as any).__settingsCopied ===
+        (document.querySelector("#external-token") as HTMLInputElement).value
+    )
+  )
+  await page.evaluate(
+    "Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText() { throw new Error('isolated denied clipboard') } } })"
+  )
+  await token.getByRole("button", { name: "Copy Token", exact: true }).click()
+  await token.getByText("Token could not be copied. Reveal it to copy manually.", { exact: true }).waitFor()
+  externalChecks.push(
+    "masked/revealed Token and copy success/failure feedback through an isolated clipboard adapter"
+  )
+
+  let resets = 0
+  await page.route("**/api/v1/external-access/token/reset", async (route) => {
+    resets++
+    const response = await route.fetch()
+    if (resets === 1) await route.abort("failed")
+    else await route.fulfill({ response })
+  })
+  await token.getByRole("button", { name: "Reset shared Token", exact: true }).click()
+  await token.getByText("Reset not confirmed", { exact: true }).waitFor()
+  assert.equal(
+    await token.getByRole("button", { name: "Reset shared Token", exact: true }).isDisabled(),
+    true
+  )
+  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await page.getByRole("grid", { name: "Entities" }).waitFor()
+  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await token.getByRole("button", { name: "Recover Token reset", exact: true }).click()
+  await token.getByText("Token reset completed.", { exact: true }).waitFor()
+  await page.waitForFunction(() => !!(document.querySelector("#external-token") as HTMLInputElement)?.value)
+  assert.equal(resets, 1)
+  const replacementToken = (await backend.client.GET("/api/v1/external-access/token")).data!
+  assert(initialToken.status === "current" && replacementToken.status === "current")
+  assert(initialToken.token !== replacementToken.token, "Original reset did not replace the test credential")
+  assert.equal(replacementToken.context_id, initialToken.context_id)
+  assert((await page.getByLabel("Current Token", { exact: true }).inputValue()) === replacementToken.token)
+  assert.equal(await page.getByLabel("Current Token", { exact: true }).getAttribute("type"), "password")
+  await page.unroute("**/api/v1/external-access/token/reset")
+  externalChecks.push("lost real reset response recovers after navigation without another rotation")
+
+  await page.route("**/api/v1/external-access/token", (route) => route.abort("failed"))
+  await token.getByRole("button", { name: "Read current Token", exact: true }).click()
+  await token.getByText("Token observation unavailable", { exact: true }).waitFor()
+  assert.equal(await token.getByRole("button", { name: "Copy Token", exact: true }).isDisabled(), true)
+  assert.equal(
+    await token.getByRole("button", { name: "Reset shared Token", exact: true }).isDisabled(),
+    true
+  )
+  await page.unroute("**/api/v1/external-access/token")
+  await token.getByRole("button", { name: "Read current Token", exact: true }).click()
+  await page.waitForFunction(() => !!(document.querySelector("#external-token") as HTMLInputElement)?.value)
+  assert.equal(resets, 1)
+  externalChecks.push("failed current observation cannot advertise or reset a cached Token")
+
+  reservedPort = createServer()
+  reservedPort.listen(0, "127.0.0.1")
+  await once(reservedPort, "listening")
+  const bound = reservedPort.address()
+  assert(bound && typeof bound !== "string")
+  const occupiedAddress = `127.0.0.1:${bound.port}`
+  await page.getByLabel("Saved address", { exact: true }).fill(occupiedAddress)
+  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  assert.equal(await page.getByLabel("Saved address", { exact: true }).inputValue(), occupiedAddress)
+  await external.getByRole("button", { name: "Save address", exact: true }).click()
+  await external.getByText("Saved · restart required", { exact: true }).waitFor()
+  assert.equal(
+    (await backend.client.GET("/api/v1/external-access/runtime")).data!.active_address,
+    initialRuntime.active_address
+  )
+  await page.screenshot({ path: join(output, "external-pending.png"), fullPage: true })
+  await preview.close()
+  await backend.stop()
+  backend = await data.start()
+  preview = await browserPreview(backend)
+  assert.equal(backend.availability.status, "normal")
+  await page.goto(`${preview.origin}/#/entity`)
+  await page.getByRole("grid", { name: "Entities" }).waitFor()
+  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await external.getByText("External entry unavailable", { exact: true }).waitFor()
+  assert.equal(await external.getByRole("button", { name: "Copy address", exact: true }).count(), 0)
+  const beforeAddressReset = (await backend.client.GET("/api/v1/external-access/token")).data!
+  await external.getByRole("button", { name: "Restore default address", exact: true }).click()
+  await external.getByText("Saved · restart required", { exact: true }).waitFor()
+  assert.equal((await backend.client.GET("/api/v1/external-access/runtime")).data!.active_address, null)
+  const afterAddressReset = (await backend.client.GET("/api/v1/external-access/token")).data!
+  assert(beforeAddressReset.status === "current" && afterAddressReset.status === "current")
+  assert(beforeAddressReset.token === afterAddressReset.token, "Address reset must not rotate Token")
+  await page.screenshot({ path: join(output, "external-unavailable.png"), fullPage: true })
+  await new Promise<void>((resolve) => reservedPort!.close(() => resolve()))
+  reservedPort = undefined
+  externalChecks.push(
+    "address draft/navigation/save, unchanged active listener, occupied-port normal browsing, group default reset independent of Token"
+  )
   await preview.close()
   await backend.stop()
   await promisify(execFile)(
@@ -70,7 +196,7 @@ try {
       "run",
       "python",
       "-c",
-      "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute(\"UPDATE locus_settings_values SET payload='{}'\"); c.commit(); c.close()",
+      "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute(\"UPDATE locus_settings_values SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'\"); c.commit(); c.close()",
       join(data.library, "metadata.sqlite"),
     ],
     { cwd: workspace, windowsHide: true }
@@ -113,6 +239,7 @@ try {
           "keyboard/narrow layout",
           "restricted repair without business consumers",
           "repair stays restricted",
+          ...externalChecks,
         ],
       },
       null,
@@ -121,6 +248,7 @@ try {
   )
   console.log(JSON.stringify({ passed: true, output }))
 } finally {
+  if (reservedPort?.listening) await new Promise<void>((resolve) => reservedPort!.close(() => resolve()))
   releaseRuntime()
   await browser.close()
   await preview.close()

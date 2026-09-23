@@ -15,7 +15,9 @@ pub(crate) mod store;
 pub mod task;
 pub mod twitter;
 
-pub use crate::runtime::{Bootstrap, Ready, Server, ServerConfig};
+pub use crate::runtime::{
+    Bootstrap, Ready, Server, ServerConfig, StartupFailure, StartupFailureReason,
+};
 pub use core::dto::*;
 pub use dto::*;
 pub use error::{ApiError, Diagnostic, DomainDiagnostic, ErrorCode, FailureKind};
@@ -26,6 +28,8 @@ pub use routes::openapi;
 pub use task::dto::*;
 pub use twitter::dto::*;
 
+pub(crate) mod external;
 pub mod imports;
 pub mod settings;
+pub use external::dto::*;
 pub use settings::{dto::*, settings_definitions};

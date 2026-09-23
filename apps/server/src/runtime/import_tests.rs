@@ -42,10 +42,22 @@ async fn terminal(state: &Arc<super::Shared>, task: &str) {
 fn first(server: &Server) -> ImportItem {
     server.state.import_snapshot().batches[0].items[0].clone()
 }
-fn recovery(batch: &str, item: &ImportItem, action: ImportAction) -> ImportRecoveryRequest {
+fn recovery(
+    server: &Server,
+    batch: &str,
+    item: &ImportItem,
+    action: ImportAction,
+) -> ImportRecoveryRequest {
     ImportRecoveryRequest {
         request_id: id(),
-        batch_id: batch.into(),
+        batch_id: server
+            .state
+            .import_snapshot()
+            .batches
+            .into_iter()
+            .find(|b| b.original_request_id == batch)
+            .unwrap()
+            .batch_id,
         item_id: item.item_id.clone(),
         action,
     }
@@ -63,7 +75,7 @@ async fn whole_base_rollback_retains_copy_and_retry_reuses_identity_without_sour
     assert_eq!(
         server.state.task(&receipt.task_id).unwrap().operation,
         crate::api::task::TaskOperation::ImportBatch {
-            batch_id: request.request_id.clone(),
+            batch_id: server.state.import_snapshot().batches[0].batch_id.clone(),
             item_count: 1,
         }
     );
@@ -102,12 +114,12 @@ async fn whole_base_rollback_retains_copy_and_retry_reuses_identity_without_sour
             .all(|m| matches!(m, crate::api::core::dto::EntityMemberships::Missing { .. }))
     );
     std::fs::remove_file(&source).unwrap();
-    let retry = recovery(&request.request_id, &old, ImportAction::Retry);
+    let retry = recovery(&server, &request.request_id, &old, ImportAction::Retry);
     let receipt = server.state.recover_import(retry.clone()).unwrap();
     assert_eq!(
         server.state.task(&receipt.task_id).unwrap().operation,
         crate::api::task::TaskOperation::ImportRecovery {
-            batch_id: request.request_id.clone(),
+            batch_id: server.state.import_snapshot().batches[0].batch_id.clone(),
             item_id: old.item_id.clone(),
         }
     );
@@ -135,12 +147,18 @@ async fn uncertain_combined_commit_confirms_candidates_but_missing_effect_never_
     assert!(
         server
             .state
-            .recover_import(recovery(&request.request_id, &unknown, ImportAction::Retry))
+            .recover_import(recovery(
+                &server,
+                &request.request_id,
+                &unknown,
+                ImportAction::Retry
+            ))
             .is_err()
     );
     let receipt = server
         .state
         .recover_import(recovery(
+            &server,
             &request.request_id,
             &unknown,
             ImportAction::Confirm,
@@ -177,6 +195,7 @@ async fn uncertain_combined_commit_confirms_candidates_but_missing_effect_never_
     let receipt = server
         .state
         .recover_import(recovery(
+            &server,
             &request.request_id,
             &confirmed,
             ImportAction::Retry,
@@ -210,7 +229,7 @@ async fn unusable_preparation_requires_explicit_fresh_copy_and_launch_rejection_
     let internal = server.state.imports.snapshots()[0].items[0].clone();
     let progress = internal.prepared.unwrap().progress().clone();
     std::fs::remove_file(progress.root.join(progress.relative_path)).unwrap();
-    let retry = recovery(&request.request_id, &old, ImportAction::Retry);
+    let retry = recovery(&server, &request.request_id, &old, ImportAction::Retry);
     server.state.lock().reject_next_launch = true;
     assert_eq!(
         server.state.recover_import(retry.clone()).unwrap_err().code,
@@ -223,7 +242,12 @@ async fn unusable_preparation_requires_explicit_fresh_copy_and_launch_rejection_
     ));
     let receipt = server
         .state
-        .recover_import(recovery(&request.request_id, &old, ImportAction::Retry))
+        .recover_import(recovery(
+            &server,
+            &request.request_id,
+            &old,
+            ImportAction::Retry,
+        ))
         .unwrap();
     terminal(&server.state, &receipt.task_id).await;
     let unusable = first(&server);
@@ -232,6 +256,7 @@ async fn unusable_preparation_requires_explicit_fresh_copy_and_launch_rejection_
     let receipt = server
         .state
         .recover_import(recovery(
+            &server,
             &request.request_id,
             &unusable,
             ImportAction::Recopy,
@@ -270,7 +295,7 @@ async fn early_item_recovery_keeps_original_batch_boundary_and_drain_owns_contin
     let release_recovery = Arc::new(tokio::sync::Notify::new());
     *server.state.imports.pause_source.lock().unwrap() =
         Some((missing, recovering.clone(), release_recovery.clone()));
-    let retry = recovery(&batch.request_id, &ready, ImportAction::Recopy);
+    let retry = recovery(&server, &batch.request_id, &ready, ImportAction::Recopy);
     let continuation = server.state.recover_import(retry.clone()).unwrap();
     recovering.notified().await;
     assert_eq!(
@@ -280,7 +305,12 @@ async fn early_item_recovery_keeps_original_batch_boundary_and_drain_owns_contin
     assert_eq!(
         server
             .state
-            .recover_import(recovery(&batch.request_id, &ready, ImportAction::Recopy))
+            .recover_import(recovery(
+                &server,
+                &batch.request_id,
+                &ready,
+                ImportAction::Recopy
+            ))
             .unwrap_err()
             .code,
         ErrorCode::RequestConflict
@@ -331,7 +361,12 @@ async fn failed_confirmation_preserves_uncertainty_and_current_interpretation_ev
     *server.state.imports.fail_session.lock().unwrap() = true;
     let receipt = server
         .state
-        .recover_import(recovery(&batch.request_id, &old, ImportAction::Confirm))
+        .recover_import(recovery(
+            &server,
+            &batch.request_id,
+            &old,
+            ImportAction::Confirm,
+        ))
         .unwrap();
     terminal(&server.state, &receipt.task_id).await;
     let failed = first(&server);
@@ -340,13 +375,19 @@ async fn failed_confirmation_preserves_uncertainty_and_current_interpretation_ev
     assert_eq!(failed.actions, vec![ImportAction::Confirm]);
     let receipt = server
         .state
-        .recover_import(recovery(&batch.request_id, &failed, ImportAction::Confirm))
+        .recover_import(recovery(
+            &server,
+            &batch.request_id,
+            &failed,
+            ImportAction::Confirm,
+        ))
         .unwrap();
     terminal(&server.state, &receipt.task_id).await;
     *server.state.imports.unknown_interpretation.lock().unwrap() = true;
     let receipt = server
         .state
         .recover_import(recovery(
+            &server,
             &batch.request_id,
             &first(&server),
             ImportAction::Retry,
@@ -360,7 +401,12 @@ async fn failed_confirmation_preserves_uncertainty_and_current_interpretation_ev
     );
     let receipt = server
         .state
-        .recover_import(recovery(&batch.request_id, &unknown, ImportAction::Confirm))
+        .recover_import(recovery(
+            &server,
+            &batch.request_id,
+            &unknown,
+            ImportAction::Confirm,
+        ))
         .unwrap();
     terminal(&server.state, &receipt.task_id).await;
     let observed = first(&server);
@@ -378,7 +424,12 @@ async fn failed_confirmation_preserves_uncertainty_and_current_interpretation_ev
     );
     let receipt = server
         .state
-        .recover_import(recovery(&batch.request_id, &observed, ImportAction::Retry))
+        .recover_import(recovery(
+            &server,
+            &batch.request_id,
+            &observed,
+            ImportAction::Retry,
+        ))
         .unwrap();
     terminal(&server.state, &receipt.task_id).await;
     let done = first(&server);
@@ -409,7 +460,12 @@ async fn original_context_restored_externally_can_retry_preview_without_reinterp
     *server.state.imports.fail_session.lock().unwrap() = true;
     let receipt = server
         .state
-        .recover_import(recovery(&batch.request_id, &initial, ImportAction::Retry))
+        .recover_import(recovery(
+            &server,
+            &batch.request_id,
+            &initial,
+            ImportAction::Retry,
+        ))
         .unwrap();
     terminal(&server.state, &receipt.task_id).await;
     assert_eq!(
@@ -451,6 +507,7 @@ async fn original_context_restored_externally_can_retry_preview_without_reinterp
     let receipt = server
         .state
         .recover_import(recovery(
+            &server,
             &batch.request_id,
             &first(&server),
             ImportAction::Retry,
@@ -490,7 +547,12 @@ async fn original_context_restored_externally_can_retry_preview_without_reinterp
         .unwrap();
     let receipt = server
         .state
-        .recover_import(recovery(&batch.request_id, &conflict, ImportAction::Retry))
+        .recover_import(recovery(
+            &server,
+            &batch.request_id,
+            &conflict,
+            ImportAction::Retry,
+        ))
         .unwrap();
     terminal(&server.state, &receipt.task_id).await;
     let done = server.state.imports.snapshots()[0].items[0].current.clone();

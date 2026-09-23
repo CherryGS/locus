@@ -1007,6 +1007,319 @@
         }
       }
     },
+    "/api/v1/external-access/runtime": {
+      "get": {
+        "tags": [
+          "external-access"
+        ],
+        "operationId": "external_management_runtime",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalRuntime"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/external-access/token": {
+      "get": {
+        "tags": [
+          "external-access"
+        ],
+        "operationId": "external_management_token",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenObservation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/external-access/token/reset": {
+      "post": {
+        "tags": [
+          "external-access"
+        ],
+        "operationId": "external_management_reset",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetToken"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/files/{file_id}": {
       "get": {
         "tags": [
@@ -4167,10 +4480,1264 @@
           }
         }
       }
+    },
+    "/external/v1/bootstrap": {
+      "get": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_bootstrap",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalBootstrap"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/external/v1/import-batches": {
+      "get": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_batches",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_import",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisteredImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_import_preflight",
+        "responses": {
+          "204": {
+            "description": "Unauthenticated CORS transport preflight; starts no work"
+          }
+        },
+        "security": []
+      }
+    },
+    "/external/v1/import-recoveries": {
+      "post": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_recover",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRecoveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external/v1/requests/{request_id}": {
+      "get": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_request",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external/v1/task-events": {
+      "get": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_events",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "External-context replacement task snapshots",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external/v1/tasks": {
+      "get": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_tasks",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external/v1/tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_task",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicTask"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external/v1/tasks/{task_id}/outcome": {
+      "get": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_outcome",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutcomeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external/v1/upload-recoveries": {
+      "post": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_upload_recovery",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoverUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external/v1/uploads": {
+      "post": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_upload",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "byte_count",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_upload_preflight",
+        "responses": {
+          "204": {
+            "description": "Unauthenticated CORS transport preflight; starts no work"
+          }
+        },
+        "security": []
+      }
+    },
+    "/external/v1/uploads/{upload_id}": {
+      "get": {
+        "tags": [
+          "external"
+        ],
+        "operationId": "external_routes_upload_state",
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadObservation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AccessContext": {
+        "type": "string",
+        "enum": [
+          "desktop",
+          "external"
+        ]
+      },
       "AdmissionState": {
         "type": "string",
         "enum": [
@@ -5002,6 +6569,50 @@
           "method_not_allowed"
         ]
       },
+      "ExternalBootstrap": {
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "properties": {
+          "run_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ExternalRuntime": {
+        "type": "object",
+        "properties": {
+          "active_address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "captured": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SavedSettings"
+              }
+            ]
+          },
+          "override_address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "FailureKind": {
         "type": "string",
         "enum": [
@@ -5092,11 +6703,16 @@
       "ImportBatch": {
         "type": "object",
         "required": [
+          "access_context",
+          "original_request_id",
           "batch_id",
           "original_ended",
           "items"
         ],
         "properties": {
+          "access_context": {
+            "$ref": "#/components/schemas/AccessContext"
+          },
           "batch_id": {
             "type": "string"
           },
@@ -5118,6 +6734,9 @@
                 "$ref": "#/components/schemas/ImportOverall"
               }
             ]
+          },
+          "original_request_id": {
+            "type": "string"
           }
         }
       },
@@ -5943,6 +7562,46 @@
           {
             "type": "object",
             "required": [
+              "revision",
+              "status"
+            ],
+            "properties": {
+              "revision": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "token_reset"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "uncertain",
+              "status"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "token_reset_failed"
+                ]
+              },
+              "uncertain": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "saved",
               "status"
             ],
@@ -6394,6 +8053,7 @@
       "PublicTask": {
         "type": "object",
         "required": [
+          "access_context",
           "task_id",
           "request_id",
           "label",
@@ -6402,6 +8062,9 @@
           "outcome_available"
         ],
         "properties": {
+          "access_context": {
+            "$ref": "#/components/schemas/AccessContext"
+          },
           "completed": {
             "type": [
               "string",
@@ -6508,6 +8171,26 @@
           }
         }
       },
+      "RecoverUpload": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "upload_id",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/UploadAction"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "upload_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "RegisteredImportItem": {
         "type": "object",
         "properties": {
@@ -6555,6 +8238,22 @@
           "request_id"
         ],
         "properties": {
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResetToken": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "expected_revision"
+        ],
+        "properties": {
+          "expected_revision": {
+            "type": "string"
+          },
           "request_id": {
             "type": "string"
           }
@@ -7135,6 +8834,52 @@
           {
             "type": "object",
             "required": [
+              "upload_id",
+              "byte_count",
+              "kind"
+            ],
+            "properties": {
+              "byte_count": {
+                "type": "string"
+              },
+              "filename": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "upload"
+                ]
+              },
+              "upload_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upload_id",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "upload_recovery"
+                ]
+              },
+              "upload_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "batch_id",
               "item_count",
               "kind"
@@ -7242,6 +8987,24 @@
       },
       "TaskOutcome": {
         "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "result",
+              "status"
+            ],
+            "properties": {
+              "result": {
+                "$ref": "#/components/schemas/UploadObservation"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "upload"
+                ]
+              }
+            }
+          },
           {
             "type": "object",
             "required": [
@@ -7407,6 +9170,62 @@
             }
           }
         }
+      },
+      "TokenObservation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "run_id",
+              "context_id",
+              "revision",
+              "token",
+              "status"
+            ],
+            "properties": {
+              "context_id": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "run_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "current"
+                ]
+              },
+              "token": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "run_id",
+              "message",
+              "status"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "run_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unavailable"
+                ]
+              }
+            }
+          }
+        ]
       },
       "TwitterApplicability": {
         "oneOf": [
@@ -8133,6 +9952,110 @@
           }
         },
         "additionalProperties": false
+      },
+      "UploadAction": {
+        "type": "string",
+        "enum": [
+          "retry",
+          "recopy",
+          "confirm"
+        ]
+      },
+      "UploadMetadata": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "byte_count"
+        ],
+        "properties": {
+          "byte_count": {
+            "type": "string"
+          },
+          "filename": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UploadObservation": {
+        "type": "object",
+        "required": [
+          "upload_id",
+          "byte_count",
+          "receiving",
+          "uncertain",
+          "actions",
+          "copy_complete",
+          "managed_bytes_may_exist"
+        ],
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UploadAction"
+            }
+          },
+          "active_request_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "byte_count": {
+            "type": "string"
+          },
+          "candidate_file_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confirmed_file_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "copied_bytes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "copy_complete": {
+            "type": "boolean"
+          },
+          "filename": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "managed_bytes_may_exist": {
+            "type": "boolean"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "receiving": {
+            "type": "boolean"
+          },
+          "uncertain": {
+            "type": "boolean"
+          },
+          "upload_id": {
+            "type": "string"
+          }
+        }
       }
     },
     "securitySchemes": {

@@ -2,6 +2,7 @@ use super::{
     registry::{Binding, Shared},
     submissions::{Arguments, check},
 };
+use crate::api::task::dto::AccessContext;
 use crate::{
     api::{
         dto::{Submission, TaskOutcome},
@@ -20,17 +21,31 @@ impl Shared {
         self: &Arc<Self>,
         request: RegisteredImportRequest,
     ) -> Result<Submission, ApiError> {
+        self.registered_import_in(AccessContext::Desktop, None, request)
+    }
+    pub fn registered_import_in(
+        self: &Arc<Self>,
+        context: AccessContext,
+        authorization: Option<super::external::Authorization>,
+        request: RegisteredImportRequest,
+    ) -> Result<Submission, ApiError> {
         let domain = self.business()?.clone();
         let arguments = Arguments::RegisteredImport(request.clone());
         let mut registry = self.lock();
-        if let Some(binding) = registry.requests.get(&request.request_id) {
+        if let Some(binding) = registry
+            .requests
+            .get(&(context, request.request_id.clone()))
+        {
             check(binding, &arguments)?;
             return Ok(binding.result.clone());
+        }
+        if let Some(basis) = &authorization {
+            self.external_current(basis)?;
         }
         self.admit(&mut registry)?;
         let id = request.request_id.clone();
         registry.requests.insert(
-            id.clone(),
+            (context, id.clone()),
             Binding {
                 arguments: arguments.clone(),
                 result: Submission::AdmissionPending,
@@ -77,13 +92,14 @@ impl Shared {
             Ok(v) => v,
             Err(error) => {
                 let result = Submission::Rejected { error };
-                if let Some(binding) = registry.requests.get_mut(&id) {
+                if let Some(binding) = registry.requests.get_mut(&(context, id.clone())) {
                     binding.result = result.clone();
                 }
                 return Ok(result);
             }
         };
         let validation_domain = domain.clone();
+        let access_context = authorization.as_ref().map(|a| a.context_id.clone());
         let launched =
             self.queue
                 .submit("Validate registered import input", move |task| async move {
@@ -98,6 +114,15 @@ impl Shared {
                             Box::pin(async move {
                                 for (file, _) in &inputs {
                                     if let Some(file) = file {
+                                        if let Some(context) = &access_context {
+                                            anyhow::ensure!(
+                                                crate::access::persistence::eligible(
+                                                    c, context, *file
+                                                )
+                                                .await?,
+                                                "File is not eligible in this external context"
+                                            );
+                                        }
                                         FileService::read_in(c, *file).await?;
                                         if kernel
                                             .attachment_in(c, file.component())
@@ -120,7 +145,7 @@ impl Shared {
                 let result = Submission::Rejected {
                     error: ApiError::new(ErrorCode::LaunchRejected, e.to_string()),
                 };
-                if let Some(binding) = registry.requests.get_mut(&id) {
+                if let Some(binding) = registry.requests.get_mut(&(context, id.clone())) {
                     binding.result = result.clone();
                 }
                 return Ok(result);
@@ -138,8 +163,13 @@ impl Shared {
                 Err(e) => Err(e),
                 Ok(inputs) => {
                     let worker = state.clone();
-                    let batch = id.clone();
+                    let batch = uuid::Uuid::now_v7().to_string();
                     state.public_claimed(
+                        crate::runtime::submissions::Admission {
+                            context,
+                            authorization,
+                            batch: Some(batch.clone()),
+                        },
                         id.clone(),
                         arguments,
                         "Import registered content",
@@ -165,11 +195,10 @@ impl Shared {
                 }
             };
             let mut registry = state.lock();
-            if let Err(error) = outcome {
-                state.imports.release(&id, None, &id);
-                if let Some(binding) = registry.requests.get_mut(&id) {
-                    binding.result = Submission::Rejected { error };
-                }
+            if let Err(error) = outcome
+                && let Some(binding) = registry.requests.get_mut(&(context, id.clone()))
+            {
+                binding.result = Submission::Rejected { error };
             }
             state.changed(&mut registry);
             state.complete(&mut registry);

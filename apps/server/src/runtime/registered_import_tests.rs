@@ -82,11 +82,19 @@ fn request(file: Option<String>, twitter: bool) -> RegisteredImportRequest {
         }],
     }
 }
+fn batch_id(s: &Shared, request: &str) -> String {
+    s.import_snapshot()
+        .batches
+        .into_iter()
+        .find(|b| b.original_request_id == request)
+        .unwrap()
+        .batch_id
+}
 fn item(s: &Shared, batch: &str) -> ImportItem {
     s.import_snapshot()
         .batches
         .into_iter()
-        .find(|b| b.batch_id == batch)
+        .find(|b| b.original_request_id == batch)
         .unwrap()
         .items
         .remove(0)
@@ -95,7 +103,7 @@ async fn recover(s: &Arc<Shared>, batch: &str, action: ImportAction) -> ImportIt
     let receipt = s
         .recover_import(ImportRecoveryRequest {
             request_id: id(),
-            batch_id: batch.into(),
+            batch_id: batch_id(s, batch),
             item_id: item(s, batch).item_id,
             action,
         })
@@ -307,7 +315,10 @@ async fn revised_capture_blocks_association_and_never_replaces_the_snapshot() {
     let receipt = accepted(s, &request).await.unwrap();
     terminal(s, &receipt.task_id).await;
     let old = item(s, &request.request_id);
-    let internal = s.imports.item(&request.request_id, &old.item_id).unwrap();
+    let internal = s
+        .imports
+        .item(&batch_id(s, &request.request_id), &old.item_id)
+        .unwrap();
     let twitter = internal.current.twitter_id.unwrap();
     let domain = s.business().unwrap().clone();
     s.query("explicitly replace test capture", move |task| async move {
@@ -353,7 +364,7 @@ async fn competing_items_attach_once_and_rejected_request_stays_rejected_after_d
         .import_snapshot()
         .batches
         .into_iter()
-        .find(|b| b.batch_id == request.request_id)
+        .find(|b| b.original_request_id == request.request_id)
         .unwrap();
     assert_eq!(batch.items.iter().filter(|i| i.current.complete).count(), 1);
     assert_eq!(
@@ -404,14 +415,17 @@ async fn later_content_checks_retained_attachment_inside_its_mutation_unit() {
         let receipt = accepted(s, &request).await.unwrap();
         terminal(s, &receipt.task_id).await;
         let old = item(s, &request.request_id);
-        let internal = s.imports.item(&request.request_id, &old.item_id).unwrap();
+        let internal = s
+            .imports
+            .item(&batch_id(s, &request.request_id), &old.item_id)
+            .unwrap();
         let entered = Arc::new(tokio::sync::Notify::new());
         let release = Arc::new(tokio::sync::Notify::new());
         *s.imports.pause_content.lock().unwrap() = Some((entered.clone(), release.clone()));
         let recovery = s
             .recover_import(ImportRecoveryRequest {
                 request_id: id(),
-                batch_id: request.request_id.clone(),
+                batch_id: batch_id(s, &request.request_id),
                 item_id: old.item_id.clone(),
                 action: ImportAction::Retry,
             })
@@ -476,7 +490,10 @@ async fn confirmation_cannot_relabel_detached_confirmed_twitter_as_current_succe
         terminal(s, &receipt.task_id).await;
         let old = item(s, &request.request_id);
         assert!(old.current.complete);
-        let internal = s.imports.item(&request.request_id, &old.item_id).unwrap();
+        let internal = s
+            .imports
+            .item(&batch_id(s, &request.request_id), &old.item_id)
+            .unwrap();
         let component = internal.current.twitter_id.unwrap().component();
         let domain = s.business().unwrap().clone();
         s.query("detach confirmed Source", move |task| async move {
@@ -523,7 +540,10 @@ async fn changed_source_does_not_stop_independent_original_media_preview_recover
         ImportStepState::Success
     );
     assert_eq!(old.current.kinds[0].preview.state, ImportStepState::Failed);
-    let internal = s.imports.item(&request.request_id, &old.item_id).unwrap();
+    let internal = s
+        .imports
+        .item(&batch_id(s, &request.request_id), &old.item_id)
+        .unwrap();
     let twitter = internal.current.twitter_id.unwrap();
     let revision = internal.current.twitter_revision.unwrap();
     let domain = s.business().unwrap().clone();

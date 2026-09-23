@@ -3,7 +3,7 @@ import { test } from "node:test"
 import { taskRecords } from "../src/renderer/app/shell/task-records.ts"
 import { outcomeSummary } from "../src/renderer/features/task-feedback/ui/task-panel.tsx"
 const attempt = (id, kind = "import_batch", state = "terminal", batch_id = "batch") => ({
-  task: { task_id: id, request_id: id, state, operation: { kind, batch_id, item_count: 1, item_id: "item" } },
+  task: { access_context: "desktop", task_id: id, request_id: id, state, operation: { kind, batch_id, item_count: 1, item_id: "item" } },
   outcome: { status: "failed", diagnostic: { message: "old executor failure" } },
 })
 const coordinator = () => ({ batches: [], submissions: new Map() })
@@ -39,7 +39,7 @@ test("current owner results clear historical attention but retain independent or
   const c = coordinator()
   c.batches = [
     {
-      batch_id: "batch",
+      access_context: "desktop", original_request_id: "batch", batch_id: "batch",
       original_ended: true,
       items: [{ current: { complete: true }, active_request_id: null }],
     },
@@ -54,16 +54,18 @@ test("current owner results clear historical attention but retain independent or
   assert.equal(result[0].attempts.length, 2)
   assert.equal(result[0].attempts[0].outcome.status, "failed")
   c.submissions.set("retry2", {
-    body: { request_id: "retry2", batch_id: "batch", item_id: "item" },
+    body: { request_id: "retry2", access_context: "desktop", original_request_id: "batch", batch_id: "batch", item_id: "item" },
     pending: true,
   })
   assert.equal(taskRecords(c, { records }, () => null)[0].active, true)
 })
-test("early linked recovery stays one group; equal source submissions remain separate", () => {
+test("recovery groups only after explicit original attribution; equal source submissions remain separate", () => {
   const c = coordinator()
   c.submissions.set("batch", { body: { request_id: "batch", source_paths: ["same-path"] }, pending: true })
   c.submissions.set("other", { body: { request_id: "other", source_paths: ["same-path"] }, pending: true })
   const records = new Map([["retry", attempt("retry", "import_recovery", "running")]])
+  assert.equal(taskRecords(c, { records }, () => null).length, 3)
+  c.batches = [{ access_context: "desktop", original_request_id: "batch", batch_id: "batch", original_ended: false, items: [] }]
   const result = taskRecords(c, { records }, () => null)
   assert.equal(result.length, 2)
   assert.equal(result[0].attempts.length, 1)

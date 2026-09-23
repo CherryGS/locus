@@ -167,6 +167,8 @@ pub(crate) struct Item {
 }
 #[derive(Debug, Clone)]
 pub(crate) struct Batch {
+    pub access_context: crate::api::task::dto::AccessContext,
+    pub original_request_id: String,
     pub id: String,
     pub items: Vec<Item>,
     pub ended: bool,

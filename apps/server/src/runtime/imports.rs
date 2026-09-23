@@ -1,4 +1,5 @@
 use super::{registry::Shared, submissions::Arguments};
+use crate::api::task::dto::AccessContext;
 use crate::{
     api::{
         dto::{Receipt, TaskOutcome},
@@ -32,11 +33,17 @@ impl Shared {
     ) -> Result<Receipt, ApiError> {
         let domain = self.business()?.clone();
         let state = self.clone();
-        let id = request.request_id.clone();
-        self.public(
-            id.clone(),
+        let id = uuid::Uuid::now_v7().to_string();
+        self.public_claimed(
+            crate::runtime::submissions::Admission {
+                context: AccessContext::Desktop,
+                authorization: None,
+                batch: Some(id.clone()),
+            },
+            request.request_id.clone(),
             Arguments::ImportBatch(request),
             "Import local files",
+            None,
             move |task| async move {
                 let ids: Vec<_> = state
                     .imports
@@ -60,13 +67,32 @@ impl Shared {
         self: &Arc<Self>,
         request: ImportRecoveryRequest,
     ) -> Result<Receipt, ApiError> {
+        self.recover_import_in(AccessContext::Desktop, None, request)
+    }
+    pub fn recover_import_in(
+        self: &Arc<Self>,
+        context: AccessContext,
+        authorization: Option<super::external::Authorization>,
+        request: ImportRecoveryRequest,
+    ) -> Result<Receipt, ApiError> {
+        if !self.imports.belongs_to(&request.batch_id, context) {
+            return Err(ApiError::invalid(
+                "Unknown import batch in this access context",
+            ));
+        }
         let domain = self.business()?.clone();
         let state = self.clone();
         let operation = request.clone();
-        self.public(
+        self.public_claimed(
+            crate::runtime::submissions::Admission {
+                context,
+                authorization,
+                batch: None,
+            },
             request.request_id.clone(),
             Arguments::RecoverImport(request),
             "Recover imported content",
+            None,
             move |task| async move {
                 state
                     .imports

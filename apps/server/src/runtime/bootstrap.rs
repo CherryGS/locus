@@ -25,6 +25,27 @@ pub struct Ready {
     pub availability: crate::api::dto::Availability,
 }
 
+/// Narrow private startup failure, never public readiness or arbitrary stderr.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct StartupFailure {
+    pub startup_error: StartupFailureReason,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StartupFailureReason {
+    LibraryInUse,
+}
+impl StartupFailure {
+    pub fn from_error(error: &anyhow::Error) -> Option<Self> {
+        error
+            .is::<super::ownership::LibraryInUse>()
+            .then_some(Self {
+                startup_error: StartupFailureReason::LibraryInUse,
+            })
+    }
+}
+
 impl Bootstrap {
     /// One bounded JSON object followed by EOF on a private inherited pipe.
     pub fn read(reader: impl Read) -> anyhow::Result<Self> {

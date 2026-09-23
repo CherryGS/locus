@@ -1,5 +1,11 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+pub enum AccessContext {
+    Desktop,
+    External,
+}
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PublicTaskState {
@@ -13,6 +19,14 @@ pub enum PublicTaskState {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TaskOperation {
+    Upload {
+        upload_id: String,
+        filename: Option<String>,
+        byte_count: String,
+    },
+    UploadRecovery {
+        upload_id: String,
+    },
     ImportBatch {
         batch_id: String,
         item_count: usize,
@@ -34,6 +48,7 @@ pub enum TaskOperation {
 }
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 pub struct PublicTask {
+    pub access_context: AccessContext,
     pub task_id: String,
     pub request_id: String,
     pub label: String,

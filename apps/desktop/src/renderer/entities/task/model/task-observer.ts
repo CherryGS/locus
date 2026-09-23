@@ -44,14 +44,15 @@ export class TaskObserver {
       requests = new Set<string>()
     for (const task of value.tasks) {
       if (!validTask(task)) throw new Error("Task snapshot is malformed")
-      if (ids.has(task.task_id) || requests.has(task.request_id))
+      const requestKey = `${task.access_context}:${task.request_id}`
+      if (ids.has(task.task_id) || requests.has(requestKey))
         throw new Error("Task snapshot contains duplicate identities")
       ids.add(task.task_id)
-      requests.add(task.request_id)
+      requests.add(requestKey)
       const previous = this.records.get(task.task_id)?.task
       if (
         previous &&
-        (previous.request_id !== task.request_id || !sameOperation(previous.operation, task.operation))
+        (previous.access_context !== task.access_context || previous.request_id !== task.request_id || !sameOperation(previous.operation, task.operation))
       )
         throw new Error("Task identity changed in this run")
       if (previous?.state === "terminal" && task.state !== "terminal")
@@ -96,7 +97,9 @@ export class TaskObserver {
         outcome = value.outcome
       const matches =
         outcome.status === "failed" ||
-        (operation.kind === "import_batch"
+        (operation.kind === "upload" || operation.kind === "upload_recovery"
+          ? outcome.status === "upload" && outcome.result.upload_id === operation.upload_id
+          : operation.kind === "import_batch"
           ? outcome.status === "import_batch" && outcome.batch_id === operation.batch_id
           : operation.kind === "import_recovery"
             ? outcome.status === "import_recovery" &&
@@ -169,6 +172,10 @@ function sameTarget(a: Wire<"MediaTarget">, b: Wire<"MediaTarget">) {
 function sameOperation(a: Wire<"TaskOperation">, b: Wire<"TaskOperation">) {
   if (a.kind !== b.kind) return false
   switch (a.kind) {
+    case "upload":
+      return b.kind === a.kind && a.upload_id === b.upload_id && a.byte_count === b.byte_count && a.filename === b.filename
+    case "upload_recovery":
+      return b.kind === a.kind && a.upload_id === b.upload_id
     case "import_batch":
       return b.kind === a.kind && a.batch_id === b.batch_id && a.item_count === b.item_count
     case "import_recovery":

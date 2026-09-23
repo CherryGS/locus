@@ -62,6 +62,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         <div className="min-h-0 flex-1">
           <SettingsPanel
             settings={session.settings}
+            externalSettings={session.externalSettings}
+            externalToken={session.externalToken}
             restart={() => session.bridge.requestLifecycle("restart")}
             restricted={
               session.initial.connection.status === "ready" &&

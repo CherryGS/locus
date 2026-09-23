@@ -74,7 +74,7 @@ export async function launchBackend(
         clearTimeout(timer)
         lines.close()
         child.off("error", onError)
-        child.off("exit", onExit)
+        child.off("close", onExit)
         if (error) fail(error)
         else done(value!)
       }
@@ -86,15 +86,25 @@ export async function launchBackend(
           )
         )
       child.once("error", onError)
-      child.once("exit", onExit)
+      // close follows stdout draining, so a short failure record cannot lose a
+      // race with process exit and become an invented generic startup failure.
+      child.once("close", onExit)
       lines.once("line", (line) => {
         try {
           if (line.length > 4096) throw new Error()
           const value = JSON.parse(line) as {
+            startup_error?: unknown
             origin?: unknown
             run_id?: unknown
             library_root?: unknown
             availability?: Availability
+          }
+          if ("startup_error" in value) {
+            if (value.startup_error === "library_in_use" && Object.keys(value).length === 1) {
+              finish(new Error("This library is already open in another Locus backend. Close that backend, then choose Retry."))
+              return
+            }
+            throw new Error()
           }
           if (
             typeof value.origin !== "string" ||

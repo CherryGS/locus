@@ -61,6 +61,9 @@ function diagnosticDetail(value: unknown): string {
 }
 
 export class BackendApi {
+  async externalRuntime() { return result(await this.client.GET("/api/v1/external-access/runtime")) }
+  async externalToken() { return result(await this.client.GET("/api/v1/external-access/token")) }
+  async resetExternalToken(body: Wire<"ResetToken">) { return result(await this.client.POST("/api/v1/external-access/token/reset", { body })) }
   readonly client: LocusClient
   constructor(
     readonly context: BackendContext,

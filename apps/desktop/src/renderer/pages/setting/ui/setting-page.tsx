@@ -10,6 +10,11 @@ export function SettingPage() {
       </section>
     )
   return (
-    <SettingsPanel settings={session.settings} restart={() => session.bridge.requestLifecycle("restart")} />
+    <SettingsPanel
+      settings={session.settings}
+      externalSettings={session.externalSettings}
+      externalToken={session.externalToken}
+      restart={() => session.bridge.requestLifecycle("restart")}
+    />
   )
 }

@@ -24,12 +24,13 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
       setState(next)
       if (next.connection.status === "lost" || next.connection.status === "failed") {
         session.preferences.lost(next.connection.message)
-        session.settings.lost(next.connection.message)
+        session.settingsPreparation.lost(next.connection.message)
+        session.externalToken.lost(next.connection.message)
       }
       if (next.close.phase === "idle") {
         generation.current++
         session.preferences.returnToApplication()
-        session.settings.returnToApplication()
+        session.settingsPreparation.returnToApplication()
       }
     }
     const stop = session.bridge.observe((next) => {
@@ -51,7 +52,7 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
       const ticket = ++generation.current
       const [result, settings] = await Promise.all([
         session.preferences.prepare(),
-        session.settings.prepare(),
+        session.settingsPreparation.prepare(),
       ])
       const actual = current.current.close
       if (
@@ -71,9 +72,9 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
       const settingsRevision = close.settings?.revision
       if (
         settingsRevision !== undefined &&
-        session.settings.canSeal(settingsRevision, close.continueExit, restart) &&
+        session.settingsPreparation.canSeal(settingsRevision, close.continueExit, restart) &&
         session.preferences.seal(close.revision, !restart && close.continueExit) &&
-        session.settings.seal(settingsRevision, close.continueExit, restart)
+        session.settingsPreparation.seal(settingsRevision, close.continueExit, restart)
       ) {
         void session.bridge
           .commitClose({ attemptId: close.attemptId, revision: close.revision, settingsRevision })
@@ -86,7 +87,7 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
               setState(observed)
               if (observed.close.phase === "idle") {
                 session.preferences.returnToApplication()
-                session.settings.returnToApplication()
+                session.settingsPreparation.returnToApplication()
               }
             }
           })
@@ -102,7 +103,7 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
       if (current.current.close.phase !== "sealing") void prepare()
     }
     const stop = session.preferences.subscribe(changed)
-    const stopSettings = session.settings.subscribe(changed)
+    const stopSettings = session.settingsPreparation.subscribe(changed)
     return () => {
       disposed = true
       stop()
@@ -166,7 +167,7 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
           )}
           {close.phase === "unconfirmed" && (close.settings?.draft || close.settings?.blocked) && (
             <Alert>
-              <AlertTitle>Media settings</AlertTitle>
+              <AlertTitle>Settings</AlertTitle>
               <AlertDescription>
                 {close.settings.blocked ??
                   "There are unsubmitted edits. Restart can discard this exact draft after your confirmation."}

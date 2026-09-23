@@ -94,18 +94,23 @@ export function ImportButton({ coordinator: c }: { coordinator: ImportCoordinato
 export function ImportDetails({
   coordinator: c,
   batchId,
+  pendingRequestId,
   view,
   tasks = [],
 }: {
   coordinator: ImportCoordinator
   batchId: string
+  pendingRequestId?: string
   tasks?: Wire<"PublicTask">[]
   view: (id: string) => Promise<string | undefined>
 }) {
   useSyncExternalStore(c.subscribe, c.snapshot)
   const [viewError, setViewError] = useState<string>()
   const [viewing, setViewing] = useState<string>()
-  const ended = new Set(tasks.filter((task) => task.state === "terminal").map((task) => task.request_id))
+  const ended = new Set(tasks.filter((task) => task.state === "terminal").map((task) => `${task.access_context}:${task.request_id}`))
+  const currentBatch = c.batches.find(batch => batch.batch_id === batchId)
+  const originalRequestId = currentBatch?.access_context === "external" ? undefined : pendingRequestId ?? currentBatch?.original_request_id ?? tasks.find(task => task.access_context === "desktop" && task.operation.kind === "import_batch" && task.operation.batch_id === batchId)?.request_id
+  const pending = [...c.submissions.values()].filter(s => "source_paths" in s.body ? s.body.request_id === originalRequestId : s.body.batch_id === batchId)
   const items = c.batches.filter((b) => b.batch_id === batchId).flatMap((b) => b.items)
   async function show(id: string) {
     setViewing(id)
@@ -137,8 +142,7 @@ export function ImportDetails({
           <AlertDescription>{viewError ?? c.problem}</AlertDescription>
         </Alert>
       )}
-      {[...c.submissions.values()]
-        .filter((s) => ("source_paths" in s.body ? s.body.request_id : s.body.batch_id) === batchId)
+      {pending
         .map((s) => (
           <Alert key={s.body.request_id}>
             <AlertTitle>
@@ -162,10 +166,7 @@ export function ImportDetails({
             </AlertDescription>
           </Alert>
         ))}
-      {!items.length &&
-        ![...c.submissions.values()].some(
-          (s) => ("source_paths" in s.body ? s.body.request_id : s.body.batch_id) === batchId,
-        ) && (
+      {!items.length && !pending.length && (
           <Empty>
             <EmptyHeader>
               <EmptyTitle>Import details unavailable</EmptyTitle>
@@ -193,7 +194,7 @@ export function ImportDetails({
                       {item.supplied ? (item.requested_file ? (item.requested_twitter ? "Registered File + Twitter" : "Registered File") : "Twitter only") : item.source_path.split(/[\\/]/).pop() || item.source_path}
                     </p>
                     <p className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
-                      {(item.active_request_id && !ended.has(item.active_request_id)) ||
+                      {(item.active_request_id && !ended.has(`${batch.access_context}:${item.active_request_id}`)) ||
                       c.itemPending(item.item_id) ? (
                         <Spinner className="mt-0.5 size-3.5 shrink-0" />
                       ) : item.current.complete ? (
@@ -202,7 +203,7 @@ export function ImportDetails({
                         <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0 text-destructive" />
                       )}
                       <span>
-                        {item.active_request_id && ended.has(item.active_request_id)
+                        {item.active_request_id && ended.has(`${batch.access_context}:${item.active_request_id}`)
                           ? "Execution ended - details last known"
                           : c.itemPending(item.item_id)
                             ? "Recovery awaiting confirmation"
@@ -224,7 +225,7 @@ export function ImportDetails({
                       </Button>
                     )}
                     {item.actions
-                      .filter((a) => a !== "recopy")
+                      .filter((a) => a !== "recopy" && batch.access_context === "desktop")
                       .map((action) => (
                         <Button
                           key={action}
@@ -242,7 +243,8 @@ export function ImportDetails({
                       ))}
                   </div>
                 </div>
-                {item.actions.includes("recopy") && (
+                {batch.access_context === "external" && item.actions.length > 0 && <p className="text-sm text-muted-foreground">This external import can be recovered by a holder of the current shared Token.</p>}
+                {batch.access_context === "desktop" && item.actions.includes("recopy") && (
                   <Alert>
                     <AlertTitle>New copy required</AlertTitle>
                     <AlertDescription>
@@ -281,7 +283,7 @@ export function ImportDetails({
                             <Separator />
                             <p className="break-all text-xs">
                               {attempt.action} /{" "}
-                              {attempt.ended || ended.has(attempt.request_id) ? "ended" : "active"} /{" "}
+                              {attempt.ended || ended.has(`${batch.access_context}:${attempt.request_id}`) ? "ended" : "active"} /{" "}
                               {attempt.request_id}
                             </p>
                             <Details result={attempt.result} />
@@ -305,12 +307,12 @@ export function ImportDetails({
                   complete,{" "}
                   {batch.items.filter((i) => i.attempts[0]?.ended && !i.attempts[0].result.complete).length}{" "}
                   incomplete,{" "}
-                  {batch.items.filter((i) => !i.attempts[0]?.ended && !ended.has(batch.batch_id)).length}{" "}
+                  {batch.items.filter((i) => !i.attempts[0]?.ended && !ended.has(`${batch.access_context}:${batch.original_request_id}`)).length}{" "}
                   active
                 </p>
                 <p className="break-all">
                   Batch {batch.batch_id} / original{" "}
-                  {batch.original_ended || ended.has(batch.batch_id) ? "ended" : "processing"}
+                  {batch.original_ended || ended.has(`${batch.access_context}:${batch.original_request_id}`) ? "ended" : "processing"}
                 </p>
               </div>
             </details>

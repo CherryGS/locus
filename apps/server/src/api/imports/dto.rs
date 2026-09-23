@@ -119,6 +119,8 @@ pub struct ImportItem {
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct ImportBatch {
+    pub access_context: crate::api::task::dto::AccessContext,
+    pub original_request_id: String,
     pub batch_id: String,
     pub original_ended: bool,
     pub original_overall: Option<ImportOverall>,

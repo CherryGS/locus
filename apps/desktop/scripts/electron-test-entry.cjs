@@ -75,6 +75,24 @@ childProcess.spawn = (...args) => {
 syncBuiltinESMExports()
 dialog.showMessageBox = async (_window, options) => {
   globalThis.__desktopTest.dialogs.push(options)
+  if (process.env.LOCUS_TEST_LIBRARY_CONFLICT_LOG && !globalThis.__desktopTest.libraryConflictRetried && options.message.includes("library is already open in another Locus backend")) {
+    globalThis.__desktopTest.libraryConflictRetried = true
+    writeFileSync(process.env.LOCUS_TEST_LIBRARY_CONFLICT_LOG, JSON.stringify({
+      message: options.message, title: options.title, buttons: options.buttons,
+      ready: !!globalThis.__desktopTest.ready?.origin,
+      ended: globalThis.__desktopTest.children.every(child => child.exitCode !== null || child.signalCode !== null),
+    }))
+    // Playwright may await renderer creation inside electron.launch; this private
+    // test gate lets its owner release the first backend before choosing Retry.
+    await new Promise(resolve => {
+      const check = () => {
+        try { if (readFileSync(process.env.LOCUS_TEST_LIBRARY_RETRY_GATE, "utf8") === "retry") { resolve(); return } } catch {}
+        setTimeout(check, 20)
+      }
+      check()
+    })
+    return { response: 0, checkboxChecked: false }
+  }
   if (process.env.LOCUS_TEST_RETRY_BINARY && !globalThis.__desktopTest.retriedBinary) {
     globalThis.__desktopTest.retriedBinary = true
     process.env.LOCUS_SERVER_BINARY = process.env.LOCUS_TEST_RETRY_BINARY
@@ -121,10 +139,13 @@ if (process.env.LOCUS_TEST_RELAUNCH_LOG) {
     window.webContents.on("did-finish-load", async () => {
       const test = globalThis.__desktopTest
       const ready = test.ready, bootstrap = test.bootstrap, child = test.children.at(-1)
-      if (!ready || !bootstrap) return
+      if (!ready?.origin || !ready.availability || !bootstrap) return
       child.once("exit", (code, signal) => emit({event:"backend-exit",backend:child.pid,code,signal}))
       const read = async path => (await originalFetch(ready.origin+path,{headers:{Authorization:`Bearer ${bootstrap.credential}`,"X-Locus-Run":ready.run_id}})).json()
-      emit({event:"ready",backend:child.pid,run:ready.run_id,library:ready.library_root,availability:ready.availability,credentialDigest:createHash("sha256").update(bootstrap.credential).digest("hex"),runtime:await read("/api/v1/settings/media-runtime"),page:await window.webContents.executeJavaScript("({hash:location.hash,history:history.length,settingsFields:document.querySelectorAll('#media-ffprobe').length})")})
+      const externalToken = ready.availability.status === "normal"
+        ? await read("/api/v1/external-access/token")
+        : undefined
+      emit({event:"ready",backend:child.pid,run:ready.run_id,library:ready.library_root,availability:ready.availability,credentialDigest:createHash("sha256").update(bootstrap.credential).digest("hex"),runtime:await read("/api/v1/settings/media-runtime"),externalRuntime:await read("/api/v1/external-access/runtime"),externalToken:externalToken?.status === "current" ? {context:externalToken.context_id,digest:createHash("sha256").update(externalToken.token).digest("hex")} : undefined,page:await window.webContents.executeJavaScript("({hash:location.hash,history:history.length,settingsFields:document.querySelectorAll('#media-ffprobe').length})")})
       if (replacement || process.env.LOCUS_TEST_CLOSE_READY === "1") {
         // The replacement is bounded and exits through its actual fresh renderer/host gate.
         await window.webContents.executeJavaScript("window.locusDesktop.ready().then(()=>window.locusDesktop.requestLifecycle('close'))")

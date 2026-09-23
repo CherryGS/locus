@@ -5,13 +5,16 @@ mod core;
 mod file;
 mod media;
 mod operations;
+mod ownership;
+#[cfg(test)]
+mod ownership_tests;
 mod preferences;
-mod registry;
+pub(crate) mod registry;
 mod server;
-mod submissions;
+pub(crate) mod submissions;
 mod twitter;
 
-pub use bootstrap::{Bootstrap, Ready};
+pub use bootstrap::{Bootstrap, Ready, StartupFailure, StartupFailureReason};
 pub use registry::ServerConfig;
 pub(crate) use registry::Shared;
 pub use server::Server;
@@ -32,7 +35,10 @@ pub(crate) mod settings_setup;
 #[cfg(test)]
 mod settings_tests;
 
+pub(crate) mod external;
 mod registered_imports;
 
+#[cfg(test)]
+mod external_tests;
 #[cfg(test)]
 mod registered_import_tests;

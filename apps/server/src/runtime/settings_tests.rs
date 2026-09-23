@@ -146,7 +146,7 @@ async fn http_settings_auth_guards_recovery_invalid_metadata_and_saved_runtime_s
                 .transaction::<_, locus_store::api::StoreError, _>(|ctx| {
                     Box::pin(async move {
                         ctx.connection()
-                            .batch_execute("UPDATE locus_settings_values SET payload='{' ")
+                            .batch_execute("UPDATE locus_settings_values SET payload='{' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'")
                             .await?;
                         Ok(())
                     })
@@ -183,7 +183,7 @@ async fn http_settings_auth_guards_recovery_invalid_metadata_and_saved_runtime_s
                     Box::pin(async move {
                         ctx.connection()
                             .batch_execute(
-                                "UPDATE locus_settings_values SET version=9223372036854775807",
+                                "UPDATE locus_settings_values SET version=9223372036854775807 WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'",
                             )
                             .await?;
                         Ok(())
@@ -308,7 +308,7 @@ async fn invalid_saved_settings_fail_first_load_without_default_repair() {
                 .transaction::<_, locus_store::api::StoreError, _>(|ctx| {
                     Box::pin(async move {
                         ctx.connection()
-                            .batch_execute("UPDATE locus_settings_values SET payload='{}'")
+                            .batch_execute("UPDATE locus_settings_values SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'")
                             .await?;
                         Ok(())
                     })
@@ -323,6 +323,9 @@ async fn invalid_saved_settings_fail_first_load_without_default_repair() {
         "settings-test-credential-at-least-32-characters".into(),
         root.path().join("library"),
     );
+    server.close_admission();
+    server.state.wait_drained().await;
+    drop(server);
     let repair = Server::bind(config).await.unwrap();
     assert!(matches!(
         repair.state.availability,
@@ -369,6 +372,7 @@ async fn invalid_saved_settings_fail_first_load_without_default_repair() {
     assert!(repair.state.domain.is_none());
     repair.close_admission();
     repair.state.wait_drained().await;
+    drop(repair);
     let normal = Server::bind(ServerConfig::new(
         "settings-test-credential-at-least-32-characters".into(),
         root.path().join("library"),

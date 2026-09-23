@@ -42,6 +42,19 @@ function fixture() {
   )
   return { api, bridge, coordinator, calls, effects }
 }
+test("external equal request IDs cannot satisfy private pending submission attribution", async () => {
+  const f = fixture()
+  f.bridge.selectImportFiles = async () => ({ status: "selected", paths: ["local"] })
+  f.api.importBatch = async () => { throw Error("lost response") }
+  f.api.imports = async () => ({ run_id: "run", admission: "open", batches: [] })
+  await f.coordinator.select()
+  f.coordinator.observeTasks([{ access_context: "external", task_id: "external-task", request_id: "request", operation: { kind: "import_batch", batch_id: "external-batch", item_count: 1 } }])
+  assert.equal(f.coordinator.submissions.get("request").accepted, undefined)
+  assert.equal(f.coordinator.available, true)
+  f.coordinator.observeTasks([{ access_context: "desktop", task_id: "private-task", request_id: "request", operation: { kind: "import_batch", batch_id: "independent-private-batch", item_count: 1 } }])
+  assert.equal(f.coordinator.submissions.get("request").accepted, true)
+  f.coordinator.dispose()
+})
 test("cancel and empty selection submit nothing; mixed paths use one stable batch", async () => {
   const f = fixture()
   await f.coordinator.select()
@@ -64,7 +77,7 @@ test("public task acceptance prevents lost-response replay and verifies retained
   await f.coordinator.select()
   f.coordinator.observeTasks([
     {
-      task_id: "task",
+      access_context: "desktop", task_id: "task",
       request_id: "request",
       operation: { kind: "import_batch", batch_id: "request", item_count: 1 },
     },
@@ -77,7 +90,7 @@ test("public task acceptance prevents lost-response replay and verifies retained
   assert.equal(f.coordinator.submissions.get("request").accepted, true)
   f.coordinator.observeTasks([
     {
-      task_id: "different-task",
+      access_context: "desktop", task_id: "different-task",
       request_id: "request",
       operation: { kind: "import_batch", batch_id: "request", item_count: 1 },
     },
@@ -127,7 +140,7 @@ test("effect revisions coalesce progress; observer failure and host loss preserv
   f.api.imports = async () => ({
     run_id: "run",
     admission: "open",
-    batches: [{ batch_id: "b", original_ended: true, items: [item("3")] }],
+    batches: [{ access_context: "desktop", original_request_id: "b", batch_id: "b", original_ended: true, items: [item("3")] }],
   })
   await f.coordinator.observe()
   assert.equal(f.effects.length, 2)
@@ -159,7 +172,7 @@ test("accepted receipts survive first snapshot failure with original paths and n
   f.api.imports = async () => ({
     run_id: "run",
     admission: "open",
-    batches: [{ batch_id: "request", original_ended: true, items: [item()] }],
+    batches: [{ access_context: "desktop", original_request_id: "request", batch_id: "request", original_ended: true, items: [item()] }],
   })
   await f.coordinator.observe()
   assert.equal(f.coordinator.submissions.size, 0)
@@ -268,14 +281,14 @@ test("fast recovery ending between snapshots updates old attention feedback", as
   f.api.imports = async () => ({
     run_id: "run",
     admission: "open",
-    batches: [{ batch_id: "b", original_ended: true, items: [failed] }],
+    batches: [{ access_context: "desktop", original_request_id: "b", batch_id: "b", original_ended: true, items: [failed] }],
   })
   await f.coordinator.observe()
   assert.equal(f.coordinator.feedback, "Imports: 1 need attention")
   f.api.imports = async () => ({
     run_id: "run",
     admission: "open",
-    batches: [{ batch_id: "b", original_ended: true, items: [item("2")] }],
+    batches: [{ access_context: "desktop", original_request_id: "b", batch_id: "b", original_ended: true, items: [item("2")] }],
   })
   await f.coordinator.observe()
   assert.equal(f.coordinator.feedback, "Imports complete")

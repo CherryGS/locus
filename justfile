@@ -80,6 +80,9 @@ server-resolve:
 server-build:
     cargo build --package locus-server --bin locus-server --locked
 
+server-external-smoke: server-build
+    {{ npm }} --prefix packages/locus-client run smoke:external
+
 server-run:
     cargo run --package locus-server --bin locus-server --locked
 

@@ -25,5 +25,27 @@
       "ffmpeg": "ffmpeg",
       "ffprobe": "ffprobe"
     }
+  },
+  {
+    "group_id": "8bf9fb31-5633-44ca-956d-ef2b373c61af",
+    "name": "ExternalAddress",
+    "version": 1,
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "address": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "address"
+      ],
+      "title": "ExternalAddress",
+      "type": "object"
+    },
+    "defaults": {
+      "address": "127.0.0.1:46321"
+    }
   }
 ]

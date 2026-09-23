@@ -1,4 +1,9 @@
-import { SettingsCoordinator } from "@/features/settings"
+import {
+  SettingsCoordinator,
+  externalAddressSettings,
+  ExternalTokenCoordinator,
+  SettingsPreparationCoordinator,
+} from "@/features/settings"
 import { PlaybackCoordinator } from "@/features/video-playback"
 import { BackendApi } from "@/shared/api"
 import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
@@ -16,6 +21,9 @@ export class DesktopSession {
   readonly api: BackendApi
   readonly preferences: PreferenceCoordinator
   readonly settings: SettingsCoordinator
+  readonly externalSettings: ReturnType<typeof externalAddressSettings>
+  readonly externalToken: ExternalTokenCoordinator
+  readonly settingsPreparation: SettingsPreparationCoordinator
   constructor(
     readonly bridge: DesktopBridge,
     readonly initial: DesktopState
@@ -26,6 +34,9 @@ export class DesktopSession {
     this.api = new BackendApi(initial.connection)
     this.preferences = new PreferenceCoordinator(this.api)
     this.settings = new SettingsCoordinator(this.api)
+    this.externalSettings = externalAddressSettings(this.api)
+    this.externalToken = new ExternalTokenCoordinator(this.api)
+    this.settingsPreparation = new SettingsPreparationCoordinator([this.settings, this.externalSettings])
   }
 }
 export class LibrarySession extends DesktopSession {

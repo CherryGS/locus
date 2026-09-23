@@ -315,3 +315,89 @@ effective paths, including explicit environment overrides. Saving or resetting
 never reconfigures the active Media service. A later application run captures the
 saved value. `just server-settings-smoke` exercises that distinction using isolated
 libraries, child-only overrides and actual Video execution.
+# Shared external access
+
+Settings supplies this library's active loopback address and current shared Token.
+Only one backend may use a library at a time, including Settings repair. A second
+startup reports that the library is already open and permits explicit retry after
+the existing backend ends. Independent libraries may run concurrently. The retained
+`.locus-runtime.lock` sidecar is not a stale claim to remove: its OS lock ends when
+the backend and its protected work end, or when its process is lost.
+Every Token holder has the same limited upload/import and related-result scope.
+The external listener serves no renderer, Settings administration, local-path
+imports, Entity enumeration, or arbitrary File/Media reads. Bootstrap and CORS
+OPTIONS reveal no private credential and start no business work.
+
+```ts
+import { createLocusClient, uploadFile } from "@locus/client";
+
+const origin = "http://127.0.0.1:46321"; // use the active address from Settings
+const token = "<current shared Token>";
+const { run_id } = await fetch(`${origin}/external/v1/bootstrap`).then(r => r.json());
+const context = { origin, runId: run_id };
+const authorized: typeof fetch = (input, init) => {
+  const request = new Request(input, init);
+  request.headers.set("Authorization", `Bearer ${token}`);
+  return fetch(request);
+};
+const client = createLocusClient(context, authorized);
+const bytes = new Blob(["supplied bytes"]);
+const uploadId = crypto.randomUUID();
+const submission = await uploadFile(context, {
+  request_id: uploadId, byte_count: String(bytes.size), filename: "example.txt",
+}, bytes, authorized);
+
+// If receiving/admission is pending, or delivery was lost, read the original
+// request without sending its bytes again. Poll deliberately until attributable.
+const original = await client.GET("/external/v1/requests/{request_id}", {
+  params: { path: { request_id: uploadId } },
+});
+if (original.data?.status !== "accepted") throw new Error("Observe original admission first");
+const completion = await client.GET("/external/v1/tasks/{task_id}/outcome", {
+  params: { path: { task_id: original.data.receipt.task_id } },
+});
+if (completion.data?.status !== "complete" || completion.data.outcome.status !== "upload")
+  throw new Error("Observe original File completion first");
+const fileId = completion.data.outcome.result.confirmed_file_id;
+if (!fileId) throw new Error("File registration is not confirmed");
+
+const importId = crypto.randomUUID();
+await client.POST("/external/v1/import-batches", {
+  body: { request_id: importId, items: [{ file_id: fileId, twitter: { post_id: "123456789" } }] },
+});
+const batches = await client.GET("/external/v1/import-batches");
+const batch = batches.data?.batches.find(b => b.original_request_id === importId);
+// Observe the import's request/task and whole-item result. Upload alone creates
+// no Entity. Only confirmed_entity_id supplies an established imported entry.
+```
+
+One upload carries raw bytes, an exact decimal byte count and an optional display
+name. The server streams to its own temporary input, verifies actual EOF and
+length, and hashes actual bytes. Callers need no precomputed digest. Repeating
+the same request must provide equal metadata and bytes; equal name/size alone
+cannot establish equivalence. A deliberate new upload has a new request UUID.
+
+For failed accepted admission, read `GET /external/v1/uploads/{upload_id}` and
+use only its offered `actions` with `POST /external/v1/upload-recoveries`
+(`request_id`, `upload_id`, `action`). `retry` reuses eligible completed copying;
+`recopy` explicitly makes a new full controlled copy of the retained received
+input; `confirm` coherently checks uncertain registration and eligibility.
+Recoveries have independent receipts/outcomes and never rewrite the original.
+Unaccepted receiving rejection requires intentional new complete delivery.
+
+Import recovery uses `POST /external/v1/import-recoveries` with an offered
+whole-item action and the observed `batch_id`/`item_id`. Batch IDs are independent
+of request IDs. File-only, Source-only and combined items use the same importer;
+known desktop-only File IDs do not acquire external eligibility.
+
+Reset changes the bearer immediately after confirmed replacement. Old receivers
+and observers stop; accepted work continues. The new Token can observe/recover
+the same external context. Never replay automatically after application restart:
+Token and uploaded File eligibility persist, while run/request/task history does
+not. A known uploaded, not-yet-submitted File can be intentionally imported with
+a new request in the new run. An old unconfirmed import is different: FileId
+existence or missing run history is not permission to treat it as a retry. Do not
+relabel an old request with that new run. Saving an address
+changes retained configuration only; full application restart applies it.
+
+Run `just server-external-smoke` for a real isolated generated-client example.

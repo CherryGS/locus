@@ -80,6 +80,8 @@ fn result(r: &owner::ResultState, ended: bool) -> ImportResult {
 }
 pub(crate) fn batch(b: owner::Batch) -> ImportBatch {
     ImportBatch {
+        access_context: b.access_context,
+        original_request_id: b.original_request_id,
         original_overall: b.ended.then_some(
             if b.items
                 .iter()

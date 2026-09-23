@@ -386,7 +386,7 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
         locus_server::api::openapi().unwrap().to_json().unwrap()
     );
     let schema: Value = serde_json::from_str(&one).unwrap();
-    assert_eq!(schema["paths"].as_object().unwrap().len(), 31);
+    assert_eq!(schema["paths"].as_object().unwrap().len(), 45);
     for (path, methods, tag) in [
         ("/api/v1/settings/definitions", &["get"][..], "settings"),
         ("/api/v1/settings/media-runtime", &["get"][..], "settings"),
@@ -431,12 +431,20 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
         "string"
     );
     let mut operation_ids = std::collections::BTreeSet::new();
-    for path in schema["paths"].as_object().unwrap().values() {
-        for operation in path.as_object().unwrap().values() {
+    for (name, path) in schema["paths"].as_object().unwrap() {
+        for (method, operation) in path.as_object().unwrap() {
             assert!(
                 operation_ids.insert(operation["operationId"].as_str().unwrap()),
                 "duplicate operation ID"
             );
+            if name == "/external/v1/bootstrap" || method == "options" {
+                assert_eq!(operation["security"], json!([]));
+                assert!(
+                    operation["parameters"].is_null()
+                        || operation["parameters"].as_array().unwrap().is_empty()
+                );
+                continue;
+            }
             assert!(operation["responses"]["401"].is_object());
             assert!(
                 operation["parameters"]

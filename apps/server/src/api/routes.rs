@@ -22,7 +22,12 @@ use utoipa_axum::router::OpenApiRouter;
 #[derive(OpenApi)]
 #[openapi(
     info(title = "Locus loopback API", version = "1.0.0"),
-    components(schemas(ApiError, TaskSnapshot, TaskOutcome))
+    components(schemas(
+        ApiError,
+        TaskSnapshot,
+        TaskOutcome,
+        super::external::dto::UploadMetadata
+    ))
 )]
 struct Contract;
 
@@ -35,12 +40,14 @@ fn registered() -> OpenApiRouter<Arc<Shared>> {
         .merge(super::twitter::router())
         .merge(preferences::router())
         .merge(super::settings::router())
+        .merge(super::external::management::router())
         .merge(task::router())
         .merge(handlers::router())
 }
 
 pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
     let (_, mut document) = registered().split_for_parts();
+    document.merge(super::external::routes::registered().into_openapi());
     if let Some(components) = document.components.as_mut() {
         components.add_security_scheme(
             "bearer",
@@ -51,6 +58,24 @@ pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
         "bearer",
         std::iter::empty::<&str>(),
     )]);
+    if let Some(operation) = document
+        .paths
+        .paths
+        .get_mut("/external/v1/uploads")
+        .and_then(|p| p.post.as_mut())
+        && let Some(body) = operation.request_body.as_mut()
+        && let Some(content) = body.content.get_mut("application/octet-stream")
+    {
+        content.schema = Some(
+            openapi::ObjectBuilder::new()
+                .schema_type(openapi::Type::String)
+                .format(Some(openapi::SchemaFormat::KnownFormat(
+                    openapi::KnownFormat::Binary,
+                )))
+                .build()
+                .into(),
+        );
+    }
     // OpenAPI's binary string describes bytes, not a JSON array of integers.
     for (path, mime) in [
         ("/api/v1/entities", "application/octet-stream"),
@@ -76,14 +101,22 @@ pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
             );
         }
     }
-    for item in document.paths.paths.values_mut() {
+    for (path, item) in &mut document.paths.paths {
+        if let Some(operation) = &mut item.options {
+            operation.security = Some(vec![]);
+        }
+        if path == "/external/v1/bootstrap" {
+            if let Some(operation) = &mut item.get {
+                operation.security = Some(vec![]);
+            }
+            continue;
+        }
         for operation in [
             &mut item.get,
             &mut item.post,
             &mut item.put,
             &mut item.delete,
             &mut item.patch,
-            &mut item.options,
             &mut item.head,
         ]
         .into_iter()

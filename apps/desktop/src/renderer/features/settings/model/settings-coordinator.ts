@@ -27,11 +27,20 @@ function typed(value: unknown): MediaToolPaths {
   return { ffprobe: value.ffprobe, ffmpeg: value.ffmpeg }
 }
 /** One run, one group. Observations, edits and submitted execution have independent identities. */
-export class SettingsCoordinator {
+export type GroupConfiguration<Value, Runtime> = {
+  groupId: string
+  defaults: Value
+  typed: (value: unknown) => Value
+  runtime: () => Promise<Runtime>
+}
+export class SettingsCoordinator<
+  Value extends object = MediaToolPaths,
+  Runtime = Wire<"MediaRuntimeObservation">,
+> {
   observation?: Wire<"SettingsObservation">
-  runtime?: Wire<"MediaRuntimeObservation">
+  runtime?: Runtime
   definition?: Wire<"SettingsDefinition">
-  draft?: MediaToolPaths
+  draft?: Value
   generation = 0
   dirty = false
   conflict = false
@@ -51,11 +60,22 @@ export class SettingsCoordinator {
   private sealed = false
   private live = true
   private listeners = new Set<() => void>()
-  readonly defaults = createMediaToolPathsDefaults()
+  readonly configuration: GroupConfiguration<Value, Runtime>
+  get defaults() {
+    return this.configuration.defaults
+  }
   constructor(
     private api: Api,
-    private uuid = () => crypto.randomUUID()
-  ) {}
+    private uuid = () => crypto.randomUUID(),
+    configuration?: GroupConfiguration<Value, Runtime>
+  ) {
+    this.configuration = configuration ?? {
+      groupId: MediaToolPathsGroupId,
+      defaults: createMediaToolPathsDefaults() as unknown as Value,
+      typed: typed as unknown as (value: unknown) => Value,
+      runtime: () => api.mediaRuntime() as Promise<Runtime>,
+    }
+  }
   readonly subscribe = (listener: () => void) => {
     this.listeners.add(listener)
     return () => {
@@ -109,8 +129,8 @@ export class SettingsCoordinator {
         try {
           const definitions = await this.api.settingsDefinitions()
           if (this.live && ticket === this.loadTicket) {
-            this.definition = definitions.find((x) => x.group_id === MediaToolPathsGroupId)
-            this.definitionError = this.definition ? undefined : "Media settings definition is unavailable."
+            this.definition = definitions.find((x) => x.group_id === this.configuration.groupId)
+            this.definitionError = this.definition ? undefined : "Settings definition is unavailable."
           }
         } catch (error) {
           if (this.live && ticket === this.loadTicket) this.definitionError = errorText(error)
@@ -119,7 +139,7 @@ export class SettingsCoordinator {
       })(),
       (async () => {
         try {
-          const runtime = await this.api.mediaRuntime()
+          const runtime = await this.configuration.runtime()
           if (this.live && ticket === this.loadTicket) {
             this.runtime = runtime
             this.runtimeError = undefined
@@ -139,7 +159,7 @@ export class SettingsCoordinator {
     this.readPending = true
     this.changed()
     try {
-      const observation = await this.api.settingsRead(MediaToolPathsGroupId)
+      const observation = await this.api.settingsRead(this.configuration.groupId)
       if (!this.live || ticket !== this.readTicket || basis !== this.basis) return
       const previousRevision =
         this.observation?.status === "current" ? this.observation.saved.metadata.revision : undefined
@@ -156,7 +176,7 @@ export class SettingsCoordinator {
       }
       this.readError = undefined
       if (!this.dirty && generation === this.generation && observation.status === "current")
-        this.draft = typed(observation.saved.value)
+        this.draft = this.configuration.typed(observation.saved.value)
       if (this.needsEvidence) {
         this.needsEvidence = false
         this.status = "failed"
@@ -172,12 +192,12 @@ export class SettingsCoordinator {
   }
   private accept(observation: Wire<"SettingsObservation">) {
     const id = observation.status === "current" ? observation.saved.group_id : observation.group_id
-    if (id !== MediaToolPathsGroupId) throw new Error("Settings observation named another group.")
-    if (observation.status === "current") typed(observation.saved.value)
+    if (id !== this.configuration.groupId) throw new Error("Settings observation named another group.")
+    if (observation.status === "current") this.configuration.typed(observation.saved.value)
     this.observation = observation
     this.basis++
   }
-  edit(field: keyof MediaToolPaths, value: string) {
+  edit(field: keyof Value, value: string) {
     if (!this.editable || !this.draft) return false
     this.draft = { ...this.draft, [field]: value }
     this.generation++
@@ -195,7 +215,7 @@ export class SettingsCoordinator {
       this.observation?.status !== "current"
     )
       return false
-    this.draft = typed(this.observation.saved.value)
+    this.draft = this.configuration.typed(this.observation.saved.value)
     this.dirty = false
     this.conflict = false
     this.status = "idle"
@@ -225,7 +245,7 @@ export class SettingsCoordinator {
     this.problem = undefined
     return this.run(async () => {
       try {
-        this.complete(attempt, await this.api.settingsChange(MediaToolPathsGroupId, attempt.body))
+        this.complete(attempt, await this.api.settingsChange(this.configuration.groupId, attempt.body))
       } catch (error) {
         if (!this.live) return
         if (error instanceof ApiFailure && error.detail.code === "wrong_run") {
@@ -264,7 +284,7 @@ export class SettingsCoordinator {
       this.status = "saved"
       this.problem = undefined
       if (this.generation === attempt.generation) {
-        this.draft = typed(outcome.saved.value)
+        this.draft = this.configuration.typed(outcome.saved.value)
         this.dirty = false
       }
     } else if (outcome.status === "settings_conflict" || outcome.status === "settings_existing") {
@@ -308,7 +328,7 @@ export class SettingsCoordinator {
         if (!this.live || this.attempt !== attempt) return
         if (error instanceof ApiFailure && error.detail.code === "unknown_request") {
           try {
-            this.complete(attempt, await this.api.settingsChange(MediaToolPathsGroupId, attempt.body))
+            this.complete(attempt, await this.api.settingsChange(this.configuration.groupId, attempt.body))
           } catch (failure) {
             this.problem = errorText(failure)
             this.status = "uncertain"
