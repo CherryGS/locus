@@ -342,3 +342,61 @@ async fn opening_produced_preview_rechecks_descriptor_boundary_and_never_regener
         .await
         .unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn saved_preview_survives_failed_reinterpretation_but_not_changed_input() {
+    let mut f = Fixture::new().await;
+    let (entity, id) = f.component(MediaKind::Image).await;
+    let path = f.png("input", 40, 30);
+    let file = f.admit(&path, entity).await;
+    f.media
+        .interpret(&f.kernel, &f.files, &mut f.session, id)
+        .await
+        .unwrap();
+    let rendition = Rendition { edge: 32 };
+    let preview = f
+        .media
+        .preview(&f.kernel, &f.files, &mut f.session, id, rendition)
+        .await
+        .unwrap();
+    let input = f.files.local_path(&mut f.session, file).await.unwrap();
+    let managed = input.path().to_path_buf();
+    drop(input);
+    let moved = managed.with_extension("held");
+    std::fs::rename(&managed, &moved).unwrap();
+    f.media
+        .interpret(&f.kernel, &f.files, &mut f.session, id)
+        .await
+        .unwrap();
+    let view = f.media.view(&f.kernel, &mut f.session, id).await.unwrap();
+    assert!(view.record.last_failure.is_some());
+    let saved = f
+        .media
+        .read_preview(&f.kernel, &mut f.session, id, rendition)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved.file, file);
+    assert_eq!(saved.path, preview.path);
+    f.kernel
+        .detach(
+            &mut f.session,
+            Membership {
+                entity,
+                kind: FILE_KIND,
+                component: file.component(),
+            },
+        )
+        .await
+        .unwrap();
+    let another = f.png("another", 12, 12);
+    f.admit(&another, entity).await;
+    assert!(
+        f.media
+            .read_preview(&f.kernel, &mut f.session, id, rendition)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    std::fs::rename(&moved, &managed).unwrap();
+}

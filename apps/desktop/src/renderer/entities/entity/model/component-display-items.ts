@@ -21,7 +21,9 @@ export const imageDisplayItems = {
   },
   dimensions(entity: EntityItem): string | undefined {
     const image = entity.components.find((component) => component.kind === "image")
-    return image?.width !== undefined && image.height !== undefined ? `${image.width} × ${image.height}` : undefined
+    return image?.width !== undefined && image.height !== undefined
+      ? `${image.width} × ${image.height}`
+      : undefined
   },
 }
 
@@ -44,5 +46,16 @@ export const twitterDisplayItems = {
   author(entity: EntityItem): string | undefined {
     const author = entity.components.find((component) => component.kind === "twitter")?.author
     return author?.handle ? `@${author.handle}` : author?.displayName
+  },
+}
+
+export const bilibiliDisplayItems = {
+  title(entity: EntityItem): string | undefined {
+    const s = entity.components.find((c) => c.kind === "bilibili")?.record?.snapshot
+    return s?.title?.trim() || s?.bvid || (s?.aid ? "AV" + s.aid : (s?.page_url ?? undefined))
+  },
+  preview(entity: EntityItem): ImageDisplayItem | undefined {
+    const c = entity.components.find((c) => c.kind === "bilibili")?.cover
+    return c?.forVideo && c.thumbnail ? { src: c.thumbnail } : undefined
   },
 }

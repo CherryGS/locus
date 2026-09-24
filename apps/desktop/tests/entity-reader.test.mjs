@@ -412,3 +412,179 @@ test("only successful Video input observations inform the run-local playback own
   await tick()
   assert.deepEqual(observed.at(-1), ["a", undefined])
 })
+
+const bilibiliKind = "0f5f53cd-e5c4-48db-92c1-b79c7808f2c6"
+function biliFixture(overrides = {}) {
+  let view = {
+    record: {
+      component_id: "bili",
+      kind_id: bilibiliKind,
+      revision: "1",
+      basis: "video-file",
+      snapshot: { bvid: "BV1xx411c7mD", title: "Capture" },
+      original_cover: { entity_id: "cover", file_id: "cover-file" },
+    },
+    applicability: {
+      status: "input",
+      host: "a",
+      comparison: { status: "matching", file_id: "video-file" },
+      file_error: null,
+    },
+    cover: { status: "input", comparison: { status: "matching", file_id: "cover-file" }, file_error: null },
+  }
+  const { api, reader } = fixture({
+    memberships: async (ids) =>
+      ids.map((entity_id) => ({
+        status: "present",
+        entity_id,
+        memberships:
+          entity_id === "cover"
+            ? [
+                { entity_id, kind_id: fileKind, component_id: "cover-file" },
+                { entity_id, kind_id: imageKind, component_id: "cover-image" },
+              ]
+            : [{ entity_id, kind_id: bilibiliKind, component_id: "bili" }],
+      })),
+    bilibili: async () => structuredClone(view),
+    media: async () => image("cover-image", "cover-file"),
+    savedPreview: async () => ({
+      locator: "cover-preview",
+      kind: "image",
+      file_id: "cover-file",
+      edge: 320,
+      stream_index: null,
+      origin: "hit",
+    }),
+    previewBytes: async () => new Blob(["png"]),
+    ...overrides,
+  })
+  return { api, reader, view }
+}
+test("Bilibili cover qualifies Source independently from changed main and never reads detached saved File", async () => {
+  const { reader, view, api } = biliFixture()
+  view.applicability.comparison = { status: "changed", basis: "video-file", current: "replacement-video" }
+  reader.demand(["a"])
+  await tick()
+  let cover = reader.get("a").components[0].cover
+  assert.equal(cover.state, "available")
+  assert.equal(cover.forVideo, false)
+  let fileReads = 0
+  api.file = async () => {
+    fileReads++
+    throw Error("must not read saved File")
+  }
+  view.cover.comparison = { status: "changed", basis: "cover-file", current: "replacement-cover" }
+  await reader.reread("a")
+  await tick()
+  cover = reader.get("a").components[0].cover
+  assert.equal(cover.state, "unavailable")
+  assert.equal(cover.thumbnail, undefined)
+  assert.equal(fileReads, 0)
+  assert(reader.get("a").problems.some((p) => p.message.includes("replacement bytes are not adopted")))
+})
+test("Bilibili failed cover bytes remain through metadata reread; explicit retry preserves playback revision", async () => {
+  let bytes = 0,
+    failed = true
+  const { reader, api } = biliFixture({
+    media: async () => {
+      const value = image("cover-image", "cover-file")
+      value.record.last_failure = { code: "unsupported", detail: "Earlier Image interpretation failed" }
+      return value
+    },
+    previewBytes: async () => {
+      bytes++
+      if (failed) throw Error("Cover bytes failed")
+      return new Blob(["png"])
+    },
+  })
+  reader.demand(["a"])
+  await tick()
+  const playback = reader.playbackRevision("a")
+  assert(reader.get("a").problems.some((p) => p.message === "Cover bytes failed"))
+  assert(reader.get("a").problems.some((p) => p.message.includes("Earlier Image interpretation failed")))
+  assert.equal(bytes, 1)
+  failed = false
+  const sourceRead = api.bilibili
+  api.bilibili = async () => {
+    throw Error("Source unavailable")
+  }
+  await reader.reread("a")
+  await tick()
+  assert(reader.get("a").problems.some((p) => p.message === "Source unavailable"))
+  api.bilibili = sourceRead
+  await reader.reread("a")
+  await tick()
+  assert(!reader.get("a").problems.some((p) => p.message === "Source unavailable"))
+  assert.equal(bytes, 1)
+  assert(reader.get("a").problems.some((p) => p.message === "Cover bytes failed"))
+  const mediaRead = api.media
+  api.media = async () => {
+    throw Error("Image metadata temporarily unavailable")
+  }
+  reader.retryBilibiliCover("a")
+  await tick()
+  assert.equal(bytes, 1)
+  assert(reader.get("a").problems.some((p) => p.message === "Cover bytes failed"))
+  api.media = mediaRead
+  await reader.reread("a")
+  await tick()
+  assert.equal(bytes, 1)
+  reader.retryBilibiliCover("a")
+  await tick()
+  assert.equal(bytes, 2)
+  assert(!reader.get("a").problems.some((p) => p.message === "Cover bytes failed"))
+  assert(reader.get("a").problems.some((p) => p.message.includes("Earlier Image interpretation failed")))
+  assert.equal(reader.get("a").components[0].cover.state, "available")
+  assert.equal(reader.playbackRevision("a"), playback)
+})
+test("Bilibili old cover bytes cannot restore a cleared relation and related effects reread only active dependencies", async () => {
+  const held = deferred()
+  let count = 0
+  const { reader, view, api } = biliFixture({
+    previewBytes: () => {
+      count++
+      return held.promise
+    },
+  })
+  reader.demand(["a"])
+  await tick()
+  view.record.original_cover = null
+  view.cover = { status: "unassociated" }
+  await reader.reread("a")
+  await tick()
+  held.resolve(new Blob(["old"]))
+  await tick()
+  assert.equal(reader.get("a").components[0].cover.state, "absent")
+  assert.equal(reader.get("a").components[0].cover.thumbnail, undefined)
+  view.record.original_cover = { entity_id: "cover", file_id: "cover-file" }
+  view.cover = {
+    status: "input",
+    comparison: { status: "matching", file_id: "cover-file" },
+    file_error: null,
+  }
+  await reader.reread("a")
+  await tick()
+  let reads = 0
+  api.bilibili = async () => {
+    reads++
+    return structuredClone(view)
+  }
+  reader.knownEffects(["cover"])
+  await tick()
+  assert.equal(reads, 1)
+  reader.knownEffects(["inactive-cover"])
+  await tick()
+  assert.equal(reads, 1)
+  reader.demand([])
+  await tick()
+  view.cover.comparison = { status: "changed", basis: "cover-file", current: "replacement-cover" }
+  reader.knownEffects(["cover"])
+  await tick()
+  assert.equal(reads, 1, "Inactive dependents are invalidated without immediate reads")
+  reader.demand(["a"])
+  await tick()
+  assert.equal(reads, 2, "Returning to a cached dependent observes the changed cover")
+  assert.equal(reader.get("a").components[0].cover.state, "unavailable")
+  assert.equal(reader.get("a").components[0].cover.thumbnail, undefined)
+  assert(count >= 1)
+})

@@ -1,4 +1,5 @@
 mod auth;
+pub mod bilibili;
 mod bytes;
 pub mod civitai;
 pub mod core;
@@ -20,6 +21,7 @@ pub mod twitter;
 pub use crate::runtime::{
     Bootstrap, Ready, Server, ServerConfig, StartupFailure, StartupFailureReason,
 };
+pub use bilibili::dto::*;
 pub use core::dto::*;
 pub use dto::*;
 pub use error::{ApiError, Diagnostic, DomainDiagnostic, ErrorCode, FailureKind};

@@ -7,6 +7,7 @@ export const componentAppearance = {
   file: { label: "File", icon: FileIcon },
   image: { label: "Image", icon: ImageIcon },
   video: { label: "Video", icon: VideoIcon },
+  bilibili: { label: "Bilibili", icon: VideoIcon },
   twitter: { label: "Twitter", icon: AtSignIcon },
   unknown: { label: "Unsupported", icon: BoxIcon },
 } satisfies Record<EntityComponent["kind"], { label: string; icon: LucideIcon }>

@@ -25,13 +25,18 @@ export async function startServer(
   library: string,
   renderer = join(desktop, "out/renderer"),
   civitaiFixture?: string,
+  externalEphemeral = false,
 ) {
   assert(resolve(library) === library, "Verification requires an explicit absolute library")
   const credential = randomBytes(32).toString("hex")
   const child = spawn(binary, [], {
     stdio: "pipe",
     windowsHide: true,
-    env: { ...process.env, LOCUS_CIVITAI_FIXTURE: civitaiFixture },
+    env: {
+      ...process.env,
+      LOCUS_CIVITAI_FIXTURE: civitaiFixture,
+      LOCUS_FIXTURE_EXTERNAL_EPHEMERAL: externalEphemeral ? "1" : undefined,
+    },
   })
   const exited = once(child, "exit")
   child.stderr.resume()

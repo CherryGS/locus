@@ -117,11 +117,13 @@ if (
   new URL(import.meta.url).pathname.endsWith(process.argv[1].replaceAll("\\", "/").split("/").pop()!)
 ) {
   const data =
-    process.env.LOCUS_PREVIEW_PROFILE === "civitai"
-      ? await (await import("./civitai-fixture.ts")).civitaiFixture()
-      : process.env.LOCUS_PREVIEW_PROFILE === "model"
-        ? await (await import("./model-fixture.ts")).modelFixture()
-        : await fixture()
+    process.env.LOCUS_PREVIEW_PROFILE === "bilibili"
+      ? await (await import("./bilibili-fixture.ts")).bilibiliFixture()
+      : process.env.LOCUS_PREVIEW_PROFILE === "civitai"
+        ? await (await import("./civitai-fixture.ts")).civitaiFixture()
+        : process.env.LOCUS_PREVIEW_PROFILE === "model"
+          ? await (await import("./model-fixture.ts")).modelFixture()
+          : await fixture()
   const backend = await data.start()
   const preview = await browserPreview(backend)
   console.log(

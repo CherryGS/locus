@@ -227,3 +227,7 @@ server-model-fixture root:
 
 desktop-model-browser: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:model-browser
+
+# Connected Bilibili import/cover fixture; tools use ordinary LOCUS_FFMPEG/LOCUS_FFPROBE configuration.
+desktop-bilibili-browser: server-build server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:bilibili-browser

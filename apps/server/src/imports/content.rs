@@ -433,6 +433,7 @@ async fn check_content_in(
     r: &ResultState,
     snapshot: Option<&locus_twitter::api::TwitterSnapshot>,
 ) -> anyhow::Result<()> {
+    super::bilibili::guard_in(kernel, c, r).await?;
     let entity = r
         .entity
         .ok_or_else(|| anyhow::anyhow!("No intended Entity"))?;

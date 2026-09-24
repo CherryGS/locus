@@ -9,5 +9,8 @@ pub(crate) use store::ImportStore;
 pub(crate) use store::BaseFault;
 
 mod admission;
+mod bilibili;
+mod bilibili_cover;
+mod bilibili_state;
 mod civitai;
 mod content;

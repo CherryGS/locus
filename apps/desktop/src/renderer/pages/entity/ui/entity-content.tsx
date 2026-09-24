@@ -1,3 +1,4 @@
+import { BilibiliReading } from "@/entities/entity"
 import { useLayoutEffect, useRef } from "react"
 import {
   EntityCard,
@@ -57,6 +58,7 @@ export function EntityContent({
   const file = entity.components.find((component) => component.kind === "file")
   const model = entity.components.find((component) => component.kind === "model")
   const twitter = entity.components.find((component) => component.kind === "twitter")
+  const bilibili = entity.components.find((c) => c.kind === "bilibili")
   const civitai = entity.components.find((component) => component.kind === "civitai")
   return (
     <section
@@ -64,6 +66,7 @@ export function EntityContent({
       tabIndex={-1}
       data-slot="entity-inspection"
       data-entity-id={entity.id}
+      aria-busy={!!entity.loading}
       data-view-id={viewId ?? "none"}
       aria-label={`Inspect ${entityLabel(entity)}`}
       className="flex h-full min-h-0 flex-col outline-none"
@@ -98,7 +101,13 @@ export function EntityContent({
         )
       ) : viewId === "video.play" ? (
         live && video ? (
-          <LiveVideo {...live} entityId={entity.id} video={video} name={entityLabel(entity)} />
+          <LiveVideo
+            {...live}
+            entityId={entity.id}
+            video={video}
+            poster={bilibili?.cover?.forVideo ? bilibili.cover.thumbnail : undefined}
+            name={entityLabel(entity)}
+          />
         ) : (
           <VideoInspection
             key={`${entity.id}:${video?.id}:${video?.src}`}
@@ -107,6 +116,17 @@ export function EntityContent({
             name={entityLabel(entity)}
           />
         )
+      ) : viewId === "bilibili.read" && bilibili ? (
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="p-6">
+            <BilibiliReading
+              key={entity.id + ":" + bilibili.id}
+              component={bilibili}
+              onRetryCover={live ? () => live.reader.retryBilibiliCover(entity.id) : undefined}
+              onReread={live ? () => void live.reader.reread(entity.id) : undefined}
+            />
+          </div>
+        </ScrollArea>
       ) : viewId === "twitter.read" && twitter ? (
         <ScrollArea className="min-h-0 flex-1">
           <div className="p-6">

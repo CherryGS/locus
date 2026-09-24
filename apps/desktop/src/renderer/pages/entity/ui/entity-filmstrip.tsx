@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
-import { entityLabel, type EntityItem, type EntitySource } from "@/entities/entity"
+import { entityCardDisplay, entityLabel, type EntityItem, type EntitySource } from "@/entities/entity"
 import { Button } from "@/shared/ui/button"
 import { cn } from "@/shared/lib/utils"
 import { nearbyIds } from "../model/navigation"
@@ -77,9 +77,7 @@ export function EntityFilmstrip({
         style={{ width: trackWidth }}
       >
         {neighbors.map(({ entity, offset }) => {
-          const thumbnail =
-            entity.components.find((component) => component.kind === "image")?.thumbnail ??
-            entity.components.find((component) => component.kind === "video")?.thumbnail
+          const thumbnail = entityCardDisplay(entity).preview?.src
           const name =
             entity.components.find((component) => component.kind === "file")?.originalName ?? entityLabel(entity)
           const selected = entity.id === selectedId

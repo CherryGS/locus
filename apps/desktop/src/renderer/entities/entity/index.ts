@@ -1,5 +1,6 @@
 export type { EntityComponent, EntityItem } from "./model/entity-item"
 export { entityLabel } from "./model/entity-item"
+export { entityCardDisplay } from "./model/entity-card-display"
 export { EntityReader } from "./model/entity-reader"
 export { emptySequence, suppliedSequence } from "./model/identity-sequence"
 export type { IdentitySequence, EntitySource } from "./model/identity-sequence"
@@ -10,3 +11,5 @@ export { componentAppearance } from "./ui/component-appearance"
 export { TwitterPost } from "./ui/twitter-post"
 export { EntityComponentDetails } from "./ui/entity-details"
 export { EntityOverview } from "./ui/entity-overview"
+
+export { BilibiliReading } from "./ui/bilibili-reading"

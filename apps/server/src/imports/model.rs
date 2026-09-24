@@ -100,6 +100,7 @@ impl ModelResult {
 #[derive(Debug, Clone)]
 pub(crate) struct ResultState {
     pub observation_problem: Option<String>,
+    pub bilibili: Option<super::bilibili_state::BilibiliResult>,
     pub copy: Step,
     pub registration: Step,
     pub file_attachment: Step,
@@ -120,6 +121,7 @@ impl ResultState {
     pub fn new() -> Self {
         Self {
             observation_problem: None,
+            bilibili: None,
             copy: Step::new(State::Pending),
             registration: Step::new(State::Pending),
             file_attachment: Step::new(State::Pending),
@@ -142,6 +144,7 @@ impl ResultState {
     }
     pub fn complete(&self) -> bool {
         self.observation_problem.is_none()
+            && self.bilibili.as_ref().is_none_or(|v| v.complete())
             && self.base.success()
             && [
                 &self.registration,
@@ -160,6 +163,9 @@ impl ResultState {
                     .is_some_and(|w| w.state() == locus_civitai::api::EnrichmentState::Complete))
     }
     pub fn uncertain(&self) -> bool {
+        if self.bilibili.as_ref().is_some_and(|v| v.uncertain()) {
+            return true;
+        }
         if self
             .civitai
             .as_ref()
@@ -218,4 +224,9 @@ pub(crate) struct Batch {
     pub ended: bool,
 }
 
-pub(crate) type RegisteredInput = (Option<FileId>, Option<TwitterSnapshot>);
+pub(crate) type RegisteredInput = (
+    Option<FileId>,
+    Option<TwitterSnapshot>,
+    Option<locus_bilibili::api::BilibiliSnapshot>,
+    Option<FileId>,
+);

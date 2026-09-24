@@ -89,6 +89,46 @@ function Details({ result }: { result: Wire<"ImportResult"> }) {
           ))}
         </div>
       ))}
+      {result.bilibili && (
+        <div className="flex flex-col gap-2">
+          <p className="font-medium">Bilibili Source</p>
+          <p>
+            Snapshot and attachment: {readable(result.bilibili.source.state)}
+            {result.bilibili.source.reason ? " · " + result.bilibili.source.reason : ""}
+          </p>
+          <p>
+            Local File association: {readable(result.bilibili.association.state)}
+            {result.bilibili.association.reason ? " · " + result.bilibili.association.reason : ""}
+          </p>
+          {result.bilibili.component_id && (
+            <p className="break-all">Source: {result.bilibili.component_id}</p>
+          )}
+          {result.bilibili.cover && (
+            <div className="flex flex-col gap-1">
+              <p className="font-medium">Requested original cover</p>
+              <p>
+                Cover target: {readable(result.bilibili.cover.establishment.state)} ·{" "}
+                {result.bilibili.cover.establishment.reason}
+              </p>
+              <p>
+                Source relation: {readable(result.bilibili.cover.association.state)} ·{" "}
+                {result.bilibili.cover.association.reason}
+              </p>
+              <p className="break-all">
+                {result.bilibili.cover.confirmed_entity_id ? "Confirmed" : "Candidate"} cover Entity:{" "}
+                {result.bilibili.cover.entity_id ?? "Not established"}
+              </p>
+              <p className="break-all">Registered cover File: {result.bilibili.cover.file_id}</p>
+              {(["recognition", "establishment", "interpretation", "preview"] as const).map((name) => (
+                <p key={name}>
+                  Image {name}: {readable(result.bilibili!.cover!.image[name].state)} ·{" "}
+                  {result.bilibili!.cover!.image[name].reason}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {result.civitai && (
         <div className="flex flex-col gap-2">
           <p className="font-medium">Civitai · original weight enrichment</p>
@@ -226,18 +266,27 @@ export function ImportDetails({
             aria-label={`Import batch ${batch.batch_id}`}
           >
             {batch.items.map((item, index) => (
-              <article key={item.item_id} className="flex min-w-0 flex-col gap-3">
+              <article
+                key={item.item_id}
+                data-import-item-id={item.item_id}
+                className="flex min-w-0 flex-col gap-3"
+              >
                 {index > 0 && <Separator />}
                 <div className="flex flex-wrap items-start gap-x-3 gap-y-2 pt-1">
                   <FileIcon className="mt-1 size-4 shrink-0 text-muted-foreground" />
                   <div className="flex min-w-0 flex-1 basis-32 flex-col gap-1">
                     <p className="truncate text-sm font-medium" title={item.source_path}>
                       {item.supplied
-                        ? item.requested_file
-                          ? item.requested_twitter
-                            ? "Registered File + Twitter"
-                            : "Registered File"
-                          : "Twitter only"
+                        ? item.requested_twitter && !item.requested_file && !item.requested_bilibili
+                          ? "Twitter only"
+                          : [
+                              item.requested_file ? "Registered File" : undefined,
+                              item.requested_twitter ? "Twitter" : undefined,
+                              item.requested_bilibili ? "Bilibili Source" : undefined,
+                              item.requested_cover ? "original cover" : undefined,
+                            ]
+                              .filter(Boolean)
+                              .join(" + ")
                         : item.source_path.split(/[\\/]/).pop() || item.source_path}
                     </p>
                     <p className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
@@ -262,7 +311,9 @@ export function ImportDetails({
                   </div>
                   <div className="ml-auto flex max-w-full flex-wrap gap-1.5">
                     {item.current.confirmed_entity_id &&
-                      (!item.requested_file || item.current.file_attachment.state === "success") && (
+                      (!item.requested_file ||
+                        item.current.file_attachment.state === "success" ||
+                        item.current.bilibili?.source.state === "success") && (
                         <Button
                           size="sm"
                           variant="ghost"

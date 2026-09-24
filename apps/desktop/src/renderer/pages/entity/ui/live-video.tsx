@@ -11,6 +11,7 @@ export function LiveVideo({
   entityId,
   video,
   name,
+  poster,
 }: {
   api: BackendApi
   reader: EntityReader
@@ -18,6 +19,7 @@ export function LiveVideo({
   entityId: string
   video: Extract<EntityComponent, { kind: "video" }>
   name: string
+  poster?: string
 }) {
   const attempt = reader.playbackRevision(entityId)
   const basis = `${video.id}:${video.inputFileId}`
@@ -35,7 +37,7 @@ export function LiveVideo({
       <VideoInspection
         key={`${entityId}:${basis}:${attempt}`}
         src={video.inputFileId ? api.originalUrl(video.inputFileId) : undefined}
-        poster={video.thumbnail}
+        poster={poster ?? video.thumbnail}
         name={name}
         componentId={video.id}
         entityId={entityId}

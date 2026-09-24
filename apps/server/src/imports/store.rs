@@ -30,6 +30,12 @@ pub(crate) struct ImportStore {
     #[cfg(test)]
     pub base_fault: Mutex<Option<BaseFault>>,
     #[cfg(test)]
+    pub bilibili_source_fault: Mutex<Option<BaseFault>>,
+    #[cfg(test)]
+    pub bilibili_cover_fault: Mutex<Option<BaseFault>>,
+    #[cfg(test)]
+    pub bilibili_image_fault: Mutex<Option<BaseFault>>,
+    #[cfg(test)]
     pub registration_fault: Mutex<Option<BaseFault>>,
     #[cfg(test)]
     pub source_fault: Mutex<Option<BaseFault>>,
@@ -101,16 +107,16 @@ impl ImportStore {
         id: &str,
         request: &str,
         context: AccessContext,
-        inputs: Vec<(
-            Option<locus_file::api::FileId>,
-            Option<locus_twitter::api::TwitterSnapshot>,
-        )>,
+        inputs: Vec<RegisteredInput>,
     ) {
         let items = inputs
             .into_iter()
-            .map(|(file, snapshot)| {
+            .map(|(file, snapshot, bilibili, cover)| {
                 let mut current = ResultState::new();
                 current.copy = Step::new(State::NotRequested);
+                current.bilibili = bilibili.map(|snapshot| {
+                    super::bilibili_state::BilibiliResult::new(snapshot, file.is_some(), cover)
+                });
                 current.file = file;
                 current.registration = if file.is_some() {
                     Step::error(
@@ -279,6 +285,35 @@ impl ImportStore {
                             State::Uncertain,
                             "Execution ended without an attributable commit outcome",
                         );
+                    }
+                }
+                if let Some(b) = &mut item.current.bilibili {
+                    let mut steps = vec![&mut b.source, &mut b.association];
+                    if let Some(c) = &mut b.cover {
+                        steps.extend([
+                            &mut c.establishment,
+                            &mut c.association,
+                            &mut c.image.establishment,
+                            &mut c.image.interpretation,
+                        ]);
+                    }
+                    for step in steps {
+                        if step.state == State::Running {
+                            *step = Step::error(
+                                State::Uncertain,
+                                "Execution ended without an attributable Bilibili write outcome",
+                            );
+                        }
+                    }
+                    if let Some(c) = &mut b.cover {
+                        for step in [&mut c.image.recognition, &mut c.image.preview] {
+                            if step.state == State::Running {
+                                *step = Step::error(
+                                    State::Failed,
+                                    "Execution ended without a cover processing result",
+                                );
+                            }
+                        }
                     }
                 }
                 for kind in &mut item.current.kinds {

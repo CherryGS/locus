@@ -131,6 +131,8 @@ async fn external_http_recovery_status_and_structured_error_contracts_match_sche
     let request = RegisteredImportRequest {
         request_id: id(),
         items: vec![RegisteredImportItem {
+            bilibili: None,
+            cover_file_id: None,
             file_id: None,
             twitter: Some(crate::api::twitter::dto::TwitterSnapshot {
                 post_id: Some("123".into()),
@@ -329,6 +331,8 @@ async fn uploaded_file_eligibility_and_token_survive_restart_without_request_rep
             RegisteredImportRequest {
                 request_id: request_id.clone(),
                 items: vec![RegisteredImportItem {
+                    bilibili: None,
+                    cover_file_id: None,
                     file_id: Some(file),
                     twitter: None,
                 }],
@@ -1048,6 +1052,8 @@ async fn limited_router_and_cross_namespace_collisions_do_not_disclose_or_overwr
     let request = RegisteredImportRequest {
         request_id: id(),
         items: vec![RegisteredImportItem {
+            bilibili: None,
+            cover_file_id: None,
             file_id: Some(file.file_id),
             twitter: None,
         }],
@@ -1069,6 +1075,8 @@ async fn limited_router_and_cross_namespace_collisions_do_not_disclose_or_overwr
     let request = RegisteredImportRequest {
         request_id: id(),
         items: vec![RegisteredImportItem {
+            bilibili: None,
+            cover_file_id: None,
             file_id: None,
             twitter: Some(crate::api::twitter::dto::TwitterSnapshot {
                 post_id: Some("123".into()),
@@ -1100,6 +1108,8 @@ async fn limited_router_and_cross_namespace_collisions_do_not_disclose_or_overwr
     let desktop = RegisteredImportRequest {
         request_id: external_batch.batch_id.clone(),
         items: vec![RegisteredImportItem {
+            bilibili: None,
+            cover_file_id: None,
             file_id: None,
             twitter: Some(crate::api::twitter::dto::TwitterSnapshot {
                 post_id: Some("456".into()),
@@ -1183,4 +1193,138 @@ async fn reset_between_observer_authorization_and_frame_production_prevents_new_
             .unwrap()
             .is_none()
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn bilibili_external_upload_cover_eligibility_and_original_recovery() {
+    let root = tempfile::tempdir().unwrap();
+    let server = server(root.path()).await;
+    let s = &server.state;
+    let (token, _) = credential(s).await;
+    let mut png = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+        8,
+        8,
+        image::Rgb([80, 100, 120]),
+    ))
+    .write_to(&mut png, image::ImageFormat::Png)
+    .unwrap();
+    let (_, main) = upload(s, &token, png.get_ref(), id()).await;
+    let (_, cover) = upload(s, &token, png.get_ref(), id()).await;
+    let main = main.confirmed_file_id.unwrap();
+    let cover = cover.confirmed_file_id.unwrap();
+    let request = RegisteredImportRequest {
+        request_id: id(),
+        items: vec![RegisteredImportItem {
+            file_id: Some(main.clone()),
+            cover_file_id: Some(cover.clone()),
+            twitter: None,
+            bilibili: Some(crate::api::bilibili::dto::BilibiliSnapshot {
+                aid: Some("123".into()),
+                ..Default::default()
+            }),
+        }],
+    };
+    *s.imports.bilibili_cover_fault.lock().unwrap() = Some(crate::imports::BaseFault::Rollback);
+    let request_id = request.request_id.clone();
+    let response = external_json(
+        s,
+        &token,
+        "/external/v1/import-batches",
+        serde_json::to_value(&request).unwrap(),
+    )
+    .await;
+    assert_eq!(response.status(), 202);
+    let receipt = loop {
+        match s.external_submission(&request_id).unwrap() {
+            Submission::Accepted { receipt } => break receipt,
+            Submission::Rejected { error } => panic!("{}", error.message),
+            _ => tokio::task::yield_now().await,
+        }
+    };
+    end(s, &receipt).await;
+    let initial = s
+        .import_snapshot()
+        .batches
+        .into_iter()
+        .find(|b| b.original_request_id == request_id)
+        .unwrap();
+    assert!(!initial.items[0].current.complete);
+    assert!(initial.items[0].current.confirmed_entity_id.is_some());
+    let retry = ImportRecoveryRequest {
+        request_id: id(),
+        batch_id: initial.batch_id.clone(),
+        item_id: initial.items[0].item_id.clone(),
+        action: ImportAction::Retry,
+    };
+    assert!(
+        s.recover_import(retry.clone()).is_err(),
+        "Desktop must not take over external recovery"
+    );
+    let response = external_json(
+        s,
+        &token,
+        "/external/v1/import-recoveries",
+        serde_json::to_value(&retry).unwrap(),
+    )
+    .await;
+    assert_eq!(response.status(), 202);
+    let Submission::Accepted { receipt } = s.external_submission(&retry.request_id).unwrap() else {
+        panic!("expected recovery")
+    };
+    end(s, &receipt).await;
+    let done = s
+        .import_snapshot()
+        .batches
+        .into_iter()
+        .find(|b| b.batch_id == initial.batch_id)
+        .unwrap();
+    assert!(done.items[0].current.complete, "{:#?}", done.items[0]);
+    assert_eq!(
+        done.items[0].current.entity_id,
+        initial.items[0].current.entity_id
+    );
+    assert_eq!(done.items[0].attempts.len(), 2);
+    assert_eq!(done.original_overall, Some(ImportOverall::Failure));
+    // Independently revoke each newly uploaded input's grant before new admission.
+    for bad_cover in [false, true] {
+        let (_, main) = upload(s, &token, png.get_ref(), id()).await;
+        let (_, cover) = upload(s, &token, png.get_ref(), id()).await;
+        let main = main.confirmed_file_id.unwrap();
+        let cover = cover.confirmed_file_id.unwrap();
+        sql(
+            root.path(),
+            format!(
+                "DELETE FROM locus_access_eligibility WHERE file_id='{}'",
+                if bad_cover { &cover } else { &main }
+            ),
+        )
+        .await;
+        let mut r = request.clone();
+        r.request_id = id();
+        r.items[0].file_id = Some(main);
+        r.items[0].cover_file_id = Some(cover);
+        s.registered_import_in(
+            AccessContext::External,
+            Some(s.external_authorize(&token).unwrap()),
+            r.clone(),
+        )
+        .unwrap();
+        loop {
+            match s.external_submission(&r.request_id).unwrap() {
+                Submission::Rejected { error } => {
+                    assert!(error.message.contains("not eligible"));
+                    break;
+                }
+                Submission::AdmissionPending => tokio::task::yield_now().await,
+                other => panic!("Unexpected {other:?}"),
+            }
+        }
+        assert!(
+            !s.import_snapshot()
+                .batches
+                .iter()
+                .any(|b| b.original_request_id == r.request_id)
+        );
+    }
 }

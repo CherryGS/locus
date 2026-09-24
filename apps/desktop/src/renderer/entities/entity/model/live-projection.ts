@@ -11,6 +11,7 @@ export const supportedKinds = {
   "9fd73d3d-d35d-41bc-8b73-402e12f5c017": "file",
   "aadf84d2-0dc0-4a81-8cdb-901162c78321": "image",
   "f4be9375-60f1-4d04-8f07-8c9ad765e230": "video",
+  "0f5f53cd-e5c4-48db-92c1-b79c7808f2c6": "bilibili",
   "88ace9d7-8f02-4cc6-8f5b-add4dc6faf51": "twitter",
 } as const
 export function membershipProjection(membership: Wire<"Membership">): EntityComponent {
@@ -18,7 +19,7 @@ export function membershipProjection(membership: Wire<"Membership">): EntityComp
     (
       supportedKinds as Record<
         string,
-        "file" | "image" | "video" | "twitter" | "model" | "civitai" | undefined
+        "file" | "image" | "video" | "twitter" | "model" | "civitai" | "bilibili" | undefined
       >
     )[membership.kind_id] ?? "unknown"
   return {
@@ -61,7 +62,9 @@ export function fileProjection(value: Wire<"FileMetadata">): EntityComponent {
     readStatus: "ready",
   }
 }
-export function mediaProjection(value: Wire<"MediaView">): EntityComponent {
+export function mediaProjection(
+  value: Wire<"MediaView">,
+): Extract<EntityComponent, { kind: "image" | "video" }> {
   const { record, applicability } = value
   const current =
     applicability.status === "matching"

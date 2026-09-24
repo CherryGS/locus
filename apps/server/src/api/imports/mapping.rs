@@ -21,6 +21,22 @@ fn step(s: &owner::Step) -> ImportStep {
 }
 fn result(r: &owner::ResultState, ended: bool) -> ImportResult {
     ImportResult {
+        bilibili: r.bilibili.as_ref().map(|b| BilibiliImportResult {
+            component_id: b.id.map(|v| v.to_string()),
+            source: step(&b.source),
+            association: step(&b.association),
+            cover: b.cover.as_ref().map(|c| BilibiliCoverResult {
+                file_id: c.file.to_string(),
+                entity_id: c.entity.map(|v| v.to_string()),
+                confirmed_entity_id: c
+                    .entity
+                    .filter(|_| c.establishment.success())
+                    .map(|v| v.to_string()),
+                establishment: step(&c.establishment),
+                association: step(&c.association),
+                image: kind(&c.image),
+            }),
+        }),
         civitai: r
             .civitai
             .as_ref()
@@ -59,33 +75,7 @@ fn result(r: &owner::ResultState, ended: bool) -> ImportResult {
         copy_complete: r.progress.as_ref().is_some_and(|p| p.copy_complete),
         complete: r.complete(),
         effect_revision: r.effect.to_string(),
-        kinds: r
-            .kinds
-            .iter()
-            .map(|k| ImportKindResult {
-                kind: media::kind(k.kind),
-                component_id: k.component.map(|id| id.component().to_string()),
-                recognition: step(&k.recognition),
-                establishment: step(&k.establishment),
-                interpretation: step(&k.interpretation),
-                preview: step(&k.preview),
-                output: k
-                    .output
-                    .as_ref()
-                    .zip(k.locator.as_ref())
-                    .map(|(p, locator)| crate::api::media::dto::PreviewMetadata {
-                        locator: locator.clone(),
-                        file_id: p.file.to_string(),
-                        kind: media::kind(p.kind),
-                        edge: p.rendition.edge,
-                        stream_index: p.stream_index,
-                        origin: match p.origin {
-                            locus_media::api::PreviewOrigin::Hit => PreviewOrigin::Hit,
-                            locus_media::api::PreviewOrigin::Generated => PreviewOrigin::Generated,
-                        },
-                    }),
-            })
-            .collect(),
+        kinds: r.kinds.iter().map(kind).collect(),
     }
 }
 pub(crate) fn batch(b: owner::Batch) -> ImportBatch {
@@ -128,6 +118,12 @@ pub(crate) fn batch(b: owner::Batch) -> ImportBatch {
                     supplied: i.supplied,
                     requested_file: !i.supplied || i.current.file.is_some(),
                     requested_twitter: i.snapshot.is_some(),
+                    requested_bilibili: i.current.bilibili.is_some(),
+                    requested_cover: i
+                        .current
+                        .bilibili
+                        .as_ref()
+                        .is_some_and(|b| b.cover.is_some()),
                     source_path: i.source,
                     active_request_id: i.active.clone(),
                     current: result(&i.current, i.active.is_none()),
@@ -157,5 +153,31 @@ pub(crate) fn action(a: ImportAction) -> owner::Action {
         ImportAction::Retry => owner::Action::Retry,
         ImportAction::Recopy => owner::Action::Recopy,
         ImportAction::Confirm => owner::Action::Confirm,
+    }
+}
+
+fn kind(k: &owner::KindResult) -> ImportKindResult {
+    ImportKindResult {
+        kind: media::kind(k.kind),
+        component_id: k.component.map(|id| id.component().to_string()),
+        recognition: step(&k.recognition),
+        establishment: step(&k.establishment),
+        interpretation: step(&k.interpretation),
+        preview: step(&k.preview),
+        output: k
+            .output
+            .as_ref()
+            .zip(k.locator.as_ref())
+            .map(|(p, locator)| crate::api::media::dto::PreviewMetadata {
+                locator: locator.clone(),
+                file_id: p.file.to_string(),
+                kind: media::kind(p.kind),
+                edge: p.rendition.edge,
+                stream_index: p.stream_index,
+                origin: match p.origin {
+                    locus_media::api::PreviewOrigin::Hit => PreviewOrigin::Hit,
+                    locus_media::api::PreviewOrigin::Generated => PreviewOrigin::Generated,
+                },
+            }),
     }
 }

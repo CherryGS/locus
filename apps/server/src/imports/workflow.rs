@@ -50,8 +50,18 @@ pub(super) fn uncertain(error: &anyhow::Error) -> bool {
             _ => false,
         }
     }
+    fn bilibili(e: &locus_bilibili::api::BilibiliError) -> bool {
+        match e {
+            locus_bilibili::api::BilibiliError::Store(e) => store(e),
+            locus_bilibili::api::BilibiliError::Core(e) => core(e),
+            locus_bilibili::api::BilibiliError::File(e) => file(e),
+            _ => false,
+        }
+    }
     error.chain().any(|e| {
-        e.downcast_ref::<StoreError>().is_some_and(store)
+        e.downcast_ref::<locus_bilibili::api::BilibiliError>()
+            .is_some_and(bilibili)
+            || e.downcast_ref::<StoreError>().is_some_and(store)
             || e.downcast_ref::<locus_core::api::CoreError>()
                 .is_some_and(core)
             || e.downcast_ref::<locus_file::api::FileError>()
@@ -158,8 +168,21 @@ impl ImportStore {
                 return Ok(());
             }
         }
-        self.establish(d, &mut session, batch, item).await;
+        self.establish_bilibili(d, &mut session, batch, item).await;
+        if item.current.base.state != State::Uncertain
+            && !item
+                .current
+                .bilibili
+                .as_ref()
+                .is_some_and(|b| b.source.state == State::Uncertain)
+        {
+            self.establish(d, &mut session, batch, item).await;
+        }
+        self.associate_bilibili(d, &mut session, batch, item).await;
+        self.process_bilibili_cover(d, &mut session, batch, item)
+            .await;
         if !item.current.file_attachment.success() {
+            self.validate_bilibili(d, &mut session, item).await?;
             return Ok(());
         }
         let (Some(entity), Some(file)) = (item.current.entity, item.current.file) else {
@@ -247,6 +270,7 @@ impl ImportStore {
             self.process_kind(d, &mut session, batch, item, index, expected)
                 .await;
         }
+        self.validate_bilibili(d, &mut session, item).await?;
         self.validate_completed_dependencies(d, &mut session, item)
             .await?;
         Ok(())
@@ -427,6 +451,8 @@ impl ImportStore {
     ) -> anyhow::Result<()> {
         // Positive coherent evidence can confirm a candidate. Absence never proves
         // historical rollback: removed effects must not be silently recreated.
+        self.confirm_bilibili_cover(d, session, item).await?;
+        self.confirm_bilibili(d, session, item).await?;
         self.confirm_content(d, session, item).await?;
         let (Some(entity), Some(file)) = (item.current.entity, item.current.file) else {
             return Ok(());

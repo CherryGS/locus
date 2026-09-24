@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["apps/server", "crates/locus-task", "crates/locus-settings", "crates/locus-store", "crates/locus-core", "crates/locus-file", "crates/locus-media", "crates/locus-model", "crates/provider/locus-twitter", "crates/provider/locus-civitai"]
+members = ["apps/server", "crates/locus-task", "crates/locus-settings", "crates/locus-store", "crates/locus-core", "crates/locus-file", "crates/locus-media", "crates/locus-model", "crates/provider/locus-twitter", "crates/provider/locus-civitai", "crates/provider/locus-bilibili"]
 
 [workspace.dependencies]
 schemars = "=1.2.1"
@@ -20,6 +20,7 @@ locus-core = { path = "crates/locus-core" }
 locus-file = { path = "crates/locus-file" }
 locus-model = { path = "crates/locus-model" }
 locus-media = { path = "crates/locus-media" }
+locus-bilibili = { path = "crates/provider/locus-bilibili" }
 locus-twitter = { path = "crates/provider/locus-twitter" }
 locus-civitai = { path = "crates/provider/locus-civitai" }
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp", "gif"] }

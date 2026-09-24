@@ -59,32 +59,27 @@ impl Shared {
                 .items
                 .into_iter()
                 .map(|item| {
-                    if item.file_id.is_none() && item.twitter.is_none() {
+                    if item.file_id.is_none() && item.twitter.is_none() && item.bilibili.is_none() {
                         return Err(ApiError::invalid(
-                            "An item requires a registered File or Twitter snapshot",
+                            "An item requires a registered File or Source snapshot",
                         ));
                     }
-                    let file = item
-                        .file_id
-                        .map(|v| {
-                            let parsed = uuid::Uuid::parse_str(&v)
-                                .map_err(|e| ApiError::invalid(e.to_string()))?;
-                            if parsed.to_string() != v {
-                                return Err(ApiError::invalid("File identity must be canonical"));
-                            }
-                            FileId::from_bytes(
-                                uuid::Uuid::parse_str(&v)
-                                    .map_err(|e| ApiError::invalid(e.to_string()))?
-                                    .as_bytes(),
-                            )
-                            .map_err(|e| ApiError::invalid(e.to_string()))
-                        })
+                    if item.cover_file_id.is_some() && item.bilibili.is_none() {
+                        return Err(ApiError::invalid(
+                            "A cover request requires Bilibili Source",
+                        ));
+                    }
+                    let file = item.file_id.map(parse_file).transpose()?;
+                    let cover = item.cover_file_id.map(parse_file).transpose()?;
+                    let bilibili = item
+                        .bilibili
+                        .map(crate::api::bilibili::input::snapshot)
                         .transpose()?;
                     let snapshot = item
                         .twitter
                         .map(crate::api::twitter::input::snapshot)
                         .transpose()?;
-                    Ok((file, snapshot))
+                    Ok((file, snapshot, bilibili, cover))
                 })
                 .collect::<Result<Vec<_>, ApiError>>()
         })();
@@ -112,8 +107,8 @@ impl Shared {
                     session
                         .transaction_named("Check registered File eligibility", move |c| {
                             Box::pin(async move {
-                                for (file, _) in &inputs {
-                                    if let Some(file) = file {
+                                for (file, _, _, cover) in &inputs {
+                                    for file in [file, cover].into_iter().flatten() {
                                         if let Some(context) = &access_context {
                                             anyhow::ensure!(
                                                 crate::access::persistence::eligible(
@@ -205,4 +200,12 @@ impl Shared {
         });
         Ok(Submission::AdmissionPending)
     }
+}
+
+fn parse_file(v: String) -> Result<FileId, ApiError> {
+    let parsed = uuid::Uuid::parse_str(&v).map_err(|e| ApiError::invalid(e.to_string()))?;
+    if parsed.to_string() != v {
+        return Err(ApiError::invalid("File identity must be canonical"));
+    }
+    FileId::from_bytes(parsed.as_bytes()).map_err(|e| ApiError::invalid(e.to_string()))
 }

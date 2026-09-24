@@ -1,7 +1,13 @@
 import type { EntityComponent, EntityItem } from "@/entities/entity"
 
 export type ContentViewId =
-  "image.inspect" | "video.play" | "twitter.read" | "model.read" | "file.info" | "civitai.read"
+  | "image.inspect"
+  | "video.play"
+  | "twitter.read"
+  | "model.read"
+  | "file.info"
+  | "civitai.read"
+  | "bilibili.read"
 export function availableViews(entity: EntityItem | null) {
   const views: {
     id: ContentViewId
@@ -20,6 +26,8 @@ export function availableViews(entity: EntityItem | null) {
     views.push({ id: "file.info", kind: "file", label: "File" })
   if (entity?.components.some((component) => component.kind === "civitai"))
     views.push({ id: "civitai.read", kind: "civitai", label: "Civitai" })
+  if (entity?.components.some((c) => c.kind === "bilibili"))
+    views.push({ id: "bilibili.read", kind: "bilibili", label: "Bilibili" })
   return views
 }
 export function resolveView(entity: EntityItem | null, preferred: string | null) {

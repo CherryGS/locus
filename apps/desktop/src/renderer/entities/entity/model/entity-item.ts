@@ -57,6 +57,23 @@ export type EntityComponent = Observation &
         host?: string | null
         fileProblem?: Wire<"DomainDiagnostic"> | null
       }
+    | {
+        kind: "bilibili"
+        id: string
+        record?: Wire<"BilibiliRecord">
+        view?: Wire<"BilibiliView">
+        cover?: {
+          state: "loading" | "available" | "absent" | "unavailable" | "failed"
+          message?: string
+          resourceFailed?: boolean
+          imageProblems?: ReadProblem[]
+          thumbnail?: string
+          forVideo?: boolean
+          entityId?: string
+          fileId?: string
+          imageId?: string
+        }
+      }
     | { kind: "unknown"; id: string; kindId: string }
     | {
         kind: "twitter"

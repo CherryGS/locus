@@ -18,6 +18,8 @@ pub struct RegisteredImportRequest {
 pub struct RegisteredImportItem {
     pub file_id: Option<String>,
     pub twitter: Option<crate::api::twitter::dto::TwitterSnapshot>,
+    pub bilibili: Option<crate::api::bilibili::dto::BilibiliSnapshot>,
+    pub cover_file_id: Option<String>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -71,6 +73,7 @@ pub struct ImportModelResult {
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct ImportResult {
+    pub bilibili: Option<BilibiliImportResult>,
     pub civitai: Option<crate::api::civitai::dto::CivitaiOutcome>,
     pub model: ImportModelResult,
     pub observation_problem: Option<String>,
@@ -121,6 +124,8 @@ pub struct ImportItem {
     pub supplied: bool,
     pub requested_file: bool,
     pub requested_twitter: bool,
+    pub requested_bilibili: bool,
+    pub requested_cover: bool,
     pub active_request_id: Option<String>,
     pub current: ImportResult,
     pub attempts: Vec<ImportAttempt>,
@@ -140,4 +145,21 @@ pub struct ImportSnapshot {
     pub admission: crate::api::dto::AdmissionState,
     pub run_id: String,
     pub batches: Vec<ImportBatch>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct BilibiliImportResult {
+    pub component_id: Option<String>,
+    pub source: ImportStep,
+    pub association: ImportStep,
+    pub cover: Option<BilibiliCoverResult>,
+}
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct BilibiliCoverResult {
+    pub file_id: String,
+    pub entity_id: Option<String>,
+    pub confirmed_entity_id: Option<String>,
+    pub establishment: ImportStep,
+    pub association: ImportStep,
+    pub image: ImportKindResult,
 }

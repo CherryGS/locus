@@ -31,9 +31,8 @@ impl MediaService {
             crate::view::Applicability::Error(e) => return Err(e),
             _ => return Ok(None),
         };
-        if view.record.last_failure.is_some() {
-            return Ok(None);
-        }
+        // A later failed interpretation preserves accepted facts/basis. The
+        // applicable cached representation remains independently readable.
         let stream = match view.record.facts {
             Some(crate::facts::Facts::Image(_)) => None,
             Some(crate::facts::Facts::Video(f)) => Some(f.stream_index),

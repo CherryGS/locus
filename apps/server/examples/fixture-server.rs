@@ -58,6 +58,9 @@ impl Upstream for Controlled {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let mut config = Bootstrap::read(std::io::stdin().lock())?.into_config()?;
+    if std::env::var_os("LOCUS_FIXTURE_EXTERNAL_EPHEMERAL").is_some() {
+        config.external_address_override = Some("127.0.0.1:0".parse()?);
+    }
     config.civitai_upstream = Some(Arc::new(Controlled {
         path: std::env::var_os("LOCUS_CIVITAI_FIXTURE").map(PathBuf::from),
     }));

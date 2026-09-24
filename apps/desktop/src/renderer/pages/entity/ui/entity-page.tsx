@@ -270,8 +270,10 @@ export function EntityPage({
   const recover = (problem: ReadProblem) => {
     if (!selected || !live) return
     if (problem.recovery === "entity") void live.reader.reread(selected.id)
-    if (problem.recovery === "resource")
-      live.reader.retryResource(selected.id, problem.key.slice("resource:".length))
+    if (problem.recovery === "resource") {
+      if (problem.key.includes(":cover-dependent:")) live.reader.retryBilibiliCover(selected.id)
+      else live.reader.retryResource(selected.id, problem.key.slice("resource:".length))
+    }
     if (problem.recovery === "preference-read") void live.preferences.read([selected.id])
     if (problem.recovery === "preference-save") live.preferences.retry(selected.id)
     if (problem.recovery === "preference-check") void live.preferences.recover(selected.id)

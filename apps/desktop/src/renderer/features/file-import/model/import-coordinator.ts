@@ -88,8 +88,7 @@ export class ImportCoordinator {
       const operation = task.operation
       const matches =
         "source_paths" in saved.body
-          ? operation.kind === "import_batch" &&
-            operation.item_count === saved.body.source_paths.length
+          ? operation.kind === "import_batch" && operation.item_count === saved.body.source_paths.length
           : operation.kind === "import_recovery" &&
             operation.batch_id === saved.body.batch_id &&
             operation.item_id === saved.body.item_id
@@ -225,7 +224,7 @@ export class ImportCoordinator {
       for (const batch of snapshot.batches)
         for (const item of batch.items) {
           if (
-            item.current.base.state === "success" &&
+            (item.current.base.state === "success" || !!item.current.bilibili?.cover?.confirmed_entity_id) &&
             this.effects.get(item.item_id) !== item.current.effect_revision
           ) {
             effects.push(item)

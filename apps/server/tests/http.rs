@@ -386,7 +386,7 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
         locus_server::api::openapi().unwrap().to_json().unwrap()
     );
     let schema: Value = serde_json::from_str(&one).unwrap();
-    assert_eq!(schema["paths"].as_object().unwrap().len(), 52);
+    assert_eq!(schema["paths"].as_object().unwrap().len(), 53);
     for (path, methods, tag) in [
         (
             "/api/v1/civitai/{component_id}/view",
@@ -426,6 +426,11 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
             "/api/v1/twitter/{component_id}/view",
             &["get"][..],
             "twitter",
+        ),
+        (
+            "/api/v1/bilibili/{component_id}/view",
+            &["get"][..],
+            "bilibili",
         ),
         (
             "/api/v1/entities/{entity_id}/view-preference",

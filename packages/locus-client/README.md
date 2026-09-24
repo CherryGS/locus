@@ -401,3 +401,47 @@ relabel an old request with that new run. Saving an address
 changes retained configuration only; full application restart applies it.
 
 Run `just server-external-smoke` for a real isolated generated-client example.
+
+## Bilibili receiving contract
+
+The external producer first uploads the video and original cover separately through
+the existing external upload API and confirms each registered FileId. Then submit
+one item through POST /external/v1/import-batches, for example:
+
+```json
+{
+  "request_id": "<new intentional request UUID>",
+  "items": [{
+    "file_id": "<confirmed uploaded video FileId>",
+    "twitter": null,
+    "bilibili": {
+      "bvid": "BV1xx411c7mD",
+      "title": "Captured submission",
+      "part": { "cid": "12345", "number": 2, "title": "Selected part" }
+    },
+    "cover_file_id": "<separately confirmed uploaded cover FileId>"
+  }]
+}
+```
+
+Bilibili accepts a BVID, positive decimal aid, or a recognized Bilibili video page
+URL. Optional omitted values remain unknown; empty strings/arrays retain observed
+emptiness. Time, duration and bitrate values use exact decimal strings in the wire
+contract. Source claims never replace local Media facts. A cover request requires
+Bilibili Source, but the main File may be omitted. Distinct Twitter/Bilibili snapshots
+may coexist. Remote URLs are descriptive and are never downloaded by this receiver.
+
+Each new video/part needs its own separately admitted cover File, even when bytes
+are identical. The receiver creates an independent cover Entity/Image; an existing
+target Entity is not accepted for adoption. Repeated FileIds do not clone or share
+attachments. Upload success alone does not establish a library Entity.
+
+Observe the accepted batch's item.current.bilibili stages and confirmed main/cover identities.
+An ended item succeeds only after every requested part completes, including cover
+Image recognition, interpretation, preview and Source relation. Main Source can be
+viewed before requested main File work completes. On failure, the original external
+caller invokes POST /external/v1/import-recoveries with that same batch_id/item_id
+and a new request_id, using only the reported action. Confirm uncertain effects
+before retry. Request redelivery uses the original request_id and unchanged body;
+run and access scope remain enforced. Desktop feedback observes external recovery
+but does not perform it.

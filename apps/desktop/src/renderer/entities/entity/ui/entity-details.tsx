@@ -1,3 +1,4 @@
+import { BilibiliDetails } from "./bilibili-details"
 import { providerText } from "@/shared/lib/provider-text"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { Separator } from "@/shared/ui/separator"
@@ -78,6 +79,7 @@ function ComponentDetailsContent({ component }: { component: EntityComponent }) 
         </p>
       </DetailSection>
     )
+  if (component.kind === "bilibili") return <BilibiliDetails component={component} />
   if (component.kind === "twitter") return <TwitterDetails key={component.id} component={component} />
   if (component.kind === "unknown")
     return (

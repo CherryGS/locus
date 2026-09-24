@@ -1,3 +1,4 @@
+mod bilibili;
 mod bootstrap;
 mod bytes;
 pub(crate) mod composition;

@@ -1,3 +1,4 @@
+import { bilibiliProjection, bilibiliProblems, readBilibiliCover } from "./bilibili-projection"
 import { ApiFailure, errorText, type BackendApi, type Wire } from "@/shared/api"
 import type { EntityItem } from "./entity-item"
 import type { IdentitySequence } from "./identity-sequence"
@@ -23,11 +24,12 @@ type Entry = {
   resourceRevision: number
   playbackRevision: number
   playbackPending: boolean
+  coverRetry?: boolean
   membershipObserved: boolean
   epoch: number
 }
 type ReadApi = Pick<BackendApi, "identities" | "memberships" | "file" | "media" | "twitter" | "model"> &
-  Partial<Pick<BackendApi, "civitai">> &
+  Partial<Pick<BackendApi, "civitai" | "bilibili">> &
   Partial<Pick<BackendApi, "previewBytes" | "savedPreview">>
 
 export class EntityReader {
@@ -123,6 +125,14 @@ export class EntityReader {
     }
     this.changed()
   }
+  retryBilibiliCover(id: string) {
+    const entry = this.entries.get(id)
+    if (entry) {
+      entry.coverRetry = true
+      entry.resourceRevision = ++this.resourceGeneration
+      void this.read([id], true)
+    }
+  }
   retryResource(id: string, basis?: string) {
     const entry = this.entries.get(id)
     if (entry) {
@@ -190,6 +200,8 @@ export class EntityReader {
       )
       for (const kind of item.current.kinds)
         if (kind.component_id && kind.output) this.previews.set(kind.component_id, kind.output)
+      const cover = item.current.bilibili?.cover
+      if (cover?.confirmed_entity_id) this.knownEffects([cover.confirmed_entity_id])
       const id = item.current.entity_id
       if (!id) continue
       const entry = this.entries.get(id)
@@ -203,11 +215,25 @@ export class EntityReader {
     if (visible.length) void this.read([...new Set(visible)], true)
   }
   knownEffects(ids: string[]) {
-    for (const id of ids) {
-      const entry = this.entries.get(id)
-      if (entry) entry.epoch = -1
+    const changed = new Set(ids)
+    const affected = new Set(ids)
+    // Invalidate cached dependents too; only active subjects are read immediately.
+    // An inactive video's next demand must observe known cover changes.
+    for (const [id, entry] of this.entries) {
+      if (
+        changed.has(id) ||
+        entry.item.components.some(
+          (c) =>
+            c.kind === "bilibili" &&
+            !!c.record?.original_cover &&
+            changed.has(c.record.original_cover.entity_id),
+        )
+      ) {
+        entry.epoch = -1
+        affected.add(id)
+      }
     }
-    const visible = ids.filter((id) => this.needed.has(id))
+    const visible = [...this.needed].filter((id) => affected.has(id))
     if (visible.length) void this.read([...new Set(visible)], true)
   }
   reread(id: string) {
@@ -262,6 +288,7 @@ export class EntityReader {
         playbackRevision: old?.playbackRevision ?? ++this.resourceGeneration,
         playbackPending: old?.playbackPending ?? false,
         membershipObserved: old?.membershipObserved ?? false,
+        coverRetry: old?.coverRetry,
         epoch: this.listRevision,
       }
       this.entries.set(id, entry)
@@ -346,32 +373,39 @@ export class EntityReader {
             if (this.entries.get(id) !== entry) return
             try {
               const value =
-                component.kind === "civitai"
-                  ? ((await this.api.civitai?.(component.id)) ??
+                component.kind === "bilibili"
+                  ? ((await this.api.bilibili?.(component.id)) ??
                     (() => {
-                      throw new Error("Civitai read capability unavailable")
+                      throw new Error("Bilibili reader unavailable")
                     })())
-                  : component.kind === "file"
-                    ? await this.api.file(component.id)
-                    : component.kind === "model"
-                      ? await this.api.model(component.id)
-                      : component.kind === "twitter"
-                        ? await this.api.twitter(component.id)
-                        : await this.api.media(component.kind as "image" | "video", component.id)
+                  : component.kind === "civitai"
+                    ? ((await this.api.civitai?.(component.id)) ??
+                      (() => {
+                        throw new Error("Civitai read capability unavailable")
+                      })())
+                    : component.kind === "file"
+                      ? await this.api.file(component.id)
+                      : component.kind === "model"
+                        ? await this.api.model(component.id)
+                        : component.kind === "twitter"
+                          ? await this.api.twitter(component.id)
+                          : await this.api.media(component.kind as "image" | "video", component.id)
               if (this.entries.get(id) !== entry) return
               let next =
-                component.kind === "civitai"
-                  ? civitaiProjection(value as Wire<"CivitaiView">)
-                  : "file_id" in value
-                    ? fileProjection(value)
-                    : component.kind === "model"
-                      ? modelProjection(value as Wire<"ModelView">)
-                      : "snapshot" in value.record
-                        ? twitterProjection(value as Wire<"TwitterView">)
-                        : {
-                            ...mediaProjection(value as Wire<"MediaView">),
-                            kindId: component.kindId,
-                          }
+                component.kind === "bilibili"
+                  ? bilibiliProjection(value as Wire<"BilibiliView">)
+                  : component.kind === "civitai"
+                    ? civitaiProjection(value as Wire<"CivitaiView">)
+                    : "file_id" in value
+                      ? fileProjection(value)
+                      : component.kind === "model"
+                        ? modelProjection(value as Wire<"ModelView">)
+                        : "snapshot" in value.record
+                          ? twitterProjection(value as Wire<"TwitterView">)
+                          : {
+                              ...mediaProjection(value as Wire<"MediaView">),
+                              kindId: component.kindId,
+                            }
               if (
                 next.id !== component.id ||
                 next.kind !== component.kind ||
@@ -391,27 +425,66 @@ export class EntityReader {
                 }
                 entry.playbackPending = false
               }
+              this.replaceProblems(entry, component.id + ":read", [])
               entry.item = {
                 ...entry.item,
                 components: entry.item.components.map((c) => (c.id === component.id ? next : c)),
               }
               this.replaceProblems(
                 entry,
-                `${component.id}:`,
-                component.kind === "civitai"
-                  ? civitaiProblems(value as Wire<"CivitaiView">).map((p) => ({
+                component.kind === "bilibili" ? component.id + ":metadata:" : `${component.id}:`,
+                component.kind === "bilibili"
+                  ? bilibiliProblems(value as Wire<"BilibiliView">, id).map((p) => ({
                       ...p,
-                      key: `${component.id}:${p.key}`,
+                      key: component.id + ":metadata:" + p.key,
                     }))
-                  : "file_id" in value
-                    ? []
-                    : (component.kind === "model"
-                        ? modelProblems(value as Wire<"ModelView">, id)
-                        : "snapshot" in value.record
-                          ? twitterProblems(value as Wire<"TwitterView">, id)
-                          : mediaProblems(value as Wire<"MediaView">)
-                      ).map((p) => ({ ...p, key: `${component.id}:${p.key}` })),
+                  : component.kind === "civitai"
+                    ? civitaiProblems(value as Wire<"CivitaiView">).map((p) => ({
+                        ...p,
+                        key: `${component.id}:${p.key}`,
+                      }))
+                    : "file_id" in value
+                      ? []
+                      : (component.kind === "model"
+                          ? modelProblems(value as Wire<"ModelView">, id)
+                          : "snapshot" in value.record
+                            ? twitterProblems(value as Wire<"TwitterView">, id)
+                            : mediaProblems(value as Wire<"MediaView">)
+                        ).map((p) => ({ ...p, key: `${component.id}:${p.key}` })),
               )
+              if (next.kind === "bilibili" && next.view) {
+                this.changed()
+                const loaded = await readBilibiliCover(
+                  this.api,
+                  next.view,
+                  id,
+                  component.kind === "bilibili" ? component.cover : undefined,
+                  !!entry.coverRetry,
+                )
+                if (this.entries.get(id) !== entry) return
+                let thumbnail: string | undefined
+                const key = id + ":" + next.id + ":cover"
+                const old = this.previewUrls.get(key)
+                if (old) {
+                  URL.revokeObjectURL(old)
+                  this.previewUrls.delete(key)
+                }
+                if (loaded.bytes) {
+                  thumbnail = URL.createObjectURL(loaded.bytes)
+                  this.previewUrls.set(key, thumbnail)
+                }
+                entry.coverRetry = false
+                next = { ...next, cover: { ...loaded.cover, thumbnail } }
+                entry.item = {
+                  ...entry.item,
+                  components: entry.item.components.map((c) => (c.id === next.id ? next : c)),
+                }
+                this.replaceProblems(
+                  entry,
+                  next.id + ":cover-dependent",
+                  loaded.problems.map((p) => ({ ...p, key: next.id + ":cover-dependent:" + p.key })),
+                )
+              }
               if (
                 (next.kind === "image" || next.kind === "video") &&
                 "applicability" in next &&
@@ -493,12 +566,15 @@ export class EntityReader {
             } catch (error) {
               if (this.entries.get(id) !== entry) return
               if (component.kind === "video") entry.playbackPending = false
+              if (component.kind === "bilibili") entry.coverRetry = false
               const current = entry.item.components.find((c) => c.id === component.id)!
               const absent =
                 error instanceof ApiFailure &&
                 (error.detail.code === "missing_file" ||
                   (component.kind === "civitai" && error.detail.code === "not_found") ||
                   (error.detail.diagnostic?.owner === "model" &&
+                    error.detail.diagnostic.error.code === "missing_record") ||
+                  (error.detail.diagnostic?.owner === "bilibili" &&
                     error.detail.diagnostic.error.code === "missing_record") ||
                   (error.detail.diagnostic?.owner === "twitter" &&
                     error.detail.diagnostic.error.code === "missing_record") ||
@@ -516,6 +592,18 @@ export class EntityReader {
                   c.id === component.id
                     ? ({
                         ...(absent ? { id: c.id, kind: c.kind, kindId: c.kindId } : c),
+                        ...(c.kind === "bilibili"
+                          ? {
+                              cover: {
+                                ...c.cover,
+                                state: "failed",
+                                thumbnail: undefined,
+                                message: c.cover?.resourceFailed
+                                  ? c.cover.message
+                                  : "Current cover qualification could not be read.",
+                              },
+                            }
+                          : {}),
                         readStatus: "failed",
                         previous,
                       } as typeof c)

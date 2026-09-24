@@ -268,7 +268,13 @@ impl Shared {
                     .snapshots()
                     .into_iter()
                     .flat_map(|b| b.items)
-                    .flat_map(|i| i.current.kinds)
+                    .flat_map(|i| {
+                        let mut kinds = i.current.kinds;
+                        if let Some(c) = i.current.bilibili.and_then(|b| b.cover) {
+                            kinds.push(c.image);
+                        }
+                        kinds
+                    })
                     .find(|k| k.locator.as_deref() == Some(&locator))
                     .and_then(|k| k.output)
             })

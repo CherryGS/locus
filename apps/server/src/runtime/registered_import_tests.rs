@@ -72,6 +72,8 @@ fn request(file: Option<String>, twitter: bool) -> RegisteredImportRequest {
     RegisteredImportRequest {
         request_id: id(),
         items: vec![RegisteredImportItem {
+            bilibili: None,
+            cover_file_id: None,
             file_id: file,
             twitter: twitter.then(|| crate::api::twitter::dto::TwitterSnapshot {
                 post_id: Some("123456789".into()),
@@ -157,6 +159,8 @@ async fn registered_forms_duplicate_binding_and_rejections() {
         RegisteredImportRequest {
             request_id: id(),
             items: vec![RegisteredImportItem {
+                bilibili: None,
+                cover_file_id: None,
                 file_id: None,
                 twitter: Some(Default::default()),
             }],
@@ -630,4 +634,280 @@ async fn model_success_is_reused_when_source_sibling_retries() {
         before.current.model.component_id
     );
     assert_eq!(server.state.model_read(model).await.unwrap(), record);
+}
+
+fn bilibili_request(main: Option<String>, cover: Option<String>) -> RegisteredImportRequest {
+    RegisteredImportRequest {
+        request_id: id(),
+        items: vec![RegisteredImportItem {
+            file_id: main,
+            twitter: None,
+            bilibili: Some(crate::api::bilibili::dto::BilibiliSnapshot {
+                bvid: Some("BV1xx411c7mD".into()),
+                title: Some("Independent captured video".into()),
+                ..Default::default()
+            }),
+            cover_file_id: cover,
+        }],
+    }
+}
+async fn image_file(s: &Arc<Shared>, root: &std::path::Path) -> String {
+    let path = root.join(format!("{}.png", id()));
+    image::RgbImage::from_pixel(12, 8, image::Rgb([40, 80, 120]))
+        .save(&path)
+        .unwrap();
+    file(s, path.to_string_lossy().into_owned()).await
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn bilibili_source_only_cover_and_distinct_providers_complete_independently() {
+    let (root, server, _) = app().await;
+    let s = &server.state;
+    let cover = image_file(s, root.path()).await;
+    let mut r = bilibili_request(None, Some(cover.clone()));
+    r.items[0].twitter = Some(crate::api::twitter::dto::TwitterSnapshot {
+        post_id: Some("123".into()),
+        ..Default::default()
+    });
+    let receipt = accepted(s, &r).await.unwrap();
+    terminal(s, &receipt.task_id).await;
+    let first = item(s, &r.request_id);
+    assert!(first.current.complete, "{:#?}", first.current);
+    let b = first.current.bilibili.unwrap();
+    let c = b.cover.unwrap();
+    assert_eq!(b.source.state, ImportStepState::Success);
+    assert_eq!(b.association.state, ImportStepState::NotRequested);
+    assert_eq!(c.image.interpretation.state, ImportStepState::Success);
+    assert_eq!(c.image.preview.state, ImportStepState::Success);
+    assert_ne!(c.confirmed_entity_id, first.current.confirmed_entity_id);
+    assert_eq!(first.current.twitter.state, ImportStepState::Success);
+    let another = bilibili_request(None, Some(image_file(s, root.path()).await));
+    let receipt = accepted(s, &another).await.unwrap();
+    terminal(s, &receipt.task_id).await;
+    let second = item(s, &another.request_id)
+        .current
+        .bilibili
+        .unwrap()
+        .cover
+        .unwrap();
+    assert_ne!(second.entity_id, c.entity_id);
+    assert_ne!(second.file_id, c.file_id);
+    let duplicate = bilibili_request(None, Some(cover));
+    assert!(accepted(s, &duplicate).await.is_err());
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn bilibili_bad_cover_is_not_generic_no_match_success_and_main_proceeds() {
+    let (root, server, path) = app().await;
+    let s = &server.state;
+    let main = image_file(s, root.path()).await;
+    let cover = file(s, path).await;
+    let r = bilibili_request(Some(main), Some(cover));
+    let receipt = accepted(s, &r).await.unwrap();
+    terminal(s, &receipt.task_id).await;
+    let first = item(s, &r.request_id);
+    assert!(!first.current.complete);
+    assert_eq!(
+        first.current.file_attachment.state,
+        ImportStepState::Success
+    );
+    assert_eq!(
+        first.current.kinds[0].preview.state,
+        ImportStepState::Success
+    );
+    let b = first.current.bilibili.clone().unwrap();
+    let c = b.cover.unwrap();
+    assert_eq!(c.image.recognition.state, ImportStepState::NoMatch);
+    assert_eq!(c.association.state, ImportStepState::Success);
+    let retried = recover(s, &r.request_id, ImportAction::Retry).await;
+    let now = retried.current.bilibili.unwrap().cover.unwrap();
+    assert_eq!(now.entity_id, c.entity_id);
+    assert_eq!(now.file_id, c.file_id);
+    assert!(!retried.current.complete);
+    assert_eq!(retried.current.entity_id, first.current.entity_id);
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn bilibili_early_source_survives_main_rollback_and_cover_unknown_retains_identity() {
+    let (root, server, path) = app().await;
+    let s = &server.state;
+    let main = file(s, path).await;
+    let cover = image_file(s, root.path()).await;
+    *s.imports.base_fault.lock().unwrap() = Some(BaseFault::Rollback);
+    *s.imports.bilibili_cover_fault.lock().unwrap() = Some(BaseFault::Unknown);
+    let r = bilibili_request(Some(main), Some(cover));
+    let receipt = accepted(s, &r).await.unwrap();
+    terminal(s, &receipt.task_id).await;
+    let first = item(s, &r.request_id);
+    assert!(first.current.confirmed_entity_id.is_some());
+    assert_eq!(first.current.file_attachment.state, ImportStepState::Failed);
+    assert_eq!(
+        first.current.bilibili.as_ref().unwrap().source.state,
+        ImportStepState::Success
+    );
+    let original = first.current.bilibili.unwrap().cover.unwrap().entity_id;
+    assert_eq!(first.actions, vec![ImportAction::Confirm]);
+    let confirmed = recover(s, &r.request_id, ImportAction::Confirm).await;
+    assert_eq!(
+        confirmed
+            .current
+            .bilibili
+            .as_ref()
+            .unwrap()
+            .cover
+            .as_ref()
+            .unwrap()
+            .confirmed_entity_id,
+        original
+    );
+    let done = recover(s, &r.request_id, ImportAction::Retry).await;
+    assert!(done.current.complete, "{:#?}", done.current);
+    assert_eq!(done.current.entity_id, first.current.entity_id);
+    assert_eq!(
+        done.current.bilibili.unwrap().cover.unwrap().entity_id,
+        original
+    );
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn bilibili_unknown_source_never_creates_a_second_main() {
+    let (root, server, _) = app().await;
+    let s = &server.state;
+    let main = image_file(s, root.path()).await;
+    *s.imports.bilibili_source_fault.lock().unwrap() = Some(BaseFault::Unknown);
+    let r = bilibili_request(Some(main), None);
+    let receipt = accepted(s, &r).await.unwrap();
+    terminal(s, &receipt.task_id).await;
+    let first = item(s, &r.request_id);
+    assert!(first.current.confirmed_entity_id.is_none());
+    assert_eq!(
+        first.current.file_attachment.state,
+        ImportStepState::Pending
+    );
+    recover(s, &r.request_id, ImportAction::Confirm).await;
+    let done = recover(s, &r.request_id, ImportAction::Retry).await;
+    assert!(done.current.complete, "{:#?}", done.current);
+    assert_eq!(done.current.entity_id, first.current.entity_id);
+    assert_eq!(
+        done.current.bilibili.unwrap().component_id,
+        first.current.bilibili.unwrap().component_id
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn bilibili_lost_image_failure_confirmation_permits_original_target_retry() {
+    let (_root, server, path) = app().await;
+    let s = &server.state;
+    let cover = file(s, path).await;
+    *s.imports.force_image_match.lock().unwrap() = true;
+    *s.imports.unknown_interpretation.lock().unwrap() = true;
+    let r = bilibili_request(None, Some(cover));
+    let receipt = accepted(s, &r).await.unwrap();
+    terminal(s, &receipt.task_id).await;
+    let first = item(s, &r.request_id);
+    assert_eq!(
+        first
+            .current
+            .bilibili
+            .as_ref()
+            .unwrap()
+            .cover
+            .as_ref()
+            .unwrap()
+            .image
+            .interpretation
+            .state,
+        ImportStepState::Uncertain
+    );
+    let observed = recover(s, &r.request_id, ImportAction::Confirm).await;
+    let image = &observed
+        .current
+        .bilibili
+        .as_ref()
+        .unwrap()
+        .cover
+        .as_ref()
+        .unwrap()
+        .image;
+    assert_eq!(image.interpretation.state, ImportStepState::Failed);
+    assert!(
+        image
+            .interpretation
+            .reason
+            .as_ref()
+            .unwrap()
+            .contains("original attempt acceptance remains unconfirmed")
+    );
+    assert!(observed.actions.contains(&ImportAction::Retry));
+    let retried = recover(s, &r.request_id, ImportAction::Retry).await;
+    assert_eq!(
+        retried
+            .current
+            .bilibili
+            .unwrap()
+            .cover
+            .unwrap()
+            .image
+            .component_id,
+        image.component_id
+    );
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn bilibili_image_creation_confirmation_does_not_adopt_later_independent_write() {
+    let (root, server, _) = app().await;
+    let s = &server.state;
+    let cover = image_file(s, root.path()).await;
+    *s.imports.bilibili_image_fault.lock().unwrap() = Some(BaseFault::Unknown);
+    let r = bilibili_request(None, Some(cover));
+    let receipt = accepted(s, &r).await.unwrap();
+    terminal(s, &receipt.task_id).await;
+    let first = item(s, &r.request_id);
+    let image = first
+        .current
+        .bilibili
+        .as_ref()
+        .unwrap()
+        .cover
+        .as_ref()
+        .unwrap()
+        .image
+        .component_id
+        .clone()
+        .unwrap();
+    let d = s.business().unwrap().clone();
+    s.queue
+        .submit("Independent Image interpretation", move |task| async move {
+            let mut session = d.database.session(&task).await.unwrap();
+            let component = locus_core::api::ComponentId::from_bytes(
+                uuid::Uuid::parse_str(&image).unwrap().as_bytes(),
+            )
+            .unwrap();
+            let id = locus_media::api::MediaId::Image(locus_media::api::ImageId::from_component(
+                component,
+            ));
+            d.media
+                .interpret(&d.kernel, &d.files, &mut session, id)
+                .await
+                .unwrap();
+        })
+        .unwrap()
+        .result()
+        .await
+        .unwrap();
+    let observed = recover(s, &r.request_id, ImportAction::Confirm).await;
+    assert_eq!(
+        observed
+            .current
+            .bilibili
+            .unwrap()
+            .cover
+            .unwrap()
+            .image
+            .establishment
+            .state,
+        ImportStepState::Uncertain
+    );
+    assert!(
+        observed
+            .current
+            .observation_problem
+            .unwrap()
+            .contains("changed before creation confirmation")
+    );
 }
