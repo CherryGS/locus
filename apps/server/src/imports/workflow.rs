@@ -50,6 +50,14 @@ pub(super) fn uncertain(error: &anyhow::Error) -> bool {
             _ => false,
         }
     }
+    fn bilibili(e: &locus_bilibili::api::BilibiliError) -> bool {
+        match e {
+            locus_bilibili::api::BilibiliError::Store(e) => store(e),
+            locus_bilibili::api::BilibiliError::Core(e) => core(e),
+            locus_bilibili::api::BilibiliError::File(e) => file(e),
+            _ => false,
+        }
+    }
     error.chain().any(|e| {
         e.downcast_ref::<StoreError>().is_some_and(store)
             || e.downcast_ref::<locus_core::api::CoreError>()
@@ -61,6 +69,8 @@ pub(super) fn uncertain(error: &anyhow::Error) -> bool {
                 .is_some_and(model)
             || e.downcast_ref::<locus_twitter::api::TwitterError>()
                 .is_some_and(twitter)
+            || e.downcast_ref::<locus_bilibili::api::BilibiliError>()
+                .is_some_and(bilibili)
     })
 }
 pub(super) fn failed(error: anyhow::Error) -> Step {

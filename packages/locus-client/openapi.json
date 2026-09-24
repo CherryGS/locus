@@ -9,6 +9,115 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/api/v1/bilibili/{component_id}/view": {
+      "get": {
+        "tags": [
+          "bilibili"
+        ],
+        "operationId": "view_bilibili",
+        "parameters": [
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BilibiliView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/civitai-operations": {
       "get": {
         "tags": [
@@ -6852,6 +6961,694 @@
         },
         "additionalProperties": false
       },
+      "BilibiliApplicability": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unmounted"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "host",
+              "comparison",
+              "status"
+            ],
+            "properties": {
+              "comparison": {
+                "$ref": "#/components/schemas/BilibiliComparison"
+              },
+              "file_error": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Diagnostic"
+                  }
+                ]
+              },
+              "host": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "input"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "status"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/BilibiliFailure"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "error"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "BilibiliAssetRole": {
+        "type": "string",
+        "enum": [
+          "video",
+          "cover"
+        ]
+      },
+      "BilibiliCaptureIssue": {
+        "type": "object",
+        "required": [
+          "portion",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "portion": {
+            "$ref": "#/components/schemas/BilibiliCapturePortion"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BilibiliCapturePortion": {
+        "type": "string",
+        "enum": [
+          "title",
+          "description",
+          "uploader",
+          "part",
+          "publication_time",
+          "selected_representation",
+          "remote_cover"
+        ]
+      },
+      "BilibiliComparison": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "file_id",
+              "status"
+            ],
+            "properties": {
+              "file_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "matching"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "basis",
+              "current",
+              "status"
+            ],
+            "properties": {
+              "basis": {
+                "type": "string"
+              },
+              "current": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "current",
+              "status"
+            ],
+            "properties": {
+              "basis": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "current": {
+                "$ref": "#/components/schemas/CurrentInput"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "incomplete"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "BilibiliFailure": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "core"
+                ]
+              },
+              "error": {
+                "$ref": "#/components/schemas/CoreFailure"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "file"
+                ]
+              },
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "diagnostic",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "store"
+                ]
+              },
+              "diagnostic": {
+                "$ref": "#/components/schemas/Diagnostic"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component_id",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "missing_record"
+                ]
+              },
+              "component_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "corrupt"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "version",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "payload_version"
+                ]
+              },
+              "version": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "version",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "schema_version"
+                ]
+              },
+              "version": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "other"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "BilibiliMediaClaims": {
+        "type": "object",
+        "description": "Source claims do not replace the File's intrinsic Media interpretation.",
+        "properties": {
+          "audio_codec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "audio_present": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "bitrate_bps": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "container": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_ms": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "height": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "mime_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quality": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "video_codec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "width": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "BilibiliPartObservation": {
+        "type": "object",
+        "description": "CID identifies the observed audiovisual part. Its one-based index is separate.",
+        "properties": {
+          "cid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_ms": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "BilibiliRecord": {
+        "type": "object",
+        "required": [
+          "component_id",
+          "kind_id",
+          "revision",
+          "snapshot"
+        ],
+        "properties": {
+          "basis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "component_id": {
+            "type": "string"
+          },
+          "kind_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "description": "Exact decimal revision; not a JavaScript floating-point number."
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/BilibiliSnapshot"
+          }
+        }
+      },
+      "BilibiliRemotePreview": {
+        "type": "object",
+        "description": "The submission's remote cover is distinct from a local Video-generated cover.",
+        "properties": {
+          "claims": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BilibiliMediaClaims"
+              }
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "BilibiliSelectedRepresentation": {
+        "type": "object",
+        "properties": {
+          "assembled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "claims": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BilibiliMediaClaims"
+              }
+            ]
+          },
+          "source_urls": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Input resources for an assembled representation, not independent Files."
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "BilibiliSnapshot": {
+        "type": "object",
+        "description": "Submitted provenance for one local asset; missing values remain unknown.",
+        "properties": {
+          "aid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "asset_role": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BilibiliAssetRole"
+              }
+            ]
+          },
+          "bvid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capture_local_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "issues": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/BilibiliCaptureIssue"
+            }
+          },
+          "observed_at_unix_ms": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "part": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BilibiliPartObservation"
+              }
+            ]
+          },
+          "preview": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BilibiliRemotePreview"
+              }
+            ]
+          },
+          "published_at_unix_ms": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "representation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BilibiliSelectedRepresentation"
+              }
+            ]
+          },
+          "requested_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BilibiliUploaderObservation"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "BilibiliUploaderObservation": {
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profile_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "user_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "BilibiliView": {
+        "type": "object",
+        "required": [
+          "record",
+          "applicability"
+        ],
+        "properties": {
+          "applicability": {
+            "$ref": "#/components/schemas/BilibiliApplicability"
+          },
+          "record": {
+            "$ref": "#/components/schemas/BilibiliRecord"
+          }
+        }
+      },
       "ChangeMembership": {
         "type": "object",
         "required": [
@@ -7925,6 +8722,24 @@
             ],
             "properties": {
               "error": {
+                "$ref": "#/components/schemas/BilibiliFailure"
+              },
+              "owner": {
+                "type": "string",
+                "enum": [
+                  "bilibili"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "error",
+              "owner"
+            ],
+            "properties": {
+              "error": {
                 "$ref": "#/components/schemas/TwitterFailure"
               },
               "owner": {
@@ -8330,6 +9145,7 @@
           "supplied",
           "requested_file",
           "requested_twitter",
+          "requested_bilibili",
           "current",
           "attempts",
           "actions"
@@ -8358,6 +9174,9 @@
           },
           "item_id": {
             "type": "string"
+          },
+          "requested_bilibili": {
+            "type": "boolean"
           },
           "requested_file": {
             "type": "boolean"
@@ -8499,6 +9318,7 @@
           "registration",
           "file_attachment",
           "twitter",
+          "bilibili",
           "association",
           "base",
           "managed_bytes_may_exist",
@@ -8513,6 +9333,15 @@
           },
           "base": {
             "$ref": "#/components/schemas/ImportStep"
+          },
+          "bilibili": {
+            "$ref": "#/components/schemas/ImportStep"
+          },
+          "bilibili_id": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "civitai": {
             "oneOf": [
@@ -10178,6 +11007,16 @@
       "RegisteredImportItem": {
         "type": "object",
         "properties": {
+          "bilibili": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BilibiliSnapshot"
+              }
+            ]
+          },
           "file_id": {
             "type": [
               "string",

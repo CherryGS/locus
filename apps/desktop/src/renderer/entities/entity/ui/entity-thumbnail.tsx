@@ -6,12 +6,14 @@ export function EntityThumbnail({
   hasFile,
   hasVideo = false,
   hasTwitter = false,
+  hasBilibili = false,
   fallbackLabel,
 }: {
   src: string | undefined
   hasFile: boolean
   hasVideo?: boolean
   hasTwitter?: boolean
+  hasBilibili?: boolean
   fallbackLabel?: string
 }) {
   const [failedSource, setFailedSource] = useState<string>()
@@ -28,7 +30,7 @@ export function EntityThumbnail({
     )
   }
 
-  const Icon = hasVideo ? VideoIcon : hasFile ? FileIcon : hasTwitter ? AtSignIcon : BoxIcon
+  const Icon = hasVideo || hasBilibili ? VideoIcon : hasFile ? FileIcon : hasTwitter ? AtSignIcon : BoxIcon
   return (
     <div
       className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground"

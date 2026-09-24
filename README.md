@@ -10,6 +10,7 @@ The Rust workspace contains persistent identity, attachment, managed File, Image
 - `locus-file` owns UUIDv7 File records, managed copies, identified input access, and current entity/File input comparison.
 - `locus-media` owns separate Image/Video kinds, retained interpretations and warnings, explicit retry, derived previews/covers, and a common per-component read view.
 - `locus-twitter`, under `crates/provider`, owns independent Twitter snapshots, local validation, guarded File association and provider-specific reads.
+- `locus-bilibili`, under `crates/provider`, owns independent video-part and cover source snapshots, local validation, guarded File association and Bilibili-specific reads.
 - `apps/server` owns the authenticated loopback Axum server, centralized HTTP/OpenAPI contract, and separate File/Media/Twitter/task backend examples. The server composes kernel/File/Media on one task-bound database; examples also exercise Twitter.
 - `packages/locus-client` owns generated TypeScript declarations, a small `openapi-fetch` client factory and a validated compact binary Entity reader, with no renderer framework or embedded credential.
 
@@ -90,6 +91,27 @@ HTTP failure and incomplete responses. `just rust-test-civitai-video` uses
 provisioned ffprobe/ffmpeg to verify a synthetic video's admission, cover recovery
 and shared reuse. Set `LOCUS_FFPROBE` / `LOCUS_FFMPEG` when the tools are not on
 PATH. These checks do not contact Civitai or open the user's library.
+
+## Bilibili video sources
+
+`locus-bilibili` retains provider-owned ordinary-video snapshots with separate
+submission BVID/AID, selected-part CID/index, title/description, uploader, source
+representation and cover observations. Video and submission-cover assets have
+separate source roles and independently managed records. Missing optional fields
+remain unknown. Snapshots and File associations follow the same guarded lifecycle
+as the other Source capabilities; reads do not contact Bilibili.
+
+Registered imports accept a `bilibili` snapshot with an optional registered File
+through both the desktop and external receiving APIs. An item selects one provider
+snapshot, Twitter or Bilibili. The desktop reads Bilibili cards, content, details,
+association diagnostics and import outcomes, alongside ordinary local Image/Video
+preview and playback. See the [receiving contract](packages/locus-client/README.md#bilibili-ordinary-video-imports)
+for extension integration. Chrome-extension acquisition and delivery are separate.
+
+Run `just rust-test-code locus-bilibili` for domain checks and
+`just desktop-bilibili-browser` for real external uploads/imports and desktop
+reading of a synthetic video, submission cover and locator-only observation.
+The latter requires ffprobe/ffmpeg and uses an isolated library and local browser.
 
 ## Using the foundation
 

@@ -103,7 +103,7 @@ impl ImportStore {
         context: AccessContext,
         inputs: Vec<(
             Option<locus_file::api::FileId>,
-            Option<locus_twitter::api::TwitterSnapshot>,
+            Option<super::source::SourceSnapshot>,
         )>,
     ) {
         let items = inputs
@@ -128,7 +128,7 @@ impl ImportStore {
                     current.model.inspection = Step::new(State::NotRequested);
                 }
                 if snapshot.is_some() {
-                    current.twitter = Step::new(State::Pending);
+                    current.source_capture = Step::new(State::Pending);
                     if file.is_some() {
                         current.association = Step::new(State::Pending);
                     }
@@ -271,7 +271,7 @@ impl ImportStore {
                 for step in [
                     &mut item.current.registration,
                     &mut item.current.file_attachment,
-                    &mut item.current.twitter,
+                    &mut item.current.source_capture,
                     &mut item.current.association,
                 ] {
                     if step.state == State::Running {

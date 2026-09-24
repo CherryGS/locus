@@ -94,17 +94,18 @@ impl ImportStore {
                         anyhow::bail!("Required Model result no longer applies");
                     }
                 }
-                if let Some(id) = result.twitter_id {
-                    if !members.iter().any(|m| {
-                        m.component == id.component() && m.kind == locus_twitter::api::TWITTER_KIND
-                    }) {
-                        anyhow::bail!("Original Twitter membership changed");
-                    }
-                    let twitter = locus_twitter::api::TwitterService::read_in(c, id).await?;
-                    if Some(twitter.revision) != result.twitter_revision
-                        || (result.association.success() && twitter.basis != Some(file))
+                if let Some(id) = result.source_id {
+                    if !members
+                        .iter()
+                        .any(|m| m.component == id.component() && m.kind == id.kind())
                     {
-                        anyhow::bail!("Original Twitter observation/association changed");
+                        anyhow::bail!("Original Source membership changed");
+                    }
+                    let source = id.read_in(c).await?;
+                    if Some(source.revision) != result.source_revision
+                        || (result.association.success() && source.basis != Some(file))
+                    {
+                        anyhow::bail!("Original Source observation/association changed");
                     }
                 }
                 if let Some(work) = &result.civitai

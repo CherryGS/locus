@@ -3,6 +3,7 @@ import {
   EntityCard,
   EntityComponentDetails,
   TwitterPost,
+  BilibiliPost,
   entityLabel,
   type EntityItem,
   type EntitySource,
@@ -56,6 +57,7 @@ export function EntityContent({
   const video = entity.components.find((component) => component.kind === "video")
   const file = entity.components.find((component) => component.kind === "file")
   const model = entity.components.find((component) => component.kind === "model")
+  const bilibili = entity.components.find((component) => component.kind === "bilibili")
   const twitter = entity.components.find((component) => component.kind === "twitter")
   const civitai = entity.components.find((component) => component.kind === "civitai")
   return (
@@ -113,6 +115,16 @@ export function EntityContent({
             <TwitterPost
               key={`${entity.id}:${twitter.id}`}
               component={twitter}
+              onReread={live ? () => void live.reader.reread(entity.id) : undefined}
+            />
+          </div>
+        </ScrollArea>
+      ) : viewId === "bilibili.read" && bilibili ? (
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="p-6">
+            <BilibiliPost
+              key={`${entity.id}:${bilibili.id}`}
+              component={bilibili}
               onReread={live ? () => void live.reader.reread(entity.id) : undefined}
             />
           </div>

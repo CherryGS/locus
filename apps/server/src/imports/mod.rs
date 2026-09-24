@@ -1,8 +1,10 @@
 mod model;
+mod source;
 mod store;
 mod weights;
 mod workflow;
 pub(crate) use model::*;
+pub(crate) use source::{SourceId, SourceSnapshot};
 pub(crate) use store::ImportStore;
 
 #[cfg(test)]

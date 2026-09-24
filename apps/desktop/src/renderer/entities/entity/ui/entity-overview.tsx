@@ -39,6 +39,10 @@ function componentSummary(component: EntityComponent) {
       return component.record?.facts
         ? `${component.record.facts.format} · ${component.record.facts.tensor_count} tensors in this file`
         : "No accepted inspection"
+    case "bilibili":
+      return component.record?.snapshot.part?.index
+        ? `P${component.record.snapshot.part.index} · ${component.record.snapshot.bvid ?? "Bilibili"}`
+        : (component.record?.snapshot.title ?? "Video source not yet read")
     case "twitter":
       return component.author?.handle
         ? `@${component.author.handle}`
@@ -108,11 +112,14 @@ export function EntityOverview({
         )}
       </div>
       {entity.components
-        .filter((c) => c.kind === "twitter" && c.record)
+        .filter((c) => (c.kind === "twitter" || c.kind === "bilibili") && c.record)
         .map(
           (component) =>
-            component.kind === "twitter" && (
-              <DetailSection key={component.id} title="Twitter association">
+            (component.kind === "twitter" || component.kind === "bilibili") && (
+              <DetailSection
+                key={component.id}
+                title={`${component.kind === "twitter" ? "Twitter" : "Bilibili"} association`}
+              >
                 <p className="text-xs text-muted-foreground">
                   {component.record?.basis
                     ? `This capture was associated with File ${component.record.basis}.`

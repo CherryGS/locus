@@ -1,3 +1,4 @@
+mod bilibili;
 mod bootstrap;
 mod bytes;
 pub(crate) mod composition;
@@ -39,6 +40,8 @@ mod settings_tests;
 pub(crate) mod external;
 mod registered_imports;
 
+#[cfg(test)]
+mod bilibili_import_tests;
 mod civitai;
 #[cfg(test)]
 mod civitai_test_upstream;

@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+    "/api/v1/bilibili/{component_id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view_bilibili"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/civitai-operations": {
         parameters: {
             query?: never;
@@ -890,6 +906,150 @@ export interface components {
             request_id: string;
             source_paths: string[];
         };
+        BilibiliApplicability: {
+            /** @enum {string} */
+            status: "unmounted";
+        } | {
+            comparison: components["schemas"]["BilibiliComparison"];
+            file_error?: null | components["schemas"]["Diagnostic"];
+            host: string;
+            /** @enum {string} */
+            status: "input";
+        } | {
+            error: components["schemas"]["BilibiliFailure"];
+            /** @enum {string} */
+            status: "error";
+        };
+        /** @enum {string} */
+        BilibiliAssetRole: "video" | "cover";
+        BilibiliCaptureIssue: {
+            code: string;
+            message?: string | null;
+            portion: components["schemas"]["BilibiliCapturePortion"];
+        };
+        /** @enum {string} */
+        BilibiliCapturePortion: "title" | "description" | "uploader" | "part" | "publication_time" | "selected_representation" | "remote_cover";
+        BilibiliComparison: {
+            file_id: string;
+            /** @enum {string} */
+            status: "matching";
+        } | {
+            basis: string;
+            current: string;
+            /** @enum {string} */
+            status: "changed";
+        } | {
+            basis?: string | null;
+            current: components["schemas"]["CurrentInput"];
+            /** @enum {string} */
+            status: "incomplete";
+        };
+        BilibiliFailure: {
+            /** @enum {string} */
+            code: "core";
+            error: components["schemas"]["CoreFailure"];
+        } | {
+            /** @enum {string} */
+            code: "file";
+            diagnostic: components["schemas"]["Diagnostic"];
+        } | {
+            /** @enum {string} */
+            code: "store";
+            diagnostic: components["schemas"]["Diagnostic"];
+        } | {
+            /** @enum {string} */
+            code: "missing_record";
+            component_id: string;
+        } | {
+            /** @enum {string} */
+            code: "corrupt";
+            message: string;
+        } | {
+            /** @enum {string} */
+            code: "payload_version";
+            /** Format: int32 */
+            version: number;
+        } | {
+            /** @enum {string} */
+            code: "schema_version";
+            /** Format: int32 */
+            version: number;
+        } | {
+            /** @enum {string} */
+            code: "other";
+            message: string;
+        };
+        /** @description Source claims do not replace the File's intrinsic Media interpretation. */
+        BilibiliMediaClaims: {
+            audio_codec?: string | null;
+            audio_present?: boolean | null;
+            bitrate_bps?: string | null;
+            container?: string | null;
+            duration_ms?: string | null;
+            /** Format: int32 */
+            height?: number | null;
+            mime_type?: string | null;
+            quality?: string | null;
+            video_codec?: string | null;
+            /** Format: int32 */
+            width?: number | null;
+        };
+        /** @description CID identifies the observed audiovisual part. Its one-based index is separate. */
+        BilibiliPartObservation: {
+            cid?: string | null;
+            duration_ms?: string | null;
+            /** Format: int32 */
+            index?: number | null;
+            title?: string | null;
+        };
+        BilibiliRecord: {
+            basis?: string | null;
+            component_id: string;
+            kind_id: string;
+            /** @description Exact decimal revision; not a JavaScript floating-point number. */
+            revision: string;
+            snapshot: components["schemas"]["BilibiliSnapshot"];
+        };
+        /** @description The submission's remote cover is distinct from a local Video-generated cover. */
+        BilibiliRemotePreview: {
+            claims?: null | components["schemas"]["BilibiliMediaClaims"];
+            description?: string | null;
+            url?: string | null;
+        };
+        BilibiliSelectedRepresentation: {
+            assembled?: boolean | null;
+            claims?: null | components["schemas"]["BilibiliMediaClaims"];
+            /** @description Input resources for an assembled representation, not independent Files. */
+            source_urls?: string[] | null;
+            url?: string | null;
+        };
+        /** @description Submitted provenance for one local asset; missing values remain unknown. */
+        BilibiliSnapshot: {
+            aid?: string | null;
+            asset_role?: null | components["schemas"]["BilibiliAssetRole"];
+            bvid?: string | null;
+            capture_local_id?: string | null;
+            description?: string | null;
+            issues?: components["schemas"]["BilibiliCaptureIssue"][] | null;
+            observed_at_unix_ms?: string | null;
+            page_url?: string | null;
+            part?: null | components["schemas"]["BilibiliPartObservation"];
+            preview?: null | components["schemas"]["BilibiliRemotePreview"];
+            published_at_unix_ms?: string | null;
+            representation?: null | components["schemas"]["BilibiliSelectedRepresentation"];
+            requested_url?: string | null;
+            title?: string | null;
+            uploader?: null | components["schemas"]["BilibiliUploaderObservation"];
+        };
+        BilibiliUploaderObservation: {
+            display_name?: string | null;
+            profile_url?: string | null;
+            user_id?: string | null;
+        };
+        BilibiliView: {
+            applicability: components["schemas"]["BilibiliApplicability"];
+            record: components["schemas"]["BilibiliRecord"];
+        };
         ChangeMembership: {
             membership: components["schemas"]["Membership"];
             request_id: string;
@@ -1130,6 +1290,10 @@ export interface components {
             /** @enum {string} */
             owner: "media";
         } | {
+            error: components["schemas"]["BilibiliFailure"];
+            /** @enum {string} */
+            owner: "bilibili";
+        } | {
             error: components["schemas"]["TwitterFailure"];
             /** @enum {string} */
             owner: "twitter";
@@ -1224,6 +1388,7 @@ export interface components {
             attempts: components["schemas"]["ImportAttempt"][];
             current: components["schemas"]["ImportResult"];
             item_id: string;
+            requested_bilibili: boolean;
             requested_file: boolean;
             requested_twitter: boolean;
             source_path: string;
@@ -1262,6 +1427,8 @@ export interface components {
         ImportResult: {
             association: components["schemas"]["ImportStep"];
             base: components["schemas"]["ImportStep"];
+            bilibili: components["schemas"]["ImportStep"];
+            bilibili_id?: string | null;
             civitai?: null | components["schemas"]["CivitaiOutcome"];
             complete: boolean;
             confirmed_entity_id?: string | null;
@@ -1644,6 +1811,7 @@ export interface components {
             upload_id: string;
         };
         RegisteredImportItem: {
+            bilibili?: null | components["schemas"]["BilibiliSnapshot"];
             file_id?: string | null;
             twitter?: null | components["schemas"]["TwitterSnapshot"];
         };
@@ -2090,6 +2258,93 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    view_bilibili: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                component_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BilibiliView"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     operations: {
         parameters: {
             query?: never;

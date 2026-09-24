@@ -18,6 +18,7 @@ pub struct RegisteredImportRequest {
 pub struct RegisteredImportItem {
     pub file_id: Option<String>,
     pub twitter: Option<crate::api::twitter::dto::TwitterSnapshot>,
+    pub bilibili: Option<crate::api::bilibili::dto::BilibiliSnapshot>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -78,8 +79,10 @@ pub struct ImportResult {
     pub registration: ImportStep,
     pub file_attachment: ImportStep,
     pub twitter: ImportStep,
+    pub bilibili: ImportStep,
     pub association: ImportStep,
     pub twitter_id: Option<String>,
+    pub bilibili_id: Option<String>,
     pub confirmed_file_id: Option<String>,
     pub confirmed_entity_id: Option<String>,
     pub overall: Option<ImportOverall>,
@@ -121,6 +124,7 @@ pub struct ImportItem {
     pub supplied: bool,
     pub requested_file: bool,
     pub requested_twitter: bool,
+    pub requested_bilibili: bool,
     pub active_request_id: Option<String>,
     pub current: ImportResult,
     pub attempts: Vec<ImportAttempt>,

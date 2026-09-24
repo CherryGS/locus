@@ -20,6 +20,7 @@ export function EntityCard({ entity, titleId }: { entity: EntityItem; titleId: s
           hasFile={entity.components.some((component) => component.kind === "file")}
           hasVideo={entity.components.some((component) => component.kind === "video")}
           hasTwitter={entity.components.some((component) => component.kind === "twitter")}
+          hasBilibili={entity.components.some((component) => component.kind === "bilibili")}
           fallbackLabel={entity.loading ? undefined : "No preview"}
         />
         {entity.loading && (

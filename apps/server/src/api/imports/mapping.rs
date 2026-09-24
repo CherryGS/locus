@@ -19,7 +19,11 @@ fn step(s: &owner::Step) -> ImportStep {
         },
     }
 }
-fn result(r: &owner::ResultState, ended: bool) -> ImportResult {
+fn result(
+    r: &owner::ResultState,
+    ended: bool,
+    snapshot: Option<&owner::SourceSnapshot>,
+) -> ImportResult {
     ImportResult {
         civitai: r
             .civitai
@@ -35,9 +39,31 @@ fn result(r: &owner::ResultState, ended: bool) -> ImportResult {
         copy: step(&r.copy),
         registration: step(&r.registration),
         file_attachment: step(&r.file_attachment),
-        twitter: step(&r.twitter),
+        twitter: if matches!(snapshot, Some(owner::SourceSnapshot::Twitter(_))) {
+            step(&r.source_capture)
+        } else {
+            step(&owner::Step::new(owner::State::NotRequested))
+        },
+        bilibili: if matches!(snapshot, Some(owner::SourceSnapshot::Bilibili(_))) {
+            step(&r.source_capture)
+        } else {
+            step(&owner::Step::new(owner::State::NotRequested))
+        },
         association: step(&r.association),
-        twitter_id: r.twitter_id.map(|v| v.to_string()),
+        twitter_id: r.source_id.and_then(|id| {
+            if let owner::SourceId::Twitter(id) = id {
+                Some(id.to_string())
+            } else {
+                None
+            }
+        }),
+        bilibili_id: r.source_id.and_then(|id| {
+            if let owner::SourceId::Bilibili(id) = id {
+                Some(id.to_string())
+            } else {
+                None
+            }
+        }),
         confirmed_file_id: r
             .file
             .filter(|_| r.registration.success())
@@ -127,10 +153,17 @@ pub(crate) fn batch(b: owner::Batch) -> ImportBatch {
                     item_id: i.id,
                     supplied: i.supplied,
                     requested_file: !i.supplied || i.current.file.is_some(),
-                    requested_twitter: i.snapshot.is_some(),
+                    requested_twitter: matches!(
+                        i.snapshot,
+                        Some(owner::SourceSnapshot::Twitter(_))
+                    ),
+                    requested_bilibili: matches!(
+                        i.snapshot,
+                        Some(owner::SourceSnapshot::Bilibili(_))
+                    ),
                     source_path: i.source,
                     active_request_id: i.active.clone(),
-                    current: result(&i.current, i.active.is_none()),
+                    current: result(&i.current, i.active.is_none(), i.snapshot.as_ref()),
                     actions,
                     attempts: i
                         .attempts
@@ -144,7 +177,7 @@ pub(crate) fn batch(b: owner::Batch) -> ImportBatch {
                                 owner::Action::Confirm => ImportAttemptAction::Confirm,
                             },
                             ended: a.ended,
-                            result: result(&a.result, a.ended),
+                            result: result(&a.result, a.ended, i.snapshot.as_ref()),
                         })
                         .collect(),
                 }

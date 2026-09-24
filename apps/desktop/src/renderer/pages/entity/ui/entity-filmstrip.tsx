@@ -34,7 +34,7 @@ export function EntityFilmstrip({
   const capacity = columns % 2 === 0 ? columns - 1 : columns
   const identities = useMemo(
     () => nearbyIds(source.sequence, selectedId, capacity),
-    [source.sequence, selectedId, capacity]
+    [source.sequence, selectedId, capacity],
   )
   const neighbors = identities.map(({ id, offset }) => ({ entity: source.get(id), offset }))
   useEffect(() => {
@@ -81,7 +81,8 @@ export function EntityFilmstrip({
             entity.components.find((component) => component.kind === "image")?.thumbnail ??
             entity.components.find((component) => component.kind === "video")?.thumbnail
           const name =
-            entity.components.find((component) => component.kind === "file")?.originalName ?? entityLabel(entity)
+            entity.components.find((component) => component.kind === "file")?.originalName ??
+            entityLabel(entity)
           const selected = entity.id === selectedId
           const viewId = viewFor(entity)
           const componentLabel = availableViews(entity).find((view) => view.id === viewId)?.label ?? "No view"
@@ -104,7 +105,7 @@ export function EntityFilmstrip({
                   "relative flex size-full items-center justify-center overflow-hidden rounded-sm border transition-colors motion-reduce:transition-none",
                   selected
                     ? "border-muted-foreground/60 bg-accent"
-                    : "border-border/50 bg-muted/40 group-hover/button:border-muted-foreground/40 group-hover/button:bg-muted/60"
+                    : "border-border/50 bg-muted/40 group-hover/button:border-muted-foreground/40 group-hover/button:bg-muted/60",
                 )}
               >
                 <span className="flex size-full items-center justify-center [&_svg]:size-6">
@@ -114,6 +115,7 @@ export function EntityFilmstrip({
                     hasFile={entity.components.some((component) => component.kind === "file")}
                     hasVideo={entity.components.some((component) => component.kind === "video")}
                     hasTwitter={entity.components.some((component) => component.kind === "twitter")}
+                    hasBilibili={entity.components.some((component) => component.kind === "bilibili")}
                   />
                 </span>
                 <span

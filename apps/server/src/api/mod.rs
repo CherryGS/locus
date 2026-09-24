@@ -1,4 +1,5 @@
 mod auth;
+pub mod bilibili;
 mod bytes;
 pub mod civitai;
 pub mod core;
