@@ -74,6 +74,23 @@ panel without opening a library or starting the backend. Use `just desktop-check
 and `just desktop-build` to validate it; `just desktop-preview` launches the built
 assets. See [desktop development](apps/desktop/README.md) for source boundaries.
 
+## Civitai example media
+
+Civitai enrichment uses the pinned provider-rs `PreviewMedia` API and selects
+`preview_image` or `preview_video` from the example's declared type. An absent
+type retains the image path; an unsupported declared type fails explicitly.
+The discovered URL is preserved. Video downloads must have a video response
+type and pass ordinary Media recognition, interpretation and cover generation
+before the example is complete. Poster images cannot complete a video example.
+Accepted metadata and admitted content survive a failed step for explicit retry.
+
+`just rust-test-code locus-civitai` checks the actual download adapter against an
+isolated local HTTPS server, including image/video selection, poster rejection,
+HTTP failure and incomplete responses. `just rust-test-civitai-video` uses
+provisioned ffprobe/ffmpeg to verify a synthetic video's admission, cover recovery
+and shared reuse. Set `LOCUS_FFPROBE` / `LOCUS_FFMPEG` when the tools are not on
+PATH. These checks do not contact Civitai or open the user's library.
+
 ## Using the foundation
 
 All library APIs use a single public `api` module, for example

@@ -81,6 +81,10 @@ server-resolve:
 civitai-resolve:
     cargo check --package locus-civitai
 
+# Actual Civitai Video admission, cover generation, recovery and shared reuse.
+rust-test-civitai-video:
+    cargo nextest run --package locus-civitai {{ nextest_args }} --run-ignored only -E 'test(real_video)'
+
 server-build:
     cargo build --package locus-server --bin locus-server --locked
 

@@ -1135,6 +1135,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tokio-rustls",
  "uuid",
 ]
 
@@ -1501,7 +1502,7 @@ dependencies = [
 [[package]]
 name = "provider-civitai"
 version = "0.1.0"
-source = "git+https://github.com/CherryGS/provider-rs.git?rev=f16365b71b3f3e3a68230b0b7b2aff3a80585e71#f16365b71b3f3e3a68230b0b7b2aff3a80585e71"
+source = "git+https://github.com/CherryGS/provider-rs.git?rev=5c5da6dd5d5beac04d26de4e959fa4b3d80d23a8#5c5da6dd5d5beac04d26de4e959fa4b3d80d23a8"
 dependencies = [
  "bytes",
  "reqwest",
@@ -1752,6 +1753,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
 dependencies = [
  "aws-lc-rs",
+ "log",
  "once_cell",
  "rustls-pki-types",
  "rustls-webpki",

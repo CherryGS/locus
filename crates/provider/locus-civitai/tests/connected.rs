@@ -20,6 +20,7 @@ struct Provider {
     calls: AtomicUsize,
     images: AtomicUsize,
     bytes: Vec<u8>,
+    content_type: String,
 }
 impl Upstream for Provider {
     fn by_hash(&self, hash: [u8; 32]) -> ProviderFuture<'_, Option<ModelVersion>> {
@@ -66,7 +67,7 @@ impl Upstream for Provider {
             }
             Ok(AcquiredMedia {
                 bytes: self.bytes.clone(),
-                content_type: "image/png".into(),
+                content_type: self.content_type.clone(),
             })
         })
     }
@@ -82,6 +83,13 @@ struct Fixture {
 }
 impl Fixture {
     async fn new(examples: bool) -> Self {
+        Self::configured(examples, MediaConfig::default(), None).await
+    }
+    async fn configured(
+        examples: bool,
+        config: MediaConfig,
+        acquired: Option<AcquiredMedia>,
+    ) -> Self {
         let temp = tempfile::tempdir().unwrap();
         let mut k = Kernel::new();
         k.register(Arc::new(FileOwner)).unwrap();
@@ -90,9 +98,13 @@ impl Fixture {
         k.register(Arc::new(CivitaiOwner)).unwrap();
         let mut s = Session::open(temp.path().join("db.sqlite")).await.unwrap();
         let f = FileService::new(temp.path().join("library")).await.unwrap();
-        let m = MediaService::new(f.root(), MediaConfig::default()).unwrap();
+        let m = MediaService::new(f.root(), config).unwrap();
         let image = temp.path().join("sample.png");
         image::RgbImage::new(16, 16).save(&image).unwrap();
+        let acquired = acquired.unwrap_or_else(|| AcquiredMedia {
+            bytes: std::fs::read(image).unwrap(),
+            content_type: "image/png".into(),
+        });
         let mut version = json!({"id":10,"modelId":1,"name":"v1","files":[{"id":100,"name":"weight","type":"Model","extraFile":{"nested":true}},{"id":101,"name":"other","type":"Model"}],"images":[],"extraVersion":[1,2]});
         if examples {
             version["images"] = json!([{"id":900,"url":"https://image.civitai.com/test/example.png","type":"image","width":16,"height":16}]);
@@ -107,7 +119,8 @@ impl Fixture {
             fail_example: AtomicBool::new(false),
             calls: AtomicUsize::new(0),
             images: AtomicUsize::new(0),
-            bytes: std::fs::read(image).unwrap(),
+            bytes: acquired.bytes,
+            content_type: acquired.content_type,
         });
         let c = CivitaiService::with_upstream(p.clone());
         k.initialize(&mut s).await.unwrap();
@@ -374,6 +387,123 @@ async fn declared_video_poster_is_retained_as_partial_not_completed_video() {
     assert!(outcome.problem.unwrap().contains("poster"));
     assert!(!outcome.binding.unwrap().complete);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "requires explicit provisioned ffprobe/ffmpeg; run just rust-test-civitai-video"]
+async fn real_video_example_admission_cover_recovery_and_shared_reuse() {
+    use locus_media::api::{Facts, MediaKind, PreviewOrigin, Rendition};
+    use std::{path::PathBuf, time::Duration};
+
+    let config = MediaConfig {
+        ffprobe: std::env::var_os("LOCUS_FFPROBE")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| "ffprobe".into()),
+        ffmpeg: std::env::var_os("LOCUS_FFMPEG")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| "ffmpeg".into()),
+        ..MediaConfig::default()
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let path = temporary.path().join("example.mp4");
+    let output = tokio::time::timeout(
+        Duration::from_secs(20),
+        tokio::process::Command::new(&config.ffmpeg)
+            .args([
+                "-v",
+                "error",
+                "-nostdin",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=blue:s=64x40:r=5:d=1",
+                "-c:v",
+                "mpeg4",
+                "-threads",
+                "1",
+                "-y",
+            ])
+            .arg(&path)
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let mut f = Fixture::configured(
+        true,
+        MediaConfig {
+            ffmpeg: temporary.path().join("missing-cover-tool"),
+            ..config.clone()
+        },
+        Some(AcquiredMedia {
+            bytes: std::fs::read(path).unwrap(),
+            content_type: "video/mp4".into(),
+        }),
+    )
+    .await;
+    f.p.model.lock().unwrap().model_versions[0].images[0].kind = Some("video".into());
+    let (entity, file) = f.weight().await;
+    let mut work = Enrichment::new(entity, file, true);
+    f.run(&mut work).await;
+    assert_eq!(work.metadata(), MetadataState::Accepted);
+    assert_eq!(work.state(), EnrichmentState::Failed);
+    let partial = work.examples().next().unwrap().binding.unwrap();
+    assert!(!partial.complete);
+    assert_eq!(partial.media.len(), 1);
+    assert!(!partial.media[0].image);
+    assert_eq!(partial.media[0].preview_edge, 0);
+
+    f.m = MediaService::new(f.f.root(), config).unwrap();
+    f.run(&mut work).await;
+    assert_eq!(
+        work.state(),
+        EnrichmentState::Complete,
+        "{:?}",
+        work.problem()
+    );
+    let binding = work.examples().next().unwrap().binding.unwrap();
+    assert_eq!(binding.entity, partial.entity);
+    assert_eq!(binding.file, partial.file);
+    assert_eq!(binding.media[0].component, partial.media[0].component);
+    assert_eq!(binding.content_type, "video/mp4");
+    assert_eq!(binding.media[0].stream_index, Some(0));
+    assert_eq!(binding.media[0].preview_edge, 512);
+    assert_eq!(f.p.images.load(Ordering::SeqCst), 1);
+
+    let id = binding.media[0].id();
+    let record = f.m.read(&mut f.s, id).await.unwrap();
+    assert_eq!(record.basis, Some(binding.file));
+    assert!(
+        matches!(record.facts, Some(Facts::Video(facts)) if facts.width == Some(64) && facts.height == Some(40))
+    );
+    let cover =
+        f.m.preview(&f.k, &f.f, &mut f.s, id, Rendition { edge: 512 })
+            .await
+            .unwrap();
+    assert_eq!(cover.kind, MediaKind::Video);
+    assert_eq!(cover.origin, PreviewOrigin::Hit);
+    assert!(image::image_dimensions(cover.path).is_ok());
+
+    let (other, other_file) = f.weight().await;
+    let mut reused = Enrichment::new(other, other_file, true);
+    f.run(&mut reused).await;
+    assert_eq!(
+        reused.state(),
+        EnrichmentState::Complete,
+        "{:?}",
+        reused.problem()
+    );
+    let example = reused.examples().next().unwrap();
+    assert!(example.reused);
+    assert_eq!(example.binding.unwrap().entity, binding.entity);
+    assert_eq!(f.p.images.load(Ordering::SeqCst), 1);
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn refresh_carries_eligible_targets_and_keeps_acquisition_provenance() {
     let mut f = Fixture::new(true).await;

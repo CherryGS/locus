@@ -73,8 +73,8 @@ impl From<provider_civitai::model::ModelFile> for ModelFile {
         }
     }
 }
-impl From<provider_civitai::model::PreviewImage> for PreviewImage {
-    fn from(value: provider_civitai::model::PreviewImage) -> Self {
+impl From<provider_civitai::model::PreviewMedia> for PreviewImage {
+    fn from(value: provider_civitai::model::PreviewMedia) -> Self {
         Self {
             id: value.id,
             url: value.url,
