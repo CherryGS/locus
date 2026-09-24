@@ -39,6 +39,11 @@ mod settings_tests;
 pub(crate) mod external;
 mod registered_imports;
 
+mod civitai;
+#[cfg(test)]
+mod civitai_test_upstream;
+#[cfg(test)]
+mod civitai_tests;
 #[cfg(test)]
 mod external_tests;
 #[cfg(test)]

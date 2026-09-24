@@ -55,7 +55,12 @@ impl Server {
         )
         .await?;
         let (domain, availability) = match Domain::open(&queue, &library).await {
-            Ok(domain) => (Some(domain), crate::api::dto::Availability::Normal),
+            Ok(mut domain) => {
+                if let Some(upstream) = config.civitai_upstream {
+                    domain.civitai = locus_civitai::api::CivitaiService::with_upstream(upstream);
+                }
+                (Some(domain), crate::api::dto::Availability::Normal)
+            }
             Err(error) => (
                 None,
                 crate::api::dto::Availability::Restricted {
@@ -111,6 +116,7 @@ impl Server {
             None
         };
         let state = Arc::new(Shared {
+            civitai: super::civitai::CivitaiOperationsStore::default(),
             _ownership: ownership,
             uploads: crate::access::uploads::Uploads::default(),
             stopping: watch::channel(false).0,

@@ -13,6 +13,58 @@ use locus_core::api::EntityId;
 use locus_media::api::{MediaId, Rendition};
 use std::sync::Arc;
 impl Shared {
+    pub async fn saved_preview(
+        self: &Arc<Self>,
+        id: MediaId,
+    ) -> Result<Option<PreviewMetadata>, ApiError> {
+        let domain = self.business()?.clone();
+        let state = self.clone();
+        self.query(
+            "Read already-produced Media rendition",
+            move |task| async move {
+                let mut session = domain.database.session(&task).await.map_err(|e| {
+                    ApiError::domain(DomainDiagnostic::Store {
+                        diagnostic: store::diagnostic(&e),
+                    })
+                })?;
+                // These are the two rendition sizes requested by the current import
+                // and provider consumers. Reading probes existing artifacts only.
+                for edge in [320, 512] {
+                    if let Some(preview) = domain
+                        .media
+                        .read_preview(&domain.kernel, &mut session, id, Rendition { edge })
+                        .await
+                        .map_err(|e| ApiError::domain(map::media(e)))?
+                    {
+                        let mut registry = state.lock();
+                        let locator = registry
+                            .previews
+                            .iter()
+                            .find(|(_, p)| {
+                                p.file == preview.file
+                                    && p.kind == preview.kind
+                                    && p.rendition == preview.rendition
+                                    && p.stream_index == preview.stream_index
+                            })
+                            .map(|(id, _)| id.clone())
+                            .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
+                        let result = PreviewMetadata {
+                            locator: locator.clone(),
+                            file_id: preview.file.to_string(),
+                            kind: map::kind(preview.kind),
+                            edge,
+                            stream_index: preview.stream_index,
+                            origin: PreviewOrigin::Hit,
+                        };
+                        registry.previews.insert(locator, Arc::new(preview));
+                        return Ok(Some(result));
+                    }
+                }
+                Ok(None)
+            },
+        )
+        .await
+    }
     pub async fn create_media(
         self: &Arc<Self>,
         request: CreateMedia,

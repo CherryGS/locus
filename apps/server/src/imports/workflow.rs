@@ -126,7 +126,9 @@ impl ImportStore {
         item.current.observation_problem = None;
         let result = self.run(domain, task, batch, &mut item, action).await;
         if let Err(error) = result {
-            item.current.observation_problem = Some(error.to_string());
+            item.current
+                .observation_problem
+                .get_or_insert_with(|| error.to_string());
             if !item.current.base.success() && item.current.base.state != State::Uncertain {
                 item.current.base = failed(error);
             }
@@ -232,6 +234,10 @@ impl ImportStore {
         }
         self.process_model(d, &mut session, batch, item, entity, file)
             .await;
+        // Positive recognition selects provider work even when Model establishment
+        // or inspection returned early with an independent failure.
+        self.process_civitai(d, &mut session, batch, item, entity, file)
+            .await;
         for index in 0..item.current.kinds.len() {
             if !item.current.kinds[index].recognition.success()
                 || item.current.kinds[index].complete()
@@ -241,6 +247,8 @@ impl ImportStore {
             self.process_kind(d, &mut session, batch, item, index, expected)
                 .await;
         }
+        self.validate_completed_dependencies(d, &mut session, item)
+            .await?;
         Ok(())
     }
     async fn process_kind(
@@ -427,6 +435,11 @@ impl ImportStore {
             return Ok(());
         }
         self.confirm_model(d, session, item).await;
+        if let Some(work) = &mut item.current.civitai {
+            let before = work.effect();
+            d.civitai.confirm(&d.kernel, &d.files, session, work).await;
+            item.current.effect += work.effect() - before;
+        }
         let kernel = d.kernel.clone();
         let kinds = item.current.kinds.clone();
         let evidence = session

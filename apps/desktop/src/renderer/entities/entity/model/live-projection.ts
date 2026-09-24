@@ -6,6 +6,7 @@ import type { ReadProblem } from "./read-problem"
 // Assigned owner identities from locus-file/src/identity.rs and
 // locus-media/src/identity.rs; labels/type names are not kind authority.
 export const supportedKinds = {
+  "c42c90cb-b7ce-47f7-a42e-9d82f44b103a": "civitai",
   "6c46d4eb-5c2f-46eb-9e81-f866884e3107": "model",
   "9fd73d3d-d35d-41bc-8b73-402e12f5c017": "file",
   "aadf84d2-0dc0-4a81-8cdb-901162c78321": "image",
@@ -14,15 +15,41 @@ export const supportedKinds = {
 } as const
 export function membershipProjection(membership: Wire<"Membership">): EntityComponent {
   const kind =
-    (supportedKinds as Record<string, "file" | "image" | "video" | "twitter" | "model" | undefined>)[
-      membership.kind_id
-    ] ?? "unknown"
+    (
+      supportedKinds as Record<
+        string,
+        "file" | "image" | "video" | "twitter" | "model" | "civitai" | undefined
+      >
+    )[membership.kind_id] ?? "unknown"
   return {
     id: membership.component_id,
     kind,
     kindId: membership.kind_id,
     readStatus: kind === "unknown" ? "unsupported" : "loading",
   } as EntityComponent
+}
+export function civitaiProjection(view: Wire<"CivitaiView">): EntityComponent {
+  return {
+    kind: "civitai",
+    id: view.record.component_id,
+    kindId: "c42c90cb-b7ce-47f7-a42e-9d82f44b103a",
+    record: view.record,
+    view,
+    readStatus: "ready",
+  }
+}
+export function civitaiProblems(view: Wire<"CivitaiView">): ReadProblem[] {
+  return view.input === "current"
+    ? []
+    : [
+        {
+          key: "input",
+          subject: `Civitai ${view.record.component_id}`,
+          message:
+            view.problem ?? `Saved correspondence input is ${view.input}. The snapshot remains retained.`,
+          recovery: "entity",
+        },
+      ]
 }
 export function fileProjection(value: Wire<"FileMetadata">): EntityComponent {
   return {
@@ -79,7 +106,8 @@ export function mediaProblems(view: Wire<"MediaView">): ReadProblem[] {
   const subject = `${view.record.target.kind} ${view.record.target.component_id}`
   const problems: ReadProblem[] = []
   const add = (key: string, message: string) => problems.push({ key, subject, message, recovery: "entity" })
-  if (view.record.last_failure) add("attempt", `${view.record.last_failure.detail} (${view.record.last_failure.code})`)
+  if (view.record.last_failure)
+    add("attempt", `${view.record.last_failure.detail} (${view.record.last_failure.code})`)
   const context = view.applicability
   if (context.status === "changed")
     add("input", `Accepted facts describe File ${context.basis}; current input is File ${context.current}.`)
@@ -137,7 +165,7 @@ export function twitterProblems(view: Wire<"TwitterView">, entityId: string): Re
   for (const [index, issue] of (view.record.snapshot.issues ?? []).entries())
     add(
       `capture:${index}`,
-      `Producer reported ${issue.portion.replaceAll("_", " ")}: ${issue.message ?? issue.code} (${issue.code}).`
+      `Producer reported ${issue.portion.replaceAll("_", " ")}: ${issue.message ?? issue.code} (${issue.code}).`,
     )
   const context = view.applicability
   if (context.status === "error") add("context", diagnosticText({ owner: "twitter", error: context.error }))
@@ -150,14 +178,15 @@ export function twitterProblems(view: Wire<"TwitterView">, entityId: string): Re
     if (comparison.status === "changed")
       add(
         "association",
-        `The saved capture is associated with File ${comparison.basis}; current input is File ${comparison.current}.`
+        `The saved capture is associated with File ${comparison.basis}; current input is File ${comparison.current}.`,
       )
     if (comparison.status === "incomplete" && comparison.basis && comparison.current.status !== "file")
       add(
         "association",
-        `The saved Twitter association has no current File input (${comparison.current.status.replaceAll("_", " ")}).`
+        `The saved Twitter association has no current File input (${comparison.current.status.replaceAll("_", " ")}).`,
       )
-    if (context.file_error) add("file", `Current File: ${context.file_error.message} (${context.file_error.kind}).`)
+    if (context.file_error)
+      add("file", `Current File: ${context.file_error.message} (${context.file_error.kind}).`)
   }
   return problems
 }
@@ -179,7 +208,10 @@ export function modelProblems(view: Wire<"ModelView">, entityId: string): ReadPr
   const problems: ReadProblem[] = []
   const add = (key: string, message: string) => problems.push({ key, subject, message, recovery: "entity" })
   if (view.record.last_failure)
-    add("inspection", `Last inspection: ${view.record.last_failure.detail} (${view.record.last_failure.code}).`)
+    add(
+      "inspection",
+      `Last inspection: ${view.record.last_failure.detail} (${view.record.last_failure.code}).`,
+    )
   const a = view.applicability
   if (a.status === "changed")
     add("input", `Accepted inspection describes File ${a.basis}; current input is File ${a.current}.`)

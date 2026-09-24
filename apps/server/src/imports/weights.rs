@@ -46,6 +46,10 @@ impl ImportStore {
         if !item.current.model.recognition.success() {
             return;
         }
+        if item.current.civitai.is_none() {
+            item.current.civitai = Some(locus_civitai::api::Enrichment::new(entity, file, true));
+            self.publish(batch, item);
+        }
         if !item.current.model.establishment.success() {
             if item.current.model.component.is_some() {
                 item.current.model.establishment = Step::error(

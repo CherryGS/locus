@@ -7,8 +7,15 @@ function target(value: unknown) {
 function operation(value: unknown): value is Wire<"TaskOperation"> {
   if (!object(value)) return false
   switch (value.kind) {
+    case "civitai":
+      return id(value.entity_id) && id(value.operation_id)
     case "upload":
-      return id(value.upload_id) && typeof value.byte_count === "string" && /^\d+$/.test(value.byte_count) && (value.filename === null || typeof value.filename === "string")
+      return (
+        id(value.upload_id) &&
+        typeof value.byte_count === "string" &&
+        /^\d+$/.test(value.byte_count) &&
+        (value.filename === null || typeof value.filename === "string")
+      )
     case "upload_recovery":
       return id(value.upload_id)
     case "import_batch":
@@ -47,8 +54,24 @@ export function validTask(value: unknown): value is Wire<"PublicTask"> {
 export function validOutcome(value: unknown): value is Wire<"TaskOutcome"> {
   if (!object(value)) return false
   switch (value.status) {
+    case "civitai":
+      return (
+        id(value.operation_id) &&
+        (value.result === null ||
+          (object(value.result) &&
+            id(value.result.entity_id) &&
+            id(value.result.file_id) &&
+            typeof value.result.state === "string"))
+      )
     case "upload":
-      return object(value.result) && id(value.result.upload_id) && typeof value.result.byte_count === "string" && typeof value.result.uncertain === "boolean" && Array.isArray(value.result.actions) && (value.result.confirmed_file_id === null || id(value.result.confirmed_file_id))
+      return (
+        object(value.result) &&
+        id(value.result.upload_id) &&
+        typeof value.result.byte_count === "string" &&
+        typeof value.result.uncertain === "boolean" &&
+        Array.isArray(value.result.actions) &&
+        (value.result.confirmed_file_id === null || id(value.result.confirmed_file_id))
+      )
     case "import_batch":
       return id(value.batch_id)
     case "import_recovery":

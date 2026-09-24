@@ -2,12 +2,21 @@ import type { EntityItem } from "@/entities/entity"
 import type { IdentitySequence } from "@/entities/entity"
 
 export type EntityDestination = {
+  civitai?: CivitaiSelection
   entityId?: string
   mode: "grid" | "inspect"
   collectionId: string
   source?: EntityDestination & { viewId?: string }
 }
+export type CivitaiSelection = { model: string; version: string; source?: string; file?: string }
 export type RelatedCollection = {
+  civitai?: {
+    component: string
+    model: string
+    version: string
+    source?: string
+    files: Record<string, string>
+  }
   id: string
   name: string
   ownerId: string
@@ -17,6 +26,7 @@ export type RelatedCollection = {
 
 export function entitySearch(search: Record<string, unknown>): EntityDestination {
   return {
+    civitai: selection(search.civitai),
     entityId: typeof search.entityId === "string" ? search.entityId : undefined,
     mode: search.mode === "inspect" ? "inspect" : "grid",
     collectionId: typeof search.collectionId === "string" ? search.collectionId : "library",
@@ -32,9 +42,27 @@ export function entitySearch(search: Record<string, unknown>): EntityDestination
         : undefined,
   }
 }
+function selection(value: unknown): CivitaiSelection | undefined {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !("model" in value) ||
+    !("version" in value) ||
+    typeof value.model !== "string" ||
+    typeof value.version !== "string"
+  )
+    return
+  return {
+    model: value.model,
+    version: value.version,
+    source: "source" in value && typeof value.source === "string" ? value.source : undefined,
+    file: "file" in value && typeof value.file === "string" ? value.file : undefined,
+  }
+}
 export function inspectionDestination(current: EntityDestination, entityId: string): EntityDestination {
   return {
     ...current,
+    civitai: undefined,
     entityId,
     mode: "inspect",
     source: current.mode === "grid" ? { ...current, source: undefined } : current.source,
@@ -47,7 +75,7 @@ export function exitDestination(current: EntityDestination): EntityDestination {
 export function relatedDestination(
   current: EntityDestination,
   collection: RelatedCollection,
-  entityId: string
+  entityId: string,
 ): EntityDestination {
   return {
     entityId,
@@ -82,7 +110,7 @@ export function contextSequence(
   destination: EntityDestination,
   library: IdentitySequence,
   collections: readonly RelatedCollection[],
-  supplied: (ids: readonly string[]) => IdentitySequence
+  supplied: (ids: readonly string[]) => IdentitySequence,
 ) {
   return destination.collectionId === "library"
     ? library
@@ -96,12 +124,13 @@ export function resolveReturn(
   library: IdentitySequence,
   collections: readonly RelatedCollection[],
   supplied: (ids: readonly string[]) => IdentitySequence,
-  libraryEstablished = true
+  libraryEstablished = true,
 ) {
   const next = exitDestination(current)
   // A not-yet-established library is not an observed empty list. Preserve the
   // requested selection while its destination presents actual loading/failure.
-  if (next.collectionId === "library" && !libraryEstablished) return { destination: next, explanation: undefined }
+  if (next.collectionId === "library" && !libraryEstablished)
+    return { destination: next, explanation: undefined }
   const sequence = contextSequence(next, library, collections, supplied)
   if (!sequence || (next.mode === "inspect" && (!next.entityId || sequence.indexOf(next.entityId) < 0))) {
     return {

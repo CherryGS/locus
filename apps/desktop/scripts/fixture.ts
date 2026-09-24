@@ -16,11 +16,23 @@ export const workspace = fileURLToPath(new URL("../../../", import.meta.url))
 export const desktop = join(workspace, "apps/desktop")
 export const binary =
   process.env.LOCUS_SERVER_BINARY ??
-  join(workspace, "target/debug", process.platform === "win32" ? "locus-server.exe" : "locus-server")
-export async function startServer(library: string, renderer = join(desktop, "out/renderer")) {
+  join(
+    workspace,
+    "target/debug/examples",
+    process.platform === "win32" ? "fixture-server.exe" : "fixture-server",
+  )
+export async function startServer(
+  library: string,
+  renderer = join(desktop, "out/renderer"),
+  civitaiFixture?: string,
+) {
   assert(resolve(library) === library, "Verification requires an explicit absolute library")
   const credential = randomBytes(32).toString("hex")
-  const child = spawn(binary, [], { stdio: "pipe", windowsHide: true })
+  const child = spawn(binary, [], {
+    stdio: "pipe",
+    windowsHide: true,
+    env: { ...process.env, LOCUS_CIVITAI_FIXTURE: civitaiFixture },
+  })
   const exited = once(child, "exit")
   child.stderr.resume()
   const lines = createInterface({ input: child.stdout })
@@ -33,7 +45,11 @@ export async function startServer(library: string, renderer = join(desktop, "out
     }),
   ])
   lines.close()
-  const value = JSON.parse(String(line)) as { origin: string; run_id: string; availability: import("../src/shared/desktop-bridge").Availability }
+  const value = JSON.parse(String(line)) as {
+    origin: string
+    run_id: string
+    availability: import("../src/shared/desktop-bridge").Availability
+  }
   const context = { origin: value.origin, runId: value.run_id }
   const authorizedFetch: typeof fetch = (input, init) => {
     const request = new Request(input, init)
@@ -65,7 +81,8 @@ async function complete(client: LocusClient, taskId: string): Promise<TaskOutcom
 export async function fixture(count?: number) {
   const root = await mkdtemp(join(tmpdir(), count ? "locus-entity-scale-" : "locus-desktop-"))
   const library = join(root, "library")
-  const images: { entityId: string; fileId: string; componentId: string; width: number; height: number }[] = []
+  const images: { entityId: string; fileId: string; componentId: string; width: number; height: number }[] =
+    []
   let server = await startServer(library)
   let emptyId = ""
   let setup: { entityCount: number; totalDatabaseRows?: number } = { entityCount: 0 }
@@ -80,7 +97,7 @@ export async function fixture(count?: number) {
         join(library, "metadata.sqlite"),
         String(count),
       ],
-      { cwd: workspace, windowsHide: true, timeout: 180_000 }
+      { cwd: workspace, windowsHide: true, timeout: 180_000 },
     )
     setup = JSON.parse(result.stdout)
   } else {
@@ -103,7 +120,9 @@ export async function fixture(count?: number) {
       assert(imported.data)
       const outcome = await complete(server.client, imported.data.task_id)
       assert(outcome.status === "imported")
-      const media = await server.client.POST("/api/v1/media", { body: { request_id: randomUUID(), kind: "image" } })
+      const media = await server.client.POST("/api/v1/media", {
+        body: { request_id: randomUUID(), kind: "image" },
+      })
       assert(media.data?.status === "media_created")
       const file = outcome.file,
         target = media.data.target
@@ -112,9 +131,12 @@ export async function fixture(count?: number) {
         { entity_id: entityId, kind_id: media.data.kind_id, component_id: target.component_id },
       ]) {
         assert.equal(
-          (await server.client.POST("/api/v1/memberships/attach", { body: { request_id: randomUUID(), membership } }))
-            .data?.status,
-          "attached"
+          (
+            await server.client.POST("/api/v1/memberships/attach", {
+              body: { request_id: randomUUID(), membership },
+            })
+          ).data?.status,
+          "attached",
         )
       }
       const interpreted = await server.client.POST("/api/v1/interpretations", {
@@ -136,14 +158,15 @@ export async function fixture(count?: number) {
   const dispose = async () => {
     await server.stop()
     const target = resolve(root)
-    if (!target.startsWith(resolve(tmpdir()) + sep)) throw new Error("Fixture cleanup escaped its temporary root")
+    if (!target.startsWith(resolve(tmpdir()) + sep))
+      throw new Error("Fixture cleanup escaped its temporary root")
     await rm(target, { recursive: true, force: true })
   }
   return { root, library, images, emptyId, setup, start, dispose }
 }
 export async function outputDirectory(label: string) {
   const directory = resolve(
-    process.env.LOCUS_VERIFY_OUTPUT ?? join(workspace, "target", `desktop-${label}-${Date.now()}`)
+    process.env.LOCUS_VERIFY_OUTPUT ?? join(workspace, "target", `desktop-${label}-${Date.now()}`),
   )
   await mkdir(directory, { recursive: true })
   return directory

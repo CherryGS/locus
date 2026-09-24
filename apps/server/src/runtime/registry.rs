@@ -13,6 +13,8 @@ use tokio::sync::watch;
 
 /// Explicit host/test configuration. Credentials are never logged or persisted.
 pub struct ServerConfig {
+    /// Trusted test capability replacing only external provider responses.
+    pub civitai_upstream: Option<Arc<dyn locus_civitai::api::Upstream>>,
     #[cfg(test)]
     pub(crate) startup_probe: Option<super::ownership_tests::StartupProbe>,
     /// Trusted isolated fixtures only. Never persisted or represented as applied settings.
@@ -26,6 +28,7 @@ pub struct ServerConfig {
 impl ServerConfig {
     pub fn new(credential: String, library_root: PathBuf) -> Self {
         Self {
+            civitai_upstream: None,
             #[cfg(test)]
             startup_probe: None,
             external_address_override: None,
@@ -56,6 +59,7 @@ pub(crate) struct Registry {
     pub reject_next_launch: bool,
 }
 pub(crate) struct Shared {
+    pub(super) civitai: super::civitai::CivitaiOperationsStore,
     // Supervisors retain Shared through TaskHandle::result, including protected
     // workers after an HTTP or operation waiter disappears.
     pub(super) _ownership: Arc<super::ownership::LibraryOwnership>,
@@ -193,6 +197,9 @@ impl Shared {
     pub fn finish(&self, id: &str, mut outcome: TaskOutcome) {
         let mut registry = self.lock();
         if let Some(entry) = registry.tasks.get_mut(id) {
+            if matches!(entry.projection.operation, TaskOperation::Civitai { .. }) {
+                self.civitai.end_unfinished(&entry.projection.request_id);
+            }
             self.imports.end_unfinished(
                 entry.projection.access_context,
                 &entry.projection.request_id,

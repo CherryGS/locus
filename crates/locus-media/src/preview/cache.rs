@@ -9,6 +9,56 @@ fn cache_error(error: impl ToString) -> MediaError {
     MediaError::Cache(error.to_string())
 }
 impl MediaService {
+    /// Reads a previously generated rendition for this component's actual input.
+    /// Missing cache bytes return None; this never decodes or generates a preview.
+    pub async fn read_preview(
+        &self,
+        kernel: &locus_core::api::Kernel,
+        session: &mut locus_store::api::Session,
+        id: crate::identity::MediaId,
+        rendition: super::types::Rendition,
+    ) -> Result<Option<super::types::Preview>, MediaError> {
+        if rendition.edge == 0 || rendition.edge > 2048 {
+            return Err(MediaError::Configuration(
+                "rendition edge must be 1..=2048".into(),
+            ));
+        }
+        let view = self.view(kernel, session, id).await?;
+        let file = match view.applicability {
+            crate::view::Applicability::Input(locus_file::api::InputComparison::Matching(file)) => {
+                file
+            }
+            crate::view::Applicability::Error(e) => return Err(e),
+            _ => return Ok(None),
+        };
+        if view.record.last_failure.is_some() {
+            return Ok(None);
+        }
+        let stream = match view.record.facts {
+            Some(crate::facts::Facts::Image(_)) => None,
+            Some(crate::facts::Facts::Video(f)) => Some(f.stream_index),
+            None => return Ok(None),
+        };
+        self.cache_task(session.task_context(), move |storage| {
+            let name = super::render::name(file, id.kind(), rendition, stream);
+            let path = match storage.checked_preview_artifact(&name) {
+                Ok(path) => path,
+                Err(MediaError::PreviewAccess(e)) if e.kind() == std::io::ErrorKind::NotFound => {
+                    return Ok(None);
+                }
+                Err(e) => return Err(e),
+            };
+            Ok(Some(super::types::Preview {
+                file,
+                kind: id.kind(),
+                rendition,
+                stream_index: stream,
+                path,
+                origin: super::types::PreviewOrigin::Hit,
+            }))
+        })
+        .await
+    }
     /// Open only an already-produced rendition through this cache's checked
     /// boundary. This never decodes, generates, or changes retained facts.
     /// A descriptor does not pin bytes: eviction returns `None`.

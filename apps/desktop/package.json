@@ -28,7 +28,8 @@
     "verify:video": "tsx scripts/video-electron-check.ts",
     "verify:scale": "tsx scripts/renderer-scale.ts",
     "verify:settings-browser": "tsx scripts/settings-browser-check.ts",
-    "verify:settings-native": "tsx scripts/settings-electron-check.ts"
+    "verify:settings-native": "tsx scripts/settings-electron-check.ts",
+    "verify:civitai-browser": "tsx scripts/civitai-browser-check.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",

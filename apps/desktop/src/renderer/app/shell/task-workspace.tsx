@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, typ
 import { ListChecksIcon } from "lucide-react"
 import { ImportDetails } from "@/features/file-import"
 import { TaskPanel } from "@/features/task-feedback"
+import { CivitaiActions, CivitaiOutcomeDetails } from "@/features/civitai"
 import { Button } from "@/shared/ui/button"
 import { Dialog, DialogTrigger } from "@/shared/ui/dialog"
 import type { DialogRootActions } from "@base-ui/react/dialog"
@@ -50,6 +51,7 @@ function ConnectedWorkspace({ session, children }: { session: LibrarySession; ch
     [...new Set([observer.problem, c.problem, ...c.notices].filter(Boolean))].join("\n") || undefined
   useSyncExternalStore(c.subscribe, c.snapshot)
   useSyncExternalStore(observer.subscribe, observer.snapshot)
+  useSyncExternalStore(session.civitai.subscribe, session.civitai.snapshot)
   const all = taskRecords(c, observer, (id, pendingRequestId) => (
     <ImportDetails
       coordinator={c}
@@ -64,6 +66,26 @@ function ConnectedWorkspace({ session, children }: { session: LibrarySession; ch
     />
   ))
   const active = all.filter((record) => record.active).length
+  for (const record of all) {
+    const attempt = record.attempts[0]
+    if (attempt?.task.operation.kind !== "civitai") continue
+    const operationId = attempt.task.operation.operation_id
+    const operation = session.civitai.operations.find((o) => o.operation_id === operationId)
+    const outcome = attempt.outcome?.status === "civitai" ? attempt.outcome.result : undefined
+    record.details = (
+      <div className="flex flex-col gap-3">
+        {outcome && <CivitaiOutcomeDetails outcome={outcome} />}
+        {operation && (
+          <CivitaiActions
+            coordinator={session.civitai}
+            entityId={operation.outcome.entity_id}
+            fileId={operation.outcome.file_id}
+            firstOnly={operation.outcome.first_only}
+          />
+        )}
+      </div>
+    )
+  }
   const attention = all.filter((record) => record.attention).length
   return (
     <Dialog open={open} onOpenChange={setOpen} actionsRef={dialogActions}>

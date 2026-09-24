@@ -21,6 +21,10 @@ fn step(s: &owner::Step) -> ImportStep {
 }
 fn result(r: &owner::ResultState, ended: bool) -> ImportResult {
     ImportResult {
+        civitai: r
+            .civitai
+            .as_ref()
+            .map(crate::api::civitai::mapping::outcome),
         model: ImportModelResult {
             component_id: r.model.component.map(|id| id.component().to_string()),
             recognition: step(&r.model.recognition),

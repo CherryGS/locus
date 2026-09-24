@@ -16,6 +16,7 @@ pub(crate) struct Domain {
     pub media: MediaService,
     pub model: locus_model::api::ModelService,
     pub twitter: TwitterService,
+    pub civitai: locus_civitai::api::CivitaiService,
     pub preferences: PreferenceService,
     pub media_settings: crate::api::settings::dto::MediaSettingsRuntime,
     pub external_settings: crate::api::settings::dto::SavedSettings,
@@ -30,6 +31,7 @@ impl Domain {
         kernel.register(Arc::new(VideoOwner))?;
         kernel.register(Arc::new(locus_model::api::ModelOwner))?;
         kernel.register(Arc::new(TwitterOwner))?;
+        kernel.register(Arc::new(locus_civitai::api::CivitaiOwner))?;
         let (config, media_settings) =
             super::settings_setup::prepare(queue, &database, &library.settings).await?;
         let external_settings =
@@ -43,6 +45,18 @@ impl Domain {
             media,
             model: locus_model::api::ModelService::new(),
             twitter: TwitterService::new(),
+            civitai: {
+                #[cfg(not(test))]
+                {
+                    locus_civitai::api::CivitaiService::new()?
+                }
+                #[cfg(test)]
+                {
+                    locus_civitai::api::CivitaiService::with_upstream(Arc::new(
+                        super::civitai_test_upstream::NoMatch,
+                    ))
+                }
+            },
             preferences,
             media_settings,
             external_settings,
@@ -56,6 +70,7 @@ impl Domain {
                 init.media.initialize(&mut session).await?;
                 init.model.initialize(&mut session).await?;
                 init.twitter.initialize(&mut session).await?;
+                init.civitai.initialize(&mut session).await?;
                 init.preferences.initialize(&mut session).await?;
                 Ok::<_, anyhow::Error>(())
             })?

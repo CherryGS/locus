@@ -9,4 +9,5 @@ pub(crate) use store::ImportStore;
 pub(crate) use store::BaseFault;
 
 mod admission;
+mod civitai;
 mod content;

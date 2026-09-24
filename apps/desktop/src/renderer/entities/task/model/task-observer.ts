@@ -52,7 +52,9 @@ export class TaskObserver {
       const previous = this.records.get(task.task_id)?.task
       if (
         previous &&
-        (previous.access_context !== task.access_context || previous.request_id !== task.request_id || !sameOperation(previous.operation, task.operation))
+        (previous.access_context !== task.access_context ||
+          previous.request_id !== task.request_id ||
+          !sameOperation(previous.operation, task.operation))
       )
         throw new Error("Task identity changed in this run")
       if (previous?.state === "terminal" && task.state !== "terminal")
@@ -72,7 +74,9 @@ export class TaskObserver {
     for (const task of value.tasks) {
       const previous = this.records.get(task.task_id)
       if (
-        (task.operation.kind === "import_batch" || task.operation.kind === "import_recovery") &&
+        (task.operation.kind === "import_batch" ||
+          task.operation.kind === "import_recovery" ||
+          task.operation.kind === "civitai") &&
         (!previous || previous.task.state !== task.state)
       )
         importsChanged = true
@@ -97,25 +101,29 @@ export class TaskObserver {
         outcome = value.outcome
       const matches =
         outcome.status === "failed" ||
-        (operation.kind === "upload" || operation.kind === "upload_recovery"
-          ? outcome.status === "upload" && outcome.result.upload_id === operation.upload_id
-          : operation.kind === "import_batch"
-          ? outcome.status === "import_batch" && outcome.batch_id === operation.batch_id
-          : operation.kind === "import_recovery"
-            ? outcome.status === "import_recovery" &&
-              outcome.batch_id === operation.batch_id &&
-              outcome.item_id === operation.item_id
-            : operation.kind === "file_import"
-              ? ["imported", "failed"].includes(outcome.status)
-              : operation.kind === "interpretation"
-                ? outcome.status === "media_failed" ||
-                  (outcome.status === "interpreted" &&
-                    (outcome.result.status !== "accepted" ||
-                      sameTarget(outcome.result.record.target, operation.target)))
-                : outcome.status === "media_failed" ||
-                  (outcome.status === "preview" &&
-                    outcome.preview.kind === operation.target.kind &&
-                    outcome.preview.edge === operation.edge))
+        (operation.kind === "civitai"
+          ? outcome.status === "civitai" &&
+            outcome.operation_id === operation.operation_id &&
+            (!outcome.result || outcome.result.entity_id === operation.entity_id)
+          : operation.kind === "upload" || operation.kind === "upload_recovery"
+            ? outcome.status === "upload" && outcome.result.upload_id === operation.upload_id
+            : operation.kind === "import_batch"
+              ? outcome.status === "import_batch" && outcome.batch_id === operation.batch_id
+              : operation.kind === "import_recovery"
+                ? outcome.status === "import_recovery" &&
+                  outcome.batch_id === operation.batch_id &&
+                  outcome.item_id === operation.item_id
+                : operation.kind === "file_import"
+                  ? ["imported", "failed"].includes(outcome.status)
+                  : operation.kind === "interpretation"
+                    ? outcome.status === "media_failed" ||
+                      (outcome.status === "interpreted" &&
+                        (outcome.result.status !== "accepted" ||
+                          sameTarget(outcome.result.record.target, operation.target)))
+                    : outcome.status === "media_failed" ||
+                      (outcome.status === "preview" &&
+                        outcome.preview.kind === operation.target.kind &&
+                        outcome.preview.edge === operation.edge))
       if (!matches) throw new Error("Task outcome attribution did not match")
       const current = this.records.get(id)!
       current.outcome = outcome
@@ -172,8 +180,15 @@ function sameTarget(a: Wire<"MediaTarget">, b: Wire<"MediaTarget">) {
 function sameOperation(a: Wire<"TaskOperation">, b: Wire<"TaskOperation">) {
   if (a.kind !== b.kind) return false
   switch (a.kind) {
+    case "civitai":
+      return b.kind === a.kind && a.entity_id === b.entity_id && a.operation_id === b.operation_id
     case "upload":
-      return b.kind === a.kind && a.upload_id === b.upload_id && a.byte_count === b.byte_count && a.filename === b.filename
+      return (
+        b.kind === a.kind &&
+        a.upload_id === b.upload_id &&
+        a.byte_count === b.byte_count &&
+        a.filename === b.filename
+      )
     case "upload_recovery":
       return b.kind === a.kind && a.upload_id === b.upload_id
     case "import_batch":

@@ -64,6 +64,13 @@ pub(super) async fn view(
 ) -> Result<Json<MediaView>, ApiError> {
     state.media_view(media_path(path)?).await.map(Json)
 }
+#[utoipa::path(tag="media",get,path="/api/v1/media/{kind}/{component_id}/saved-preview",params(("kind"=MediaKind,Path),("component_id"=String,Path)),responses((status=200,body=Option<PreviewMetadata>)))]
+pub(super) async fn saved_preview(
+    State(state): State<Arc<Shared>>,
+    path: Result<Path<(MediaKind, String)>, PathRejection>,
+) -> Result<Json<Option<PreviewMetadata>>, ApiError> {
+    state.saved_preview(media_path(path)?).await.map(Json)
+}
 #[utoipa::path(tag="media", post,path="/api/v1/interpretations",request_body=InterpretRequest,responses((status=202,body=Receipt)))]
 pub(super) async fn interpret(
     State(state): State<Arc<Shared>>,
@@ -110,6 +117,7 @@ pub(crate) fn router() -> utoipa_axum::router::OpenApiRouter<Arc<Shared>> {
         .routes(routes!(entity_media))
         .routes(routes!(read))
         .routes(routes!(view))
+        .routes(routes!(saved_preview))
         .routes(routes!(interpret))
         .routes(routes!(preview))
         .routes(routes!(preview_bytes, preview_head))

@@ -24,7 +24,7 @@ export async function browserPreview(backend: Awaited<ReturnType<typeof startSer
       if (target.pathname === "/__desktop-preview.js") {
         response.writeHead(200, { "content-type": "text/javascript", "cache-control": "no-store" })
         response.end(
-          `const state={connection:{status:"ready",origin:location.origin,runId:${JSON.stringify(backend.context.runId)},availability:${JSON.stringify(backend.availability)}},close:{phase:"idle"}};const listeners=new Set();window.locusDesktop=Object.freeze({requestLifecycle:async()=>{throw new Error("Native application restart and exit are unavailable in this browser preview.")},openExternalLink:async(url)=>({url,status:"failed",message:"System-browser handoff is unavailable in this browser preview."}),selectImportFiles:async()=>({status:"canceled"}),state:async()=>state,ready:async()=>{},observe:f=>{listeners.add(f);return()=>listeners.delete(f)},prepared:async()=>{},closeAction:async()=>{},commitClose:async()=>{}});`
+          `const state={connection:{status:"ready",origin:location.origin,runId:${JSON.stringify(backend.context.runId)},availability:${JSON.stringify(backend.availability)}},close:{phase:"idle"}};const listeners=new Set();window.locusDesktop=Object.freeze({requestLifecycle:async()=>{throw new Error("Native application restart and exit are unavailable in this browser preview.")},openExternalLink:async(url)=>({url,status:"failed",message:"System-browser handoff is unavailable in this browser preview."}),selectImportFiles:async()=>({status:"canceled"}),state:async()=>state,ready:async()=>{},observe:f=>{listeners.add(f);return()=>listeners.delete(f)},prepared:async()=>{},closeAction:async()=>{},commitClose:async()=>{}});`,
         )
         return
       }
@@ -32,7 +32,9 @@ export async function browserPreview(backend: Awaited<ReturnType<typeof startSer
       for (const [key, value] of Object.entries(request.headers))
         if (
           value &&
-          !["host", "connection", "content-length", "authorization", "origin", "accept-encoding"].includes(key)
+          !["host", "connection", "content-length", "authorization", "origin", "accept-encoding"].includes(
+            key,
+          )
         )
           headers.set(key, Array.isArray(value) ? value.join(",") : value)
       headers.set("Origin", backend.context.origin)
@@ -40,12 +42,15 @@ export async function browserPreview(backend: Awaited<ReturnType<typeof startSer
       const body = request.method === "GET" || request.method === "HEAD" ? undefined : await bytes(request)
       const controller = new AbortController()
       response.once("close", () => controller.abort())
-      const upstream = await backend.authorizedFetch(`${backend.context.origin}${target.pathname}${target.search}`, {
-        method: request.method,
-        headers,
-        body,
-        signal: controller.signal,
-      })
+      const upstream = await backend.authorizedFetch(
+        `${backend.context.origin}${target.pathname}${target.search}`,
+        {
+          method: request.method,
+          headers,
+          body,
+          signal: controller.signal,
+        },
+      )
       const outputHeaders = Object.fromEntries(upstream.headers)
       delete outputHeaders["transfer-encoding"]
       // HEAD reports the representation length, not the empty response body.
@@ -55,7 +60,9 @@ export async function browserPreview(backend: Awaited<ReturnType<typeof startSer
       }
       if ((target.pathname === "/" || target.pathname === "/index.html") && upstream.ok) {
         const content = await upstream.text()
-        const output = Buffer.from(content.replace("<head>", '<head><script src="/__desktop-preview.js"></script>'))
+        const output = Buffer.from(
+          content.replace("<head>", '<head><script src="/__desktop-preview.js"></script>'),
+        )
         outputHeaders["content-length"] = String(output.length)
         response.writeHead(upstream.status, outputHeaders).end(output)
         return
@@ -73,7 +80,8 @@ export async function browserPreview(backend: Awaited<ReturnType<typeof startSer
         while (!controller.signal.aborted) {
           const chunk = await reader.read()
           if (chunk.done) break
-          if (!response.write(Buffer.from(chunk.value))) await once(response, "drain", { signal: controller.signal })
+          if (!response.write(Buffer.from(chunk.value)))
+            await once(response, "drain", { signal: controller.signal })
         }
         response.end()
       } finally {
@@ -108,7 +116,12 @@ if (
   process.argv[1] &&
   new URL(import.meta.url).pathname.endsWith(process.argv[1].replaceAll("\\", "/").split("/").pop()!)
 ) {
-  const data = process.env.LOCUS_PREVIEW_PROFILE === "model" ? await (await import("./model-fixture.ts")).modelFixture() : await fixture()
+  const data =
+    process.env.LOCUS_PREVIEW_PROFILE === "civitai"
+      ? await (await import("./civitai-fixture.ts")).civitaiFixture()
+      : process.env.LOCUS_PREVIEW_PROFILE === "model"
+        ? await (await import("./model-fixture.ts")).modelFixture()
+        : await fixture()
   const backend = await data.start()
   const preview = await browserPreview(backend)
   console.log(
@@ -120,8 +133,8 @@ if (
         mode: "isolated live preview; no native close seam",
       },
       null,
-      2
-    )
+      2,
+    ),
   )
   let closing = false
   const finish = async () => {

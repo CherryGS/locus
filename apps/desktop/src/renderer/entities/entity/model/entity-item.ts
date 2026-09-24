@@ -8,6 +8,7 @@ type Observation = {
 }
 export type EntityComponent = Observation &
   (
+    | { kind: "civitai"; id: string; record?: Wire<"CivitaiRecord">; view?: Wire<"CivitaiView"> }
     | {
         kind: "file"
         id: string

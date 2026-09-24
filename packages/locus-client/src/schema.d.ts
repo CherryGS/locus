@@ -4,6 +4,70 @@
  */
 
 export interface paths {
+    "/api/v1/civitai-operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["operations"];
+        put?: never;
+        post: operations["enrich"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/civitai/{component_id}/page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["page"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/civitai/{component_id}/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["version"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/civitai/{component_id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drain": {
         parameters: {
             query?: never;
@@ -285,6 +349,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["read_media"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/{kind}/{component_id}/saved-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["saved_preview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -818,6 +898,153 @@ export interface components {
             change: components["schemas"]["SettingsChange"];
             request_id: string;
         };
+        CivitaiBinding: {
+            acquired_observation: string;
+            complete: boolean;
+            content_type: string;
+            entity_id: string;
+            file_id: string;
+            media: components["schemas"]["MediaTarget"][];
+            occurrence: number;
+            remote_id?: string | null;
+        };
+        CivitaiCorrespondence: {
+            basis: string;
+            blake3: string;
+            file: string;
+            input: components["schemas"]["CivitaiInput"];
+            problem?: string | null;
+            source: components["schemas"]["CivitaiSource"];
+            version: string;
+        };
+        CivitaiDirectoryEntry: {
+            id: string;
+            in_origin: boolean;
+            sources: components["schemas"]["CivitaiSource"][];
+        };
+        CivitaiExampleOutcome: {
+            binding?: null | components["schemas"]["CivitaiBinding"];
+            file_registered: boolean;
+            occurrence: number;
+            preparations: components["schemas"]["CopyProgress"][];
+            prepared_file?: string | null;
+            problem?: string | null;
+            registration_uncertain: boolean;
+            remote_id?: string | null;
+            reused: boolean;
+            state: components["schemas"]["CivitaiState"];
+            target_candidate?: string | null;
+            target_confirmed: boolean;
+        };
+        CivitaiFile: {
+            id: string;
+            kind: string;
+            name: string;
+            raw_json: string;
+        };
+        CivitaiImage: {
+            id?: string | null;
+            kind?: string | null;
+            raw_json: string;
+        };
+        /** @enum {string} */
+        CivitaiInput: "current" | "changed" | "missing" | "unmounted" | "failed";
+        CivitaiManagedExample: {
+            applicable: boolean;
+            binding: components["schemas"]["CivitaiBinding"];
+            problem?: string | null;
+            source: components["schemas"]["CivitaiSource"];
+        };
+        /** @enum {string} */
+        CivitaiMetadataState: "pending" | "accepted" | "no_match" | "failed" | "conflict" | "uncertain";
+        CivitaiModel: {
+            description?: string | null;
+            id: string;
+            kind: string;
+            name: string;
+            raw_json: string;
+            tags: string[];
+            versions: components["schemas"]["CivitaiVersion"][];
+        };
+        CivitaiOperation: {
+            active_request_id?: string | null;
+            last_request_id: string;
+            observation_problem?: string | null;
+            operation_id: string;
+            outcome: components["schemas"]["CivitaiOutcome"];
+            unconfirmed_effects: boolean;
+        };
+        CivitaiOperations: {
+            operations: components["schemas"]["CivitaiOperation"][];
+            run_id: string;
+        };
+        CivitaiOutcome: {
+            component_id?: string | null;
+            effect_revision: string;
+            entity_id: string;
+            examples: components["schemas"]["CivitaiExampleOutcome"][];
+            file_id: string;
+            first_only: boolean;
+            metadata: components["schemas"]["CivitaiMetadataState"];
+            observation?: string | null;
+            problem?: string | null;
+            requested_examples?: number | null;
+            state: components["schemas"]["CivitaiState"];
+        };
+        CivitaiPage: {
+            correspondences: components["schemas"]["CivitaiCorrespondence"][];
+            origin: components["schemas"]["CivitaiView"];
+            versions: components["schemas"]["CivitaiDirectoryEntry"][];
+        };
+        CivitaiRecord: {
+            blake3: string;
+            component_id: string;
+            file_id: string;
+            lookup_json: string;
+            matched_file: string;
+            matched_version: string;
+            model: components["schemas"]["CivitaiModel"];
+            observation: string;
+            revision: string;
+        };
+        CivitaiRequest: {
+            continuation?: string | null;
+            entity_id: string;
+            file_id: string;
+            first_only: boolean;
+            request_id: string;
+        };
+        CivitaiSource: {
+            component_id: string;
+            entity_id: string;
+            observation: string;
+            revision: string;
+        };
+        /** @enum {string} */
+        CivitaiState: "pending" | "running" | "complete" | "failed" | "conflict" | "uncertain";
+        CivitaiVersion: {
+            base_model?: string | null;
+            description?: string | null;
+            files: components["schemas"]["CivitaiFile"][];
+            id: string;
+            images: components["schemas"]["CivitaiImage"][];
+            name: string;
+            raw_json: string;
+        };
+        CivitaiVersionView: {
+            correspondences: components["schemas"]["CivitaiCorrespondence"][];
+            examples: components["schemas"]["CivitaiManagedExample"][];
+            in_origin: boolean;
+            model: string;
+            source: components["schemas"]["CivitaiSource"];
+            version: components["schemas"]["CivitaiVersion"];
+        };
+        CivitaiView: {
+            host?: string | null;
+            input: components["schemas"]["CivitaiInput"];
+            problem?: string | null;
+            record: components["schemas"]["CivitaiRecord"];
+        };
         CopyProgress: {
             bytes_written: string;
             copy_complete: boolean;
@@ -1035,6 +1262,7 @@ export interface components {
         ImportResult: {
             association: components["schemas"]["ImportStep"];
             base: components["schemas"]["ImportStep"];
+            civitai?: null | components["schemas"]["CivitaiOutcome"];
             complete: boolean;
             confirmed_entity_id?: string | null;
             confirmed_file_id?: string | null;
@@ -1567,6 +1795,11 @@ export interface components {
         };
         /** @description Accepted business scope, independent of display labels and execution stages. */
         TaskOperation: {
+            entity_id: string;
+            /** @enum {string} */
+            kind: "civitai";
+            operation_id: string;
+        } | {
             byte_count: string;
             filename?: string | null;
             /** @enum {string} */
@@ -1602,6 +1835,12 @@ export interface components {
             target: components["schemas"]["MediaTarget"];
         };
         TaskOutcome: {
+            observation_problem?: string | null;
+            operation_id: string;
+            result?: null | components["schemas"]["CivitaiOutcome"];
+            /** @enum {string} */
+            status: "civitai";
+        } | {
             result: components["schemas"]["UploadObservation"];
             /** @enum {string} */
             status: "upload";
@@ -1851,6 +2090,444 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    operations: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CivitaiOperations"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    enrich: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CivitaiRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receipt"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    page: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                component_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CivitaiPage"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    version: {
+        parameters: {
+            query: {
+                version: string;
+                source?: string;
+            };
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                component_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CivitaiVersionView"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    view: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                component_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CivitaiView"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     drain: {
         parameters: {
             query?: never;
@@ -3761,6 +4438,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaRecord"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    saved_preview: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                kind: components["schemas"]["MediaKind"];
+                component_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": null | components["schemas"]["PreviewMetadata"];
                 };
             };
             /** @description Invalid request */

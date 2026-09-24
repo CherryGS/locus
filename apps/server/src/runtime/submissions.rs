@@ -21,6 +21,7 @@ pub(crate) struct Admission {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Arguments {
+    Civitai(crate::api::civitai::dto::CivitaiRequest),
     Upload(crate::api::external::dto::UploadMetadata),
     RecoverUpload(crate::api::external::dto::RecoverUpload),
     ResetToken {
@@ -114,6 +115,13 @@ impl Shared {
                 .reserve_registered(batch.as_deref().unwrap_or(&id), &id, context, inputs);
         }
         let descriptor = match &arguments {
+            Arguments::Civitai(r) => TaskOperation::Civitai {
+                entity_id: r.entity_id.clone(),
+                operation_id: r
+                    .continuation
+                    .clone()
+                    .unwrap_or_else(|| r.request_id.clone()),
+            },
             Arguments::Upload(r) => TaskOperation::Upload {
                 upload_id: r.request_id.clone(),
                 filename: r.filename.clone(),
@@ -147,6 +155,10 @@ impl Shared {
             _ => return Err(conflict()),
         };
         match &arguments {
+            Arguments::Civitai(r) => {
+                self.check_civitai_import_scope(r)?;
+                self.civitai.reserve(r)?;
+            }
             Arguments::RecoverUpload(r) => self.uploads.reserve_recovery(r)?,
             Arguments::ImportBatch(r) => self.imports.reserve_batch(
                 batch.as_deref().unwrap_or(&r.request_id),
@@ -178,6 +190,7 @@ impl Shared {
             Ok(handle) => handle,
             Err(error) => {
                 match &arguments {
+                    Arguments::Civitai(r) => self.civitai.release(r),
                     Arguments::RecoverUpload(r) => self.uploads.release(r),
                     Arguments::ImportBatch(r) => {
                         self.imports

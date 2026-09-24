@@ -113,6 +113,7 @@ pub(crate) struct ResultState {
     pub progress: Option<CopyProgress>,
     pub kinds: Vec<KindResult>,
     pub model: ModelResult,
+    pub civitai: Option<locus_civitai::api::Enrichment>,
     pub effect: u64,
 }
 impl ResultState {
@@ -131,6 +132,7 @@ impl ResultState {
             file: None,
             progress: None,
             model: ModelResult::new(),
+            civitai: None,
             kinds: vec![
                 KindResult::new(MediaKind::Image),
                 KindResult::new(MediaKind::Video),
@@ -151,8 +153,20 @@ impl ResultState {
             .all(|s| s.success() || s.state == State::NotRequested)
             && self.kinds.iter().all(KindResult::complete)
             && self.model.complete()
+            && (!self.model.recognition.success()
+                || self
+                    .civitai
+                    .as_ref()
+                    .is_some_and(|w| w.state() == locus_civitai::api::EnrichmentState::Complete))
     }
     pub fn uncertain(&self) -> bool {
+        if self
+            .civitai
+            .as_ref()
+            .is_some_and(|w| w.state() == locus_civitai::api::EnrichmentState::Uncertain)
+        {
+            return true;
+        }
         [
             &self.base,
             &self.registration,

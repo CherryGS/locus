@@ -1,0 +1,25 @@
+[package]
+name = "locus-civitai"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+locus-task.workspace = true
+locus-core.workspace = true
+locus-file.workspace = true
+locus-media.workspace = true
+locus-store.workspace = true
+diesel.workspace = true
+diesel-async.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+tokio.workspace = true
+tempfile.workspace = true
+blake3 = "1"
+reqwest = { version = "=0.13.4", features = ["json"] }
+provider-civitai = { git = "https://github.com/CherryGS/provider-rs.git", rev = "f16365b71b3f3e3a68230b0b7b2aff3a80585e71" }
+
+[dev-dependencies]
+image.workspace = true

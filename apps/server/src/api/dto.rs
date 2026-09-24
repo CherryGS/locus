@@ -23,6 +23,11 @@ pub struct Receipt {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum TaskOutcome {
+    Civitai {
+        operation_id: String,
+        result: Option<Box<super::civitai::dto::CivitaiOutcome>>,
+        observation_problem: Option<String>,
+    },
     Upload {
         result: Box<super::external::dto::UploadObservation>,
     },

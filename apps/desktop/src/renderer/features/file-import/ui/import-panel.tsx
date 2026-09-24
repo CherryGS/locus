@@ -1,5 +1,12 @@
 import { useState, useSyncExternalStore } from "react"
-import { CheckIcon, ChevronRightIcon, FileIcon, ImportIcon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react"
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  FileIcon,
+  ImportIcon,
+  RefreshCwIcon,
+  TriangleAlertIcon,
+} from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
@@ -7,12 +14,14 @@ import { Separator } from "@/shared/ui/separator"
 import { Spinner } from "@/shared/ui/spinner"
 import type { Wire } from "@/shared/api"
 import type { ImportCoordinator } from "../model/import-coordinator"
+import { CivitaiOutcomeDetails } from "@/features/civitai"
 
 const readable = (value: string) => value.replaceAll("_", " ")
 function label(item: Wire<"ImportItem">) {
   if (item.active_request_id) return "Processing"
   if (item.current.complete) return "Complete"
-  if (item.current.confirmed_file_id && !item.current.confirmed_entity_id) return "File registered; entry incomplete"
+  if (item.current.confirmed_file_id && !item.current.confirmed_entity_id)
+    return "File registered; entry incomplete"
   if (item.current.base.state === "success") return "Admitted / processing incomplete"
   if (item.current.base.state === "uncertain") return "Admission unconfirmed"
   return "Not admitted"
@@ -80,6 +89,16 @@ function Details({ result }: { result: Wire<"ImportResult"> }) {
           ))}
         </div>
       ))}
+      {result.civitai && (
+        <div className="flex flex-col gap-2">
+          <p className="font-medium">Civitai · original weight enrichment</p>
+          <CivitaiOutcomeDetails outcome={result.civitai} />
+          <p>
+            Continue unfinished provider work through this item’s whole-import recovery action. Page refresh
+            is a separate operation.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -115,7 +134,9 @@ export function ImportDetails({
   const [viewError, setViewError] = useState<string>()
   const [viewing, setViewing] = useState<string>()
   const ended = new Set(
-    tasks.filter((task) => task.state === "terminal").map((task) => `${task.access_context}:${task.request_id}`)
+    tasks
+      .filter((task) => task.state === "terminal")
+      .map((task) => `${task.access_context}:${task.request_id}`),
   )
   const currentBatch = c.batches.find((batch) => batch.batch_id === batchId)
   const originalRequestId =
@@ -127,10 +148,10 @@ export function ImportDetails({
           (task) =>
             task.access_context === "desktop" &&
             task.operation.kind === "import_batch" &&
-            task.operation.batch_id === batchId
+            task.operation.batch_id === batchId,
         )?.request_id)
   const pending = [...c.submissions.values()].filter((s) =>
-    "source_paths" in s.body ? s.body.request_id === originalRequestId : s.body.batch_id === batchId
+    "source_paths" in s.body ? s.body.request_id === originalRequestId : s.body.batch_id === batchId,
   )
   const items = c.batches.filter((b) => b.batch_id === batchId).flatMap((b) => b.items)
   async function show(id: string) {
@@ -190,14 +211,20 @@ export function ImportDetails({
         <Empty>
           <EmptyHeader>
             <EmptyTitle>Import details unavailable</EmptyTitle>
-            <EmptyDescription>The task is known; check results to recover its business details.</EmptyDescription>
+            <EmptyDescription>
+              The task is known; check results to recover its business details.
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}
       {c.batches
         .filter((batch) => batch.batch_id === batchId)
         .map((batch) => (
-          <section key={batch.batch_id} className="flex min-w-0 flex-col" aria-label={`Import batch ${batch.batch_id}`}>
+          <section
+            key={batch.batch_id}
+            className="flex min-w-0 flex-col"
+            aria-label={`Import batch ${batch.batch_id}`}
+          >
             {batch.items.map((item, index) => (
               <article key={item.item_id} className="flex min-w-0 flex-col gap-3">
                 {index > 0 && <Separator />}
@@ -214,7 +241,8 @@ export function ImportDetails({
                         : item.source_path.split(/[\\/]/).pop() || item.source_path}
                     </p>
                     <p className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
-                      {(item.active_request_id && !ended.has(`${batch.access_context}:${item.active_request_id}`)) ||
+                      {(item.active_request_id &&
+                        !ended.has(`${batch.access_context}:${item.active_request_id}`)) ||
                       c.itemPending(item.item_id) ? (
                         <Spinner className="mt-0.5 size-3.5 shrink-0" />
                       ) : item.current.complete ? (
@@ -223,7 +251,8 @@ export function ImportDetails({
                         <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0 text-destructive" />
                       )}
                       <span>
-                        {item.active_request_id && ended.has(`${batch.access_context}:${item.active_request_id}`)
+                        {item.active_request_id &&
+                        ended.has(`${batch.access_context}:${item.active_request_id}`)
                           ? "Execution ended - details last known"
                           : c.itemPending(item.item_id)
                             ? "Recovery awaiting confirmation"
@@ -274,8 +303,8 @@ export function ImportDetails({
                   <Alert>
                     <AlertTitle>New copy required</AlertTitle>
                     <AlertDescription>
-                      {item.current.copy.reason ?? item.current.base.reason} The source is read again and its bytes may
-                      have changed. Earlier managed effects are retained.
+                      {item.current.copy.reason ?? item.current.base.reason} The source is read again and its
+                      bytes may have changed. Earlier managed effects are retained.
                       <Button
                         size="sm"
                         variant="outline"
@@ -335,11 +364,15 @@ export function ImportDetails({
               <div className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground">
                 <p>
                   Original results:{" "}
-                  {batch.items.filter((i) => i.attempts[0]?.ended && i.attempts[0].result.complete).length} complete,{" "}
-                  {batch.items.filter((i) => i.attempts[0]?.ended && !i.attempts[0].result.complete).length} incomplete,{" "}
+                  {batch.items.filter((i) => i.attempts[0]?.ended && i.attempts[0].result.complete).length}{" "}
+                  complete,{" "}
+                  {batch.items.filter((i) => i.attempts[0]?.ended && !i.attempts[0].result.complete).length}{" "}
+                  incomplete,{" "}
                   {
                     batch.items.filter(
-                      (i) => !i.attempts[0]?.ended && !ended.has(`${batch.access_context}:${batch.original_request_id}`)
+                      (i) =>
+                        !i.attempts[0]?.ended &&
+                        !ended.has(`${batch.access_context}:${batch.original_request_id}`),
                     ).length
                   }{" "}
                   active

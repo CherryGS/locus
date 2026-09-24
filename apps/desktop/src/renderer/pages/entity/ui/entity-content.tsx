@@ -10,6 +10,9 @@ import {
 } from "@/entities/entity"
 import type { PlaybackCoordinator } from "@/features/video-playback"
 import { ModelReading } from "./model-reading"
+import { CivitaiReading } from "./civitai-reading"
+import type { CivitaiCoordinator } from "@/features/civitai"
+import type { CivitaiSelection } from "../model/navigation"
 import { LiveVideo } from "./live-video"
 import type { BackendApi } from "@/shared/api"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
@@ -28,6 +31,8 @@ export function EntityContent({
   live,
   collections,
   onRelated,
+  civitaiSelection,
+  onCivitaiSelection,
 }: {
   entity: EntityItem
   viewId: ContentViewId | null
@@ -36,9 +41,12 @@ export function EntityContent({
     api: BackendApi
     reader: EntityReader
     playback: PlaybackCoordinator
+    civitai: CivitaiCoordinator
   }
   collections: readonly RelatedCollection[]
   onRelated: (collection: RelatedCollection, entity: EntityItem) => void
+  civitaiSelection?: CivitaiSelection
+  onCivitaiSelection: (selection: CivitaiSelection) => void
 }) {
   const focus = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
@@ -49,6 +57,7 @@ export function EntityContent({
   const file = entity.components.find((component) => component.kind === "file")
   const model = entity.components.find((component) => component.kind === "model")
   const twitter = entity.components.find((component) => component.kind === "twitter")
+  const civitai = entity.components.find((component) => component.kind === "civitai")
   return (
     <section
       ref={focus}
@@ -59,7 +68,17 @@ export function EntityContent({
       aria-label={`Inspect ${entityLabel(entity)}`}
       className="flex h-full min-h-0 flex-col outline-none"
     >
-      {viewId === "image.inspect" ? (
+      {viewId === "civitai.read" && civitai && live ? (
+        <CivitaiReading
+          api={live.api}
+          coordinator={live.civitai}
+          entity={entity}
+          component={civitai.id}
+          initial={civitaiSelection}
+          onSelection={onCivitaiSelection}
+          onRelated={onRelated}
+        />
+      ) : viewId === "image.inspect" ? (
         live && image ? (
           <LiveImage
             api={live.api}
@@ -110,7 +129,9 @@ export function EntityContent({
               .map((collection) => (
                 <section key={collection.id} aria-label={collection.name} className="flex flex-col gap-3">
                   <h3 className="text-sm font-medium">{collection.name}</h3>
-                  <p className="text-xs text-muted-foreground">Double-click an Entity or press Enter to inspect it.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Double-click an Entity or press Enter to inspect it.
+                  </p>
                   <div className="flex flex-wrap gap-3">
                     {collection.entityIds
                       .map((id) => source.get(id))

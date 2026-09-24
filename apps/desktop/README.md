@@ -12,8 +12,8 @@ Defaults are the repository's debug server and desktop renderer build. Missing
 artifacts produce native feedback. No installer is supplied. `npm run dev`
 rebuilds and launches the same Axum consumer, preserving production origin rules.
 
-Live content views are Image and File information. All attached File/Image/Video
-basic metadata is read for the needed range; Video is metadata only. Unsupported
+Live content views include Image, Video, Model, Twitter, Civitai and File information.
+Attached component metadata is read for the needed range. Unsupported
 kinds retain their Component and Kind identities with an explicit reader limitation.
 Live records have no invented Entity name, original filename, import date or color
 facts. Identity labels are display fallbacks. Exact byte counts and revisions remain
@@ -52,6 +52,13 @@ to the exact origin/window/main frame. Explicit run headers are preserved; redir
 and foreign contexts never acquire the grant.
 
 ## Isolated verification
+
+`LOCUS_PREVIEW_PROFILE=civitai` selects the connected Civitai A/B/C fixture for
+`just desktop-ui`; `just desktop-civitai-browser` runs its headless checks.
+Automatic Model matching in browser fixtures uses the isolated `fixture-server`
+upstream adapter (default: definite no-match), so existing tests do not contact
+the live provider. Domain/store/File/Media/HTTP/client/renderer remain real.
+The Civitai profile supplies controlled metadata/images and prints its entry IDs.
 
 Every verification command below creates a synthetic temporary library and never
 opens the default user library. Native checks use hidden windows and a test-only

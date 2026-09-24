@@ -22,6 +22,8 @@ import { Separator } from "@/shared/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 import { useSourceReturn } from "@/shared/source-return"
 import type { PlaybackCoordinator } from "@/features/video-playback"
+import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
+import type { CivitaiSelection } from "../model/navigation"
 import {
   adjacentId,
   inspectionDestination,
@@ -39,7 +41,7 @@ import { EntityProblems } from "./entity-problems"
 
 export function EntityPage({
   source: library,
-  collections,
+  collections: suppliedCollections,
   destination,
   visitKey,
   navigate,
@@ -50,9 +52,31 @@ export function EntityPage({
   destination: EntityDestination
   visitKey: string
   navigate: (destination: EntityDestination, replace?: boolean) => void
-  live?: { reader: EntityReader; preferences: PreferenceCoordinator; api: BackendApi; playback: PlaybackCoordinator }
+  live?: {
+    reader: EntityReader
+    preferences: PreferenceCoordinator
+    api: BackendApi
+    playback: PlaybackCoordinator
+    civitai: CivitaiCoordinator
+    relatedCollections: Map<string, RelatedCollection>
+    civitaiExcursions: Map<string, CivitaiSelection>
+  }
 }) {
   const router = useRouter()
+  const [managedCollections, setManagedCollections] = useState<RelatedCollection[]>(() => [
+    ...(live?.relatedCollections.values() ?? []),
+  ])
+  const collections = useMemo(
+    () => [...suppliedCollections, ...managedCollections],
+    [suppliedCollections, managedCollections],
+  )
+  const excursions = useRef(live?.civitaiExcursions ?? new Map<string, CivitaiSelection>())
+  const saveSelection = useCallback(
+    (selection: CivitaiSelection) => {
+      excursions.current.set(visitKey, selection)
+    },
+    [visitKey],
+  )
   const collection = collections.find((item) => item.id === destination.collectionId)
   const sequence = useMemo(
     () => contextSequence(destination, library.sequence, collections, suppliedSequence),
@@ -64,6 +88,59 @@ export function EntityPage({
     [destination.entityId, sequence],
   )
   const selected = selectedIndex >= 0 && destination.entityId ? library.get(destination.entityId) : null
+  const [relationship, setRelationship] = useState<{ id: string; problem?: string; ready: boolean }>()
+  const [relationshipRetry, setRelationshipRetry] = useState(0)
+  useEffect(() => {
+    if (!live || !collection?.civitai || !destination.entityId) return
+    let current = true
+    const id = destination.entityId
+    const scope = collection.civitai
+    setRelationship({ id, ready: false })
+    void live.api
+      .civitaiVersion(scope.component, scope.version, scope.source)
+      .then((value) => {
+        if (!current) return
+        const found =
+          value.model === scope.model &&
+          value.version.id === scope.version &&
+          (!scope.source || value.in_origin || value.source.component_id === scope.source) &&
+          value.examples.some(
+            (e) => e.applicable && e.binding.entity_id === id && e.binding.file_id === scope.files[id],
+          )
+        setRelationship({
+          id,
+          ready: found,
+          problem: found ? undefined : "The requested managed example relationship is no longer applicable.",
+        })
+      })
+      .catch((error) => {
+        if (current)
+          setRelationship({
+            id,
+            ready: false,
+            problem: error instanceof Error ? error.message : "Example relationship observation failed",
+          })
+      })
+    return () => {
+      current = false
+    }
+  }, [live?.api, collection, destination.entityId, relationshipRetry, live?.civitai.projectionRevision])
+  const relationshipProblem =
+    collection?.civitai && selected
+      ? relationship?.id === selected.id
+        ? (relationship.problem ??
+          (selected.membershipsStatus === "present" &&
+          !selected.components.some(
+            (c) => c.kind === "file" && c.id === collection.civitai!.files[selected.id],
+          )
+            ? "This example Entity now has a different File. Its replacement bytes are not shown here."
+            : undefined))
+        : undefined
+      : undefined
+  const relationshipWaiting =
+    !!collection?.civitai &&
+    !relationshipProblem &&
+    (!relationship?.ready || relationship.id !== selected?.id)
   const viewing = destination.mode === "inspect"
   const [previewChoices, setPreviewChoices] = useState<ReadonlyMap<string, string>>(() => new Map())
   const [override, setOverride] = useState<{ entityId: string; viewId: string } | null>(null)
@@ -97,7 +174,7 @@ export function EntityPage({
 
   useEffect(
     () =>
-      router.history.subscribe(({ action }) => {
+      router.history.subscribe(({ action }: { action: { type: string } }) => {
         if (action.type !== "PUSH" && action.type !== "REPLACE") {
           setOverride(null)
           setExplanation(undefined)
@@ -113,6 +190,8 @@ export function EntityPage({
   function chooseView(id: string) {
     if (!selected) return
     setOverride(null)
+    excursions.current.delete(visitKey)
+    if (destination.civitai) navigate({ ...destination, civitai: undefined }, true)
     if (live) live.preferences.choose(selected.id, id)
     else setPreviewChoices((previous) => new Map(previous).set(selected.id, id))
   }
@@ -191,13 +270,22 @@ export function EntityPage({
   const recover = (problem: ReadProblem) => {
     if (!selected || !live) return
     if (problem.recovery === "entity") void live.reader.reread(selected.id)
-    if (problem.recovery === "resource") live.reader.retryResource(selected.id, problem.key.slice("resource:".length))
+    if (problem.recovery === "resource")
+      live.reader.retryResource(selected.id, problem.key.slice("resource:".length))
     if (problem.recovery === "preference-read") void live.preferences.read([selected.id])
     if (problem.recovery === "preference-save") live.preferences.retry(selected.id)
     if (problem.recovery === "preference-check") void live.preferences.recover(selected.id)
   }
   const viewSelection = selected ? (
     <div className="flex flex-col gap-3">
+      {live && !selected.components.some((c) => c.kind === "civitai") && (
+        <CivitaiActions
+          coordinator={live.civitai}
+          entityId={selected.id}
+          fileId={selected.components.find((c) => c.kind === "file" && c.readStatus === "ready")?.id}
+          firstOnly
+        />
+      )}
       {!!views.length && (
         <ToggleGroup
           aria-label="Content view"
@@ -317,7 +405,20 @@ export function EntityPage({
     </Empty>
   )
   const content = selected ? (
-    contentWaiting ? (
+    relationshipProblem ? (
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>Managed example unavailable</EmptyTitle>
+          <EmptyDescription>{relationshipProblem}</EmptyDescription>
+        </EmptyHeader>
+        <Button variant="outline" onClick={() => setRelationshipRetry((v) => v + 1)}>
+          Retry relationship read
+        </Button>
+        <Button variant="outline" onClick={exit}>
+          Return to source
+        </Button>
+      </Empty>
+    ) : contentWaiting || relationshipWaiting ? (
       <Empty className="h-full">
         <EmptyHeader>
           <Spinner />
@@ -341,7 +442,19 @@ export function EntityPage({
         source={library}
         collections={collections}
         live={live}
-        onRelated={(related, entity) => move(relatedDestination(destination, related, entity.id))}
+        civitaiSelection={excursions.current.get(visitKey) ?? destination.civitai}
+        onCivitaiSelection={saveSelection}
+        onRelated={(related, entity) => {
+          live?.relatedCollections.set(related.id, related)
+          setManagedCollections((previous) => [...previous.filter((c) => c.id !== related.id), related])
+          move(
+            relatedDestination(
+              { ...destination, civitai: excursions.current.get(visitKey) },
+              related,
+              entity.id,
+            ),
+          )
+        }}
       />
     )
   ) : (

@@ -77,8 +77,21 @@ rust-lock:
 server-resolve:
     cargo check --package locus-server --all-targets
 
+# Resolve Civitai's pinned provider edge without refreshing unrelated locked selections.
+civitai-resolve:
+    cargo check --package locus-civitai
+
 server-build:
     cargo build --package locus-server --bin locus-server --locked
+
+server-fixture-build:
+    cargo build --package locus-server --example fixture-server --locked
+
+server-civitai-inputs root:
+    cargo run --package locus-server --example civitai-fixture-inputs --locked -- '{{ replace(root, "'", "''") }}'
+
+desktop-civitai-browser: server-build server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:civitai-browser
 
 server-external-smoke: server-build
     {{ npm }} --prefix packages/locus-client run smoke:external
@@ -145,7 +158,7 @@ desktop-run: server-build desktop-build
     {{ npm }} --prefix apps/desktop start
 
 # Isolated live browser preview over a newly created synthetic temporary library.
-desktop-ui: server-build desktop-build
+desktop-ui: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run preview:ui
 
 desktop-preview: server-build desktop-build
@@ -158,30 +171,30 @@ desktop-browser-install:
 desktop-ui-specimens:
     {{ npm }} --prefix apps/desktop run dev:renderer
 
-desktop-ui-test: server-build desktop-build
+desktop-ui-test: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:browser
 
-desktop-native-test: server-build desktop-build
+desktop-native-test: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:electron
 
-desktop-renderer-scale count="1000000": server-build desktop-build
+desktop-renderer-scale count="1000000": server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:scale -- {{ count }}
 
 # Connected local-file import through the real generated client.
 server-import-smoke: server-build client-check
     {{ npm }} --prefix packages/locus-client run smoke:imports
 
-desktop-import-browser:
+desktop-import-browser: server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:import-browser
 
-desktop-import-native:
+desktop-import-native: server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:import-native
 
-desktop-shared-tasks:
+desktop-shared-tasks: server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:shared-tasks
 
 # Real Video transfer, playback and native lifecycle with owned synthetic inputs.
-desktop-video-test: server-build desktop-build
+desktop-video-test: server-build server-fixture-build desktop-build
     npm --prefix apps/desktop run verify:video
 
 # Offline provider-owned snapshots; refuses an existing metadata database.
@@ -189,24 +202,24 @@ server-twitter-fixture root video="":
     cargo run --package locus-server --example twitter-reading-fixture --locked -- '{{ replace(root, "'", "''") }}' '{{ replace(video, "'", "''") }}'
 
 # Real saved captures and actual host/preload link results, with a test-owned opener.
-desktop-twitter-browser: server-build desktop-build
+desktop-twitter-browser: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:twitter-browser
 
-desktop-twitter-native: server-build desktop-build
+desktop-twitter-native: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:twitter-native
 
 server-settings-smoke: server-build client-check
     {{ npm }} --prefix packages/locus-client run smoke:settings
 
 # Actual Settings UI and bounded native full-restart verification on isolated libraries.
-desktop-settings-browser: server-build desktop-build
+desktop-settings-browser: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:settings-browser
 
-desktop-settings-native: server-build desktop-build
+desktop-settings-native: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:settings-native
 
 server-model-fixture root:
     cargo run --package locus-server --example model-reading-fixture --locked -- '{{ replace(root, "'", "''") }}'
 
-desktop-model-browser: server-build desktop-build
+desktop-model-browser: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:model-browser

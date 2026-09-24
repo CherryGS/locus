@@ -71,6 +71,7 @@ pub struct ImportModelResult {
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct ImportResult {
+    pub civitai: Option<crate::api::civitai::dto::CivitaiOutcome>,
     pub model: ImportModelResult,
     pub observation_problem: Option<String>,
     pub copy: ImportStep,

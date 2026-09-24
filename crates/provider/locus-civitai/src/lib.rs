@@ -1,0 +1,13 @@
+mod adapters;
+pub mod api;
+mod enrichment;
+mod error;
+mod examples;
+mod identity;
+mod owner;
+mod persistence;
+mod record;
+mod serde_ids;
+mod service;
+mod snapshot;
+mod view;

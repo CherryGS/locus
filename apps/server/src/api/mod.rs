@@ -1,5 +1,6 @@
 mod auth;
 mod bytes;
+pub mod civitai;
 pub mod core;
 pub(crate) mod dto;
 pub(crate) mod error;

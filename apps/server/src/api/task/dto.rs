@@ -19,6 +19,10 @@ pub enum PublicTaskState {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TaskOperation {
+    Civitai {
+        entity_id: String,
+        operation_id: String,
+    },
     Upload {
         upload_id: String,
         filename: Option<String>,

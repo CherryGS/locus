@@ -16,6 +16,8 @@ function componentSummary(component: EntityComponent) {
   if (component.readStatus === "failed") return "Metadata unavailable"
   if (component.readStatus === "loading") return "Reading metadata…"
   switch (component.kind) {
+    case "civitai":
+      return component.record?.model.name ?? "Saved provider information"
     case "file":
       return component.bytes === undefined ? "Size not observed" : formatFileSize(component.bytes)
     case "image":
@@ -28,7 +30,9 @@ function componentSummary(component: EntityComponent) {
       if (component.format) values.push(component.format)
       return (
         values.join(" · ") ||
-        (component.record && !component.record.facts ? "No accepted interpretation" : "Properties not observed")
+        (component.record && !component.record.facts
+          ? "No accepted interpretation"
+          : "Properties not observed")
       )
     }
     case "model":
@@ -124,7 +128,7 @@ export function EntityOverview({
                   </p>
                 )}
               </DetailSection>
-            )
+            ),
         )}
       {viewSelection && (
         <>

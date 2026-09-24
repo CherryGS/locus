@@ -38,7 +38,10 @@ export function taskRecords(
       const previous = records.get(id)
       records.set(id, {
         id,
-        label: operation.kind === "upload" ? `Upload ${operation.filename ?? "file"}` : previous?.label ?? "Uploaded File",
+        label:
+          operation.kind === "upload"
+            ? `Upload ${operation.filename ?? "file"}`
+            : (previous?.label ?? "Uploaded File"),
         summary: outcomeSummary(observation),
         active: (previous?.active ?? false) || observation.task.state !== "terminal",
         attention: needsAttention(observation),
@@ -50,7 +53,9 @@ export function taskRecords(
         label:
           operation.kind === "file_import"
             ? `Import file - ${operation.source_path.split(/[\\/]/).pop()}`
-            : `${operation.target.kind} ${operation.kind}`,
+            : operation.kind === "civitai"
+              ? `Civitai · origin ${operation.entity_id.slice(-8)}`
+              : `${operation.target.kind} ${operation.kind}`,
         summary: outcomeSummary(observation),
         active: observation.task.state !== "terminal",
         attention: needsAttention(observation),
@@ -77,12 +82,25 @@ export function taskRecords(
     record.summary = `${complete} complete - ${attention} need attention${active ? ` - ${active} processing` : ""}${c.problem || stale ? " - last known details" : ""}`
   }
   for (const submission of c.submissions.values()) {
-    const observed = [...observer.records.values()].find(a => a.task.access_context === "desktop" && a.task.request_id === submission.body.request_id)
-    const original = c.batches.find(b => b.access_context === "desktop" && b.original_request_id === submission.body.request_id)
-    const record = batch("source_paths" in submission.body
-      ? original?.batch_id ?? (observed?.task.operation.kind === "import_batch" ? observed.task.operation.batch_id : `pending:${submission.body.request_id}`)
-      : submission.body.batch_id, "source_paths" in submission.body ? submission.body.request_id : undefined)
-    const known = record.attempts.find((attempt) => attempt.task.access_context === "desktop" && attempt.task.request_id === submission.body.request_id)
+    const observed = [...observer.records.values()].find(
+      (a) => a.task.access_context === "desktop" && a.task.request_id === submission.body.request_id,
+    )
+    const original = c.batches.find(
+      (b) => b.access_context === "desktop" && b.original_request_id === submission.body.request_id,
+    )
+    const record = batch(
+      "source_paths" in submission.body
+        ? (original?.batch_id ??
+            (observed?.task.operation.kind === "import_batch"
+              ? observed.task.operation.batch_id
+              : `pending:${submission.body.request_id}`))
+        : submission.body.batch_id,
+      "source_paths" in submission.body ? submission.body.request_id : undefined,
+    )
+    const known = record.attempts.find(
+      (attempt) =>
+        attempt.task.access_context === "desktop" && attempt.task.request_id === submission.body.request_id,
+    )
     record.active ||= !known && (submission.pending || !!submission.accepted)
     record.attention ||= !!submission.problem || (!submission.pending && !submission.accepted)
     record.summary =

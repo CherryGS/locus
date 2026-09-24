@@ -17,6 +17,7 @@ function EntityRoute() {
   const session = useLibrarySession()
   useSyncExternalStore(session?.reader.subscribe ?? noSubscribe, session?.reader.snapshot ?? zero)
   useSyncExternalStore(session?.preferences.subscribe ?? noSubscribe, session?.preferences.snapshot ?? zero)
+  useSyncExternalStore(session?.civitai.subscribe ?? noSubscribe, session?.civitai.snapshot ?? zero)
   const data = Route.useLoaderData()
   const previewSource = useMemo(
     () => ({
@@ -25,14 +26,26 @@ function EntityRoute() {
         data.previewEntities.find((entity) => entity.id === id) ?? { id, components: [] },
       demand: () => {},
     }),
-    [data]
+    [data],
   )
   const navigate = Route.useNavigate()
   const key = useRouterState({ select: (state) => state.location.state.__TSR_key ?? "initial" })
   return (
     <EntityPage
       source={session?.source() ?? previewSource}
-      live={session ? { reader: session.reader, preferences: session.preferences, api: session.api, playback: session.playback } : undefined}
+      live={
+        session
+          ? {
+              reader: session.reader,
+              preferences: session.preferences,
+              api: session.api,
+              playback: session.playback,
+              civitai: session.civitai,
+              relatedCollections: session.relatedCollections,
+              civitaiExcursions: session.civitaiExcursions,
+            }
+          : undefined
+      }
       collections={data.previewCollections}
       destination={Route.useSearch()}
       visitKey={key}

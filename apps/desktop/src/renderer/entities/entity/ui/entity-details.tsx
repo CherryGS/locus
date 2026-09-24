@@ -1,3 +1,4 @@
+import { providerText } from "@/shared/lib/provider-text"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { Separator } from "@/shared/ui/separator"
 import { Spinner } from "@/shared/ui/spinner"
@@ -31,7 +32,9 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
           <Alert>
             <AlertTitle>{component.previous ? "Showing previous data" : "Metadata unavailable"}</AlertTitle>
             <AlertDescription>
-              {component.previous ? "Previous result · the latest reread failed." : "The component could not be read."}{" "}
+              {component.previous
+                ? "Previous result · the latest reread failed."
+                : "The component could not be read."}{" "}
               See Overview for details and recovery.
             </AlertDescription>
           </Alert>
@@ -42,6 +45,21 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
   )
 }
 function ComponentDetailsContent({ component }: { component: EntityComponent }) {
+  if (component.kind === "civitai")
+    return (
+      <DetailSection title="Origin Civitai snapshot">
+        <dl>
+          <Detail label="Component">{component.id}</Detail>
+          <Detail label="Model">{component.record?.model.name ?? "Not observed"}</Detail>
+          <Detail label="Matched version">{component.record?.matched_version ?? "Not observed"}</Detail>
+          <Detail label="Matched file">{component.record?.matched_file ?? "Not observed"}</Detail>
+          <Detail label="Accepted File">{component.record?.file_id ?? "Not observed"}</Detail>
+          <Detail label="Input">{component.view?.input ?? "Not observed"}</Detail>
+          <Detail label="Observation">{component.record?.observation ?? "Not observed"}</Detail>
+        </dl>
+        <p className="whitespace-pre-wrap break-words">{providerText(component.record?.model.description)}</p>
+      </DetailSection>
+    )
   if (component.kind === "model")
     return (
       <DetailSection title="Model observation">
@@ -55,8 +73,8 @@ function ComponentDetailsContent({ component }: { component: EntityComponent }) 
           <Detail label="Revision">{component.record?.revision ?? "Not observed"}</Detail>
         </dl>
         <p className="text-xs text-muted-foreground">
-          Read structure, declarations and tensors in the Model content view. Overview explains inspection, input and
-          read problems.
+          Read structure, declarations and tensors in the Model content view. Overview explains inspection,
+          input and read problems.
         </p>
       </DetailSection>
     )
@@ -107,14 +125,16 @@ function ComponentDetailsContent({ component }: { component: EntityComponent }) 
                   ? `${component.width.toLocaleString()} × ${component.height.toLocaleString()} px`
                   : "Unknown"}
               </Detail>
-              {component.kind === "image" && component.width !== undefined && component.height !== undefined && (
-                <>
-                  <Detail label="Aspect ratio">{aspectRatio(component.width, component.height)}</Detail>
-                  <Detail label="Pixels">
-                    {(BigInt(component.width) * BigInt(component.height)).toLocaleString()} pixels
-                  </Detail>
-                </>
-              )}
+              {component.kind === "image" &&
+                component.width !== undefined &&
+                component.height !== undefined && (
+                  <>
+                    <Detail label="Aspect ratio">{aspectRatio(component.width, component.height)}</Detail>
+                    <Detail label="Pixels">
+                      {(BigInt(component.width) * BigInt(component.height)).toLocaleString()} pixels
+                    </Detail>
+                  </>
+                )}
               {component.kind === "video" && (
                 <>
                   <Detail label="Stream">{component.streamIndex ?? "Unknown"}</Detail>
@@ -125,7 +145,9 @@ function ComponentDetailsContent({ component }: { component: EntityComponent }) 
                       <>
                         {formatDuration(component.durationSeconds)}
                         {component.durationPrecision && (
-                          <span className="block text-muted-foreground">Precision: {component.durationPrecision}</span>
+                          <span className="block text-muted-foreground">
+                            Precision: {component.durationPrecision}
+                          </span>
                         )}
                       </>
                     )}
@@ -161,7 +183,9 @@ function ComponentDetailsContent({ component }: { component: EntityComponent }) 
             <Separator />
             <DetailSection title="Color">
               <dl>
-                {component.colorMode !== undefined && <Detail label="Color mode">{component.colorMode}</Detail>}
+                {component.colorMode !== undefined && (
+                  <Detail label="Color mode">{component.colorMode}</Detail>
+                )}
                 {component.bitsPerChannel !== undefined && (
                   <Detail label="Bit depth">{component.bitsPerChannel}-bit per channel</Detail>
                 )}
@@ -180,8 +204,12 @@ function ComponentDetailsContent({ component }: { component: EntityComponent }) 
               <Detail label="Revision">{record.revision}</Detail>
               <Detail label="Facts basis">{record.basis ?? "No accepted basis"}</Detail>
               <Detail label="Input status">{applicability?.status ?? "Not observed"}</Detail>
-              {applicability?.status === "matching" && <Detail label="Current File">{applicability.file_id}</Detail>}
-              {applicability?.status === "changed" && <Detail label="Current File">{applicability.current}</Detail>}
+              {applicability?.status === "matching" && (
+                <Detail label="Current File">{applicability.file_id}</Detail>
+              )}
+              {applicability?.status === "changed" && (
+                <Detail label="Current File">{applicability.current}</Detail>
+              )}
               {applicability?.status === "incomplete" && (
                 <Detail label="Current File">
                   {applicability.current.status === "file"

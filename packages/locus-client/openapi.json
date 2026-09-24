@@ -9,6 +9,559 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/api/v1/civitai-operations": {
+      "get": {
+        "tags": [
+          "civitai"
+        ],
+        "operationId": "operations",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CivitaiOperations"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "civitai"
+        ],
+        "operationId": "enrich",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CivitaiRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/civitai/{component_id}/page": {
+      "get": {
+        "tags": [
+          "civitai"
+        ],
+        "operationId": "page",
+        "parameters": [
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CivitaiPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/civitai/{component_id}/version": {
+      "get": {
+        "tags": [
+          "civitai"
+        ],
+        "operationId": "version",
+        "parameters": [
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CivitaiVersionView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/civitai/{component_id}/view": {
+      "get": {
+        "tags": [
+          "civitai"
+        ],
+        "operationId": "view",
+        "parameters": [
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CivitaiView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/drain": {
       "post": {
         "tags": [
@@ -2400,6 +2953,130 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MediaRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/{kind}/{component_id}/saved-preview": {
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "operationId": "saved_preview",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MediaKind"
+            }
+          },
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PreviewMetadata"
+                    }
+                  ]
                 }
               }
             }
@@ -6207,6 +6884,675 @@
         },
         "additionalProperties": false
       },
+      "CivitaiBinding": {
+        "type": "object",
+        "required": [
+          "occurrence",
+          "entity_id",
+          "file_id",
+          "acquired_observation",
+          "content_type",
+          "complete",
+          "media"
+        ],
+        "properties": {
+          "acquired_observation": {
+            "type": "string"
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "file_id": {
+            "type": "string"
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaTarget"
+            }
+          },
+          "occurrence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "remote_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "CivitaiCorrespondence": {
+        "type": "object",
+        "required": [
+          "source",
+          "version",
+          "file",
+          "basis",
+          "input",
+          "blake3"
+        ],
+        "properties": {
+          "basis": {
+            "type": "string"
+          },
+          "blake3": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "input": {
+            "$ref": "#/components/schemas/CivitaiInput"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/CivitaiSource"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "CivitaiDirectoryEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "in_origin",
+          "sources"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "in_origin": {
+            "type": "boolean"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CivitaiSource"
+            }
+          }
+        }
+      },
+      "CivitaiExampleOutcome": {
+        "type": "object",
+        "required": [
+          "preparations",
+          "occurrence",
+          "state",
+          "reused",
+          "file_registered",
+          "target_confirmed",
+          "registration_uncertain"
+        ],
+        "properties": {
+          "binding": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CivitaiBinding"
+              }
+            ]
+          },
+          "file_registered": {
+            "type": "boolean"
+          },
+          "occurrence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "preparations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CopyProgress"
+            }
+          },
+          "prepared_file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "registration_uncertain": {
+            "type": "boolean"
+          },
+          "remote_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reused": {
+            "type": "boolean"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CivitaiState"
+          },
+          "target_candidate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target_confirmed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CivitaiFile": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "raw_json"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "raw_json": {
+            "type": "string"
+          }
+        }
+      },
+      "CivitaiImage": {
+        "type": "object",
+        "required": [
+          "raw_json"
+        ],
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "raw_json": {
+            "type": "string"
+          }
+        }
+      },
+      "CivitaiInput": {
+        "type": "string",
+        "enum": [
+          "current",
+          "changed",
+          "missing",
+          "unmounted",
+          "failed"
+        ]
+      },
+      "CivitaiManagedExample": {
+        "type": "object",
+        "required": [
+          "source",
+          "binding",
+          "applicable"
+        ],
+        "properties": {
+          "applicable": {
+            "type": "boolean"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/CivitaiBinding"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/CivitaiSource"
+          }
+        }
+      },
+      "CivitaiMetadataState": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "accepted",
+          "no_match",
+          "failed",
+          "conflict",
+          "uncertain"
+        ]
+      },
+      "CivitaiModel": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "tags",
+          "versions",
+          "raw_json"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "raw_json": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CivitaiVersion"
+            }
+          }
+        }
+      },
+      "CivitaiOperation": {
+        "type": "object",
+        "required": [
+          "unconfirmed_effects",
+          "last_request_id",
+          "operation_id",
+          "outcome"
+        ],
+        "properties": {
+          "active_request_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_request_id": {
+            "type": "string"
+          },
+          "observation_problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation_id": {
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/CivitaiOutcome"
+          },
+          "unconfirmed_effects": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CivitaiOperations": {
+        "type": "object",
+        "required": [
+          "run_id",
+          "operations"
+        ],
+        "properties": {
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CivitaiOperation"
+            }
+          },
+          "run_id": {
+            "type": "string"
+          }
+        }
+      },
+      "CivitaiOutcome": {
+        "type": "object",
+        "required": [
+          "first_only",
+          "entity_id",
+          "file_id",
+          "state",
+          "metadata",
+          "effect_revision",
+          "examples"
+        ],
+        "properties": {
+          "component_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effect_revision": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CivitaiExampleOutcome"
+            }
+          },
+          "file_id": {
+            "type": "string"
+          },
+          "first_only": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/CivitaiMetadataState"
+          },
+          "observation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requested_examples": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "state": {
+            "$ref": "#/components/schemas/CivitaiState"
+          }
+        }
+      },
+      "CivitaiPage": {
+        "type": "object",
+        "required": [
+          "origin",
+          "versions",
+          "correspondences"
+        ],
+        "properties": {
+          "correspondences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CivitaiCorrespondence"
+            }
+          },
+          "origin": {
+            "$ref": "#/components/schemas/CivitaiView"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CivitaiDirectoryEntry"
+            }
+          }
+        }
+      },
+      "CivitaiRecord": {
+        "type": "object",
+        "required": [
+          "component_id",
+          "revision",
+          "observation",
+          "file_id",
+          "matched_version",
+          "matched_file",
+          "blake3",
+          "model",
+          "lookup_json"
+        ],
+        "properties": {
+          "blake3": {
+            "type": "string"
+          },
+          "component_id": {
+            "type": "string"
+          },
+          "file_id": {
+            "type": "string"
+          },
+          "lookup_json": {
+            "type": "string"
+          },
+          "matched_file": {
+            "type": "string"
+          },
+          "matched_version": {
+            "type": "string"
+          },
+          "model": {
+            "$ref": "#/components/schemas/CivitaiModel"
+          },
+          "observation": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          }
+        }
+      },
+      "CivitaiRequest": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "entity_id",
+          "file_id",
+          "first_only"
+        ],
+        "properties": {
+          "continuation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "file_id": {
+            "type": "string"
+          },
+          "first_only": {
+            "type": "boolean"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CivitaiSource": {
+        "type": "object",
+        "required": [
+          "component_id",
+          "entity_id",
+          "observation",
+          "revision"
+        ],
+        "properties": {
+          "component_id": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "observation": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          }
+        }
+      },
+      "CivitaiState": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "running",
+          "complete",
+          "failed",
+          "conflict",
+          "uncertain"
+        ]
+      },
+      "CivitaiVersion": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "files",
+          "images",
+          "raw_json"
+        ],
+        "properties": {
+          "base_model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CivitaiFile"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CivitaiImage"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "raw_json": {
+            "type": "string"
+          }
+        }
+      },
+      "CivitaiVersionView": {
+        "type": "object",
+        "required": [
+          "model",
+          "source",
+          "in_origin",
+          "version",
+          "correspondences",
+          "examples"
+        ],
+        "properties": {
+          "correspondences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CivitaiCorrespondence"
+            }
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CivitaiManagedExample"
+            }
+          },
+          "in_origin": {
+            "type": "boolean"
+          },
+          "model": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CivitaiSource"
+          },
+          "version": {
+            "$ref": "#/components/schemas/CivitaiVersion"
+          }
+        }
+      },
+      "CivitaiView": {
+        "type": "object",
+        "required": [
+          "record",
+          "input"
+        ],
+        "properties": {
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "input": {
+            "$ref": "#/components/schemas/CivitaiInput"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record": {
+            "$ref": "#/components/schemas/CivitaiRecord"
+          }
+        }
+      },
       "CopyProgress": {
         "type": "object",
         "required": [
@@ -7167,6 +8513,16 @@
           },
           "base": {
             "$ref": "#/components/schemas/ImportStep"
+          },
+          "civitai": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CivitaiOutcome"
+              }
+            ]
           },
           "complete": {
             "type": "boolean"
@@ -9462,6 +10818,28 @@
           {
             "type": "object",
             "required": [
+              "entity_id",
+              "operation_id",
+              "kind"
+            ],
+            "properties": {
+              "entity_id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "civitai"
+                ]
+              },
+              "operation_id": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "upload_id",
               "byte_count",
               "kind"
@@ -9615,6 +10993,40 @@
       },
       "TaskOutcome": {
         "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "operation_id",
+              "status"
+            ],
+            "properties": {
+              "observation_problem": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "operation_id": {
+                "type": "string"
+              },
+              "result": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CivitaiOutcome"
+                  }
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "civitai"
+                ]
+              }
+            }
+          },
           {
             "type": "object",
             "required": [

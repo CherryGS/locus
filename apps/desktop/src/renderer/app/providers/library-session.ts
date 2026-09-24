@@ -8,6 +8,8 @@ import { PlaybackCoordinator } from "@/features/video-playback"
 import { BackendApi } from "@/shared/api"
 import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
 import { ImportCoordinator } from "@/features/file-import"
+import { CivitaiCoordinator } from "@/features/civitai"
+import type { RelatedCollection, CivitaiSelection } from "@/pages/entity"
 import { TaskObserver } from "@/entities/task"
 import { PreferenceCoordinator } from "@/features/entity-view-preferences"
 import type { DesktopBridge, DesktopState } from "../../../shared/desktop-bridge"
@@ -26,7 +28,7 @@ export class DesktopSession {
   readonly settingsPreparation: SettingsPreparationCoordinator
   constructor(
     readonly bridge: DesktopBridge,
-    readonly initial: DesktopState
+    readonly initial: DesktopState,
   ) {
     if (initial.connection.status !== "ready") throw new Error("The backend is unavailable.")
     if (initial.connection.origin !== location.origin)
@@ -40,33 +42,46 @@ export class DesktopSession {
   }
 }
 export class LibrarySession extends DesktopSession {
+  readonly relatedCollections = new Map<string, RelatedCollection>()
+  readonly civitaiExcursions = new Map<string, CivitaiSelection>()
   readonly playback = new PlaybackCoordinator()
   readonly reader: EntityReader
   readonly imports: ImportCoordinator
+  readonly civitai: CivitaiCoordinator
   readonly tasks: TaskObserver
   private readonly unobserve: () => void
+  private readonly unobserveImports: () => void
   constructor(bridge: DesktopBridge, initial: DesktopState) {
     super(bridge, initial)
     this.reader = new EntityReader(this.api, 256, (entityId, fileId) =>
-      this.playback.observe(entityId, fileId)
+      this.playback.observe(entityId, fileId),
     )
+    this.civitai = new CivitaiCoordinator(this.api, (ids) => this.reader.knownEffects(ids))
+    this.civitai.host(initial)
     this.imports = new ImportCoordinator(this.api, bridge, (items) => {
       this.reader.importEffects(items)
+      this.civitai.invalidate()
     })
     this.imports.host(initial)
+    this.unobserveImports = this.imports.subscribe(() =>
+      this.civitai.setImports(this.imports.batches.flatMap((b) => b.items)),
+    )
     this.tasks = new TaskObserver(this.api, () => {
       this.imports.observeTasks([...this.tasks.records.values()].map((record) => record.task))
       void this.imports.observe()
+      void this.civitai.observe()
     })
     this.unobserve = bridge.observe((state) => {
       if (state.close.phase !== "idle" || state.connection.status !== "ready") this.playback.pause()
       this.imports.host(state)
+      this.civitai.host(state)
       if (state.connection.status !== "ready" || state.connection.runId !== this.api.context.runId)
         this.tasks.dispose()
     })
     this.tasks.start()
     window.addEventListener("pagehide", this.dispose, { once: true })
     void this.imports.observe()
+    void this.civitai.observe()
   }
   readonly demand = (ids: string[]) => {
     this.reader.demand(ids)
@@ -77,6 +92,8 @@ export class LibrarySession extends DesktopSession {
     this.unobserve()
     this.tasks.dispose()
     this.imports.dispose()
+    this.unobserveImports()
+    this.civitai.dispose()
     window.removeEventListener("pagehide", this.dispose)
   }
   readonly get = (id: string) => {
@@ -94,7 +111,7 @@ export function openLibrarySession() {
     const bridge = window.locusDesktop
     if (!bridge)
       throw new Error(
-        "No desktop connection. Open Locus through the desktop entry or the isolated desktop-ui preview."
+        "No desktop connection. Open Locus through the desktop entry or the isolated desktop-ui preview.",
       )
     const initial = await bridge.state()
     if (initial.connection.status === "ready" && initial.connection.availability?.status === "restricted")
