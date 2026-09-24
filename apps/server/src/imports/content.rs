@@ -7,7 +7,7 @@ use crate::runtime::composition::Domain;
 use locus_core::api::{EntityId, Kernel, Membership};
 use locus_file::api::{FILE_KIND, FileService};
 use locus_store::api::{Context, Session};
-
+use locus_twitter::api::{TWITTER_KIND, TwitterService, WriteOutcome};
 use std::sync::{Arc, Mutex};
 
 async fn entity(
@@ -113,15 +113,15 @@ impl ImportStore {
         // A definitely rolled-back File unit permits Source to establish the
         // intended entry independently. Uncertainty cannot authorize another unit.
         if item.current.uncertain() {
-            if item.current.source_capture.state == State::Pending {
-                item.current.source_capture =
+            if item.current.twitter.state == State::Pending {
+                item.current.twitter =
                     Step::error(State::Skipped, "Entry establishment is unconfirmed");
             }
             self.blocked_content(item);
             return;
         }
         if let Some(snapshot) = item.snapshot.clone()
-            && !item.current.source_capture.success()
+            && !item.current.twitter.success()
         {
             let retained = item.current.clone();
             let retained_snapshot = item.snapshot.clone();
@@ -134,26 +134,26 @@ impl ImportStore {
             let kernel = d.kernel.clone();
             let cell = Arc::new(Mutex::new(None));
             let captured = cell.clone();
-            item.current.source_capture = Step::new(State::Running);
+            item.current.twitter = Step::new(State::Running);
             self.publish(batch, item);
             #[cfg(test)]
             let fault = self.source_fault.lock().unwrap().take();
             let result = session
-                .transaction_named("Establish Source snapshot and attachment", move |c| {
+                .transaction_named("Establish Twitter snapshot and attachment", move |c| {
                     Box::pin(async move {
                         if retained.base.success() {
                             check_content_in(&kernel, c, &retained, retained_snapshot.as_ref())
                                 .await?;
                         }
                         let entity = entity(&kernel, c, existing).await?;
-                        let id = snapshot.create_in(&kernel, c).await?;
+                        let id = TwitterService::create_in(&kernel, c, snapshot).await?;
                         *captured.lock().unwrap_or_else(|e| e.into_inner()) = Some((entity, id));
                         kernel
                             .attach_in(
                                 c,
                                 Membership {
                                     entity,
-                                    kind: id.kind(),
+                                    kind: TWITTER_KIND,
                                     component: id.component(),
                                 },
                             )
@@ -171,10 +171,10 @@ impl ImportStore {
             match result {
                 Ok((entity, id)) => {
                     item.current.entity = Some(entity);
-                    item.current.source_id = Some(id);
-                    item.current.source_revision = Some(0);
+                    item.current.twitter_id = Some(id);
+                    item.current.twitter_revision = Some(0);
                     item.current.base = Step::new(State::Success);
-                    item.current.source_capture = Step::new(State::Success);
+                    item.current.twitter = Step::new(State::Success);
                     item.current.effect += 1;
                 }
                 Err(e) => {
@@ -183,26 +183,26 @@ impl ImportStore {
                         && let Some((entity, id)) = candidate(&cell)
                     {
                         item.current.entity = Some(entity);
-                        item.current.source_id = Some(id);
-                        item.current.source_revision = Some(0);
+                        item.current.twitter_id = Some(id);
+                        item.current.twitter_revision = Some(0);
                     }
                     if existing.is_none() {
                         item.current.base = step.clone();
                     }
-                    item.current.source_capture = step;
+                    item.current.twitter = step;
                 }
             }
             self.publish(batch, item);
         }
         if item.current.file_attachment.success()
-            && item.current.source_capture.success()
+            && item.current.twitter.success()
             && !item.current.association.success()
         {
             let (Some(id), Some(file), Some(entity), Some(revision), Some(snapshot)) = (
-                item.current.source_id,
+                item.current.twitter_id,
                 item.current.file,
                 item.current.entity,
-                item.current.source_revision,
+                item.current.twitter_revision,
                 item.snapshot.clone(),
             ) else {
                 return;
@@ -213,36 +213,46 @@ impl ImportStore {
             #[cfg(test)]
             let fault = self.association_fault.lock().unwrap().take();
             let result = session
-                .transaction_named("Associate intended Source observation and File", move |c| {
-                    Box::pin(async move {
-                        let record = id.read_in(c).await?;
-                        anyhow::ensure!(
-                            record.revision == revision && record.snapshot == snapshot,
-                            "Intended Source snapshot was revised"
-                        );
-                        anyhow::ensure!(
-                            kernel.attachment_in(c, id.component()).await?
-                                == Some(Membership {
-                                    entity,
-                                    kind: id.kind(),
-                                    component: id.component()
-                                }),
-                            "Source hosting context changed"
-                        );
-                        let revision = id.associate_in(&kernel, c, file).await?;
-                        #[cfg(test)]
-                        if matches!(fault, Some(super::store::BaseFault::Rollback)) {
-                            anyhow::bail!("test: association rollback");
-                        }
-                        Ok(revision)
-                    })
-                })
+                .transaction_named(
+                    "Associate intended Twitter observation and File",
+                    move |c| {
+                        Box::pin(async move {
+                            let record = TwitterService::read_in(c, id).await?;
+                            anyhow::ensure!(
+                                record.revision == revision && record.snapshot == snapshot,
+                                "Intended Twitter snapshot was revised"
+                            );
+                            anyhow::ensure!(
+                                kernel.attachment_in(c, id.component()).await?
+                                    == Some(Membership {
+                                        entity,
+                                        kind: TWITTER_KIND,
+                                        component: id.component()
+                                    }),
+                                "Twitter hosting context changed"
+                            );
+                            let prepared =
+                                TwitterService::prepare_association_in(&kernel, c, id, file)
+                                    .await?;
+                            match TwitterService::associate_in(&kernel, c, prepared).await? {
+                                WriteOutcome::Accepted(record) => {
+                                    #[cfg(test)]
+                                    if matches!(fault, Some(super::store::BaseFault::Rollback)) {
+                                        anyhow::bail!("test: association rollback");
+                                    }
+                                    Ok(record.revision)
+                                }
+                                _ => anyhow::bail!("Twitter association context changed"),
+                            }
+                        })
+                    },
+                )
                 .await;
             #[cfg(test)]
             let result = uncertain_fault(result, fault);
             match result {
                 Ok(revision) => {
-                    item.current.source_revision = Some(revision);
+                    item.current.twitter_revision = Some(revision);
                     item.current.association = Step::new(State::Success);
                     item.current.effect += 1;
                 }
@@ -273,11 +283,11 @@ impl ImportStore {
         }
         if item.snapshot.is_some()
             && item.current.file.is_some()
-            && (!item.current.file_attachment.success() || !item.current.source_capture.success())
+            && (!item.current.file_attachment.success() || !item.current.twitter.success())
         {
             item.current.association = Step::error(
                 State::Skipped,
-                "Requires confirmed intended File and Source attachments",
+                "Requires confirmed intended File and Twitter attachments",
             );
         }
     }
@@ -334,26 +344,26 @@ impl ImportStore {
                     } else {
                         false
                     };
-                    let mut source_present = false;
+                    let mut twitter = false;
                     let mut associated_revision = None;
-                    if let Some(id) = r.source_id {
-                        let record = id.read_in(c).await?;
-                        let expected_revision = r.source_revision.unwrap_or(0);
+                    if let Some(id) = r.twitter_id {
+                        let record = TwitterService::read_in(c, id).await?;
+                        let expected_revision = r.twitter_revision.unwrap_or(0);
                         let association_committed = r.association.state == State::Uncertain
                             && record.revision == expected_revision + 1
                             && record.basis == r.file;
                         anyhow::ensure!(
                             Some(record.snapshot) == snapshot
                                 && (record.revision == expected_revision || association_committed),
-                            "Original Source observation was revised"
+                            "Original Twitter observation was revised"
                         );
-                        source_present = kernel.attachment_in(c, id.component()).await?
+                        twitter = kernel.attachment_in(c, id.component()).await?
                             == Some(Membership {
                                 entity,
-                                kind: id.kind(),
+                                kind: TWITTER_KIND,
                                 component: id.component(),
                             });
-                        if association_committed && attached && source_present {
+                        if association_committed && attached && twitter {
                             associated_revision = Some(record.revision);
                         }
                     }
@@ -362,16 +372,15 @@ impl ImportStore {
                         "Original confirmed File attachment changed"
                     );
                     anyhow::ensure!(
-                        !r.source_capture.success() || source_present,
-                        "Original confirmed {} attachment changed",
-                        r.source_id.map_or("Source", |id| id.label())
+                        !r.twitter.success() || twitter,
+                        "Original confirmed Twitter attachment changed"
                     );
-                    Ok((registration, attached, source_present, associated_revision))
+                    Ok((registration, attached, twitter, associated_revision))
                 })
             })
             .await;
         match observed {
-            Ok((registration, attached, source_present, associated_revision)) => {
+            Ok((registration, attached, twitter, associated_revision)) => {
                 if registration && item.current.registration.state == State::Uncertain {
                     item.current.registration = Step::new(State::Success);
                     item.current.effect += 1;
@@ -380,15 +389,15 @@ impl ImportStore {
                     item.current.file_attachment = Step::new(State::Success);
                     item.current.effect += 1;
                 }
-                if source_present && item.current.source_capture.state == State::Uncertain {
-                    item.current.source_capture = Step::new(State::Success);
+                if twitter && item.current.twitter.state == State::Uncertain {
+                    item.current.twitter = Step::new(State::Success);
                     item.current.effect += 1;
                 }
-                if item.current.base.state == State::Uncertain && (attached || source_present) {
+                if item.current.base.state == State::Uncertain && (attached || twitter) {
                     item.current.base = Step::new(State::Success);
                 }
                 if let Some(revision) = associated_revision {
-                    item.current.source_revision = Some(revision);
+                    item.current.twitter_revision = Some(revision);
                     item.current.association = Step::new(State::Success);
                     item.current.effect += 1;
                 }
@@ -422,7 +431,7 @@ async fn check_content_in(
     kernel: &Kernel,
     c: &mut Context,
     r: &ResultState,
-    snapshot: Option<&super::source::SourceSnapshot>,
+    snapshot: Option<&locus_twitter::api::TwitterSnapshot>,
 ) -> anyhow::Result<()> {
     let entity = r
         .entity
@@ -445,23 +454,22 @@ async fn check_content_in(
             "Original File attachment changed"
         );
     }
-    if r.source_capture.success()
-        && let Some(id) = r.source_id
+    if r.twitter.success()
+        && let Some(id) = r.twitter_id
     {
-        let record = id.read_in(c).await?;
+        let record = TwitterService::read_in(c, id).await?;
         anyhow::ensure!(
-            Some(record.revision) == r.source_revision && Some(&record.snapshot) == snapshot,
-            "Original Source observation changed"
+            Some(record.revision) == r.twitter_revision && Some(&record.snapshot) == snapshot,
+            "Original Twitter observation changed"
         );
         anyhow::ensure!(
             kernel.attachment_in(c, id.component()).await?
                 == Some(Membership {
                     entity,
-                    kind: id.kind(),
+                    kind: TWITTER_KIND,
                     component: id.component()
                 }),
-            "Original {} attachment changed",
-            id.label()
+            "Original Twitter attachment changed"
         );
     }
     Ok(())

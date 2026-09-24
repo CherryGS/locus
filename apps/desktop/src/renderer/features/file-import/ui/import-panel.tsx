@@ -33,7 +33,6 @@ function Details({ result }: { result: Wire<"ImportResult"> }) {
     ["Entity establishment", result.base],
     ["File attachment", result.file_attachment],
     ["Twitter snapshot and attachment", result.twitter],
-    ["Bilibili snapshot and attachment", result.bilibili ?? { state: "not_requested", reason: null }],
     ["Source/File association", result.association],
   ] as const
   return (
@@ -52,7 +51,6 @@ function Details({ result }: { result: Wire<"ImportResult"> }) {
         </p>
       )}
       {result.twitter_id && <p className="break-all">Twitter snapshot: {result.twitter_id}</p>}
-      {result.bilibili_id && <p className="break-all">Bilibili snapshot: {result.bilibili_id}</p>}
       {result.entity_id && (
         <p className="break-all">
           {result.base.state === "success" ? "Confirmed" : "Candidate"} Entity: {result.entity_id}
@@ -236,14 +234,10 @@ export function ImportDetails({
                     <p className="truncate text-sm font-medium" title={item.source_path}>
                       {item.supplied
                         ? item.requested_file
-                          ? item.requested_bilibili
-                            ? "Registered File + Bilibili"
-                            : item.requested_twitter
-                              ? "Registered File + Twitter"
-                              : "Registered File"
-                          : item.requested_bilibili
-                            ? "Bilibili only"
-                            : "Twitter only"
+                          ? item.requested_twitter
+                            ? "Registered File + Twitter"
+                            : "Registered File"
+                          : "Twitter only"
                         : item.source_path.split(/[\\/]/).pop() || item.source_path}
                     </p>
                     <p className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
@@ -330,7 +324,7 @@ export function ImportDetails({
                   <div className="mt-3 flex min-w-0 flex-col gap-4 rounded-lg bg-muted/30 p-3">
                     <p className="break-all text-xs text-muted-foreground">
                       {item.supplied
-                        ? `Supplied scope: ${item.requested_file ? "registered File" : "no File requested"}${item.requested_twitter ? " / Twitter snapshot" : ""}${item.requested_bilibili ? " / Bilibili snapshot" : ""}`
+                        ? `Supplied scope: ${item.requested_file ? "registered File" : "no File requested"}${item.requested_twitter ? " / Twitter snapshot" : ""}`
                         : item.source_path}
                     </p>
                     <div className="flex min-w-0 flex-col gap-2">

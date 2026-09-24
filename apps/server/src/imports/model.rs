@@ -1,7 +1,7 @@
-use super::source::{SourceId, SourceSnapshot};
 use locus_core::api::EntityId;
 use locus_file::api::{CopyProgress, FileId, PreparedFile};
 use locus_media::api::{MediaId, MediaKind, Preview};
+use locus_twitter::api::{TwitterId, TwitterSnapshot};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,10 +103,10 @@ pub(crate) struct ResultState {
     pub copy: Step,
     pub registration: Step,
     pub file_attachment: Step,
-    pub source_capture: Step,
+    pub twitter: Step,
     pub association: Step,
-    pub source_id: Option<SourceId>,
-    pub source_revision: Option<i64>,
+    pub twitter_id: Option<TwitterId>,
+    pub twitter_revision: Option<i64>,
     pub base: Step,
     pub entity: Option<EntityId>,
     pub file: Option<FileId>,
@@ -123,10 +123,10 @@ impl ResultState {
             copy: Step::new(State::Pending),
             registration: Step::new(State::Pending),
             file_attachment: Step::new(State::Pending),
-            source_capture: Step::new(State::NotRequested),
+            twitter: Step::new(State::NotRequested),
             association: Step::new(State::NotRequested),
-            source_id: None,
-            source_revision: None,
+            twitter_id: None,
+            twitter_revision: None,
             base: Step::new(State::Pending),
             entity: None,
             file: None,
@@ -146,7 +146,7 @@ impl ResultState {
             && [
                 &self.registration,
                 &self.file_attachment,
-                &self.source_capture,
+                &self.twitter,
                 &self.association,
             ]
             .iter()
@@ -171,7 +171,7 @@ impl ResultState {
             &self.base,
             &self.registration,
             &self.file_attachment,
-            &self.source_capture,
+            &self.twitter,
             &self.association,
         ]
         .iter()
@@ -203,7 +203,7 @@ pub(crate) struct Item {
     pub id: String,
     pub source: String,
     pub supplied: bool,
-    pub snapshot: Option<SourceSnapshot>,
+    pub snapshot: Option<TwitterSnapshot>,
     pub current: ResultState,
     pub attempts: Vec<Attempt>,
     pub active: Option<String>,
@@ -218,4 +218,4 @@ pub(crate) struct Batch {
     pub ended: bool,
 }
 
-pub(crate) type RegisteredInput = (Option<FileId>, Option<SourceSnapshot>);
+pub(crate) type RegisteredInput = (Option<FileId>, Option<TwitterSnapshot>);

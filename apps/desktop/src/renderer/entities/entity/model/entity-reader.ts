@@ -7,8 +7,6 @@ import {
   mediaProjection,
   membershipProjection,
   twitterProjection,
-  bilibiliProjection,
-  bilibiliProblems,
   twitterProblems,
   modelProjection,
   modelProblems,
@@ -29,7 +27,7 @@ type Entry = {
   epoch: number
 }
 type ReadApi = Pick<BackendApi, "identities" | "memberships" | "file" | "media" | "twitter" | "model"> &
-  Partial<Pick<BackendApi, "civitai" | "bilibili">> &
+  Partial<Pick<BackendApi, "civitai">> &
   Partial<Pick<BackendApi, "previewBytes" | "savedPreview">>
 
 export class EntityReader {
@@ -348,39 +346,32 @@ export class EntityReader {
             if (this.entries.get(id) !== entry) return
             try {
               const value =
-                component.kind === "bilibili"
-                  ? ((await this.api.bilibili?.(component.id)) ??
+                component.kind === "civitai"
+                  ? ((await this.api.civitai?.(component.id)) ??
                     (() => {
-                      throw new Error("Bilibili read capability unavailable")
+                      throw new Error("Civitai read capability unavailable")
                     })())
-                  : component.kind === "civitai"
-                    ? ((await this.api.civitai?.(component.id)) ??
-                      (() => {
-                        throw new Error("Civitai read capability unavailable")
-                      })())
-                    : component.kind === "file"
-                      ? await this.api.file(component.id)
-                      : component.kind === "model"
-                        ? await this.api.model(component.id)
-                        : component.kind === "twitter"
-                          ? await this.api.twitter(component.id)
-                          : await this.api.media(component.kind as "image" | "video", component.id)
+                  : component.kind === "file"
+                    ? await this.api.file(component.id)
+                    : component.kind === "model"
+                      ? await this.api.model(component.id)
+                      : component.kind === "twitter"
+                        ? await this.api.twitter(component.id)
+                        : await this.api.media(component.kind as "image" | "video", component.id)
               if (this.entries.get(id) !== entry) return
               let next =
-                component.kind === "bilibili"
-                  ? bilibiliProjection(value as Wire<"BilibiliView">)
-                  : component.kind === "civitai"
-                    ? civitaiProjection(value as Wire<"CivitaiView">)
-                    : "file_id" in value
-                      ? fileProjection(value)
-                      : component.kind === "model"
-                        ? modelProjection(value as Wire<"ModelView">)
-                        : "snapshot" in value.record
-                          ? twitterProjection(value as Wire<"TwitterView">)
-                          : {
-                              ...mediaProjection(value as Wire<"MediaView">),
-                              kindId: component.kindId,
-                            }
+                component.kind === "civitai"
+                  ? civitaiProjection(value as Wire<"CivitaiView">)
+                  : "file_id" in value
+                    ? fileProjection(value)
+                    : component.kind === "model"
+                      ? modelProjection(value as Wire<"ModelView">)
+                      : "snapshot" in value.record
+                        ? twitterProjection(value as Wire<"TwitterView">)
+                        : {
+                            ...mediaProjection(value as Wire<"MediaView">),
+                            kindId: component.kindId,
+                          }
               if (
                 next.id !== component.id ||
                 next.kind !== component.kind ||
@@ -416,11 +407,9 @@ export class EntityReader {
                     ? []
                     : (component.kind === "model"
                         ? modelProblems(value as Wire<"ModelView">, id)
-                        : component.kind === "bilibili"
-                          ? bilibiliProblems(value as Wire<"BilibiliView">, id)
-                          : "snapshot" in value.record
-                            ? twitterProblems(value as Wire<"TwitterView">, id)
-                            : mediaProblems(value as Wire<"MediaView">)
+                        : "snapshot" in value.record
+                          ? twitterProblems(value as Wire<"TwitterView">, id)
+                          : mediaProblems(value as Wire<"MediaView">)
                       ).map((p) => ({ ...p, key: `${component.id}:${p.key}` })),
               )
               if (
@@ -511,8 +500,7 @@ export class EntityReader {
                   (component.kind === "civitai" && error.detail.code === "not_found") ||
                   (error.detail.diagnostic?.owner === "model" &&
                     error.detail.diagnostic.error.code === "missing_record") ||
-                  ((error.detail.diagnostic?.owner === "twitter" ||
-                    error.detail.diagnostic?.owner === "bilibili") &&
+                  (error.detail.diagnostic?.owner === "twitter" &&
                     error.detail.diagnostic.error.code === "missing_record") ||
                   (error.detail.diagnostic?.owner === "media" &&
                     error.detail.diagnostic.error.code === "missing_record"))

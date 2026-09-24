@@ -131,7 +131,6 @@ async fn external_http_recovery_status_and_structured_error_contracts_match_sche
     let request = RegisteredImportRequest {
         request_id: id(),
         items: vec![RegisteredImportItem {
-            bilibili: None,
             file_id: None,
             twitter: Some(crate::api::twitter::dto::TwitterSnapshot {
                 post_id: Some("123".into()),
@@ -330,7 +329,6 @@ async fn uploaded_file_eligibility_and_token_survive_restart_without_request_rep
             RegisteredImportRequest {
                 request_id: request_id.clone(),
                 items: vec![RegisteredImportItem {
-                    bilibili: None,
                     file_id: Some(file),
                     twitter: None,
                 }],
@@ -1050,7 +1048,6 @@ async fn limited_router_and_cross_namespace_collisions_do_not_disclose_or_overwr
     let request = RegisteredImportRequest {
         request_id: id(),
         items: vec![RegisteredImportItem {
-            bilibili: None,
             file_id: Some(file.file_id),
             twitter: None,
         }],
@@ -1072,7 +1069,6 @@ async fn limited_router_and_cross_namespace_collisions_do_not_disclose_or_overwr
     let request = RegisteredImportRequest {
         request_id: id(),
         items: vec![RegisteredImportItem {
-            bilibili: None,
             file_id: None,
             twitter: Some(crate::api::twitter::dto::TwitterSnapshot {
                 post_id: Some("123".into()),
@@ -1104,7 +1100,6 @@ async fn limited_router_and_cross_namespace_collisions_do_not_disclose_or_overwr
     let desktop = RegisteredImportRequest {
         request_id: external_batch.batch_id.clone(),
         items: vec![RegisteredImportItem {
-            bilibili: None,
             file_id: None,
             twitter: Some(crate::api::twitter::dto::TwitterSnapshot {
                 post_id: Some("456".into()),

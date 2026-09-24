@@ -21,9 +21,7 @@ export const imageDisplayItems = {
   },
   dimensions(entity: EntityItem): string | undefined {
     const image = entity.components.find((component) => component.kind === "image")
-    return image?.width !== undefined && image.height !== undefined
-      ? `${image.width} × ${image.height}`
-      : undefined
+    return image?.width !== undefined && image.height !== undefined ? `${image.width} × ${image.height}` : undefined
   },
 }
 
@@ -46,23 +44,5 @@ export const twitterDisplayItems = {
   author(entity: EntityItem): string | undefined {
     const author = entity.components.find((component) => component.kind === "twitter")?.author
     return author?.handle ? `@${author.handle}` : author?.displayName
-  },
-}
-
-export const bilibiliDisplayItems = {
-  title(entity: EntityItem): string | undefined {
-    const capture = entity.components.find((component) => component.kind === "bilibili")?.record?.snapshot
-    if (!capture) return
-    const title =
-      capture.title?.trim() || capture.bvid || (capture.aid ? `av${capture.aid}` : capture.page_url)
-    return title
-      ? `${title}${capture.part?.index ? ` · P${capture.part.index}` : ""}${capture.asset_role === "cover" ? " · Cover" : ""}`
-      : undefined
-  },
-  uploader(entity: EntityItem): string | undefined {
-    return (
-      entity.components.find((component) => component.kind === "bilibili")?.record?.snapshot.uploader
-        ?.display_name ?? undefined
-    )
   },
 }

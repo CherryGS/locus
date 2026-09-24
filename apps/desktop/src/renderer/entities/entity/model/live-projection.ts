@@ -12,14 +12,13 @@ export const supportedKinds = {
   "aadf84d2-0dc0-4a81-8cdb-901162c78321": "image",
   "f4be9375-60f1-4d04-8f07-8c9ad765e230": "video",
   "88ace9d7-8f02-4cc6-8f5b-add4dc6faf51": "twitter",
-  "8301851c-9b14-4369-a6ce-bb7058686215": "bilibili",
 } as const
 export function membershipProjection(membership: Wire<"Membership">): EntityComponent {
   const kind =
     (
       supportedKinds as Record<
         string,
-        "file" | "image" | "video" | "twitter" | "bilibili" | "model" | "civitai" | undefined
+        "file" | "image" | "video" | "twitter" | "model" | "civitai" | undefined
       >
     )[membership.kind_id] ?? "unknown"
   return {
@@ -223,48 +222,5 @@ export function modelProblems(view: Wire<"ModelView">, entityId: string): ReadPr
   if (view.host && view.host !== entityId)
     add("host", `Model is now hosted by Entity ${view.host}, not this observed Entity.`)
   if (view.file_problem) add("file", diagnosticText(view.file_problem))
-  return problems
-}
-
-export function bilibiliProjection(value: Wire<"BilibiliView">): EntityComponent {
-  return {
-    kind: "bilibili",
-    id: value.record.component_id,
-    kindId: value.record.kind_id,
-    readStatus: "ready",
-    record: value.record,
-    applicability: value.applicability,
-  }
-}
-export function bilibiliProblems(view: Wire<"BilibiliView">, entityId: string): ReadProblem[] {
-  const problems: ReadProblem[] = []
-  const subject = `Bilibili ${view.record.component_id}`
-  const add = (key: string, message: string) => problems.push({ key, subject, message, recovery: "entity" })
-  for (const [index, issue] of (view.record.snapshot.issues ?? []).entries())
-    add(
-      `capture:${index}`,
-      `Producer reported ${issue.portion.replaceAll("_", " ")}: ${issue.message ?? issue.code} (${issue.code}).`,
-    )
-  const context = view.applicability
-  if (context.status === "error") add("context", diagnosticText({ owner: "bilibili", error: context.error }))
-  if (context.status === "unmounted" && view.record.basis)
-    add("association", "The saved Bilibili association has no current hosting Entity.")
-  if (context.status === "input") {
-    if (context.host !== entityId)
-      add("host", `The observed Bilibili host is Entity ${context.host}; reread this Entity's memberships.`)
-    const comparison = context.comparison
-    if (comparison.status === "changed")
-      add(
-        "association",
-        `The saved capture is associated with File ${comparison.basis}; current input is File ${comparison.current}.`,
-      )
-    if (comparison.status === "incomplete" && comparison.basis && comparison.current.status !== "file")
-      add(
-        "association",
-        `The saved Bilibili association has no current File input (${comparison.current.status.replaceAll("_", " ")}).`,
-      )
-    if (context.file_error)
-      add("file", `Current File: ${context.file_error.message} (${context.file_error.kind}).`)
-  }
   return problems
 }

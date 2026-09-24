@@ -1116,25 +1116,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 
 [[package]]
-name = "locus-bilibili"
-version = "0.1.0"
-dependencies = [
- "diesel",
- "diesel-async",
- "locus-core",
- "locus-file",
- "locus-store",
- "locus-task",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "tokio",
- "url",
- "uuid",
-]
-
-[[package]]
 name = "locus-civitai"
 version = "0.1.0"
 dependencies = [
@@ -1244,7 +1225,6 @@ dependencies = [
  "hyper",
  "hyper-util",
  "image",
- "locus-bilibili",
  "locus-civitai",
  "locus-core",
  "locus-file",

@@ -32,7 +32,6 @@ locus-file.workspace = true
 locus-media.workspace = true
 locus-model.workspace = true
 locus-twitter.workspace = true
-locus-bilibili.workspace = true
 directories.workspace = true
 tokio = { workspace = true, features = ["net", "signal", "fs"] }
 

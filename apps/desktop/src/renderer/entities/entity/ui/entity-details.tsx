@@ -7,7 +7,6 @@ import { formatFileSize } from "../lib/format-file-size"
 import { formatDuration } from "../lib/format-duration"
 import { Detail, DetailSection, DetailTime } from "./detail-fields"
 import { TwitterDetails } from "./twitter-details"
-import { BilibiliDetails } from "./bilibili-details"
 
 function fileExtension(name: string) {
   const dot = name.lastIndexOf(".")
@@ -79,7 +78,6 @@ function ComponentDetailsContent({ component }: { component: EntityComponent }) 
         </p>
       </DetailSection>
     )
-  if (component.kind === "bilibili") return <BilibiliDetails key={component.id} component={component} />
   if (component.kind === "twitter") return <TwitterDetails key={component.id} component={component} />
   if (component.kind === "unknown")
     return (

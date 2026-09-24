@@ -11,7 +11,7 @@ use std::sync::Arc;
 fn id() -> String {
     uuid::Uuid::now_v7().to_string()
 }
-pub(super) async fn app() -> (tempfile::TempDir, Server, String) {
+async fn app() -> (tempfile::TempDir, Server, String) {
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join("plain.txt");
     std::fs::write(&path, b"retained ordinary input").unwrap();
@@ -23,7 +23,7 @@ pub(super) async fn app() -> (tempfile::TempDir, Server, String) {
     .unwrap();
     (root, server, path.to_string_lossy().into_owned())
 }
-pub(super) async fn terminal(s: &Arc<Shared>, task: &str) -> TaskOutcome {
+async fn terminal(s: &Arc<Shared>, task: &str) -> TaskOutcome {
     let mut changes = s.changes.subscribe();
     tokio::time::timeout(std::time::Duration::from_secs(20), async {
         loop {
@@ -36,7 +36,7 @@ pub(super) async fn terminal(s: &Arc<Shared>, task: &str) -> TaskOutcome {
     .await
     .unwrap()
 }
-pub(super) async fn accepted(
+async fn accepted(
     s: &Arc<Shared>,
     request: &RegisteredImportRequest,
 ) -> Result<crate::api::dto::Receipt, crate::api::error::ApiError> {
@@ -56,7 +56,7 @@ pub(super) async fn accepted(
     .await
     .unwrap()
 }
-pub(super) async fn file(s: &Arc<Shared>, path: String) -> String {
+async fn file(s: &Arc<Shared>, path: String) -> String {
     let receipt = s
         .import(ImportRequest {
             request_id: id(),
@@ -72,7 +72,6 @@ fn request(file: Option<String>, twitter: bool) -> RegisteredImportRequest {
     RegisteredImportRequest {
         request_id: id(),
         items: vec![RegisteredImportItem {
-            bilibili: None,
             file_id: file,
             twitter: twitter.then(|| crate::api::twitter::dto::TwitterSnapshot {
                 post_id: Some("123456789".into()),
@@ -91,7 +90,7 @@ fn batch_id(s: &Shared, request: &str) -> String {
         .unwrap()
         .batch_id
 }
-pub(super) fn item(s: &Shared, batch: &str) -> ImportItem {
+fn item(s: &Shared, batch: &str) -> ImportItem {
     s.import_snapshot()
         .batches
         .into_iter()
@@ -100,7 +99,7 @@ pub(super) fn item(s: &Shared, batch: &str) -> ImportItem {
         .items
         .remove(0)
 }
-pub(super) async fn recover(s: &Arc<Shared>, batch: &str, action: ImportAction) -> ImportItem {
+async fn recover(s: &Arc<Shared>, batch: &str, action: ImportAction) -> ImportItem {
     let receipt = s
         .recover_import(ImportRecoveryRequest {
             request_id: id(),
@@ -158,7 +157,6 @@ async fn registered_forms_duplicate_binding_and_rejections() {
         RegisteredImportRequest {
             request_id: id(),
             items: vec![RegisteredImportItem {
-                bilibili: None,
                 file_id: None,
                 twitter: Some(Default::default()),
             }],
@@ -321,9 +319,7 @@ async fn revised_capture_blocks_association_and_never_replaces_the_snapshot() {
         .imports
         .item(&batch_id(s, &request.request_id), &old.item_id)
         .unwrap();
-    let crate::imports::SourceId::Twitter(twitter) = internal.current.source_id.unwrap() else {
-        panic!("expected Twitter source");
-    };
+    let twitter = internal.current.twitter_id.unwrap();
     let domain = s.business().unwrap().clone();
     s.query("explicitly replace test capture", move |task| async move {
         let mut session = domain.database.session(&task).await.unwrap();
@@ -439,7 +435,7 @@ async fn later_content_checks_retained_attachment_inside_its_mutation_unit() {
             .unwrap();
         let domain = s.business().unwrap().clone();
         let component = if source_first {
-            internal.current.source_id.unwrap().component()
+            internal.current.twitter_id.unwrap().component()
         } else {
             internal.current.file.unwrap().component()
         };
@@ -498,7 +494,7 @@ async fn confirmation_cannot_relabel_detached_confirmed_twitter_as_current_succe
             .imports
             .item(&batch_id(s, &request.request_id), &old.item_id)
             .unwrap();
-        let component = internal.current.source_id.unwrap().component();
+        let component = internal.current.twitter_id.unwrap().component();
         let domain = s.business().unwrap().clone();
         s.query("detach confirmed Source", move |task| async move {
             let mut session = domain.database.session(&task).await.unwrap();
@@ -548,10 +544,8 @@ async fn changed_source_does_not_stop_independent_original_media_preview_recover
         .imports
         .item(&batch_id(s, &request.request_id), &old.item_id)
         .unwrap();
-    let crate::imports::SourceId::Twitter(twitter) = internal.current.source_id.unwrap() else {
-        panic!("expected Twitter source");
-    };
-    let revision = internal.current.source_revision.unwrap();
+    let twitter = internal.current.twitter_id.unwrap();
+    let revision = internal.current.twitter_revision.unwrap();
     let domain = s.business().unwrap().clone();
     s.query("replace independent Source", move |task| async move {
         let mut session = domain.database.session(&task).await.unwrap();

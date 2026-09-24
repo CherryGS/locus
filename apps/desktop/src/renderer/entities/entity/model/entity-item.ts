@@ -57,12 +57,6 @@ export type EntityComponent = Observation &
         host?: string | null
         fileProblem?: Wire<"DomainDiagnostic"> | null
       }
-    | {
-        kind: "bilibili"
-        id: string
-        record?: Wire<"BilibiliRecord">
-        applicability?: Wire<"BilibiliApplicability">
-      }
     | { kind: "unknown"; id: string; kindId: string }
     | {
         kind: "twitter"

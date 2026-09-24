@@ -209,9 +209,6 @@ server-twitter-fixture root video="":
 desktop-twitter-browser: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:twitter-browser
 
-desktop-bilibili-browser: server-fixture-build desktop-build
-    {{ npm }} --prefix apps/desktop run verify:bilibili-browser
-
 desktop-twitter-native: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:twitter-native
 

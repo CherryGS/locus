@@ -59,9 +59,9 @@ impl Shared {
                 .items
                 .into_iter()
                 .map(|item| {
-                    if item.file_id.is_none() && item.twitter.is_none() && item.bilibili.is_none() {
+                    if item.file_id.is_none() && item.twitter.is_none() {
                         return Err(ApiError::invalid(
-                            "An item requires a registered File or provider snapshot",
+                            "An item requires a registered File or Twitter snapshot",
                         ));
                     }
                     let file = item
@@ -80,20 +80,10 @@ impl Shared {
                             .map_err(|e| ApiError::invalid(e.to_string()))
                         })
                         .transpose()?;
-                    let snapshot = match (item.twitter, item.bilibili) {
-                        (Some(_), Some(_)) => {
-                            return Err(ApiError::invalid(
-                                "An import item selects one provider snapshot",
-                            ));
-                        }
-                        (Some(snapshot), None) => Some(crate::imports::SourceSnapshot::Twitter(
-                            crate::api::twitter::input::snapshot(snapshot)?,
-                        )),
-                        (None, Some(snapshot)) => Some(crate::imports::SourceSnapshot::Bilibili(
-                            crate::api::bilibili::input::snapshot(snapshot)?,
-                        )),
-                        (None, None) => None,
-                    };
+                    let snapshot = item
+                        .twitter
+                        .map(crate::api::twitter::input::snapshot)
+                        .transpose()?;
                     Ok((file, snapshot))
                 })
                 .collect::<Result<Vec<_>, ApiError>>()

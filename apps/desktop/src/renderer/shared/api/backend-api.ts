@@ -68,13 +68,6 @@ export class BackendApi {
       }),
     )
   }
-  async bilibili(component_id: string) {
-    return result(
-      await this.client.GET("/api/v1/bilibili/{component_id}/view", {
-        params: { path: { component_id } },
-      }),
-    )
-  }
   async civitai(component_id: string) {
     return result(
       await this.client.GET("/api/v1/civitai/{component_id}/view", { params: { path: { component_id } } }),

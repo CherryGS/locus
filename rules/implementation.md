@@ -12,8 +12,6 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 - `just rust-lint`: check all workspace targets with the enforced Clippy lints.
 - `just rust-test-all`: run workspace code tests with Nextest.
 - `just rust-test-code locus-server`: run server and migrated example tests; additional Nextest arguments may follow.
-- `just rust-test-code locus-bilibili`: verify Bilibili source validation, independent snapshots and guarded File association.
-- `just desktop-bilibili-browser`: verify Bilibili external upload/import and desktop reading with isolated synthetic video and cover inputs; requires provisioned ffprobe/ffmpeg.
 - `just rust-metadata`: validate and inspect workspace metadata.
 - `just rust-deps`: inspect the resolved dependency tree.
 - `just rust-build`: build all workspace targets.

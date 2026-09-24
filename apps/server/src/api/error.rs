@@ -119,9 +119,6 @@ pub enum DomainDiagnostic {
     Media {
         error: MediaFailure,
     },
-    Bilibili {
-        error: super::bilibili::dto::BilibiliFailure,
-    },
     Twitter {
         error: super::twitter::dto::TwitterFailure,
     },
