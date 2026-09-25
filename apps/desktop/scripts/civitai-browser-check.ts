@@ -49,10 +49,6 @@ try {
   await page.getByRole("button", { name: "Use Civitai view", exact: true }).click()
   const reading = page.locator('[data-slot="civitai-page"]')
   const civitaiPanel = page.locator('#auxiliary-panel[aria-label="Civitai"]')
-  async function openReadingDetails() {
-    await reading.getByRole("button", { name: "Open Civitai details", exact: true }).click()
-    await civitaiPanel.locator('[data-slot="civitai-reading-details"]').waitFor()
-  }
   async function versionDescription(text: string) {
     await reading
       .getByRole("region", { name: "Version notes", exact: true })
@@ -71,8 +67,7 @@ try {
     await page.locator(`[data-slot="entity-inspection"][data-entity-id="${a.entityId}"]`).count(),
     1,
   )
-  await openReadingDetails()
-  const selectedFile = civitaiPanel.getByRole("button", { name: "B.safetensors · 300", exact: true })
+  const selectedFile = reading.getByRole("button", { name: "B.safetensors · 300", exact: true })
   await selectedFile.click()
   const selectedFileText = await selectedFile.innerText()
   await selectedFile.click()
@@ -89,7 +84,7 @@ try {
   )
   assert.equal(await selectedFile.innerText(), selectedFileText)
   assert.equal(
-    await civitaiPanel
+    await reading
       .locator("summary")
       .filter({ hasText: "B.safetensors · Model · provider declarations" })
       .count(),
@@ -134,7 +129,7 @@ try {
     false,
   )
   assert.equal(
-    await civitaiPanel.getByRole("button", { name: "B.safetensors · 300", exact: true }).isEnabled(),
+    await reading.getByRole("button", { name: "B.safetensors · 300", exact: true }).isEnabled(),
     false,
   )
   releaseSwitch()
@@ -145,7 +140,8 @@ try {
     .getByText("Previous version observation · rereading selected source.", { exact: true })
     .waitFor({ state: "hidden" })
   assert.equal(await reading.getByText(/Previous version observation/).count(), 0)
-  assert.equal(await civitaiPanel.locator("summary").filter({ hasText: "provider declarations" }).count(), 0)
+  assert.equal(await reading.locator("summary").filter({ hasText: "provider declarations" }).count(), 0)
+  await page.getByRole("button", { name: "Civitai", exact: true }).click()
   const originSnapshot = civitaiPanel.getByRole("region", { name: "Origin Civitai snapshot" })
   assert.equal(await originSnapshot.getByText(a.componentId!, { exact: true }).count(), 1)
   const originRead = await backend.client.GET("/api/v1/civitai/{component_id}/view", {
@@ -212,7 +208,7 @@ try {
     await page.locator(`[data-slot="entity-inspection"][data-entity-id="${a.entityId}"]`).count(),
     1,
   )
-  await civitaiPanel.getByRole("button", { name: "B.safetensors · 300", exact: true }).click()
+  await reading.getByRole("button", { name: "B.safetensors · 300", exact: true }).click()
   await page.screenshot({ path: join(output, "origin-with-peer-version.png") })
   await reading.getByRole("button", { name: "Inspect managed example", exact: true }).first().click()
   await page.locator('[data-slot="entity-inspection"][data-view-id="image.inspect"]').waitFor()
@@ -221,8 +217,7 @@ try {
   await page.locator('[data-slot="entity-inspection"][data-view-id="image.inspect"]').waitFor()
   await page.getByRole("button", { name: "Return to source", exact: true }).first().click()
   await versionDescription("B version description")
-  await openReadingDetails()
-  await civitaiPanel
+  await reading
     .getByText("B.safetensors · Model · provider declarations", { exact: true })
     .waitFor({ state: "attached" })
   if (!(await page.getByRole("button", { name: "Use File view", exact: true }).count()))
@@ -243,16 +238,84 @@ try {
   await reading.getByRole("button", { name: "Reread saved information", exact: true }).click()
   await reading.getByText(/Controlled page read failure/).waitFor({ state: "hidden" })
   await data.phase("A")
-  await openReadingDetails()
-  await civitaiPanel.locator('[data-slot="civitai-maintenance"] > summary').click()
-  await civitaiPanel.getByRole("button", { name: "Refresh origin Civitai information", exact: true }).click()
-  await civitaiPanel.getByText("Origin operation · complete", { exact: true }).waitFor()
+  await reading.locator('[data-slot="civitai-maintenance"] > summary').click()
+  await reading.getByRole("button", { name: "Refresh origin Civitai information", exact: true }).click()
+  await reading.getByText("Origin operation · complete", { exact: true }).waitFor()
   const view = await backend.client.GET("/api/v1/civitai/{component_id}/view", {
     params: { path: { component_id: a.componentId! } },
   })
   assert.equal(view.data?.host, a.entityId)
   assert.equal(view.data?.record.revision, "1")
   await page.screenshot({ path: join(output, "refreshed-origin.png") })
+  // Saved provider HTML retains useful structure, without giving the provider
+  // access to the trusted renderer or loading remote resources on presentation.
+  const richDescription = `<h3>Rich heading</h3>
+    <p onclick="window.__providerExecuted=true" style="position:fixed" id="provider-id"><strong>Bold text</strong> and <em>italic text</em></p>
+    <ol start="3"><li>First item</li><li>Second item</li></ol>
+    <blockquote>Quoted text</blockquote><pre><code>sample code</code></pre>
+    <table><tbody><tr><th>Name</th><td>Value</td></tr></tbody></table>
+    <p><a href="/models/7808">Rich source link</a>
+    <a href="javascript:window.__providerExecuted=true">Unsafe link</a></p>
+    <img src="https://invalid.example/description.png" alt="Saved description image" onerror="window.__providerExecuted=true">
+    <iframe src="https://invalid.example/frame"></iframe>
+    <svg onload="window.__providerExecuted=true"><foreignObject><p>Foreign content</p></foreignObject></svg>
+    <script>window.__providerExecuted=true</script><style>body{display:none}</style>
+    <form><input autofocus name="providerInput"></form>`
+  await page.route(`**/civitai/${a.componentId}/page`, async (route) => {
+    const response = await route.fetch()
+    const value = await response.json()
+    value.origin.record.model.description = richDescription
+    await route.fulfill({ response, json: value })
+  })
+  await page.route(`**/civitai/${a.componentId}/version?*`, async (route) => {
+    const response = await route.fetch()
+    const value = await response.json()
+    value.version.description =
+      "<p><strong>Version-specific rich notes</strong></p><ul><li>Version item</li></ul>"
+    await route.fulfill({ response, json: value })
+  })
+  await reading.getByRole("button", { name: "Reread saved information", exact: true }).click()
+  const modelDescription = reading.getByRole("region", { name: "Model description", exact: true })
+  await modelDescription.getByRole("heading", { name: "Rich heading", exact: true }).waitFor()
+  assert.equal(await modelDescription.locator("strong").innerText(), "Bold text")
+  assert.equal(await modelDescription.locator("em").innerText(), "italic text")
+  assert.equal(await modelDescription.locator("ol").getAttribute("start"), "3")
+  assert.equal(await modelDescription.getByRole("listitem").count(), 2)
+  assert.equal(await modelDescription.locator("blockquote").innerText(), "Quoted text")
+  assert.equal(await modelDescription.locator("pre code").innerText(), "sample code")
+  assert.equal(await modelDescription.getByRole("cell", { name: "Value", exact: true }).count(), 1)
+  assert.equal(
+    await modelDescription
+      .locator("script, style, iframe, svg, img, input, [onclick], [onerror], [style], #provider-id")
+      .count(),
+    0,
+  )
+  assert.equal(await modelDescription.getByRole("link", { name: "Unsafe link", exact: true }).count(), 0)
+  assert.equal(
+    await modelDescription
+      .getByRole("link", { name: "Saved description image ↗", exact: true })
+      .getAttribute("href"),
+    "https://invalid.example/description.png",
+  )
+  await versionDescription("Version-specific rich notes")
+  assert.equal(
+    await reading
+      .getByRole("region", { name: "Version notes", exact: true })
+      .getByRole("listitem")
+      .innerText(),
+    "Version item",
+  )
+  const richLink = modelDescription.getByRole("link", { name: "Rich source link", exact: true })
+  assert.equal(await richLink.getAttribute("href"), "https://civitai.com/models/7808")
+  await richLink.click()
+  await page.getByText("Couldn't open link", { exact: true }).waitFor()
+  assert.equal(await modelDescription.getByText("Couldn't open link", { exact: true }).count(), 0)
+  assert.equal(
+    await page.evaluate(() => (window as unknown as Record<string, unknown>).__providerExecuted),
+    undefined,
+  )
+  await page.unroute(`**/civitai/${a.componentId}/page`)
+  await page.unroute(`**/civitai/${a.componentId}/version?*`)
   assert.deepEqual(unadmitted, [])
   assert.deepEqual(errors, [])
   console.log(JSON.stringify({ result: "passed", output, entities: data.entries }))

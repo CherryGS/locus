@@ -1,16 +1,10 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import {
-  ArrowUpRightIcon,
-  CheckIcon,
-  FileIcon,
-  PanelRightIcon,
-  RefreshCwIcon,
-  UserRoundIcon,
-} from "lucide-react"
+import { ArrowUpRightIcon, CheckIcon, FileIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/shared/ui/card"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
 import { ScrollArea } from "@/shared/ui/scroll-area"
@@ -18,11 +12,10 @@ import { Spinner } from "@/shared/ui/spinner"
 import { Separator } from "@/shared/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@/shared/ui/table"
-import { providerText } from "@/shared/lib/provider-text"
 import type { CivitaiSelection, RelatedCollection } from "../model/navigation"
 import { SourceLink, type EntityItem } from "@/entities/entity"
 import { CivitaiGallery } from "./civitai-gallery"
-import { CivitaiPanelPortal, useCivitaiPanel } from "./civitai-panel-slot"
+import { CivitaiRichText } from "./civitai-rich-text"
 
 export function CivitaiReading({
   api,
@@ -41,7 +34,6 @@ export function CivitaiReading({
   onSelection: (selection: CivitaiSelection) => void
   onRelated: (collection: RelatedCollection, entity: EntityItem) => void
 }) {
-  const readingPanel = useCivitaiPanel()
   useSyncExternalStore(coordinator.subscribe, coordinator.snapshot)
   const [page, setPage] = useState<Wire<"CivitaiPage">>()
   const [unit, setUnit] = useState<Wire<"CivitaiVersionView">>()
@@ -322,33 +314,20 @@ export function CivitaiReading({
       )}
     </section>
   ) : null
-  const panelContent = (
-    <div className="flex min-w-0 flex-col gap-4 px-4 py-4" data-slot="civitai-reading-details">
-      <section aria-label="Current Civitai reading" className="flex min-w-0 flex-col gap-2">
-        <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Current reading
-        </h3>
-        <p className="text-sm font-medium">{unit?.version.name ?? "No version selected"}</p>
-        {unit && (
-          <p className="text-xs text-muted-foreground">
-            Version {unit.version.id} ·{" "}
-            {unit.in_origin ? "this entry’s snapshot" : `from Entity ${unit.source.entity_id.slice(-8)}`}
-          </p>
-        )}
-        {versionStatus && (
-          <p role="status" className="text-xs text-muted-foreground">
-            {versionStatus}
-          </p>
-        )}
-      </section>
-      {versionFiles}
+  const libraryDetails = (
+    <section
+      aria-label="Library and source"
+      className="flex min-w-0 flex-col gap-4"
+      data-slot="civitai-reading-details"
+    >
+      <h2 className="text-sm font-medium">Library &amp; source</h2>
       {maintenance}
       {page && model && (
         <>
           {unit && (
             <details className="text-xs" data-slot="civitai-library-links">
               <summary className="cursor-pointer text-muted-foreground">
-                Library links · {unit.correspondences.length} recorded
+                Library links · {unit.version.name} · {unit.correspondences.length} recorded
               </summary>
               <div className="flex flex-col gap-3 pt-3 [overflow-wrap:anywhere]">
                 <p className="text-muted-foreground">Recorded local correspondences for this version.</p>
@@ -412,7 +391,7 @@ export function CivitaiReading({
           </details>
         </>
       )}
-    </div>
+    </section>
   )
   return (
     <ScrollArea className="min-h-0 flex-1">
@@ -421,7 +400,6 @@ export function CivitaiReading({
         data-slot="civitai-page"
         aria-label="Civitai model"
       >
-        <CivitaiPanelPortal>{panelContent}</CivitaiPanelPortal>
         <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
             <h1 className="text-xl font-semibold tracking-tight">{model?.name ?? "Civitai"}</h1>
@@ -457,20 +435,6 @@ export function CivitaiReading({
               onClick={() => setRetry((value) => value + 1)}
             >
               {pending ? <Spinner /> : <RefreshCwIcon />}
-            </Button>
-            <Button
-              variant={operationAttention ? "outline" : "ghost"}
-              size="icon-sm"
-              aria-label="Open Civitai details"
-              title={
-                operationAttention
-                  ? "Civitai details · needs attention"
-                  : "Files, library links and maintenance"
-              }
-              disabled={!readingPanel}
-              onClick={() => readingPanel?.open()}
-            >
-              <PanelRightIcon />
             </Button>
           </div>
         </header>
@@ -686,6 +650,16 @@ export function CivitaiReading({
                           </TableCell>
                         </TableRow>
                         <TableRow>
+                          <TableHead scope="row" className="px-3 text-xs text-muted-foreground">
+                            Source
+                          </TableHead>
+                          <TableCell className="px-3 whitespace-normal [overflow-wrap:anywhere]">
+                            {unit.in_origin
+                              ? "This entry’s snapshot"
+                              : `Entity ${unit.source.entity_id.slice(-8)}`}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
                           <TableHead
                             scope="row"
                             className="px-3 py-2.5 align-top text-xs text-muted-foreground"
@@ -711,35 +685,51 @@ export function CivitaiReading({
                       </TableBody>
                     </Table>
                   </div>
+                  {versionFiles}
                 </section>
-                <section
-                  aria-label="Version notes"
-                  data-slot="civitai-version-notes"
-                  className="flex min-w-0 flex-col gap-3"
-                >
-                  <h2 className="text-sm font-medium">Version notes</h2>
-                  <p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">
-                    {providerText(unit.version.description) ?? "No version notes saved."}
-                  </p>
+                <section aria-label="Version notes" data-slot="civitai-version-notes" className="min-w-0">
+                  <Card>
+                    <CardHeader className="border-b">
+                      <CardTitle>
+                        <h2>Version notes</h2>
+                      </CardTitle>
+                      <CardDescription>{unit.version.name}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <CivitaiRichText
+                        html={unit.version.description}
+                        baseUrl={`https://civitai.com/models/${model.id}?modelVersionId=${unit.version.id}`}
+                        empty="No version notes saved."
+                      />
+                    </CardContent>
+                  </Card>
                 </section>
-                <Separator />
               </>
             )}
-            <section aria-label="About this model" className="flex min-w-0 flex-col gap-3">
-              <h2 className="text-sm font-medium">About this model</h2>
-              {!!model.tags.length && (
-                <div className="flex flex-wrap gap-1.5">
-                  {model.tags.map((tag) => (
-                    <Badge key={tag} variant="outline">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              <p className="whitespace-pre-wrap text-sm leading-7 [overflow-wrap:anywhere]">
-                {providerText(model.description) ?? "No model description saved."}
-              </p>
+            <section aria-label="Model description" className="flex min-w-0 flex-col gap-4 py-2">
+              <header className="flex flex-col gap-3 border-b pb-4">
+                <h2 className="text-base font-semibold">Model description</h2>
+                {!!model.tags.length && (
+                  <dl className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+                    <dt className="text-xs text-muted-foreground">Model tags</dt>
+                    <dd className="flex min-w-0 flex-wrap gap-1.5">
+                      {model.tags.map((tag) => (
+                        <Badge key={tag} variant="outline">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </dd>
+                  </dl>
+                )}
+              </header>
+              <CivitaiRichText
+                html={model.description}
+                baseUrl={`https://civitai.com/models/${model.id}`}
+                empty="No model description saved."
+              />
             </section>
+            <Separator />
+            {libraryDetails}
           </>
         )}
       </article>

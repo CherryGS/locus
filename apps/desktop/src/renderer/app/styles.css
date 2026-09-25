@@ -118,3 +118,33 @@ html, body, #root {
 a, button, input, select, textarea {
   -webkit-app-region: no-drag;
 }
+
+@layer components {
+  .civitai-rich-text {
+    @apply min-w-0 text-sm leading-7 [overflow-wrap:anywhere];
+  }
+  .civitai-rich-text :where(p, ul, ol, dl, blockquote, pre, figure, table) {
+    @apply my-3;
+  }
+  .civitai-rich-text :where(h1, h2, h3, h4, h5, h6) {
+    @apply mt-5 mb-2 font-semibold leading-snug;
+  }
+  .civitai-rich-text :where(h1, h2) { @apply text-lg; }
+  .civitai-rich-text :where(h3, h4) { @apply text-base; }
+  .civitai-rich-text :where(ul, ol) { @apply pl-6; }
+  .civitai-rich-text ul { @apply list-disc; }
+  .civitai-rich-text ol { @apply list-decimal; }
+  .civitai-rich-text li { @apply my-1; }
+  .civitai-rich-text li > p { @apply my-0; }
+  .civitai-rich-text dt { @apply font-medium; }
+  .civitai-rich-text dd { @apply ml-4; }
+  .civitai-rich-text blockquote { @apply border-l-2 pl-4 text-muted-foreground; }
+  .civitai-rich-text pre { @apply overflow-x-auto rounded-md bg-muted p-3 text-xs; }
+  .civitai-rich-text :not(pre) > code { @apply rounded bg-muted px-1 py-0.5 text-xs; }
+  .civitai-rich-text :where(th, td) { @apply border px-3 py-2 text-left; }
+  .civitai-rich-text th { @apply font-medium; }
+  .civitai-rich-text :where(caption, figcaption) { @apply text-xs text-muted-foreground; }
+  .civitai-rich-text [data-slot="separator"] { @apply my-4; }
+  .civitai-rich-text > :first-child { @apply mt-0; }
+  .civitai-rich-text > :last-child { @apply mb-0; }
+}
