@@ -25,7 +25,7 @@ export function BilibiliInspection({ entity, component, live }: {
           component={component}
           playbackPending={entity.membershipsStatus === "loading" || component.readStatus === "loading" || video?.readStatus === "loading"}
           player={live && video && matching ? (
-            <div className="flex aspect-video max-h-[65vh] min-h-64 flex-col overflow-hidden rounded-xl border">
+            <div className="flex aspect-video max-h-[55vh] min-h-64 flex-col overflow-hidden">
               <LiveVideo
                 {...live}
                 entityId={entity.id}
