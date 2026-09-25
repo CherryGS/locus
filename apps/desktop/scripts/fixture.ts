@@ -53,6 +53,7 @@ export async function startServer(
   const value = JSON.parse(String(line)) as {
     origin: string
     run_id: string
+    library_root: string
     availability: import("../src/shared/desktop-bridge").Availability
   }
   const context = { origin: value.origin, runId: value.run_id }
@@ -69,7 +70,16 @@ export async function startServer(
     await client.POST("/api/v1/drain")
     await exited
   }
-  return { context, availability: value.availability, child, exited, client, authorizedFetch, stop }
+  return {
+    context,
+    libraryRoot: value.library_root,
+    availability: value.availability,
+    child,
+    exited,
+    client,
+    authorizedFetch,
+    stop,
+  }
 }
 async function complete(client: LocusClient, taskId: string): Promise<TaskOutcome> {
   const deadline = AbortSignal.timeout(30_000)

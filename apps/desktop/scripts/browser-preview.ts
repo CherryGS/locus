@@ -1,10 +1,11 @@
+import { displayLibraryPath } from "../src/main/library-location.ts"
 import { createServer, type IncomingMessage } from "node:http"
 import { once } from "node:events"
 import { fixture, type startServer } from "./fixture.ts"
 
 /** Isolated verification adapter only. The production Electron entry never loads
  * this proxy and credentials remain in its Node transport, outside browser JS. */
-export async function browserPreview(backend: Awaited<ReturnType<typeof startServer>>) {
+export async function browserPreview(backend: Awaited<ReturnType<typeof startServer>>, port = 0) {
   let origin = ""
   const server = createServer(async (request, response) => {
     try {
@@ -24,7 +25,7 @@ export async function browserPreview(backend: Awaited<ReturnType<typeof startSer
       if (target.pathname === "/__desktop-preview.js") {
         response.writeHead(200, { "content-type": "text/javascript", "cache-control": "no-store" })
         response.end(
-          `const state={connection:{status:"ready",origin:location.origin,runId:${JSON.stringify(backend.context.runId)},availability:${JSON.stringify(backend.availability)}},close:{phase:"idle"}};const listeners=new Set();window.locusDesktop=Object.freeze({switchLibrary:async()=>({status:"failed",message:"Library switching is available in the desktop application."}),requestLifecycle:async()=>{throw new Error("Native application restart and exit are unavailable in this browser preview.")},openExternalLink:async(url)=>({url,status:"failed",message:"System-browser handoff is unavailable in this browser preview."}),selectImportFiles:async()=>({status:"canceled"}),state:async()=>state,ready:async()=>{},observe:f=>{listeners.add(f);return()=>listeners.delete(f)},prepared:async()=>{},closeAction:async()=>{},commitClose:async()=>{}});`,
+          `const state={connection:{status:"ready",origin:location.origin,runId:${JSON.stringify(backend.context.runId)},availability:${JSON.stringify(backend.availability)}},library:{root:${JSON.stringify(displayLibraryPath(backend.libraryRoot))},source:{kind:"preview"}},close:{phase:"idle"}};const listeners=new Set();window.locusDesktop=Object.freeze({switchLibrary:async()=>({status:"failed",message:"Library switching is available in the desktop application."}),requestLifecycle:async()=>{throw new Error("Native application restart and exit are unavailable in this browser preview.")},openExternalLink:async(url)=>({url,status:"failed",message:"System-browser handoff is unavailable in this browser preview."}),selectImportFiles:async()=>({status:"canceled"}),state:async()=>state,ready:async()=>{},observe:f=>{listeners.add(f);return()=>listeners.delete(f)},prepared:async()=>{},closeAction:async()=>{},commitClose:async()=>{}});`,
         )
         return
       }
@@ -93,7 +94,7 @@ export async function browserPreview(backend: Awaited<ReturnType<typeof startSer
       else response.writeHead(502, { "content-type": "text/plain" }).end("Isolated backend unavailable")
     }
   })
-  server.listen(0, "127.0.0.1")
+  server.listen(port, "127.0.0.1")
   await once(server, "listening")
   const address = server.address()
   if (!address || typeof address === "string") throw new Error("Preview address unavailable")

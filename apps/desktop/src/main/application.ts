@@ -1,4 +1,4 @@
-import { displayLibraryPath, existingLibrary, rememberLibrary } from "./library-location"
+import { displayLibraryPath, existingLibrary, librarySource, rememberLibrary } from "./library-location"
 import { relaunchArguments, startupLocator } from "./relaunch"
 import {
   app,
@@ -48,12 +48,14 @@ export function startDesktop() {
   const close = new CloseGate()
   let switchTarget: string | undefined
   let libraryNotice: string | undefined
+  let libraryOrigin: Awaited<ReturnType<typeof librarySource>>
   const state = (): DesktopState => ({
     connection,
     close: close.state,
     library: backend
       ? {
           root: displayLibraryPath(backend.libraryRoot),
+          source: libraryOrigin,
           switchTarget:
             close.state.phase !== "idle" && close.state.intent === "restart" ? switchTarget : undefined,
           notice: libraryNotice
@@ -475,6 +477,7 @@ export function startDesktop() {
     async function start() {
       try {
         const locator = startupLocator(process.argv)
+        libraryOrigin = await librarySource(locator)
         backend = await launchBackend(
           (value) => {
             child = value

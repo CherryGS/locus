@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { FolderOpenIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
+import { Badge } from "@/shared/ui/badge"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { SettingsGroup } from "./settings-rows"
 import type { DesktopBridge, DesktopState } from "../../../../shared/desktop-bridge"
@@ -32,6 +33,21 @@ export function LibrarySettingsPanel({ library, switchLibrary }: LibrarySettings
   return (
     <SettingsGroup
       name="Current library"
+      action={
+        library?.source && (
+          <Badge variant="outline" title={library.source.name}>
+            {library.source.kind === "environment"
+              ? `ENV · ${library.source.name}`
+              : {
+                  startup: "Startup argument",
+                  selection: "Chosen library",
+                  "path-file": "Locus/path",
+                  default: "Default location",
+                  preview: "Preview configuration",
+                }[library.source.kind]}
+          </Badge>
+        )
+      }
       footer={
         <Button disabled={pending} onClick={() => void choose()}>
           <FolderOpenIcon data-icon="inline-start" />

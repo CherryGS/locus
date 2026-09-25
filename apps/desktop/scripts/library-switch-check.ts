@@ -51,6 +51,7 @@ try {
   await page.getByRole("button", { name: "Setting", exact: true }).click()
   await page.getByRole("button", { name: "Library", exact: true }).click()
   await page.getByText(a.library, { exact: true }).waitFor()
+  await page.getByText("ENV · LOCUS_DATA_DIR", { exact: true }).waitFor()
   const choose = () => page.getByRole("button", { name: "Choose library and restart", exact: true }).click()
   const select = (path: string) =>
     application!.evaluate((_electron, path) => {

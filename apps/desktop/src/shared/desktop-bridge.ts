@@ -29,10 +29,14 @@ export type CloseState =
     }
   | { phase: "draining"; attemptId: string; intent?: LifecycleIntent; active?: string }
 
+export type LibrarySource = {
+  kind: "environment" | "startup" | "selection" | "path-file" | "default" | "preview"
+  name?: string
+}
 export type DesktopState = {
   connection: Connection
   close: CloseState
-  library?: { root: string; switchTarget?: string; notice?: string }
+  library?: { root: string; source?: LibrarySource; switchTarget?: string; notice?: string }
 }
 export type Preparation = {
   attemptId: string

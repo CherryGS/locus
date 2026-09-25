@@ -1,4 +1,6 @@
-import { open, realpath, mkdir, rename, writeFile, unlink } from "node:fs/promises"
+import { open, realpath, mkdir, rename, readFile, writeFile, unlink } from "node:fs/promises"
+import type { LibrarySource } from "../shared/desktop-bridge"
+import type { StartupLocator } from "./relaunch"
 import { homedir } from "node:os"
 import { dirname, isAbsolute, join } from "node:path"
 import { randomUUID } from "node:crypto"
@@ -17,6 +19,26 @@ export function libraryPathFile() {
         : process.env.XDG_DATA_HOME || join(homedir(), ".local", "share")
   if (!isAbsolute(base)) throw new Error("The application-data directory must be an absolute path.")
   return join(base, "Locus", "path")
+}
+
+/** Capture startup precedence before rememberLibrary can update the locator. */
+export async function librarySource(
+  locator?: StartupLocator,
+  environment: string | null | undefined = process.env.LOCUS_DATA_DIR,
+  file?: string,
+): Promise<LibrarySource | undefined> {
+  if (locator) return { kind: locator.remember ? "selection" : "startup" }
+  if (environment != null) return { kind: "environment", name: "LOCUS_DATA_DIR" }
+  try {
+    file ??= libraryPathFile()
+    const firstLine = (await readFile(file, "utf8"))
+      .split(/\r?\n/, 1)[0]
+      .replace(/^\uFEFF/, "")
+      .trim()
+    return firstLine ? { kind: "path-file", name: file } : { kind: "default" }
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT" ? { kind: "default" } : undefined
+  }
 }
 
 export async function existingLibrary(path: string) {
