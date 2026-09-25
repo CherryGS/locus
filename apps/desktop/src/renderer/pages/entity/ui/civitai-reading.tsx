@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import { ArrowUpRightIcon, CheckIcon, FileIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
+import { ArrowUpRightIcon, FileIcon, PanelRightIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
 import { Button } from "@/shared/ui/button"
@@ -16,6 +16,7 @@ import type { CivitaiSelection, RelatedCollection } from "../model/navigation"
 import { SourceLink, type EntityItem } from "@/entities/entity"
 import { CivitaiGallery } from "./civitai-gallery"
 import { CivitaiRichText } from "./civitai-rich-text"
+import { CivitaiPanelPortal, useCivitaiPanel } from "./civitai-panel-slot"
 
 export function CivitaiReading({
   api,
@@ -34,6 +35,21 @@ export function CivitaiReading({
   onSelection: (selection: CivitaiSelection) => void
   onRelated: (collection: RelatedCollection, entity: EntityItem) => void
 }) {
+  const readingPanel = useCivitaiPanel()
+  const [fileDetailsOpen, setFileDetailsOpen] = useState(false)
+  const [fileDetailsRequest, setFileDetailsRequest] = useState(0)
+  const fileDetailsSummary = useRef<HTMLElement>(null)
+  const handledFileDetailsRequest = useRef(0)
+  useEffect(() => {
+    if (
+      fileDetailsRequest !== handledFileDetailsRequest.current &&
+      readingPanel?.target &&
+      fileDetailsSummary.current
+    ) {
+      fileDetailsSummary.current.focus()
+      handledFileDetailsRequest.current = fileDetailsRequest
+    }
+  }, [fileDetailsRequest, readingPanel?.target])
   useSyncExternalStore(coordinator.subscribe, coordinator.snapshot)
   const [page, setPage] = useState<Wire<"CivitaiPage">>()
   const [unit, setUnit] = useState<Wire<"CivitaiVersionView">>()
@@ -162,6 +178,7 @@ export function CivitaiReading({
     }
   }, [api, component, page, selection?.version, selection?.source, changedModel, eligible, member])
   function choose(next: CivitaiSelection) {
+    setFileDetailsOpen(false)
     changedSource.current = next.source !== selection?.source
     setUnitPending(true)
     setUnitProblem(undefined)
@@ -276,39 +293,36 @@ export function CivitaiReading({
   const versionFiles = unit ? (
     <section aria-label="Version files" className="flex min-w-0 flex-col gap-2">
       <h3 className="text-xs text-muted-foreground">Source files</h3>
-      <ToggleGroup
-        aria-label="Version file"
-        orientation="vertical"
-        variant="outline"
-        size="sm"
-        className="w-full min-w-0"
-        disabled={!unitMatchesSelection || unitPending}
-        value={focusedFile ? [focusedFile.id] : []}
-        onValueChange={(values) => {
-          if (!values[0] || !unitMatchesSelection || unitPending) return
-          setSelectionNotice(undefined)
-          setSelection({ ...selection!, file: values[0] })
-        }}
-      >
+      <ul className="flex min-w-0 flex-col divide-y rounded-lg border">
         {unit.version.files.map((item) => (
-          <ToggleGroupItem
-            key={item.id}
-            value={item.id}
-            aria-label={`${item.name} · ${item.id}`}
-            title={`${item.name} · ${item.kind} · ${item.id}`}
-            className="h-auto w-full min-w-0 items-start justify-start gap-2 p-2.5 text-left"
-          >
-            <FileIcon className="mt-0.5 text-muted-foreground" />
+          <li key={item.id} className="flex min-w-0 items-center gap-3 px-3 py-2.5">
+            <FileIcon className="size-4 shrink-0 text-muted-foreground" />
             <span className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="truncate">{item.name}</span>
+              <span className="truncate text-sm font-medium" title={item.name}>
+                {item.name}
+              </span>
               <span className="text-xs font-normal whitespace-normal text-muted-foreground [overflow-wrap:anywhere]">
                 {sourceFileSummary(item)}
               </span>
             </span>
-            <CheckIcon className="mt-0.5 opacity-0 group-aria-pressed/toggle:opacity-100" />
-          </ToggleGroupItem>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`View details for ${item.name} · ${item.id}`}
+              disabled={!readingPanel || !unitMatchesSelection || unitPending}
+              onClick={() => {
+                setSelectionNotice(undefined)
+                setSelection({ ...selection!, file: item.id })
+                setFileDetailsOpen(true)
+                setFileDetailsRequest((value) => value + 1)
+                readingPanel?.open()
+              }}
+            >
+              Details <PanelRightIcon data-icon="inline-end" />
+            </Button>
+          </li>
         ))}
-      </ToggleGroup>
+      </ul>
       {!unit.version.files.length && (
         <p className="text-xs text-muted-foreground">No files listed in this observation.</p>
       )}
@@ -317,10 +331,40 @@ export function CivitaiReading({
   const libraryDetails = (
     <section
       aria-label="Library and source"
-      className="flex min-w-0 flex-col gap-4"
+      className="flex min-w-0 flex-col gap-4 px-4 py-4"
       data-slot="civitai-reading-details"
     >
       <h2 className="text-sm font-medium">Library &amp; source</h2>
+      {focusedFile && (
+        <details
+          open={fileDetailsOpen}
+          onToggle={(event) => setFileDetailsOpen(event.currentTarget.open)}
+          className="text-xs"
+          data-slot="civitai-file-details"
+        >
+          <summary
+            ref={fileDetailsSummary}
+            className="cursor-pointer break-words outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            File details · {focusedFile.name}
+          </summary>
+          <div className="flex min-w-0 flex-col gap-3 pt-3">
+            <p className="text-muted-foreground">{sourceFileSummary(focusedFile)}</p>
+            <p className="text-muted-foreground">
+              Version {unit?.version.name} · Source file {focusedFile.id} · {focusedFile.kind}
+            </p>
+            {versionStatus && (
+              <p role="status" className="text-muted-foreground">
+                {versionStatus}
+              </p>
+            )}
+            <h3 className="font-medium">Provider declarations</h3>
+            <pre className="max-h-72 overflow-auto rounded-md bg-muted p-2 whitespace-pre-wrap break-words text-xs">
+              {focusedFile.raw_json}
+            </pre>
+          </div>
+        </details>
+      )}
       {maintenance}
       {page && model && (
         <>
@@ -377,16 +421,6 @@ export function CivitaiReading({
                   </>
                 )}
               </dl>
-              {focusedFile && (
-                <details key={focusedFile.id}>
-                  <summary className="cursor-pointer">
-                    {focusedFile.name} · {focusedFile.kind} · provider declarations
-                  </summary>
-                  <pre className="overflow-auto pt-3 whitespace-pre-wrap break-words text-xs">
-                    {focusedFile.raw_json}
-                  </pre>
-                </details>
-              )}
             </div>
           </details>
         </>
@@ -400,6 +434,7 @@ export function CivitaiReading({
         data-slot="civitai-page"
         aria-label="Civitai model"
       >
+        <CivitaiPanelPortal>{libraryDetails}</CivitaiPanelPortal>
         <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
             <h1 className="text-xl font-semibold tracking-tight">{model?.name ?? "Civitai"}</h1>
@@ -435,6 +470,16 @@ export function CivitaiReading({
               onClick={() => setRetry((value) => value + 1)}
             >
               {pending ? <Spinner /> : <RefreshCwIcon />}
+            </Button>
+            <Button
+              variant={operationAttention ? "outline" : "ghost"}
+              size="icon-sm"
+              aria-label="Open library and source"
+              title="Library links, source details and maintenance"
+              disabled={!readingPanel}
+              onClick={() => readingPanel?.open()}
+            >
+              <PanelRightIcon />
             </Button>
           </div>
         </header>
@@ -728,8 +773,6 @@ export function CivitaiReading({
                 empty="No model description saved."
               />
             </section>
-            <Separator />
-            {libraryDetails}
           </>
         )}
       </article>
