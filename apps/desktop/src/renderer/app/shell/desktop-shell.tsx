@@ -1,5 +1,5 @@
-import { Outlet } from "@tanstack/react-router"
-import { SettingsHistoryBinding } from "./settings-navigation"
+import { Outlet, useRouterState } from "@tanstack/react-router"
+import { SettingsHistoryBinding, SettingsNavigation } from "./settings-navigation"
 import { useState } from "react"
 import { Separator } from "@/shared/ui/separator"
 import { SourceReturnContext } from "@/shared/source-return"
@@ -9,6 +9,7 @@ import { HistoryNavigation } from "./history-navigation"
 import { TaskWorkspace } from "./task-workspace"
 
 export function DesktopShell() {
+  const settings = useRouterState({ select: (state) => state.location.pathname === "/setting" })
   const [action, setAction] = useState<(() => void) | undefined>()
 
   return (
@@ -27,8 +28,11 @@ export function DesktopShell() {
         <Separator />
         <TaskWorkspace>
           <LeftNavigation />
-          <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
-            <Outlet />
+          <main className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+            {settings && <SettingsNavigation />}
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+              <Outlet />
+            </div>
           </main>
         </TaskWorkspace>
       </div>

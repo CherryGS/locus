@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type FocusEvent } from "react"
-import { Link, useRouterState } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 import { HomeIcon, LayoutGridIcon, SettingsIcon } from "lucide-react"
 import { motion, useReducedMotion } from "motion/react"
 import { cn } from "@/shared/lib/utils"
 import { buttonVariants } from "@/shared/ui/button"
-import { SettingsNavigation, useSettingsWorkspace } from "./settings-navigation"
+import { useSettingsWorkspace } from "./settings-navigation"
 import { Separator } from "@/shared/ui/separator"
 
 const collapsedWidth = 48
@@ -19,7 +19,6 @@ const navigation = [
 ] as const
 
 export function LeftNavigation() {
-  const settings = useRouterState({ select: (state) => state.location.pathname === "/setting" })
   const { external, media } = useSettingsWorkspace()
   const settingsStatus = [external && `External connection: ${external}`, media && `Media tools: ${media}`]
     .filter(Boolean)
@@ -81,21 +80,16 @@ export function LeftNavigation() {
   }
 
   return (
-    // Browsing reveals an overlay; Settings reserves the expanded width.
-    // Keep this surface mounted so both transitions share geometry and motion.
-    <motion.div
-      className="relative z-10 shrink-0"
-      initial={false}
-      animate={{ width: settings ? expandedWidth : collapsedWidth }}
-      transition={transition}
-    >
+    // Keep the global rail mounted on every page; revealing labels overlays
+    // the content without changing its width.
+    <div className="relative z-10 w-12 shrink-0">
       <motion.nav
         ref={nav}
         id="primary-navigation"
-        aria-label={settings ? "Settings categories" : "Main navigation"}
+        aria-label="Main navigation"
         className="absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden bg-sidebar p-2"
         initial={false}
-        animate={{ width: settings || revealed ? expandedWidth : collapsedWidth }}
+        animate={{ width: revealed ? expandedWidth : collapsedWidth }}
         transition={transition}
         onPointerEnter={enter}
         onPointerLeave={leave}
@@ -105,12 +99,14 @@ export function LeftNavigation() {
         onFocusCapture={focus}
         onBlurCapture={blur}
       >
-        {settings ? (
-          <SettingsNavigation itemClassName={linkLayout} />
-        ) : navigation.map(({ to, label, icon: Icon }) => (
+        {navigation.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
+            onClick={() => {
+              cancelTimers()
+              setRevealed(false)
+            }}
             aria-label={label}
             aria-describedby={to === "/setting" && settingsStatus ? "settings-navigation-status" : undefined}
             title={to === "/setting" && settingsStatus ? settingsStatus : label}
@@ -135,13 +131,13 @@ export function LeftNavigation() {
             </motion.span>
           </Link>
         ))}
-        {!settings && settingsStatus && (
+        {settingsStatus && (
           <span id="settings-navigation-status" className="sr-only">
             {settingsStatus}
           </span>
         )}
         <Separator orientation="vertical" className="absolute inset-y-0 right-0" />
       </motion.nav>
-    </motion.div>
+    </div>
   )
 }

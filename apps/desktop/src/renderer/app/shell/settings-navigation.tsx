@@ -7,6 +7,7 @@ import { useLibrarySession } from "../providers/library-provider"
 
 const noSubscribe = () => () => {}
 const zero = () => 0
+const itemClassName = "w-full justify-start gap-2 overflow-hidden pl-0 pr-3 has-data-[icon=inline-start]:pl-0"
 export function useSettingsWorkspace() {
   const session = useLibrarySession()
   useSyncExternalStore(
@@ -46,14 +47,17 @@ export function SettingsHistoryBinding() {
   return null
 }
 
-export function SettingsNavigation({ itemClassName }: { itemClassName: string }) {
+export function SettingsNavigation() {
   const { session, external, media } = useSettingsWorkspace()
   const router = useRouter()
   const location = useRouterState({ select: (state) => state.location })
   const navigation = session?.settingsNavigation
   const delta = navigation?.returnDelta(location)
   return (
-    <div className="flex w-52 shrink-0 flex-col gap-1">
+    <nav
+      aria-label="Settings categories"
+      className="flex w-56 shrink-0 flex-col gap-1 overflow-y-auto border-r bg-sidebar p-2"
+    >
       <Button
         variant="ghost"
         className={itemClassName}
@@ -93,6 +97,6 @@ export function SettingsNavigation({ itemClassName }: { itemClassName: string })
           )}
         </div>
       ))}
-    </div>
+    </nav>
   )
 }
