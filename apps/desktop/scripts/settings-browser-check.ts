@@ -207,7 +207,9 @@ try {
   preview = await browserPreview(backend)
   const requests: string[] = []
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname.startsWith("/api/")) requests.push(new URL(request.url()).pathname)
+    const url = new URL(request.url())
+    // A departing page may retry its old event stream during navigation.
+    if (url.origin === preview.origin && url.pathname.startsWith("/api/")) requests.push(url.pathname)
   })
   await page.goto(`${preview.origin}/#/entity`)
   await page.getByText("Library needs attention", { exact: true }).waitFor()

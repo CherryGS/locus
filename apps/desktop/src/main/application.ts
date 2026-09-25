@@ -1,3 +1,4 @@
+import { displayLibraryPath, existingLibrary, rememberLibrary } from "./library-location"
 import { relaunchArguments, startupLocator } from "./relaunch"
 import {
   app,
@@ -8,7 +9,7 @@ import {
   session,
   ipcMain,
   dialog,
-  type IpcMainInvokeEvent,
+  type IpcMainInvokeEvent
 } from "electron"
 import { randomUUID } from "node:crypto"
 import { join } from "node:path"
@@ -24,7 +25,7 @@ import {
   isPreparation,
   type Connection,
   type LifecycleIntent,
-  type DesktopState,
+  type DesktopState
 } from "../shared/desktop-bridge"
 
 export function startDesktop() {
@@ -45,7 +46,20 @@ export function startDesktop() {
   let preparationTimer: ReturnType<typeof setTimeout> | undefined
   const startup = new AbortController()
   const close = new CloseGate()
-  const state = (): DesktopState => ({ connection, close: close.state })
+  let switchTarget: string | undefined
+  let libraryNotice: string | undefined
+  const state = (): DesktopState => ({
+    connection,
+    close: close.state,
+    library: backend
+      ? {
+          root: displayLibraryPath(backend.libraryRoot),
+          switchTarget:
+            close.state.phase !== "idle" && close.state.intent === "restart" ? switchTarget : undefined,
+          notice: libraryNotice
+        }
+      : undefined
+  })
   const changed = () => {
     if (window && !window.isDestroyed()) window.webContents.send(channels.changed, state())
   }
@@ -68,7 +82,14 @@ export function startDesktop() {
   async function finishRestart() {
     if (exiting || relaunchScheduled || !backend) return
     try {
-      app.relaunch({ args: relaunchArguments(app.isPackaged, process.argv, backend.libraryRoot) })
+      app.relaunch({
+        args: relaunchArguments(
+          app.isPackaged,
+          process.argv,
+          switchTarget ?? backend.libraryRoot,
+          !!switchTarget
+        )
+      })
       relaunchScheduled = true
       finish()
     } catch {
@@ -158,7 +179,7 @@ export function startDesktop() {
           ? "Unconfirmed preferences may not be saved. Returning leaves accepted work running. Continuing waits for accepted work."
           : backend
             ? "Earlier operation outcomes cannot be established. Restart Locus to read the actual saved library state."
-            : "Check the selected library and built artifacts, then restart Locus.",
+            : "Check the selected library and built artifacts, then restart Locus."
     })
     nativePrompt = false
     if (exiting) return
@@ -194,13 +215,14 @@ export function startDesktop() {
       child.kill()
     }
   }
-  function requestClose(intent: LifecycleIntent = "close") {
+  function requestClose(intent: LifecycleIntent = "close", target?: string) {
     if (exiting || nativePrompt) return
     if (drainCommitted) {
       void unavailable("Locus is waiting for accepted work to finish.")
       return
     }
     if (close.state.phase !== "idle") return
+    switchTarget = target
     if (connection.status !== "ready" || !pageAvailable) {
       if (intent === "restart") close.begin(randomUUID(), intent)
       void unavailable(
@@ -221,6 +243,56 @@ export function startDesktop() {
     requestClose(intent)
   })
   let selectingFiles = false
+  ipcMain.handle(channels.switchLibrary, async (event) => {
+    sender(event)
+    if (
+      selectingFiles ||
+      !window ||
+      window.isDestroyed() ||
+      connection.status !== "ready" ||
+      close.state.phase !== "idle" ||
+      drainCommitted
+    )
+      return {
+        status: "failed",
+        message: "Library selection is unavailable while another picker or application close is active."
+      }
+    selectingFiles = true
+    const selectedWindow = window
+    const selectedRun = connection.runId
+    try {
+      const result = await dialog.showOpenDialog(selectedWindow, {
+        title: "Choose an existing Locus library",
+        buttonLabel: "Switch and restart",
+        defaultPath: backend?.libraryRoot,
+        properties: ["openDirectory"]
+      })
+      if (result.canceled || !result.filePaths.length) return { status: "canceled" }
+      const target = await existingLibrary(result.filePaths[0])
+      const currentRoot = await existingLibrary(backend!.libraryRoot)
+      if (
+        selectedWindow.isDestroyed() ||
+        connection.status !== "ready" ||
+        connection.runId !== selectedRun ||
+        close.state.phase !== "idle" ||
+        drainCommitted
+      )
+        return {
+          status: "failed",
+          message: "The application changed during selection. No library switch was started."
+        }
+      if (target === currentRoot) return { status: "unchanged" }
+      requestClose("restart", target)
+      return { status: "switching" }
+    } catch (error) {
+      return {
+        status: "failed",
+        message: error instanceof Error ? error.message : "Library selection failed."
+      }
+    } finally {
+      selectingFiles = false
+    }
+  })
   ipcMain.handle(channels.openExternalLink, async (event, url: unknown) => {
     sender(event)
     return openExternalLink(url, openWeb)
@@ -238,7 +310,7 @@ export function startDesktop() {
     )
       return {
         status: "failed",
-        message: "Local selection is unavailable while another picker or application close is active.",
+        message: "Local selection is unavailable while another picker or application close is active."
       }
     const selectedWindow = window
     const selectedRun = connection.runId
@@ -247,7 +319,7 @@ export function startDesktop() {
       const result = await dialog.showOpenDialog(selectedWindow, {
         title: "Import files: retain copies and process supported images and videos",
         buttonLabel: "Import",
-        properties: ["openFile", "multiSelections"],
+        properties: ["openFile", "multiSelections"]
       })
       if (
         selectedWindow.isDestroyed() ||
@@ -259,7 +331,7 @@ export function startDesktop() {
         return {
           status: "failed",
           message:
-            "The application connection or close state changed during selection. No import was submitted.",
+            "The application connection or close state changed during selection. No import was submitted."
         }
       return result.canceled || !result.filePaths.length
         ? { status: "canceled" }
@@ -267,7 +339,7 @@ export function startDesktop() {
     } catch (error) {
       return {
         status: "failed",
-        message: error instanceof Error ? error.message : "Local file selection failed.",
+        message: error instanceof Error ? error.message : "Local file selection failed."
       }
     } finally {
       selectingFiles = false
@@ -323,8 +395,8 @@ export function startDesktop() {
         session: ownedSession,
         contextIsolation: true,
         sandbox: true,
-        nodeIntegration: false,
-      },
+        nodeIntegration: false
+      }
     })
     window.on("close", (event) => {
       if (!exiting) {
@@ -391,7 +463,7 @@ export function startDesktop() {
             frameOrigin,
             initiatorOrigin: details.initiatorOrigin,
             resourceType: details.resourceType,
-            redirected: redirects.has(details.id),
+            redirected: redirects.has(details.id)
           },
           backend.origin,
           backend.runId,
@@ -402,19 +474,29 @@ export function startDesktop() {
     })
     async function start() {
       try {
+        const locator = startupLocator(process.argv)
         backend = await launchBackend(
           (value) => {
             child = value
           },
           startup.signal,
-          startupLocator(process.argv)
+          locator
         )
         if (exiting) return
+        libraryNotice = undefined
+        if (locator?.remember) {
+          try {
+            await rememberLibrary(backend.libraryRoot)
+          } catch {
+            libraryNotice =
+              "This library is open, but its default startup path could not be saved. Check application-data folder permissions."
+          }
+        }
         connection = {
           status: "ready",
           origin: backend.origin,
           runId: backend.runId,
-          availability: backend.availability,
+          availability: backend.availability
         }
         const startedBackend = backend
         void backend.exited.then(({ code }) => {
@@ -422,7 +504,7 @@ export function startDesktop() {
           connection = {
             status: "lost",
             message:
-              "The backend stopped. Restart Locus to reconnect; pending choices have not been confirmed saved.",
+              "The backend stopped. Restart Locus to reconnect; pending choices have not been confirmed saved."
           }
           changed()
           if (
@@ -443,7 +525,7 @@ export function startDesktop() {
         if (exiting || !window || window.isDestroyed()) return
         connection = {
           status: "failed",
-          message: error instanceof Error ? error.message : "Locus could not start.",
+          message: error instanceof Error ? error.message : "Locus could not start."
         }
         const failedBackend = backend
         backend = undefined
@@ -475,7 +557,7 @@ export function startDesktop() {
           detail: "Check the intended library and built artifacts. Retry starts a new owned backend attempt.",
           buttons: ["Retry", "Exit Locus"],
           defaultId: 0,
-          cancelId: 1,
+          cancelId: 1
         })
         nativePrompt = false
         if (result.response === 0 && !exiting) await start()

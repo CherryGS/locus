@@ -1,4 +1,4 @@
-export type SettingsCategory = "external" | "media"
+export type SettingsCategory = "library" | "external" | "media"
 /** Session-local settings workspace, independent of page navigation. */
 export class SettingsNavigation {
   category: SettingsCategory = "external"

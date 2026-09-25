@@ -29,7 +29,11 @@ export type CloseState =
     }
   | { phase: "draining"; attemptId: string; intent?: LifecycleIntent; active?: string }
 
-export type DesktopState = { connection: Connection; close: CloseState }
+export type DesktopState = {
+  connection: Connection
+  close: CloseState
+  library?: { root: string; switchTarget?: string; notice?: string }
+}
 export type Preparation = {
   attemptId: string
   intent?: LifecycleIntent
@@ -52,6 +56,9 @@ export type LocalFileSelection =
 export type ExternalLinkResult = { url: string; status: "handed_off" | "failed"; message?: string }
 
 export interface DesktopBridge {
+  switchLibrary(): Promise<
+    { status: "switching" | "canceled" | "unchanged" } | { status: "failed"; message: string }
+  >
   requestLifecycle(intent: LifecycleIntent): Promise<void>
   openExternalLink(url: string): Promise<ExternalLinkResult>
   selectImportFiles(): Promise<LocalFileSelection>
@@ -64,6 +71,7 @@ export interface DesktopBridge {
 }
 
 export const desktopChannels = {
+  switchLibrary: "locus:switch-library",
   lifecycle: "locus:lifecycle",
   openExternalLink: "locus:open-external-link",
   selectImportFiles: "locus:select-import-files",
@@ -92,7 +100,7 @@ export function isPreparation(value: unknown): value is Preparation {
     Array.isArray(value.items) &&
     value.items.every(
       (item) =>
-        record(item) && identity(item.entityId) && identity(item.viewId) && typeof item.reason === "string"
+        record(item) && identity(item.entityId) && identity(item.viewId) && typeof item.reason === "string",
     )
   )
 }

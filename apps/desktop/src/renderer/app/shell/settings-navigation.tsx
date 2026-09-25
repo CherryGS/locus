@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react"
 import { useRouter } from "@tanstack/react-router"
-import { PlugIcon, SlidersHorizontalIcon } from "lucide-react"
+import { FolderOpenIcon, PlugIcon, SlidersHorizontalIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { externalStatus, groupStatus, mediaPending } from "@/features/settings"
 import { useLibrarySession } from "../providers/library-provider"
@@ -54,6 +54,7 @@ export function SettingsNavigation() {
     >
       {(
         [
+          { id: "library", label: "Library", icon: FolderOpenIcon, status: "" },
           { id: "external", label: "External connection", icon: PlugIcon, status: external },
           { id: "media", label: "Media tools", icon: SlidersHorizontalIcon, status: media },
         ] as const

@@ -222,6 +222,9 @@ desktop-settings-workspace: server-build server-fixture-build desktop-build
 desktop-settings-browser: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:settings-browser
 
+desktop-library-switch: server-build server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:library-switch
+
 desktop-settings-native: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:settings-native
 

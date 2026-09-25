@@ -61,6 +61,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         <ClosePreparation session={session} />
         <div className="min-h-0 flex-1">
           <SettingsPanel
+            library={session.initial.library}
+            switchLibrary={session.bridge.switchLibrary}
             settings={session.settings}
             externalSettings={session.externalSettings}
             externalToken={session.externalToken}

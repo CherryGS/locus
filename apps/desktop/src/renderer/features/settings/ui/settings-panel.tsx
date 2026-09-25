@@ -1,3 +1,4 @@
+import { LibrarySettingsPanel, type LibrarySettingsProps } from "./library-settings-panel"
 import { useEffect, useState } from "react"
 import { RotateCwIcon } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
@@ -14,14 +15,16 @@ export function SettingsPanel({
   externalSettings,
   externalToken,
   category = "external",
+  library,
+  switchLibrary,
 }: {
   settings: SettingsCoordinator
   restart: () => Promise<void>
   restricted?: string
   externalSettings: ReturnType<typeof externalAddressSettings>
   externalToken: ExternalTokenCoordinator
-  category?: "external" | "media"
-}) {
+  category?: "library" | "external" | "media"
+} & LibrarySettingsProps) {
   const [hostError, setHostError] = useState<string>()
   useEffect(() => {
     // Read both groups on entry, including offscreen application/recovery state.
@@ -40,14 +43,18 @@ export function SettingsPanel({
                 ? "Settings repair"
                 : category === "external"
                   ? "External connection"
-                  : "Media tools"}
+                  : category === "library"
+                    ? "Library"
+                    : "Media tools"}
             </h1>
             <p className="text-xs text-muted-foreground">
               {restricted
                 ? "Repair configuration to start this library."
                 : category === "external"
                   ? "Use the connection address and token below in your extension."
-                  : "Tools for reading videos and creating previews."}
+                  : category === "library"
+                    ? "Choose where your library is opened."
+                    : "Tools for reading videos and creating previews."}
             </p>
           </div>
           <Button
@@ -77,6 +84,9 @@ export function SettingsPanel({
         )}
         {(restricted || category === "external") && (
           <ExternalAccessPanel settings={externalSettings} token={externalToken} restricted={restricted} />
+        )}
+        {(category === "library" || (restricted && switchLibrary)) && (
+          <LibrarySettingsPanel library={library} switchLibrary={switchLibrary} />
         )}
         {(restricted || category === "media") && <MediaSettingsPanel settings={settings} />}
       </div>

@@ -7,6 +7,20 @@ convention: explicit `LOCUS_DATA_DIR`, otherwise the first line of the
 application-data `Locus/path` locator, otherwise application-data `Locus`.
 These normal launch commands can open the user's library.
 
+Settings → Library → **Choose library and restart** opens a native folder picker
+for an existing library containing `metadata.sqlite`. The current session's
+settings/view-choice preparation and accepted-work drain finish before the host
+relaunches into the chosen directory. Canceling preparation keeps the old session
+and drafts. Files are not moved or copied. After successful backend startup, the
+host atomically updates the existing `Locus/path` locator; explicit launch paths
+and `LOCUS_DATA_DIR` continue to take priority. A failed target startup does not
+replace that locator or create a fallback library. Browser preview cannot invoke
+this native operation.
+
+`just desktop-library-switch` verifies folder cancellation, invalid/same targets,
+draft confirmation, actual switching between two isolated libraries, fresh run
+identity, and the persisted locator using hidden Electron windows.
+
 Optional `LOCUS_SERVER_BINARY` and `LOCUS_RENDERER_ROOT` must be absolute paths.
 Defaults are the repository's debug server and desktop renderer build. Missing
 artifacts produce native feedback. No installer is supplied. `npm run dev`

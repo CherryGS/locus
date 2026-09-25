@@ -17,6 +17,8 @@ export function SettingPage() {
   return (
     <SettingsPanel
       category={session.settingsNavigation.category}
+      library={session.initial.library}
+      switchLibrary={session.bridge.switchLibrary}
       settings={session.settings}
       externalSettings={session.externalSettings}
       externalToken={session.externalToken}

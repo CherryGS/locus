@@ -29,6 +29,7 @@
     "verify:scale": "tsx scripts/renderer-scale.ts",
     "verify:settings-workspace": "tsx scripts/settings-workspace-check.ts",
     "verify:settings-browser": "tsx scripts/settings-browser-check.ts",
+    "verify:library-switch": "tsx scripts/library-switch-check.ts",
     "verify:settings-native": "tsx scripts/settings-electron-check.ts",
     "verify:civitai-browser": "tsx scripts/civitai-browser-check.ts",
     "verify:bilibili-browser": "tsx scripts/bilibili-browser-check.ts",

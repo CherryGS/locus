@@ -44,6 +44,7 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
     return stop
   }, [session])
   useEffect(() => {
+    const switchTarget = state.library?.switchTarget
     const close = state.close
     if (close.phase !== "preparing" && close.phase !== "unconfirmed" && close.phase !== "sealing") return
     const attemptId = close.attemptId
@@ -110,6 +111,7 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
       stopSettings()
     }
   }, [session, state.close])
+  const switchTarget = state.library?.switchTarget
   const close = state.close
   const returning = () => {
     if (close.phase === "idle" || close.phase === "draining") return
@@ -149,7 +151,9 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
                 : close.phase === "unconfirmed"
                   ? "Some choices are not confirmed saved"
                   : close.phase !== "idle" && close.intent === "restart"
-                    ? "Preparing to restart"
+                    ? switchTarget
+                      ? "Preparing to switch library"
+                      : "Preparing to restart"
                     : "Preparing to close"}
             </DialogTitle>
             <DialogDescription>
@@ -160,6 +164,7 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
                 : "Confirming current view choices and Settings writes, including edits on pages you have left."}
             </DialogDescription>
           </DialogHeader>
+          {switchTarget && <p className="break-all text-sm">Switching to: {switchTarget}</p>}
           {failure && (
             <Alert variant="destructive">
               <AlertDescription>{failure}</AlertDescription>
@@ -210,7 +215,11 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
                       })
                     }
                   >
-                    {close.intent === "restart" ? "Discard draft and restart" : "Continue closing"}
+                    {close.intent === "restart"
+                      ? switchTarget
+                        ? "Discard draft and switch"
+                        : "Discard draft and restart"
+                      : "Continue closing"}
                   </Button>
                 )}
             </DialogFooter>
