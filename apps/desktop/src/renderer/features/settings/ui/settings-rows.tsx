@@ -1,12 +1,41 @@
 import type { ReactNode, ComponentProps } from "react"
 import { Field, FieldContent, FieldLabel, FieldError } from "@/shared/ui/field"
 import { Input } from "@/shared/ui/input"
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+  CardFooter,
+} from "@/shared/ui/card"
 
-export function SettingsGroup({ name, children }: { name: string; children: ReactNode }) {
+export function SettingsGroup({
+  name,
+  description,
+  action,
+  footer,
+  children,
+}: {
+  name: string
+  description?: string
+  action?: ReactNode
+  footer?: ReactNode
+  children: ReactNode
+}) {
   return (
-    <section aria-label={name} className="shrink-0 overflow-hidden rounded-lg border bg-card">
-      {children}
-    </section>
+    <Card role="region" aria-label={name} className="shrink-0 gap-0 pb-0">
+      <CardHeader className="pb-3">
+        <CardTitle>
+          <h2>{name}</h2>
+        </CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
+        {action && <CardAction>{action}</CardAction>}
+      </CardHeader>
+      <CardContent className="px-0">{children}</CardContent>
+      {footer && <CardFooter className="flex-wrap justify-between gap-3">{footer}</CardFooter>}
+    </Card>
   )
 }
 export function IconTile({ children }: { children: ReactNode }) {

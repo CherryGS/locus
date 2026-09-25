@@ -53,7 +53,7 @@ export function SettingsNavigation({ itemClassName }: { itemClassName: string })
   const navigation = session?.settingsNavigation
   const delta = navigation?.returnDelta(location)
   return (
-    <div className="flex w-44 shrink-0 flex-col gap-1">
+    <div className="flex w-52 shrink-0 flex-col gap-1">
       <Button
         variant="ghost"
         className={itemClassName}

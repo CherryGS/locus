@@ -32,7 +32,7 @@ export function SettingsPanel({
   }, [settings, externalSettings, externalToken, restricted])
   return (
     <section className="h-full overflow-auto bg-background" aria-label="Settings workspace">
-      <div className="mx-auto flex max-w-[760px] flex-col gap-5 px-6 py-7 sm:px-8">
+      <div className="mx-auto flex max-w-[800px] flex-col gap-6 px-6 py-7 sm:px-8">
         <header className="mb-1 flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
             <h1 className="text-xl font-semibold tracking-tight">
@@ -46,7 +46,7 @@ export function SettingsPanel({
               {restricted
                 ? "Repair configuration to start this library."
                 : category === "external"
-                  ? "Connect extensions and other local clients."
+                  ? "Use the connection address and token below in your extension."
                   : "Tools for reading videos and creating previews."}
             </p>
           </div>

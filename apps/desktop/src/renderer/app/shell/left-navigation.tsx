@@ -8,10 +8,10 @@ import { SettingsNavigation, useSettingsWorkspace } from "./settings-navigation"
 import { Separator } from "@/shared/ui/separator"
 
 const collapsedWidth = 48
-const expandedWidth = 192
+const expandedWidth = 224
 const revealDelay = 300
 const concealDelay = 150
-const linkLayout = "w-full justify-start gap-2 overflow-hidden px-0 has-data-[icon=inline-start]:pl-0"
+const linkLayout = "w-full justify-start gap-2 overflow-hidden pl-0 pr-3 has-data-[icon=inline-start]:pl-0"
 const navigation = [
   { to: "/", label: "Home", icon: HomeIcon },
   { to: "/entity", label: "Entity", icon: LayoutGridIcon },
