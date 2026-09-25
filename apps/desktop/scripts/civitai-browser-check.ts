@@ -68,8 +68,51 @@ try {
     1,
   )
   await reading.getByRole("button", { name: "B.safetensors · 300", exact: true }).click()
+  // A delayed source switch must retain the old presentation without allowing
+  // its actions to target the newly selected source.
+  const stage = reading.locator('[data-slot="civitai-gallery-stage"]')
+  await stage.locator("img").waitFor()
+  const stageLayout = () =>
+    stage.evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      const viewport = element.closest('[data-slot="scroll-area-viewport"]')!
+      return { x: bounds.x, y: bounds.y + viewport.scrollTop, width: bounds.width, height: bounds.height }
+    })
+  const stageBefore = await stageLayout()
+  const previousPreview = await stage.locator("img").getAttribute("src")
+  let releaseSwitch!: () => void, switchRequested!: () => void
+  const heldSwitch = new Promise<void>((resolve) => {
+    releaseSwitch = resolve
+  })
+  const requestedSwitch = new Promise<void>((resolve) => {
+    switchRequested = resolve
+  })
+  await page.route(`**/civitai/${a.componentId}/version?*`, async (route) => {
+    if (new URL(route.request().url()).searchParams.get("source") === c.componentId) {
+      switchRequested()
+      await heldSwitch
+    }
+    await route.continue()
+  })
   await reading.getByRole("button", { name: `Source Entity ${c.entityId.slice(-8)}`, exact: true }).click()
+  await requestedSwitch
+  assert.deepEqual(await stageLayout(), stageBefore, "loading must not collapse or move the gallery")
+  assert.equal(await stage.locator("img").getAttribute("src"), previousPreview)
+  assert.match(
+    await reading.locator('[data-slot="civitai-version-status"]').innerText(),
+    /Loading version.*Showing/,
+  )
+  assert.equal(
+    await reading.getByRole("button", { name: "Inspect managed example", exact: true }).isEnabled(),
+    false,
+  )
+  assert.equal(
+    await reading.getByRole("button", { name: "B.safetensors · 300", exact: true }).isEnabled(),
+    false,
+  )
+  releaseSwitch()
   await versionDescription("C version description")
+  await page.unroute(`**/civitai/${a.componentId}/version?*`)
   await reading.getByText("Focused file coverage", { exact: true }).waitFor()
   await reading
     .getByText("Previous version observation · rereading selected source.", { exact: true })

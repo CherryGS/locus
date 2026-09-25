@@ -4,7 +4,6 @@ import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/shared/ui/card"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
 import { ScrollArea } from "@/shared/ui/scroll-area"
@@ -102,6 +101,16 @@ export function CivitaiReading({
     (selection?.source
       ? member?.sources.some((s) => s.component_id === selection.source)
       : member?.sources.length === 1)
+  const requestedSource = member?.in_origin
+    ? component
+    : (selection?.source ?? member?.sources[0]?.component_id)
+  const unitMatchesSelection =
+    !!unit &&
+    unit.model === selection?.model &&
+    unit.version.id === selection?.version &&
+    unit.source.component_id === requestedSource
+  const displayedFile = useRef<string | undefined>(undefined)
+  if (unitMatchesSelection) displayedFile.current = selection?.file
   useEffect(() => {
     if (!page || !selection || changedModel || !member || !eligible) {
       setUnit(undefined)
@@ -109,16 +118,8 @@ export function CivitaiReading({
       return
     }
     let current = true
-    const requestedSource = member.in_origin
-      ? component
-      : (selection.source ?? member.sources[0]?.component_id)
-    setUnit((previous) =>
-      previous?.model === selection.model &&
-      previous.version.id === selection.version &&
-      previous.source.component_id === requestedSource
-        ? previous
-        : undefined,
-    )
+    // Keep the last attributed version mounted until its replacement is read.
+    // The presentation labels that previous version and blocks actions meanwhile.
     setUnitPending(true)
     setUnitProblem(undefined)
     void api
@@ -128,7 +129,7 @@ export function CivitaiReading({
         if (
           value.model !== selection.model ||
           value.version.id !== selection.version ||
-          (selection.source && !value.in_origin && value.source.component_id !== selection.source)
+          value.source.component_id !== requestedSource
         )
           throw new Error("Selected model/version/source attribution did not match")
         setUnit(value)
@@ -160,14 +161,14 @@ export function CivitaiReading({
   }, [api, component, page, selection?.version, selection?.source, changedModel, eligible, member])
   function choose(next: CivitaiSelection) {
     changedSource.current = next.source !== selection?.source
-    setUnit(undefined)
+    setUnitPending(true)
     setUnitProblem(undefined)
     setSelectionNotice(undefined)
     setExampleProblem(undefined)
     setSelection(next)
   }
   async function openExample(target: string) {
-    if (!selection || !unit || opening) return
+    if (!selection || !unit || !unitMatchesSelection || unitPending || opening) return
     const attempt = ++openingGeneration.current
     setOpening(true)
     setExampleProblem(undefined)
@@ -222,7 +223,7 @@ export function CivitaiReading({
     typeof versionFields.publishedAt === "string" && Number.isFinite(Date.parse(versionFields.publishedAt))
       ? new Date(versionFields.publishedAt)
       : undefined
-  const focusedFile = unit?.version.files.find((item) => item.id === selection?.file)
+  const focusedFile = unit?.version.files.find((item) => item.id === displayedFile.current)
   const fileFields = sourceObject(focusedFile?.raw_json)
   const fileMetadata = sourceObject(fileFields.metadata)
   const operationAttention =
@@ -327,16 +328,6 @@ export function CivitaiReading({
         {pending && page && (
           <p role="status" className="text-xs text-muted-foreground">
             Previous Page observation · rereading saved information.
-          </p>
-        )}
-        {(unitPending || pending) && unit && (
-          <p role="status" className="text-xs text-muted-foreground">
-            Previous version observation · rereading selected source.
-          </p>
-        )}
-        {unitProblem && unit && (
-          <p role="status" className="text-xs text-muted-foreground">
-            Previous version observation · the latest source read failed.
           </p>
         )}
         {!page || !model ? (
@@ -469,161 +460,182 @@ export function CivitaiReading({
                 <AlertDescription>{exampleProblem}</AlertDescription>
               </Alert>
             )}
-            <Separator />
-            <div className="grid min-w-0 items-start gap-6 @3xl:grid-cols-[minmax(0,1fr)_17rem]">
-              <div className="flex min-w-0 flex-col gap-6 @3xl:col-start-1">
-                {unit && (
-                  <CivitaiGallery
-                    api={api}
-                    unit={unit}
-                    opening={opening}
-                    revision={`${retry}:${coordinator.projectionRevision}`}
-                    onOpen={(target) => void openExample(target)}
-                  />
-                )}
-                {unitPending && !unit && (
-                  <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-                    <Spinner />
-                    Reading version…
-                  </div>
-                )}
-              </div>
-              <aside
-                aria-label="Version information"
-                className="flex min-w-0 flex-col gap-4 @3xl:col-start-2 @3xl:row-span-2 @3xl:row-start-1"
+            <section
+              aria-label="Version information"
+              className="flex min-w-0 flex-col gap-3"
+              aria-busy={unitPending}
+            >
+              <div
+                role="status"
+                data-slot="civitai-version-status"
+                className="flex h-5 items-center gap-2 text-xs text-muted-foreground"
               >
-                {unit && (
+                {unit && (unitPending || pending) ? (
                   <>
-                    <Card size="sm">
-                      <CardHeader>
-                        <CardDescription>Selected version</CardDescription>
-                        <CardTitle>{unit.version.name}</CardTitle>
-                        {!unit.in_origin && (
-                          <CardDescription>From Entity {unit.source.entity_id.slice(-8)}</CardDescription>
-                        )}
-                      </CardHeader>
-                      <CardContent className="flex flex-col gap-4">
-                        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs">
-                          <dt className="text-muted-foreground">Base model</dt>
-                          <dd className="text-right">{unit.version.base_model ?? "Not recorded"}</dd>
-                          {published && (
-                            <>
-                              <dt className="text-muted-foreground">Published</dt>
-                              <dd className="text-right" title={published.toLocaleString()}>
-                                {published.toLocaleDateString()}
-                              </dd>
-                            </>
-                          )}
-                        </dl>
-                        {!!trainedWords.length && (
-                          <div className="flex flex-col gap-2">
-                            <h3 className="text-xs text-muted-foreground">Trigger words</h3>
-                            <div className="flex flex-wrap gap-1.5">
-                              {trainedWords.map((word, index) => (
-                                <Badge variant="secondary" key={index}>
-                                  {word}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        <Separator />
-                        <section aria-label="Version files" className="flex min-w-0 flex-col gap-3">
-                          <h3 className="text-xs text-muted-foreground">Files listed by this source</h3>
-                          <ToggleGroup
-                            aria-label="Version file"
-                            variant="outline"
-                            orientation="vertical"
-                            size="sm"
-                            className="w-full min-w-0"
-                            value={selection?.file ? [selection.file] : []}
-                            onValueChange={(values) => {
-                              setSelectionNotice(undefined)
-                              setSelection({ ...selection!, file: values[0] })
-                            }}
-                          >
-                            {unit.version.files.map((item) => (
-                              <ToggleGroupItem
-                                key={item.id}
-                                value={item.id}
-                                aria-label={`${item.name} · ${item.id}`}
-                                title={`${item.name} · ${item.kind} · ${item.id}`}
-                                className="min-w-0 max-w-full justify-start"
-                              >
-                                <span className="truncate">{item.name}</span>
-                              </ToggleGroupItem>
-                            ))}
-                          </ToggleGroup>
-                          {!unit.version.files.length && (
-                            <p className="text-xs text-muted-foreground">
-                              No files listed in this observation.
-                            </p>
-                          )}
-                          {focusedFile && (
-                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                              {typeof fileMetadata.format === "string" && <span>{fileMetadata.format}</span>}
-                              {typeof fileMetadata.fp === "string" && <span>{fileMetadata.fp}</span>}
-                              {typeof fileFields.sizeKB === "number" &&
-                                Number.isFinite(fileFields.sizeKB) && (
-                                  <span>
-                                    {new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(
-                                      fileFields.sizeKB,
-                                    )}{" "}
-                                    KB (source)
-                                  </span>
-                                )}
-                            </div>
-                          )}
-                        </section>
-                      </CardContent>
-                    </Card>
-                    <details data-slot="civitai-version-notes" className="text-sm">
-                      <summary className="cursor-pointer font-medium">Version notes</summary>
-                      <p className="pt-3 whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">
-                        {providerText(unit.version.description) ?? "No version notes saved."}
-                      </p>
-                    </details>
-                    <Separator />
-                    <details className="text-xs" data-slot="civitai-library-links">
-                      <summary className="cursor-pointer text-muted-foreground">
-                        Library links · {unit.correspondences.length} recorded
-                      </summary>
-                      <div className="flex flex-col gap-3 pt-3 [overflow-wrap:anywhere]">
-                        <p className="text-muted-foreground">
-                          Recorded local correspondences for this version.
-                        </p>
-                        {unit.correspondences.length ? (
-                          unit.correspondences.map((correspondence) => (
-                            <div key={correspondence.source.component_id} className="flex flex-col gap-1">
-                              <p>Entity {correspondence.source.entity_id}</p>
-                              <p className="text-muted-foreground">
-                                File {correspondence.file} · {correspondence.input}
-                              </p>
-                              {!unit.version.files.some((item) => item.id === correspondence.file) && (
-                                <p>File not listed by the chosen source.</p>
-                              )}
-                              {correspondence.problem && <p>{correspondence.problem}</p>}
-                            </div>
-                          ))
-                        ) : (
-                          <p>
-                            No recorded local correspondence in this read. This does not prove absence from
-                            the library.
-                          </p>
-                        )}
-                      </div>
-                    </details>
+                    <Spinner />
+                    <span>
+                      {unitMatchesSelection
+                        ? "Previous version observation · rereading selected source."
+                        : `Loading version… Showing ${unit.version.name}.`}
+                    </span>
                   </>
-                )}
-                {maintenance}
-              </aside>
-              <section aria-label="About this model" className="flex min-w-0 flex-col gap-3 @3xl:col-start-1">
-                <h2 className="text-sm font-medium">About this model</h2>
-                <p className="whitespace-pre-wrap text-sm leading-7 [overflow-wrap:anywhere]">
-                  {providerText(model.description) ?? "No model description saved."}
+                ) : unit && unitProblem ? (
+                  <span>
+                    {unitMatchesSelection
+                      ? "Previous version observation · the latest source read failed."
+                      : `Selected version unavailable. Showing ${unit.version.name}.`}
+                  </span>
+                ) : !unit && unitPending ? (
+                  <>
+                    <Spinner />
+                    <span>Reading version…</span>
+                  </>
+                ) : null}
+              </div>
+              {unit && (
+                <>
+                  {!unit.in_origin && (
+                    <p className="text-xs text-muted-foreground">
+                      Version information from Entity {unit.source.entity_id.slice(-8)}
+                    </p>
+                  )}
+                  <dl className="flex min-h-10 flex-wrap gap-x-8 gap-y-3 text-xs">
+                    <div className="flex flex-col gap-1.5">
+                      <dt className="text-muted-foreground">Base model</dt>
+                      <dd>{unit.version.base_model ?? "Not recorded"}</dd>
+                    </div>
+                    {published && (
+                      <div className="flex flex-col gap-1.5">
+                        <dt className="text-muted-foreground">Published</dt>
+                        <dd title={published.toLocaleString()}>{published.toLocaleDateString()}</dd>
+                      </div>
+                    )}
+                    {!!trainedWords.length && (
+                      <div className="flex min-w-0 flex-col gap-1.5">
+                        <dt className="text-muted-foreground">Trigger words</dt>
+                        <dd className="flex flex-wrap gap-1.5">
+                          {trainedWords.map((word, index) => (
+                            <Badge variant="secondary" key={index}>
+                              {word}
+                            </Badge>
+                          ))}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                  <section aria-label="Version files" className="flex min-w-0 flex-col gap-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-3">
+                      <h3 className="text-xs text-muted-foreground">Files listed by this source</h3>
+                      <ToggleGroup
+                        aria-label="Version file"
+                        variant="outline"
+                        size="sm"
+                        className="min-w-0 max-w-full flex-wrap"
+                        disabled={!unitMatchesSelection || unitPending}
+                        value={focusedFile ? [focusedFile.id] : []}
+                        onValueChange={(values) => {
+                          if (!unitMatchesSelection || unitPending) return
+                          setSelectionNotice(undefined)
+                          setSelection({ ...selection!, file: values[0] })
+                        }}
+                      >
+                        {unit.version.files.map((item) => (
+                          <ToggleGroupItem
+                            key={item.id}
+                            value={item.id}
+                            aria-label={`${item.name} · ${item.id}`}
+                            title={`${item.name} · ${item.kind} · ${item.id}`}
+                            className="min-w-0 max-w-full justify-start"
+                          >
+                            <span className="truncate">{item.name}</span>
+                          </ToggleGroupItem>
+                        ))}
+                      </ToggleGroup>
+                      {!unit.version.files.length && (
+                        <p className="text-xs text-muted-foreground">No files listed in this observation.</p>
+                      )}
+                    </div>
+                    <div className="flex min-h-4 flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      {focusedFile && (
+                        <>
+                          {typeof fileMetadata.format === "string" && <span>{fileMetadata.format}</span>}
+                          {typeof fileMetadata.fp === "string" && <span>{fileMetadata.fp}</span>}
+                          {typeof fileFields.sizeKB === "number" && Number.isFinite(fileFields.sizeKB) && (
+                            <span>
+                              {new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(
+                                fileFields.sizeKB,
+                              )}{" "}
+                              KB (source)
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </section>
+                </>
+              )}
+            </section>
+            <Separator />
+            {unit ? (
+              <CivitaiGallery
+                key={`${unit.model}:${unit.version.id}:${unit.source.component_id}`}
+                api={api}
+                unit={unit}
+                opening={opening || unitPending || !unitMatchesSelection}
+                revision={`${retry}:${coordinator.projectionRevision}`}
+                onOpen={(target) => void openExample(target)}
+              />
+            ) : (
+              <div className="flex h-80 items-center justify-center rounded-xl border text-sm text-muted-foreground">
+                {unitPending
+                  ? "Reading examples…"
+                  : "Select an available version source to read its examples."}
+              </div>
+            )}
+            {unit && (
+              <details data-slot="civitai-version-notes" className="text-sm">
+                <summary className="cursor-pointer font-medium">Version notes</summary>
+                <p className="pt-3 whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">
+                  {providerText(unit.version.description) ?? "No version notes saved."}
                 </p>
-              </section>
-            </div>
+              </details>
+            )}
+            <section aria-label="About this model" className="flex min-w-0 flex-col gap-3">
+              <h2 className="text-sm font-medium">About this model</h2>
+              <p className="whitespace-pre-wrap text-sm leading-7 [overflow-wrap:anywhere]">
+                {providerText(model.description) ?? "No model description saved."}
+              </p>
+            </section>
+            {unit && (
+              <details className="text-xs" data-slot="civitai-library-links">
+                <summary className="cursor-pointer text-muted-foreground">
+                  Library links · {unit.correspondences.length} recorded
+                </summary>
+                <div className="flex flex-col gap-3 pt-3 [overflow-wrap:anywhere]">
+                  <p className="text-muted-foreground">Recorded local correspondences for this version.</p>
+                  {unit.correspondences.length ? (
+                    unit.correspondences.map((correspondence) => (
+                      <div key={correspondence.source.component_id} className="flex flex-col gap-1">
+                        <p>Entity {correspondence.source.entity_id}</p>
+                        <p className="text-muted-foreground">
+                          File {correspondence.file} · {correspondence.input}
+                        </p>
+                        {!unit.version.files.some((item) => item.id === correspondence.file) && (
+                          <p>File not listed by the chosen source.</p>
+                        )}
+                        {correspondence.problem && <p>{correspondence.problem}</p>}
+                      </div>
+                    ))
+                  ) : (
+                    <p>
+                      No recorded local correspondence in this read. This does not prove absence from the
+                      library.
+                    </p>
+                  )}
+                </div>
+              </details>
+            )}
+            {maintenance}
             <Separator />
             <details className="text-xs text-muted-foreground" data-slot="civitai-source-details">
               <summary className="cursor-pointer">Source details</summary>
