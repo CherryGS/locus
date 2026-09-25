@@ -344,7 +344,7 @@ export function CivitaiReading({
         >
           <summary
             ref={fileDetailsSummary}
-            className="cursor-pointer break-words outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="cursor-pointer break-words text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             File details · {focusedFile.name}
           </summary>

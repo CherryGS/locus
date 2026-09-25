@@ -87,86 +87,7 @@ export function CivitaiGallery({
         move(event.key === "ArrowLeft" ? -1 : 1)
       }}
     >
-      <div className="flex h-8 items-center justify-between gap-3">
-        <h2 className="text-sm font-medium">Examples</h2>
-        <div className="flex items-center gap-2">
-          {active && (
-            <Dialog>
-              <DialogTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Example sources"
-                    title="Example sources"
-                  />
-                }
-              >
-                <InfoIcon />
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>Example sources</DialogTitle>
-                  <DialogDescription>
-                    {video ? "Video" : "Image"} {index + 1} of {examples.length} · saved file and source
-                    observations.
-                  </DialogDescription>
-                </DialogHeader>
-                <ScrollArea className="max-h-[60vh]" viewportProps={{ className: "max-h-[60vh]" }}>
-                  <div className="flex flex-col gap-4 pr-2 text-xs [overflow-wrap:anywhere]">
-                    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
-                      <dt className="text-muted-foreground">Entity</dt>
-                      <dd>{active.binding.entity_id}</dd>
-                      <dt className="text-muted-foreground">File</dt>
-                      <dd>{active.binding.file_id}</dd>
-                      <dt className="text-muted-foreground">Type</dt>
-                      <dd>{active.binding.content_type}</dd>
-                    </dl>
-                    {examples[index].contributors.map((contributor, contributorIndex) => (
-                      <div
-                        key={`${contributor.source.component_id}:${contributor.binding.occurrence}:${contributorIndex}`}
-                        className="flex flex-col gap-1.5"
-                      >
-                        <p className="font-medium">Source {contributorIndex + 1}</p>
-                        <p className="text-muted-foreground">Entity {contributor.source.entity_id}</p>
-                        <p>
-                          Occurrence {contributor.binding.occurrence + 1} ·{" "}
-                          {contributor.applicable ? "Applicable" : (contributor.problem ?? "Unavailable")}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </DialogContent>
-            </Dialog>
-          )}
-          <span
-            className="min-w-12 text-center text-xs tabular-nums text-muted-foreground"
-            aria-live="polite"
-            data-slot="civitai-gallery-count"
-          >
-            {examples.length ? `${index + 1} / ${examples.length}` : "0 saved"}
-          </span>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label="Previous example"
-            disabled={opening || index === 0}
-            onClick={() => move(-1)}
-          >
-            <ChevronLeftIcon />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label="Next example"
-            disabled={opening || index >= examples.length - 1}
-            onClick={() => move(1)}
-          >
-            <ChevronRightIcon />
-          </Button>
-        </div>
-      </div>
+      <h2 className="sr-only">Examples</h2>
       <div
         className="relative flex h-80 items-center justify-center overflow-hidden rounded-xl border"
         data-slot="civitai-gallery-stage"
@@ -222,55 +143,135 @@ export function CivitaiGallery({
           </p>
         )}
       </div>
-      <div className="h-16 min-w-0" data-slot="civitai-gallery-strip">
-        {!!examples.length && (
-          <ScrollArea
-            className="h-full w-full"
-            viewportProps={{ ref: strip }}
-            scrollbarProps={{ orientation: "horizontal" }}
-          >
-            <ToggleGroup
-              aria-label="Choose example"
-              variant="outline"
-              value={activeKey ? [activeKey] : []}
-              disabled={opening}
-              onValueChange={(values) => {
-                if (values[0]) setSelected(values[0])
-              }}
-              className="pb-2"
+      <div className="flex min-w-0 items-center gap-2" data-slot="civitai-gallery-controls">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          aria-label="Previous example"
+          disabled={opening || index === 0}
+          onClick={() => move(-1)}
+        >
+          <ChevronLeftIcon />
+        </Button>
+        <div className="h-16 min-w-0 flex-1" data-slot="civitai-gallery-strip">
+          {!!examples.length && (
+            <ScrollArea
+              className="h-full w-full"
+              viewportProps={{ ref: strip }}
+              scrollbarProps={{ orientation: "horizontal" }}
             >
-              {examples.map(({ representative: example }, exampleIndex) => {
-                const key = exampleKey(example)
-                const isVideo = example.binding.media.some((media) => media.kind === "video")
-                return (
-                  <ToggleGroupItem
-                    key={key}
-                    value={key}
-                    className="h-14 w-20 overflow-hidden p-1"
-                    aria-label={`Show example ${exampleIndex + 1}`}
-                    ref={(element) => {
-                      if (element) buttons.current.set(key, element)
-                      else buttons.current.delete(key)
-                    }}
-                  >
-                    {example.applicable && example.binding.complete ? (
-                      <ManagedThumbnail
-                        key={revision}
-                        api={api}
-                        example={example}
-                        onPreview={reportPreview}
-                      />
-                    ) : isVideo ? (
-                      <VideoIcon />
-                    ) : (
-                      <ImageIcon />
-                    )}
-                  </ToggleGroupItem>
-                )
-              })}
-            </ToggleGroup>
-          </ScrollArea>
-        )}
+              <ToggleGroup
+                aria-label="Choose example"
+                variant="outline"
+                value={activeKey ? [activeKey] : []}
+                disabled={opening}
+                onValueChange={(values) => {
+                  if (values[0]) setSelected(values[0])
+                }}
+                className="pb-2"
+              >
+                {examples.map(({ representative: example }, exampleIndex) => {
+                  const key = exampleKey(example)
+                  const isVideo = example.binding.media.some((media) => media.kind === "video")
+                  return (
+                    <ToggleGroupItem
+                      key={key}
+                      value={key}
+                      className="h-14 w-20 overflow-hidden p-1"
+                      aria-label={`Show example ${exampleIndex + 1}`}
+                      ref={(element) => {
+                        if (element) buttons.current.set(key, element)
+                        else buttons.current.delete(key)
+                      }}
+                    >
+                      {example.applicable && example.binding.complete ? (
+                        <ManagedThumbnail
+                          key={revision}
+                          api={api}
+                          example={example}
+                          onPreview={reportPreview}
+                        />
+                      ) : isVideo ? (
+                        <VideoIcon />
+                      ) : (
+                        <ImageIcon />
+                      )}
+                    </ToggleGroupItem>
+                  )
+                })}
+              </ToggleGroup>
+            </ScrollArea>
+          )}
+        </div>
+
+        <Button
+          variant="outline"
+          size="icon-sm"
+          aria-label="Next example"
+          disabled={opening || index >= examples.length - 1}
+          onClick={() => move(1)}
+        >
+          <ChevronRightIcon />
+        </Button>
+        <div className="flex shrink-0 flex-col items-center gap-1">
+          <span
+            className="min-w-12 text-center text-xs tabular-nums text-muted-foreground"
+            aria-live="polite"
+            data-slot="civitai-gallery-count"
+          >
+            {examples.length ? `${index + 1} / ${examples.length}` : "0 saved"}
+          </span>
+          {active && (
+            <Dialog>
+              <DialogTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Example sources"
+                    title="Example sources"
+                  />
+                }
+              >
+                <InfoIcon />
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Example sources</DialogTitle>
+                  <DialogDescription>
+                    {video ? "Video" : "Image"} {index + 1} of {examples.length} · saved file and source
+                    observations.
+                  </DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="max-h-[60vh]" viewportProps={{ className: "max-h-[60vh]" }}>
+                  <div className="flex flex-col gap-4 pr-2 text-xs [overflow-wrap:anywhere]">
+                    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
+                      <dt className="text-muted-foreground">Entity</dt>
+                      <dd>{active.binding.entity_id}</dd>
+                      <dt className="text-muted-foreground">File</dt>
+                      <dd>{active.binding.file_id}</dd>
+                      <dt className="text-muted-foreground">Type</dt>
+                      <dd>{active.binding.content_type}</dd>
+                    </dl>
+                    {examples[index].contributors.map((contributor, contributorIndex) => (
+                      <div
+                        key={`${contributor.source.component_id}:${contributor.binding.occurrence}:${contributorIndex}`}
+                        className="flex flex-col gap-1.5"
+                      >
+                        <p className="font-medium">Source {contributorIndex + 1}</p>
+                        <p className="text-muted-foreground">Entity {contributor.source.entity_id}</p>
+                        <p>
+                          Occurrence {contributor.binding.occurrence + 1} ·{" "}
+                          {contributor.applicable ? "Applicable" : (contributor.problem ?? "Unavailable")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
     </section>
   )
