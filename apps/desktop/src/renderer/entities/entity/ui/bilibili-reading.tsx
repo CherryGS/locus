@@ -4,7 +4,6 @@ import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyContent } from "
 import { Skeleton } from "@/shared/ui/skeleton"
 import { Badge } from "@/shared/ui/badge"
 import { Separator } from "@/shared/ui/separator"
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/shared/ui/card"
 import type { BilibiliComponent } from "../model/bilibili-projection"
 import { SourceLink, CapturedText } from "./twitter-fields"
 
@@ -49,32 +48,7 @@ export function BilibiliReading({
   const original = <OriginalCover component={component} onRetry={onRetryCover} />
   return (
     <article className="mx-auto flex w-full max-w-5xl flex-col gap-5" aria-label="Bilibili capture">
-      <header className="flex flex-col gap-2">
-        <h2 className="text-xl font-semibold leading-snug tracking-tight">
-          <CapturedText value={s.title ?? undefined} empty="Untitled submission" />
-        </h2>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-muted-foreground">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            {s.author?.profile_url ? (
-              <SourceLink url={s.author.profile_url}>
-                {s.author.display_name ?? s.author.user_id ?? "Captured author"}
-              </SourceLink>
-            ) : (
-              <span>{s.author?.display_name ?? (s.author?.user_id ? "Author " + s.author.user_id : "Author not captured")}</span>
-            )}
-            {s.published_at_unix_ms != null && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span title={capturedTime(s.published_at_unix_ms)}>
-                  {new Date(Number(s.published_at_unix_ms)).toLocaleDateString()}
-                </span>
-              </>
-            )}
-          </div>
-          <SourceLink url={link}>View original submission</SourceLink>
-        </div>
-      </header>
-      <section aria-label="Playback and selected part" className="overflow-hidden rounded-xl border">
+      <section aria-label="Local playback" className="overflow-hidden rounded-xl border">
       {player ?? (
         <div className="flex flex-col gap-3 p-4">
           {original}
@@ -90,29 +64,56 @@ export function BilibiliReading({
           {cover?.resourceFailed && <Button variant="outline" size="sm" onClick={onRetryCover}>Retry original-cover display</Button>}
         </section>
       )}
-        {s.part && (
-          <>
-            <Separator />
-            <section aria-label="Selected part" className="flex items-start gap-3 bg-card px-4 py-3">
-              <Badge variant="secondary">{s.part.number == null ? "Selected part" : "Part " + s.part.number}</Badge>
-              <p className="min-w-0 text-sm"><CapturedText value={s.part.title ?? undefined} empty="Untitled part" /></p>
-            </section>
-          </>
-        )}
       </section>
-      <Card role="region" aria-label="Submission description" className="@container">
-        <CardHeader><CardTitle><h3>Description</h3></CardTitle></CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <p className="text-sm leading-6"><CapturedText value={s.description ?? undefined} empty="No description" /></p>
+      <div className="@container flex flex-col gap-4">
+        <header className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
+            <h2 className="min-w-0 text-xl font-semibold leading-snug tracking-tight">
+              <CapturedText value={s.title ?? undefined} empty="Untitled submission" />
+            </h2>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              <SourceLink url={link}>View original submission</SourceLink>
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            {s.author?.profile_url ? (
+              <SourceLink url={s.author.profile_url}>
+                {s.author.display_name ?? s.author.user_id ?? "Captured author"}
+              </SourceLink>
+            ) : (
+              <span>{s.author?.display_name ?? (s.author?.user_id ? "Author " + s.author.user_id : "Author not captured")}</span>
+            )}
+            {s.published_at_unix_ms != null && (
+              <span title={capturedTime(s.published_at_unix_ms)}>
+                Published {new Date(Number(s.published_at_unix_ms)).toLocaleDateString()}
+              </span>
+            )}
+            {/* Producer capture time is not a library admission timestamp. */}
+            {s.observed_at_unix_ms != null && (
+              <span title={capturedTime(s.observed_at_unix_ms)}>
+                Captured {new Date(Number(s.observed_at_unix_ms)).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+          {s.part && (
+            <section aria-label="Selected part" className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span>{s.part.number == null ? "Selected part" : "Part " + s.part.number}</span>
+              <span aria-hidden="true">·</span>
+              <CapturedText value={s.part.title ?? undefined} empty="Untitled part" />
+            </section>
+          )}
+        </header>
+        <section aria-label="Submission description" className="flex flex-col gap-3">
+          <p className="text-sm leading-7"><CapturedText value={s.description ?? undefined} empty="No description" /></p>
           {!!s.tags?.length && (
             <div className="flex flex-wrap gap-2">
               {s.tags.map((tag, i) => <Badge key={i} variant="secondary">{tag}</Badge>)}
             </div>
           )}
-        </CardContent>
-        <CardFooter>
+        </section>
+        <Separator />
           <details className="w-full">
-            <summary className="cursor-pointer text-sm text-muted-foreground">Captured details</summary>
+            <summary className="cursor-pointer text-xs text-muted-foreground">Captured details</summary>
             <div className="flex flex-col gap-5 pt-5">
               <div className="grid gap-6 @2xl:grid-cols-2">
                 <section className="flex flex-col gap-3">
@@ -150,8 +151,7 @@ export function BilibiliReading({
               )}
             </div>
           </details>
-        </CardFooter>
-      </Card>
+      </div>
     </article>
   )
 }
