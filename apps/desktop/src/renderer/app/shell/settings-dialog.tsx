@@ -27,13 +27,12 @@ export function SettingsDialog() {
     <Dialog
       open={open}
       actionsRef={actions}
-      disablePointerDismissal
       onOpenChange={(next) => {
         if (!hostClosing) session?.settingsNavigation.setOpen(next)
       }}
     >
       <DialogContent
-        className="flex h-[min(44rem,calc(100dvh-2rem))] w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
+        className="flex h-[90dvh] w-[90vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
         finalFocus={hostClosing ? false : () => document.getElementById("settings-trigger")}
         onKeyDown={(event) => event.stopPropagation()}
       >
