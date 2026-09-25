@@ -48,13 +48,20 @@ try {
     await page.getByRole("button", { name: "Overview", exact: true }).click()
   await page.getByRole("button", { name: "Use Civitai view", exact: true }).click()
   const reading = page.locator('[data-slot="civitai-page"]')
+  async function versionDescription(text: string) {
+    const description = reading.getByText(text, { exact: true })
+    await description.waitFor({ state: "attached" })
+    const notes = reading.locator('[data-slot="civitai-version-notes"]')
+    if ((await notes.getAttribute("open")) === null) await notes.locator("summary").click()
+    await description.waitFor()
+  }
   await reading.getByText("A independent model description", { exact: true }).waitFor()
   assert.equal(await reading.getByText("Version 40", { exact: false }).count(), 0)
   await reading
     .getByRole("button", { name: "Version 30 · not recorded in this snapshot", exact: true })
     .click()
   await reading.getByRole("button", { name: `Source Entity ${b.entityId.slice(-8)}`, exact: true }).click()
-  await reading.getByText("B version description", { exact: true }).waitFor()
+  await versionDescription("B version description")
   assert(await reading.getByText("A independent model description", { exact: true }).isVisible())
   assert.equal(
     await page.locator(`[data-slot="entity-inspection"][data-entity-id="${a.entityId}"]`).count(),
@@ -62,7 +69,7 @@ try {
   )
   await reading.getByRole("button", { name: "B.safetensors · 300", exact: true }).click()
   await reading.getByRole("button", { name: `Source Entity ${c.entityId.slice(-8)}`, exact: true }).click()
-  await reading.getByText("C version description", { exact: true }).waitFor()
+  await versionDescription("C version description")
   await reading.getByText("Focused file coverage", { exact: true }).waitFor()
   await reading
     .getByText("Previous version observation · rereading selected source.", { exact: true })
@@ -86,7 +93,7 @@ try {
     .getByText("Previous version observation · the latest source read failed.", { exact: true })
     .waitFor({ state: "hidden" })
   await reading.getByRole("button", { name: `Source Entity ${b.entityId.slice(-8)}`, exact: true }).click()
-  await reading.getByText("B version description", { exact: true }).waitFor()
+  await versionDescription("B version description")
   let releaseOpen!: () => void, markRequested!: () => void
   const heldOpen = new Promise<void>((resolve) => {
     releaseOpen = resolve
@@ -105,12 +112,12 @@ try {
   })
   await reading.getByRole("button", { name: "Inspect managed example", exact: true }).first().click()
   await requestedOpen
-  await reading.getByRole("button", { name: "Version 20", exact: true }).click()
+  await reading.getByRole("button", { name: /Version 20$/ }).click()
   await reading
     .getByRole("button", { name: "Version 30 · not recorded in this snapshot", exact: true })
     .click()
   await reading.getByRole("button", { name: `Source Entity ${b.entityId.slice(-8)}`, exact: true }).click()
-  await reading.getByText("B version description", { exact: true }).waitFor()
+  await versionDescription("B version description")
   assert(
     await reading.getByRole("button", { name: "Inspect managed example", exact: true }).first().isEnabled(),
   )
@@ -132,13 +139,15 @@ try {
   await page.getByRole("button", { name: "Back", exact: true }).click()
   await page.locator('[data-slot="entity-inspection"][data-view-id="image.inspect"]').waitFor()
   await page.getByRole("button", { name: "Return to source", exact: true }).first().click()
-  await reading.getByText("B version description", { exact: true }).waitFor()
-  await reading.getByText("B.safetensors · Model · provider declarations", { exact: true }).waitFor()
+  await versionDescription("B version description")
+  await reading
+    .getByText("B.safetensors · Model · provider declarations", { exact: true })
+    .waitFor({ state: "attached" })
   if (!(await page.getByRole("button", { name: "Use File view", exact: true }).count()))
     await page.getByRole("button", { name: "Overview", exact: true }).click()
   await page.getByRole("button", { name: "Use File view", exact: true }).click()
   await page.getByRole("button", { name: "Use Civitai view", exact: true }).click()
-  await reading.getByText("A version description", { exact: true }).waitFor()
+  await versionDescription("A version description")
   await page.route(`**/civitai/${a.componentId}/page`, (route) =>
     route.fulfill({
       status: 500,
@@ -152,6 +161,7 @@ try {
   await reading.getByRole("button", { name: "Reread saved information", exact: true }).click()
   await reading.getByText(/Controlled page read failure/).waitFor({ state: "hidden" })
   await data.phase("A")
+  await reading.locator('[data-slot="civitai-maintenance"] > summary').click()
   await reading.getByRole("button", { name: "Refresh origin Civitai information", exact: true }).click()
   await reading.getByText("Origin operation · complete", { exact: true }).waitFor()
   const view = await backend.client.GET("/api/v1/civitai/{component_id}/view", {

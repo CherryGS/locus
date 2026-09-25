@@ -13,3 +13,4 @@ export { EntityComponentDetails } from "./ui/entity-details"
 export { EntityOverview } from "./ui/entity-overview"
 
 export { BilibiliReading } from "./ui/bilibili-reading"
+export { SourceLink } from "./ui/twitter-fields"
