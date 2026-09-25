@@ -54,11 +54,10 @@ try {
     await civitaiPanel.locator('[data-slot="civitai-reading-details"]').waitFor()
   }
   async function versionDescription(text: string) {
-    const description = reading.getByText(text, { exact: true })
-    await description.waitFor({ state: "attached" })
-    const notes = reading.locator('[data-slot="civitai-version-notes"]')
-    if ((await notes.getAttribute("open")) === null) await notes.locator("summary").click()
-    await description.waitFor()
+    await reading
+      .getByRole("region", { name: "Version notes", exact: true })
+      .getByText(text, { exact: true })
+      .waitFor()
   }
   await reading.getByText("A independent model description", { exact: true }).waitFor()
   assert.equal(await reading.getByText("Version 40", { exact: false }).count(), 0)
@@ -73,7 +72,29 @@ try {
     1,
   )
   await openReadingDetails()
-  await civitaiPanel.getByRole("button", { name: "B.safetensors · 300", exact: true }).click()
+  const selectedFile = civitaiPanel.getByRole("button", { name: "B.safetensors · 300", exact: true })
+  await selectedFile.click()
+  const selectedFileText = await selectedFile.innerText()
+  await selectedFile.click()
+  assert.equal(
+    await selectedFile.getAttribute("aria-pressed"),
+    "true",
+    "repeated clicks must retain file focus",
+  )
+  await selectedFile.press("Space")
+  assert.equal(
+    await selectedFile.getAttribute("aria-pressed"),
+    "true",
+    "keyboard activation must retain file focus",
+  )
+  assert.equal(await selectedFile.innerText(), selectedFileText)
+  assert.equal(
+    await civitaiPanel
+      .locator("summary")
+      .filter({ hasText: "B.safetensors · Model · provider declarations" })
+      .count(),
+    1,
+  )
   // A delayed source switch must retain the old presentation without allowing
   // its actions to target the newly selected source.
   const stage = reading.locator('[data-slot="civitai-gallery-stage"]')

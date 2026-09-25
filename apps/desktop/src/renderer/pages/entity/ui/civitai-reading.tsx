@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import { ArrowUpRightIcon, PanelRightIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
+import {
+  ArrowUpRightIcon,
+  CheckIcon,
+  FileIcon,
+  PanelRightIcon,
+  RefreshCwIcon,
+  UserRoundIcon,
+} from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
 import { Button } from "@/shared/ui/button"
@@ -10,6 +17,7 @@ import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Spinner } from "@/shared/ui/spinner"
 import { Separator } from "@/shared/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
+import { Table, TableBody, TableCell, TableHead, TableRow } from "@/shared/ui/table"
 import { providerText } from "@/shared/lib/provider-text"
 import type { CivitaiSelection, RelatedCollection } from "../model/navigation"
 import { SourceLink, type EntityItem } from "@/entities/entity"
@@ -226,8 +234,6 @@ export function CivitaiReading({
       ? new Date(versionFields.publishedAt)
       : undefined
   const focusedFile = unit?.version.files.find((item) => item.id === displayedFile.current)
-  const fileFields = sourceObject(focusedFile?.raw_json)
-  const fileMetadata = sourceObject(fileFields.metadata)
   const operationAttention =
     coordinator.newBlocked(entity.id) ||
     !!coordinator.problem ||
@@ -277,52 +283,43 @@ export function CivitaiReading({
           : undefined
   const versionFiles = unit ? (
     <section aria-label="Version files" className="flex min-w-0 flex-col gap-2">
-      <div className="flex min-w-0 flex-wrap items-center gap-3">
-        <h3 className="text-xs text-muted-foreground">Files listed by this source</h3>
-        <ToggleGroup
-          aria-label="Version file"
-          orientation="vertical"
-          variant="outline"
-          size="sm"
-          className="w-full min-w-0"
-          disabled={!unitMatchesSelection || unitPending}
-          value={focusedFile ? [focusedFile.id] : []}
-          onValueChange={(values) => {
-            if (!unitMatchesSelection || unitPending) return
-            setSelectionNotice(undefined)
-            setSelection({ ...selection!, file: values[0] })
-          }}
-        >
-          {unit.version.files.map((item) => (
-            <ToggleGroupItem
-              key={item.id}
-              value={item.id}
-              aria-label={`${item.name} · ${item.id}`}
-              title={`${item.name} · ${item.kind} · ${item.id}`}
-              className="min-w-0 max-w-full justify-start"
-            >
+      <h3 className="text-xs text-muted-foreground">Source files</h3>
+      <ToggleGroup
+        aria-label="Version file"
+        orientation="vertical"
+        variant="outline"
+        size="sm"
+        className="w-full min-w-0"
+        disabled={!unitMatchesSelection || unitPending}
+        value={focusedFile ? [focusedFile.id] : []}
+        onValueChange={(values) => {
+          if (!values[0] || !unitMatchesSelection || unitPending) return
+          setSelectionNotice(undefined)
+          setSelection({ ...selection!, file: values[0] })
+        }}
+      >
+        {unit.version.files.map((item) => (
+          <ToggleGroupItem
+            key={item.id}
+            value={item.id}
+            aria-label={`${item.name} · ${item.id}`}
+            title={`${item.name} · ${item.kind} · ${item.id}`}
+            className="h-auto w-full min-w-0 items-start justify-start gap-2 p-2.5 text-left"
+          >
+            <FileIcon className="mt-0.5 text-muted-foreground" />
+            <span className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="truncate">{item.name}</span>
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        {!unit.version.files.length && (
-          <p className="text-xs text-muted-foreground">No files listed in this observation.</p>
-        )}
-      </div>
-      <div className="flex min-h-4 flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        {focusedFile && (
-          <>
-            {typeof fileMetadata.format === "string" && <span>{fileMetadata.format}</span>}
-            {typeof fileMetadata.fp === "string" && <span>{fileMetadata.fp}</span>}
-            {typeof fileFields.sizeKB === "number" && Number.isFinite(fileFields.sizeKB) && (
-              <span>
-                {new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(fileFields.sizeKB)} KB
-                (source)
+              <span className="text-xs font-normal whitespace-normal text-muted-foreground [overflow-wrap:anywhere]">
+                {sourceFileSummary(item)}
               </span>
-            )}
-          </>
-        )}
-      </div>
+            </span>
+            <CheckIcon className="mt-0.5 opacity-0 group-aria-pressed/toggle:opacity-100" />
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      {!unit.version.files.length && (
+        <p className="text-xs text-muted-foreground">No files listed in this observation.</p>
+      )}
     </section>
   ) : null
   const panelContent = (
@@ -549,6 +546,15 @@ export function CivitaiReading({
                       )
                     })}
                   </ToggleGroup>
+                  <div
+                    role="status"
+                    data-slot="civitai-version-status"
+                    title={versionStatus}
+                    className="flex h-5 min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground"
+                  >
+                    {(unitPending || pending) && <Spinner />}
+                    <span className="truncate">{versionStatus}</span>
+                  </div>
                 </section>
                 {!member && (
                   <Alert>
@@ -617,47 +623,6 @@ export function CivitaiReading({
                 <AlertDescription>{exampleProblem}</AlertDescription>
               </Alert>
             )}
-            <section
-              aria-label="Version information"
-              className="flex min-w-0 items-center gap-4"
-              aria-busy={unitPending}
-            >
-              {unit && (
-                <dl className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <dt className="text-muted-foreground">Base model</dt>
-                    <dd>{unit.version.base_model ?? "Not recorded"}</dd>
-                  </div>
-                  {published && (
-                    <div className="flex items-center gap-1.5">
-                      <dt className="text-muted-foreground">Published</dt>
-                      <dd title={published.toLocaleString()}>{published.toLocaleDateString()}</dd>
-                    </div>
-                  )}
-                  {!!trainedWords.length && (
-                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                      <dt className="text-muted-foreground">Trigger words</dt>
-                      <dd className="flex flex-wrap gap-1">
-                        {trainedWords.map((word, index) => (
-                          <Badge variant="secondary" key={index}>
-                            {word}
-                          </Badge>
-                        ))}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-              )}
-              <div
-                role="status"
-                data-slot="civitai-version-status"
-                title={versionStatus}
-                className="flex h-5 min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground"
-              >
-                {(unitPending || pending) && <Spinner />}
-                <span className="truncate">{versionStatus}</span>
-              </div>
-            </section>
             <Separator />
             {unit ? (
               <CivitaiGallery
@@ -676,12 +641,89 @@ export function CivitaiReading({
               </div>
             )}
             {unit && (
-              <details data-slot="civitai-version-notes" className="text-sm">
-                <summary className="cursor-pointer font-medium">Version notes</summary>
-                <p className="pt-3 whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">
-                  {providerText(unit.version.description) ?? "No version notes saved."}
-                </p>
-              </details>
+              <>
+                <section
+                  aria-label="Version information"
+                  className="flex min-w-0 flex-col gap-3"
+                  aria-busy={unitPending}
+                >
+                  <h2 className="text-sm font-medium">Version details</h2>
+                  <div className="overflow-hidden rounded-lg border">
+                    <Table aria-label="Version details" className="table-fixed">
+                      <colgroup>
+                        <col className="w-28" />
+                        <col />
+                      </colgroup>
+                      <TableBody>
+                        <TableRow>
+                          <TableHead scope="row" className="px-3 text-xs text-muted-foreground">
+                            Version
+                          </TableHead>
+                          <TableCell className="px-3 whitespace-normal [overflow-wrap:anywhere]">
+                            {unit.version.name}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableHead scope="row" className="px-3 text-xs text-muted-foreground">
+                            Base model
+                          </TableHead>
+                          <TableCell className="px-3 whitespace-normal [overflow-wrap:anywhere]">
+                            {unit.version.base_model ?? "Not recorded"}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableHead scope="row" className="px-3 text-xs text-muted-foreground">
+                            Published
+                          </TableHead>
+                          <TableCell className="px-3">
+                            {published ? (
+                              <time dateTime={published.toISOString()} title={published.toLocaleString()}>
+                                {published.toLocaleDateString()}
+                              </time>
+                            ) : (
+                              "Not recorded"
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableHead
+                            scope="row"
+                            className="px-3 py-2.5 align-top text-xs text-muted-foreground"
+                          >
+                            Trigger words
+                          </TableHead>
+                          <TableCell className="px-3 whitespace-normal [overflow-wrap:anywhere]">
+                            {trainedWords.length ? (
+                              <ul className="flex min-w-0 flex-col gap-2">
+                                {trainedWords.map((word, index) => (
+                                  <li key={index}>
+                                    <code className="select-text text-xs">{word}</code>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : Array.isArray(versionFields.trainedWords) ? (
+                              "None listed"
+                            ) : (
+                              "Not recorded"
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </section>
+                <section
+                  aria-label="Version notes"
+                  data-slot="civitai-version-notes"
+                  className="flex min-w-0 flex-col gap-3"
+                >
+                  <h2 className="text-sm font-medium">Version notes</h2>
+                  <p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">
+                    {providerText(unit.version.description) ?? "No version notes saved."}
+                  </p>
+                </section>
+                <Separator />
+              </>
             )}
             <section aria-label="About this model" className="flex min-w-0 flex-col gap-3">
               <h2 className="text-sm font-medium">About this model</h2>
@@ -703,6 +745,20 @@ export function CivitaiReading({
       </article>
     </ScrollArea>
   )
+}
+
+function sourceFileSummary(file: Wire<"CivitaiFile">): string {
+  const fields = sourceObject(file.raw_json)
+  const metadata = sourceObject(fields.metadata)
+  return [
+    typeof metadata.format === "string" ? metadata.format : file.kind,
+    typeof metadata.fp === "string" ? metadata.fp : undefined,
+    typeof fields.sizeKB === "number" && Number.isFinite(fields.sizeKB)
+      ? `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(fields.sizeKB)} KB`
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join(" · ")
 }
 
 function sourceObject(value: unknown): Record<string, unknown> {

@@ -37,7 +37,7 @@ function componentSummary(component: EntityComponent) {
     }
     case "model":
       return component.record?.facts
-        ? `${component.record.facts.format} · ${component.record.facts.tensor_count} tensors in this file`
+        ? `${component.record.facts.format} · ${component.record.facts.tensor_count} ${String(component.record.facts.tensor_count) === "1" ? "tensor" : "tensors"}`
         : "No accepted inspection"
     case "twitter":
       return component.author?.handle
@@ -148,27 +148,25 @@ export function EntityOverview({
           <div className="-mx-2 flex min-w-0 flex-col gap-1">
             {entity.components.map((component) => {
               const { label, icon: Icon } = componentAppearance[component.kind]
+              const summary = componentSummary(component)
               return (
                 <Button
                   key={component.id}
                   variant="ghost"
-                  className="h-auto w-full items-start justify-start gap-2.5 px-2 py-2.5"
+                  className="h-9 w-full min-w-0 justify-start gap-2 px-2"
                   aria-label={`Open ${label} details`}
+                  title={`${label}: ${summary}`}
                   onClick={() => onOpenComponent(component)}
                 >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/60">
-                    <Icon data-icon="inline-start" className="text-muted-foreground" />
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col gap-1 text-left">
-                    <span>{label}</span>
-                    <span className="whitespace-normal break-words text-xs font-normal leading-relaxed text-muted-foreground">
-                      {componentSummary(component)}
-                    </span>
+                  <Icon data-icon="inline-start" className="text-muted-foreground" />
+                  <span className="shrink-0">{label}</span>
+                  <span className="min-w-0 flex-1 truncate text-right text-xs font-normal text-muted-foreground">
+                    {summary}
                   </span>
                   {component.readStatus === "loading" ? (
                     <Spinner aria-label="Reading metadata" />
                   ) : (
-                    <ChevronRightIcon data-icon="inline-end" className="mt-0.5 text-muted-foreground" />
+                    <ChevronRightIcon data-icon="inline-end" className="text-muted-foreground" />
                   )}
                 </Button>
               )
