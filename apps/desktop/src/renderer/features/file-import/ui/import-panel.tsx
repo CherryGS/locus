@@ -353,10 +353,14 @@ export function ImportDetails({
                 {batch.access_context === "desktop" && item.actions.includes("recopy") && (
                   <Alert>
                     <AlertTitle>New copy required</AlertTitle>
-                    <AlertDescription>
-                      {item.current.copy.reason ?? item.current.base.reason} The source is read again and its
-                      bytes may have changed. Earlier managed effects are retained.
+                    <AlertDescription className="flex flex-col gap-2 [&_p:not(:last-child)]:mb-0">
+                      <p className="break-words">{item.current.copy.reason ?? item.current.base.reason}</p>
+                      <p>
+                        The source is read again and its bytes may have changed. Earlier managed effects are
+                        retained.
+                      </p>
                       <Button
+                        className="self-start"
                         size="sm"
                         variant="outline"
                         disabled={!c.available || c.itemPending(item.item_id)}

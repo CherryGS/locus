@@ -141,6 +141,22 @@ try {
   await page.getByRole("button", { name: /^Tasks/ }).click()
   const region = page.getByRole("dialog", { name: "Tasks this run" })
   assert.equal(await region.locator("[data-task-record]").count(), 5)
+  const filter = (label: string) =>
+    region.locator(`[data-slot="toggle-group-item"][aria-label="${label}"]`).click()
+  await filter("Needs attention")
+  assert.equal(await region.locator("[data-task-record]").count(), 1)
+  await filter("Finished")
+  assert.equal(await region.locator("[data-task-record]").count(), 4)
+  await filter("Active")
+  await region.getByRole("button", { name: "Show all tasks", exact: true }).waitFor()
+  await region.getByRole("button", { name: "Show all tasks", exact: true }).click()
+  await region.getByRole("textbox", { name: "Search tasks", exact: true }).fill(batch.batch_id)
+  assert.equal(await region.locator("[data-task-record]").count(), 1)
+  await region.getByRole("textbox", { name: "Search tasks", exact: true }).fill("no-such-task")
+  assert.equal(await region.locator("[data-task-record]").count(), 0)
+  await region.getByRole("button", { name: "Show all tasks", exact: true }).click()
+  assert.equal(await region.locator("[data-task-record]").count(), 5)
+
   const batchEntry = region.locator(`[data-task-record="${batch.batch_id}"]`)
   const batchDetails = region.locator(`[data-task-detail="${batch.batch_id}"]`)
   const recoveredFile = batchDetails.locator("article").filter({ hasText: missing })
@@ -286,7 +302,16 @@ try {
   await writeFile(
     join(output, "result.json"),
     JSON.stringify(
-      { passed: true, tasks, batches: final, successOutcome, warningOutcome, listReads, errors, externalFeedback },
+      {
+        passed: true,
+        tasks,
+        batches: final,
+        successOutcome,
+        warningOutcome,
+        listReads,
+        errors,
+        externalFeedback,
+      },
       null,
       2,
     ),

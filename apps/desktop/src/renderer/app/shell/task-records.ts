@@ -55,7 +55,9 @@ export function taskRecords(
             ? `Import file - ${operation.source_path.split(/[\\/]/).pop()}`
             : operation.kind === "civitai"
               ? `Civitai · origin ${operation.entity_id.slice(-8)}`
-              : `${operation.target.kind} ${operation.kind}`,
+              : operation.kind === "preview"
+                ? `Create ${operation.target.kind} preview`
+                : `Read ${operation.target.kind} metadata`,
         summary: outcomeSummary(observation),
         active: observation.task.state !== "terminal",
         attention: needsAttention(observation),

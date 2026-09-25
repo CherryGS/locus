@@ -1,5 +1,8 @@
 import { useState, type ReactNode } from "react"
 import {
+  BoxIcon,
+  UploadIcon,
+  CheckIcon,
   ChevronRightIcon,
   FileIcon,
   FilesIcon,
@@ -21,6 +24,8 @@ import { diagnosticText, commitUnknown } from "@/shared/api"
 import type { TaskObservation } from "@/entities/task"
 import { Separator } from "@/shared/ui/separator"
 import { Spinner } from "@/shared/ui/spinner"
+import { Input } from "@/shared/ui/input"
+import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 
 export type FeedbackRecord = {
   id: string
@@ -176,7 +181,12 @@ function RecordDetails({
               Needs attention
             </Badge>
           )}
-          <span className="text-xs text-muted-foreground">#{record.id.slice(-8)}</span>
+          {!record.active && !record.attention && (
+            <Badge variant="outline">
+              <CheckIcon data-icon="inline-start" />
+              Finished
+            </Badge>
+          )}
         </div>
         <h2 className="text-lg font-semibold tracking-tight">{record.label}</h2>
         <p className="break-words text-sm leading-relaxed text-muted-foreground">{record.summary}</p>
@@ -236,7 +246,6 @@ function RecordDetails({
                   ? "Recovery execution"
                   : "Original execution"}
               </h3>
-              <p className="break-all text-xs text-muted-foreground">Task {attempt.task.task_id}</p>
             </div>
             <ExecutionDetails attempt={attempt} retryOutcome={retryOutcome} />
             <Separator />
@@ -264,7 +273,18 @@ export function TaskPanel({
   retryOutcome: (id: string) => void
 }) {
   const [selection, setSelection] = useState<string>()
-  const selected = records.find((record) => record.id === selection) ?? records[0]
+  const [filter, setFilter] = useState("all")
+  const [search, setSearch] = useState("")
+  const query = search.trim().toLocaleLowerCase()
+  const filtered = records.filter(
+    (record) =>
+      (filter === "all" ||
+        (filter === "active" && record.active) ||
+        (filter === "attention" && record.attention) ||
+        (filter === "finished" && !record.active && !record.attention)) &&
+      (!query || `${record.label} ${record.summary} ${record.id}`.toLocaleLowerCase().includes(query)),
+  )
+  const selected = filtered.find((record) => record.id === selection) ?? filtered[0]
   const active = records.filter((record) => record.active).length
   const attention = records.filter((record) => record.attention).length
   return (
@@ -272,7 +292,7 @@ export function TaskPanel({
       keepMounted
       showCloseButton={false}
       finalFocus={finalFocus}
-      className="flex h-[min(85dvh,44rem)] min-h-0 w-[calc(100%-3rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
+      className="flex h-[90dvh] min-h-0 w-[90vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
     >
       <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-4">
         <DialogHeader className="gap-1.5">
@@ -282,10 +302,7 @@ export function TaskPanel({
               Tasks this run
             </span>
           </DialogTitle>
-          <DialogDescription>
-            {records.length} operations{active > 0 && ` · ${active} active`}
-            {attention > 0 && ` · ${attention} need attention`}
-          </DialogDescription>
+          <DialogDescription>Import and processing activity for this session.</DialogDescription>
         </DialogHeader>
         <div className="flex shrink-0 items-center gap-1">
           <Button
@@ -314,6 +331,49 @@ export function TaskPanel({
           </Alert>
         </div>
       )}
+      {!!records.length && (
+        <>
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-5 py-3">
+            <ToggleGroup
+              aria-label="Filter tasks"
+              className="max-w-full flex-wrap"
+              size="sm"
+              variant="outline"
+              value={[filter]}
+              onValueChange={(values) => {
+                if (values[0]) {
+                  setFilter(values[0])
+                  setSelection(undefined)
+                }
+              }}
+            >
+              {[
+                { value: "all", label: "All", count: records.length },
+                { value: "active", label: "Active", count: active },
+                { value: "attention", label: "Needs attention", count: attention },
+                {
+                  value: "finished",
+                  label: "Finished",
+                  count: records.filter((r) => !r.active && !r.attention).length,
+                },
+              ].map(({ value, label, count }) => (
+                <ToggleGroupItem key={value} value={value} aria-label={label}>
+                  {label}
+                  <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            <Input
+              aria-label="Search tasks"
+              placeholder="Search tasks…"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full sm:w-52"
+            />
+          </div>
+          <Separator />
+        </>
+      )}
       {!records.length ? (
         <Empty className="m-5 flex-1">
           <EmptyHeader>
@@ -322,18 +382,24 @@ export function TaskPanel({
             </EmptyMedia>
             <EmptyTitle>{established ? "No tasks this run" : "Waiting for task observation"}</EmptyTitle>
             <EmptyDescription>
-              Choose Import to select local files. Canceling selection submits nothing.
+              Tasks appear here when you import or process content. Records are kept for this application
+              session.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
           <ScrollArea
-            className="min-h-0 min-w-0 basis-2/5 sm:w-[32%] sm:shrink-0 sm:basis-auto"
+            className="min-h-0 min-w-0 basis-2/5 bg-muted/20 sm:w-[34%] sm:shrink-0 sm:basis-auto"
             viewportProps={{ "aria-label": "Task list" }}
           >
             <nav aria-label="Tasks" className="flex flex-col gap-1 p-2">
-              {records.map((record) => {
+              {!filtered.length && (
+                <p className="px-3 py-5 text-sm text-muted-foreground">No matching tasks.</p>
+              )}
+              {filtered.map((record) => {
+                const running = record.attempts.filter((attempt) => attempt.task.state !== "terminal")
+                const stage = running.length === 1 ? running[0].task : undefined
                 const kind = record.attempts[0]?.task.operation.kind
                 const Icon =
                   kind === "interpretation"
@@ -342,7 +408,11 @@ export function TaskPanel({
                       ? ImageIcon
                       : kind === "file_import"
                         ? FileIcon
-                        : FilesIcon
+                        : kind === "civitai"
+                          ? BoxIcon
+                          : kind === "upload" || kind === "upload_recovery"
+                            ? UploadIcon
+                            : FilesIcon
                 return (
                   <Button
                     key={record.id}
@@ -357,19 +427,36 @@ export function TaskPanel({
                     <span className="flex min-w-0 flex-1 flex-col gap-1 text-left">
                       <span className="flex min-w-0 items-center gap-2">
                         <span className="truncate">{record.label}</span>
-                        {record.active && <Spinner className="ml-auto" aria-label="Active" />}
-                        {record.attention && (
-                          <TriangleAlertIcon
-                            className="ml-auto text-destructive"
-                            aria-label="Needs attention"
-                          />
-                        )}
                       </span>
                       <span className="line-clamp-2 whitespace-normal break-words text-xs font-normal leading-relaxed text-muted-foreground">
                         {record.summary}
                       </span>
-                      <span className="mt-0.5 text-xs font-normal text-muted-foreground">
-                        #{record.id.slice(-8)}
+                      <span className="mt-1 flex flex-wrap items-center gap-2 text-xs font-normal text-muted-foreground">
+                        {record.active && (
+                          <span className="inline-flex items-center gap-1">
+                            <Spinner />
+                            Active
+                          </span>
+                        )}
+                        {record.attention && (
+                          <span className="inline-flex items-center gap-1 text-destructive">
+                            <TriangleAlertIcon />
+                            Needs attention
+                          </span>
+                        )}
+                        {!record.active && !record.attention && (
+                          <span className="inline-flex items-center gap-1">
+                            <CheckIcon />
+                            Finished
+                          </span>
+                        )}
+                        {stage && (
+                          <span className="truncate">
+                            {stage.stage ?? stage.state.replaceAll("_", " ")}
+                            {stage.completed != null &&
+                              ` · ${stage.completed}${stage.total != null ? ` / ${stage.total}` : " completed"}`}
+                          </span>
+                        )}
                       </span>
                     </span>
                   </Button>
@@ -380,6 +467,26 @@ export function TaskPanel({
           <Separator orientation="vertical" className="hidden sm:block" />
           <Separator className="sm:hidden" />
           <div className="min-h-0 min-w-0 flex-1">
+            {!selected && (
+              <Empty className="h-full">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <ListChecksIcon />
+                  </EmptyMedia>
+                  <EmptyTitle>No matching tasks</EmptyTitle>
+                  <EmptyDescription>Choose another status or clear your search.</EmptyDescription>
+                </EmptyHeader>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setFilter("all")
+                    setSearch("")
+                  }}
+                >
+                  Show all tasks
+                </Button>
+              </Empty>
+            )}
             {/* Keep each operation mounted so switching tasks retains disclosure,
                 scroll and pending View feedback, just like dismissing the modal. */}
             {records.map((record) => (
