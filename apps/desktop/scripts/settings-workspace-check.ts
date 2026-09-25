@@ -17,7 +17,14 @@ const errors: string[] = []
 page.on("pageerror", (error) => errors.push(error.message))
 const category = (name: string) => page.getByRole("button", { name, exact: true }).click()
 const visit = () => page.evaluate(() => ({ key: history.state.__TSR_key, index: history.state.__TSR_index }))
-const enter = () => page.getByRole("link", { name: "Setting", exact: true }).click()
+const enter = () => page.getByRole("button", { name: "Setting", exact: true }).click()
+const close = async () => {
+  await page
+    .getByRole("dialog", { name: "Settings", exact: true })
+    .getByRole("button", { name: "Close", exact: true })
+    .click()
+  await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor({ state: "hidden" })
+}
 let releaseSave = () => {}
 try {
   await page.goto(`${preview.origin}/#/entity`)
@@ -33,6 +40,7 @@ try {
   const selected = await grid.locator('[aria-selected="true"]').getAttribute("id")
   const selectedUrl = page.url()
   const originVisit = await visit()
+  const gridNode = await grid.elementHandle()
   const position = await grid.evaluate((element) => element.scrollTop)
   const anchorIdentity = await grid.evaluate((element) => {
     const top = element.getBoundingClientRect().top
@@ -44,15 +52,23 @@ try {
   await enter()
   await page.getByRole("heading", { name: "External connection", exact: true }).waitFor()
   const settingsVisit = await visit()
+  assert.equal(page.url(), selectedUrl, "opening Settings cannot navigate away")
+  assert.deepEqual(settingsVisit, originVisit)
+  assert.equal(await page.getByRole("button", { name: "Return", exact: true }).count(), 0)
+  await page.mouse.click(4, 4)
+  assert.equal(await page.getByRole("dialog", { name: "Settings", exact: true }).isVisible(), true)
+  await page.keyboard.press("Alt+ArrowLeft")
+  assert.equal(page.url(), selectedUrl, "background navigation shortcuts cannot run inside Settings")
   await page.getByLabel("Saved address", { exact: true }).fill("127.0.0.1:46323")
   await category("Media tools")
   await page.getByLabel("ffprobe", { exact: true }).fill("workspace-probe")
   await category("External connection")
   assert.deepEqual(await visit(), settingsVisit, "categories cannot add/replace visits")
   assert.equal(await page.getByLabel("Saved address", { exact: true }).inputValue(), "127.0.0.1:46323")
-  await category("Return")
+  await close()
   await grid.waitFor()
   assert.equal(page.url(), selectedUrl)
+  assert(await gridNode!.evaluate((node) => node.isConnected), "grid must remain mounted")
   assert.deepEqual(await visit(), originVisit)
   await page.getByRole("complementary", { name: "Overview", exact: true }).waitFor()
   await page.waitForFunction(
@@ -64,15 +80,15 @@ try {
     selected?.split("-").slice(-5).join("-"),
   )
   assert.match(
-    (await page.getByRole("link", { name: "Setting", exact: true }).getAttribute("title")) ?? "",
+    (await page.getByRole("button", { name: "Setting", exact: true }).getAttribute("title")) ?? "",
     /Unsaved edits/,
   )
-  await category("Forward")
+  await enter()
   await page.getByRole("heading", { name: "External connection", exact: true }).waitFor()
   assert.deepEqual(await visit(), settingsVisit)
 
   await page.setViewportSize({ width: 900, height: 720 })
-  await category("Return")
+  await close()
   await grid.waitFor()
   await page.waitForFunction((identity) => {
     const grid = document.querySelector('[role="grid"]')!
@@ -83,7 +99,7 @@ try {
     return rect.bottom > viewport.top && rect.top < viewport.bottom
   }, anchorIdentity)
   assert.equal(page.url(), selectedUrl, "resized restoration cannot replace selection")
-  await category("Forward")
+  await enter()
   await page.getByRole("heading", { name: "External connection", exact: true }).waitFor()
   await page.setViewportSize({ width: 1200, height: 800 })
 
@@ -146,18 +162,25 @@ try {
   await page.unroute(`**/api/v1/settings/groups/${MediaToolPathsGroupId}*`)
   await page.screenshot({ path: join(output, "media-problem.png") })
 
-  // Return to inspection keeps the source declaration; viewer Return remains distinct.
-  await category("Return")
+  // Closing Settings keeps inspection intact; viewer Return remains a separate navigation.
+  await close()
   await grid.locator('[aria-selected="true"]').dblclick()
   await page.locator('[data-slot="entity-inspection"]').waitFor()
   const inspectionUrl = page.url()
   const inspectionVisit = await visit()
+  const inspectionNode = await page.locator('[data-slot="entity-inspection"]').elementHandle()
   await enter()
   await category("External connection")
-  await category("Return")
+  await close()
   await page.locator('[data-slot="entity-inspection"]').waitFor()
   assert.equal(page.url(), inspectionUrl)
   assert.deepEqual(await visit(), inspectionVisit)
+  assert(await inspectionNode!.evaluate((node) => node.isConnected), "reader must remain mounted")
+  await enter()
+  await page.keyboard.press("Escape")
+  await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor({ state: "hidden" })
+  assert.equal(page.url(), inspectionUrl, "Escape closes only Settings, not the underlying reader")
+  assert.equal(await page.locator(":focus").getAttribute("id"), "settings-trigger")
   await category("Return to source")
   await grid.waitFor()
   assert.notEqual(
@@ -173,13 +196,23 @@ try {
   await page.getByText("Entity unavailable in this list", { exact: true }).waitFor()
   const unavailableUrl = page.url()
   await enter()
-  await category("Return")
+  await close()
   await page.getByText("Entity unavailable in this list", { exact: true }).waitFor()
   assert.equal(page.url(), unavailableUrl)
 
+  await page.getByRole("link", { name: "Home", exact: true }).click()
+  await page.getByRole("heading", { name: "Home", exact: true }).waitFor()
+  const homeVisit = await visit()
+  await enter()
+  await close()
+  assert.deepEqual(await visit(), homeVisit)
+  await page.getByRole("heading", { name: "Home", exact: true }).waitFor()
+
   await page.goto(`${preview.origin}/#/setting`)
   await page.getByRole("heading", { name: "External connection", exact: true }).waitFor()
-  await category("Open Entity")
+  await page.keyboard.press("Tab")
+  assert(await page.locator(":focus").evaluate((element) => !!element.closest('[role="dialog"]')))
+  await close()
   await grid.waitFor()
   assert.deepEqual(errors, [])
   await writeFile(
@@ -190,7 +223,7 @@ try {
         checks: [
           "scrolled selected grid and inspector",
           "category history identity",
-          "Return and Forward",
+          "modal preserves URL, history and DOM identity",
           "retained independent drafts",
           "offscreen committed and failed saves",
           "new draft plus pending application",

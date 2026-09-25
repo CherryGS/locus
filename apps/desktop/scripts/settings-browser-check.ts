@@ -44,9 +44,9 @@ try {
   await page.locator("dd").filter({ hasText: "explicit-environment-probe" }).waitFor()
   await page.unroute("**/api/v1/settings/media-runtime")
   await page.getByLabel("ffprobe", { exact: true }).fill("saved-probe")
-  await page.getByRole("button", { name: /^(Return|Open Entity)$/ }).click()
+  await page.getByRole("button", { name: "Close", exact: true }).click()
   await page.getByRole("grid", { name: "Entities" }).waitFor()
-  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
   assert.equal(await page.getByLabel("ffprobe", { exact: true }).inputValue(), "saved-probe")
   await page.getByRole("button", { name: "Save", exact: true }).click()
   await page.getByText("Saved · restart required", { exact: true }).waitFor()
@@ -120,9 +120,9 @@ try {
     await token.getByRole("button", { name: "Reset shared Token", exact: true }).isDisabled(),
     true,
   )
-  await page.getByRole("button", { name: /^(Return|Open Entity)$/ }).click()
+  await page.getByRole("button", { name: "Close", exact: true }).click()
   await page.getByRole("grid", { name: "Entities" }).waitFor()
-  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
   await token.getByRole("button", { name: "Recover Token reset", exact: true }).click()
   await token.getByText("Token reset completed.", { exact: true }).waitFor()
   await page.waitForFunction(() => !!(document.querySelector("#external-token") as HTMLInputElement)?.value)
@@ -157,8 +157,8 @@ try {
   assert(bound && typeof bound !== "string")
   const occupiedAddress = `127.0.0.1:${bound.port}`
   await page.getByLabel("Saved address", { exact: true }).fill(occupiedAddress)
-  await page.getByRole("button", { name: /^(Return|Open Entity)$/ }).click()
-  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await page.getByRole("button", { name: "Close", exact: true }).click()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
   assert.equal(await page.getByLabel("Saved address", { exact: true }).inputValue(), occupiedAddress)
   await external.getByRole("button", { name: "Save address", exact: true }).click()
   await external.getByText("Saved · restart required", { exact: true }).waitFor()
@@ -174,7 +174,7 @@ try {
   assert.equal(backend.availability.status, "normal")
   await page.goto(`${preview.origin}/#/entity`)
   await page.getByRole("grid", { name: "Entities" }).waitFor()
-  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
   await external.getByText("External entry unavailable", { exact: true }).waitFor()
   assert.equal(await external.getByRole("button", { name: "Copy address", exact: true }).count(), 0)
   const beforeAddressReset = (await backend.client.GET("/api/v1/external-access/token")).data!

@@ -48,7 +48,7 @@ async function launch(extra: Record<string, string> = {}) {
 }
 async function settings(page: Page) {
   await page.getByRole("grid", { name: "Entities" }).waitFor()
-  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
   await page.getByRole("button", { name: "Media tools", exact: true }).click()
   await page.waitForFunction(() => !(document.querySelector("#media-ffprobe") as HTMLInputElement)?.disabled)
 }
@@ -259,6 +259,7 @@ try {
     }
   })
   await page.reload()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
   await page.getByRole("button", { name: "External connection", exact: true }).click()
   await page.waitForFunction(
     () => !(document.querySelector("#external-address") as HTMLInputElement)?.disabled,
@@ -296,6 +297,7 @@ try {
     }
   })
   await page.reload()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
   await page.getByRole("button", { name: "Media tools", exact: true }).click()
   await page.waitForFunction(() => !(document.querySelector("#media-ffprobe") as HTMLInputElement)?.disabled)
   await page.getByLabel("ffprobe", { exact: true }).fill("failed-draft")
@@ -327,7 +329,7 @@ try {
   await page.getByRole("gridcell").first().dblclick()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   await chooseContentView(page, "File")
-  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
   await page.getByRole("button", { name: "Restart application", exact: true }).click()
   await page.getByRole("heading", { name: "Some choices are not confirmed saved" }).waitFor()
   assert.equal(await page.getByRole("button", { name: "Discard draft and restart", exact: true }).count(), 0)

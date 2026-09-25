@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router"
 import { HomeIcon, LayoutGridIcon, SettingsIcon } from "lucide-react"
 import { motion, useReducedMotion } from "motion/react"
 import { cn } from "@/shared/lib/utils"
-import { buttonVariants } from "@/shared/ui/button"
+import { Button, buttonVariants } from "@/shared/ui/button"
 import { useSettingsWorkspace } from "./settings-navigation"
 import { Separator } from "@/shared/ui/separator"
 
@@ -15,11 +15,10 @@ const linkLayout = "w-full justify-start gap-2 overflow-hidden pl-0 pr-3 has-dat
 const navigation = [
   { to: "/", label: "Home", icon: HomeIcon },
   { to: "/entity", label: "Entity", icon: LayoutGridIcon },
-  { to: "/setting", label: "Setting", icon: SettingsIcon },
 ] as const
 
 export function LeftNavigation() {
-  const { external, media } = useSettingsWorkspace()
+  const { session, external, media } = useSettingsWorkspace()
   const settingsStatus = [external && `External connection: ${external}`, media && `Media tools: ${media}`]
     .filter(Boolean)
     .join("; ")
@@ -108,17 +107,13 @@ export function LeftNavigation() {
               setRevealed(false)
             }}
             aria-label={label}
-            aria-describedby={to === "/setting" && settingsStatus ? "settings-navigation-status" : undefined}
-            title={to === "/setting" && settingsStatus ? settingsStatus : label}
+            title={label}
             activeOptions={{ exact: true }}
             activeProps={{ className: cn(buttonVariants({ variant: "secondary" }), linkLayout) }}
             inactiveProps={{ className: cn(buttonVariants({ variant: "ghost" }), linkLayout) }}
           >
             <span className="flex size-8 shrink-0 items-center justify-center">
               <Icon data-icon="inline-start" />
-              {to === "/setting" && settingsStatus && (
-                <span aria-hidden="true" className="absolute ml-5 mt-5 size-1.5 rounded-full bg-primary" />
-              )}
             </span>
             <motion.span
               aria-hidden="true"
@@ -131,6 +126,37 @@ export function LeftNavigation() {
             </motion.span>
           </Link>
         ))}
+        <Button
+          id="settings-trigger"
+          variant={session?.settingsNavigation.opened ? "secondary" : "ghost"}
+          className={linkLayout}
+          aria-label="Setting"
+          aria-haspopup="dialog"
+          aria-expanded={session?.settingsNavigation.opened ?? false}
+          aria-describedby={settingsStatus ? "settings-navigation-status" : undefined}
+          title={settingsStatus || "Setting"}
+          onClick={() => {
+            cancelTimers()
+            setRevealed(false)
+            session?.playback.pause()
+            session?.settingsNavigation.setOpen(true)
+          }}
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center">
+            <SettingsIcon data-icon="inline-start" />
+            {settingsStatus && (
+              <span aria-hidden="true" className="absolute ml-5 mt-5 size-1.5 rounded-full bg-primary" />
+            )}
+          </span>
+          <motion.span
+            aria-hidden="true"
+            className="shrink-0 whitespace-nowrap"
+            animate={{ opacity: revealed ? 1 : 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.12 }}
+          >
+            Setting
+          </motion.span>
+        </Button>
         {settingsStatus && (
           <span id="settings-navigation-status" className="sr-only">
             {settingsStatus}

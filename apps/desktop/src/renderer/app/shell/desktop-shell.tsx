@@ -1,21 +1,21 @@
-import { Outlet, useRouterState } from "@tanstack/react-router"
-import { SettingsHistoryBinding, SettingsNavigation } from "./settings-navigation"
+import { Outlet } from "@tanstack/react-router"
+import { BrowsingHistoryBinding } from "./settings-navigation"
 import { useState } from "react"
 import { Separator } from "@/shared/ui/separator"
 import { SourceReturnContext } from "@/shared/source-return"
 import { LeftNavigation } from "./left-navigation"
 import { ImportActions } from "./import-actions"
 import { HistoryNavigation } from "./history-navigation"
+import { SettingsDialog } from "./settings-dialog"
 import { TaskWorkspace } from "./task-workspace"
 
 export function DesktopShell() {
-  const settings = useRouterState({ select: (state) => state.location.pathname === "/setting" })
   const [action, setAction] = useState<(() => void) | undefined>()
 
   return (
     <SourceReturnContext.Provider value={{ action, setAction }}>
       <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
-        <SettingsHistoryBinding />
+        <BrowsingHistoryBinding />
         <header className="title-bar shrink-0 bg-sidebar">
           <div className="title-bar-content flex items-center gap-3 px-4 text-xs font-medium text-muted-foreground">
             <span>Locus</span>
@@ -29,12 +29,12 @@ export function DesktopShell() {
         <TaskWorkspace>
           <LeftNavigation />
           <main className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-            {settings && <SettingsNavigation />}
             <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
               <Outlet />
             </div>
           </main>
         </TaskWorkspace>
+        <SettingsDialog />
       </div>
     </SourceReturnContext.Provider>
   )

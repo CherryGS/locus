@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react"
-import { useRouter, useRouterState } from "@tanstack/react-router"
-import { ArrowLeftIcon, PlugIcon, SlidersHorizontalIcon } from "lucide-react"
+import { useRouter } from "@tanstack/react-router"
+import { PlugIcon, SlidersHorizontalIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { externalStatus, groupStatus, mediaPending } from "@/features/settings"
 import { useLibrarySession } from "../providers/library-provider"
@@ -30,18 +30,15 @@ export function useSettingsWorkspace() {
   }
 }
 
-export function SettingsHistoryBinding() {
+export function BrowsingHistoryBinding() {
   const session = useLibrarySession()
   const router = useRouter()
   useEffect(() => {
-    let previous = router.history.location
     return router.history.subscribe(({ location, action }) => {
-      session?.settingsNavigation.observe(previous, location, action.type)
       if (action.type === "PUSH") {
         for (const key of session?.browsing.keys() ?? [])
           if (Number(key) >= location.state.__TSR_index) session?.browsing.delete(key)
       }
-      previous = location
     })
   }, [session, router])
   return null
@@ -49,28 +46,12 @@ export function SettingsHistoryBinding() {
 
 export function SettingsNavigation() {
   const { session, external, media } = useSettingsWorkspace()
-  const router = useRouter()
-  const location = useRouterState({ select: (state) => state.location })
   const navigation = session?.settingsNavigation
-  const delta = navigation?.returnDelta(location)
   return (
     <nav
       aria-label="Settings categories"
-      className="flex w-56 shrink-0 flex-col gap-1 overflow-y-auto border-r bg-sidebar p-2"
+      className="flex shrink-0 gap-1 overflow-auto border-b bg-sidebar p-2 sm:w-56 sm:flex-col sm:border-r sm:border-b-0"
     >
-      <Button
-        variant="ghost"
-        className={itemClassName}
-        onClick={() => {
-          if (delta !== undefined) router.history.go(delta)
-          else void router.navigate({ to: "/entity", search: { mode: "grid", collectionId: "library" } })
-        }}
-      >
-        <span className="flex size-8 shrink-0 items-center justify-center">
-          <ArrowLeftIcon data-icon="inline-start" />
-        </span>
-        {delta !== undefined ? "Return" : "Open Entity"}
-      </Button>
       {(
         [
           { id: "external", label: "External connection", icon: PlugIcon, status: external },

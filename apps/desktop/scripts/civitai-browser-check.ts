@@ -84,6 +84,23 @@ try {
       const viewport = element.closest('[data-slot="scroll-area-viewport"]')!
       return { x: bounds.x, y: bounds.y + viewport.scrollTop, width: bounds.width, height: bounds.height }
     })
+  // Settings is an excursion over the mounted reader, including DOM-owned state.
+  const galleryNode = await stage.elementHandle()
+  const readerViewport = reading.locator('xpath=ancestor::*[@data-slot="scroll-area-viewport"][1]')
+  await readerViewport.evaluate((element) => {
+    element.scrollTop = 180
+  })
+  const readerScroll = await readerViewport.evaluate((element) => element.scrollTop)
+  const galleryImage = await stage.locator("img").getAttribute("src")
+  const readerUrl = page.url()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor()
+  await page.keyboard.press("Escape")
+  await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor({ state: "hidden" })
+  assert.equal(page.url(), readerUrl)
+  assert(await galleryNode!.evaluate((element) => element.isConnected))
+  assert.equal(await readerViewport.evaluate((element) => element.scrollTop), readerScroll)
+  assert.equal(await stage.locator("img").getAttribute("src"), galleryImage)
   const stageBefore = await stageLayout()
   const previousPreview = await stage.locator("img").getAttribute("src")
   let releaseSwitch!: () => void, switchRequested!: () => void
@@ -189,8 +206,8 @@ try {
   await page.screenshot({ path: join(output, "origin-with-peer-version.png") })
   await reading.getByRole("button", { name: "Inspect managed example", exact: true }).first().click()
   await page.locator('[data-slot="entity-inspection"][data-view-id="image.inspect"]').waitFor()
-  await page.getByRole("link", { name: "Setting", exact: true }).click()
-  await page.getByRole("button", { name: "Back", exact: true }).click()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await page.getByRole("button", { name: "Close", exact: true }).click()
   await page.locator('[data-slot="entity-inspection"][data-view-id="image.inspect"]').waitFor()
   await page.getByRole("button", { name: "Return to source", exact: true }).first().click()
   await versionDescription("B version description")

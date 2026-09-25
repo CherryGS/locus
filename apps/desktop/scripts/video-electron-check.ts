@@ -126,16 +126,16 @@ try {
   await page.locator("video").evaluate((v: HTMLVideoElement) => {
     ;(window as any).__settingsVideo = v
   })
-  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
   await page.getByRole("heading", { name: "External connection", exact: true }).waitFor()
-  assert.equal(await page.locator("video").count(), 0)
+  assert.equal(await page.locator("video").count(), 1)
   assert(
     await page.evaluate(
-      () => (window as any).__settingsVideo.paused && !(window as any).__settingsVideo.getAttribute("src"),
+      () => (window as any).__settingsVideo.paused && (window as any).__settingsVideo === document.querySelector("video"),
     ),
   )
   await page.getByRole("button", { name: "Media tools", exact: true }).click()
-  await page.getByRole("button", { name: "Return", exact: true }).click()
+  await page.getByRole("button", { name: "Close", exact: true }).click()
   await ready(page)
   const settingsReturn = await state(page)
   assert.equal(page.url(), destination)

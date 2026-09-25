@@ -53,6 +53,18 @@ try {
     await video.play()
   })
   await page.waitForFunction(() => !document.querySelector("video")!.paused)
+  const beforeSettings = page.url()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor()
+  const pausedAt = await page.locator("video").evaluate((video: HTMLVideoElement) => {
+    if (!video.paused) throw new Error("Settings must pause playback")
+    return video.currentTime
+  })
+  await page.keyboard.press("Escape")
+  await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor({ state: "hidden" })
+  assert.equal(page.url(), beforeSettings)
+  assert(await page.evaluate(() => document.querySelector("video") === (window as any).__twitterEmbeddedVideo))
+  assert.equal(await page.locator("video").evaluate((video: HTMLVideoElement) => video.currentTime), pausedAt)
   await chooseContentView(page, "Video")
   await page.locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
   assert(await page.evaluate(() => {

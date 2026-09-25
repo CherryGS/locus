@@ -54,13 +54,13 @@ try {
   await page.waitForFunction(() => !document.fullscreenElement)
   assert.equal(page.url(), destination)
   assert.equal(await video.evaluate((v: HTMLVideoElement) => v.paused), true)
-  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await page.getByRole("button", { name: "Setting", exact: true }).click()
   await page.getByRole("navigation", { name: "Settings categories" }).waitFor()
   assert(await page.evaluate(() => {
     const previous = (window as any).__bilibiliNativePlayer as HTMLVideoElement
-    return previous.paused && !previous.isConnected && !previous.getAttribute("src")
+    return previous.paused && previous.isConnected && previous === document.querySelector("video")
   }))
-  await page.getByRole("button", { name: "Return", exact: true }).click()
+  await page.getByRole("button", { name: "Close", exact: true }).click()
   await page.locator('[data-view-id="bilibili.read"]').waitFor()
   await ready()
   assert.equal(page.url(), destination)
