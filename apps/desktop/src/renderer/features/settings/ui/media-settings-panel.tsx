@@ -166,27 +166,26 @@ export function MediaSettingsPanel({ settings }: { settings: SettingsCoordinator
                         }
                         error={invalid ? "Enter an executable name or path." : undefined}
                       />
+                      {active && (
+                        <dl className="flex min-w-0 flex-col gap-1 px-4 pb-4 pl-14">
+                          <dt className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            {settings.runtimeError ? "Last confirmed path" : "Active in this run"}
+                            {active[field].environment && (
+                              <Badge variant="outline">{active[field].environment}</Badge>
+                            )}
+                          </dt>
+                          <dd className="break-all font-mono text-xs">{active[field].path}</dd>
+                        </dl>
+                      )}
                     </Fragment>
                   )
                 })}
               </FieldGroup>
-              <Separator />
-              <details
-                className="bg-muted/20"
-                key={String(!!pending || !!settings.runtimeError)}
-                open={
-                  pending ||
-                  !!settings.runtimeError ||
-                  !!active?.ffprobe.environment ||
-                  !!active?.ffmpeg.environment ||
-                  !active ||
-                  undefined
-                }
-              >
-                <summary className="cursor-pointer px-4 py-3 text-xs font-medium text-muted-foreground">
-                  Active in this run
-                </summary>
-                <div className="flex flex-col gap-3 px-4 py-3 text-sm">
+              {(settings.runtimeError ||
+                !active ||
+                active.ffprobe.environment ||
+                active.ffmpeg.environment) && (
+                <div className="flex flex-col gap-3 px-4 pb-4 text-xs text-muted-foreground">
                   {settings.runtimeError && (
                     <Alert variant="destructive">
                       <AlertDescription>
@@ -195,38 +194,22 @@ export function MediaSettingsPanel({ settings }: { settings: SettingsCoordinator
                       </AlertDescription>
                     </Alert>
                   )}
-                  {active ? (
-                    <>
-                      <dl className="flex min-w-0 flex-col gap-3">
-                        {(["ffprobe", "ffmpeg"] as const).map((field) => (
-                          <div key={field} className="flex min-w-0 flex-col gap-1">
-                            <dt className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                              {field}
-                              {active[field].environment && (
-                                <Badge variant="outline">{active[field].environment}</Badge>
-                              )}
-                            </dt>
-                            <dd className="break-all font-mono text-xs">{active[field].path}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        {active.ffprobe.environment || active.ffmpeg.environment
-                          ? "Environment variables override saved paths, including after restart. Unset them to use your saved settings."
-                          : "Captured from saved library settings at startup."}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-muted-foreground">
+                  {!active ? (
+                    <p>
                       {settings.runtimeError
                         ? "The current runtime configuration could not be confirmed."
                         : settings.runtime?.status === "unavailable"
                           ? "Media did not start; active tool paths are unavailable."
                           : "Reading the current runtime configuration…"}
                     </p>
-                  )}
+                  ) : active.ffprobe.environment || active.ffmpeg.environment ? (
+                    <p className="leading-relaxed">
+                      Environment variables override saved paths, including after restart. Unset them to use
+                      your saved settings.
+                    </p>
+                  ) : null}
                 </div>
-              </details>
+              )}
             </SettingsGroup>
           </form>
           {pending && settings.dirty && saved && !settings.conflict && (
