@@ -6,7 +6,7 @@ import { chromium } from "playwright"
 import { twitterFixture } from "./twitter-fixture.ts"
 import { browserPreview } from "./browser-preview.ts"
 import { outputDirectory } from "./fixture.ts"
-const data = await twitterFixture()
+const data = await twitterFixture(true)
 const backend = await data.start()
 const preview = await browserPreview(backend)
 const output = await outputDirectory("twitter-browser")
@@ -43,6 +43,26 @@ try {
   }
   const complete = await open("complete")
   await page.getByRole("article", { name: "Twitter post" }).getByText(/Saved complete observation/).waitFor()
+  assert.equal(await page.getByRole("button", { name: "Enrich this File with Civitai", exact: true }).count(), 0)
+  await page.locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
+  assert(await page.locator("video").evaluate((video: HTMLVideoElement) => video.paused))
+  await page.locator("video").evaluate(async (video: HTMLVideoElement) => {
+    video.currentTime = 2
+    video.muted = true
+    ;(window as any).__twitterEmbeddedVideo = video
+    await video.play()
+  })
+  await page.waitForFunction(() => !document.querySelector("video")!.paused)
+  await chooseContentView(page, "Video")
+  await page.locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
+  assert(await page.evaluate(() => {
+    const old = (window as any).__twitterEmbeddedVideo as HTMLVideoElement
+    return old.paused && !old.getAttribute("src") && !old.isConnected
+  }))
+  assert(await page.locator("video").evaluate((video: HTMLVideoElement) => video.paused && video.currentTime >= 1.8))
+  await chooseContentView(page, "Twitter")
+  await page.locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
+  assert(await page.locator("video").evaluate((video: HTMLVideoElement) => video.paused && video.currentTime >= 1.8))
   await page.screenshot({ path: join(output, "complete.png") })
   await page.getByRole("button", { name: "Open Twitter details", exact: true }).click()
   await page.getByText("Selected representation", { exact: true }).waitFor()
@@ -72,6 +92,7 @@ try {
     if (name === "changed-association") {
       assert(!/associated with File/.test(await page.getByRole("article").innerText()))
       await page.getByText(/saved capture is associated with File/).waitFor()
+      assert.equal(await page.getByRole("region", {name:"Post media",exact:true}).count(),0)
     }
     if (name === "partial-empty") await page.getByText("No post text",{exact:true}).waitFor()
     await page.screenshot({path:join(output,`${name}.png`)})

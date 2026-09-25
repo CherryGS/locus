@@ -5,6 +5,8 @@ import type { EntityReader } from "@/entities/entity"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
 import { Button } from "@/shared/ui/button"
 import { Spinner } from "@/shared/ui/spinner"
+import { ExpandIcon } from "lucide-react"
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/dialog"
 import { ImageInspection } from "./image-inspection"
 
 export function LiveImage({
@@ -15,6 +17,7 @@ export function LiveImage({
   fileId,
   name,
   loading,
+  embedded = false,
 }: {
   api: BackendApi
   reader: EntityReader
@@ -23,10 +26,16 @@ export function LiveImage({
   fileId?: string
   name: string
   loading: boolean
+  embedded?: boolean
 }) {
   const generation = reader.resourceRevision(entityId)
   const basis = `${componentId}:${fileId}`
-  const [resource, setResource] = useState<{ basis: string; generation: number; src?: string; error?: string }>()
+  const [resource, setResource] = useState<{
+    basis: string
+    generation: number
+    src?: string
+    error?: string
+  }>()
   useEffect(() => {
     if (!fileId) return
     const controller = new AbortController()
@@ -43,7 +52,7 @@ export function LiveImage({
         const message = errorText(error)
         reader.resourceResult(entityId, basis, generation, message)
         setResource({ basis, generation, error: message })
-      }
+      },
     )
     return () => {
       current = false
@@ -80,6 +89,39 @@ export function LiveImage({
         </EmptyHeader>
       </Empty>
     )
+  if (embedded)
+    return (
+      <Dialog>
+        <DialogTrigger
+          render={
+            <Button
+              variant="ghost"
+              className="relative h-auto w-full overflow-hidden rounded-xl border p-0"
+              aria-label="Expand image"
+            />
+          }
+        >
+          <img
+            src={current.src}
+            alt={name}
+            className="max-h-[65vh] w-full object-contain"
+            onLoad={() => reader.resourceResult(entityId, basis, generation)}
+            onError={() => {
+              const error = "The current File bytes could not be decoded as an image."
+              reader.resourceResult(entityId, basis, generation, error)
+              setResource({ basis, generation, error })
+            }}
+          />
+          <span className="absolute right-3 bottom-3 rounded-md bg-background/80 p-1.5">
+            <ExpandIcon />
+          </span>
+        </DialogTrigger>
+        <DialogContent className="flex h-[85vh] max-w-[95vw] flex-col sm:max-w-[95vw]">
+          <DialogTitle className="sr-only">Image preview</DialogTitle>
+          <ImageInspection src={current.src} name={name} />
+        </DialogContent>
+      </Dialog>
+    )
   return (
     <>
       <p className="px-4 py-2 text-xs text-muted-foreground">Current File bytes · {fileId}</p>
@@ -89,7 +131,12 @@ export function LiveImage({
         name={name}
         onDecoded={() => reader.resourceResult(entityId, basis, generation)}
         onFailed={() =>
-          reader.resourceResult(entityId, basis, generation, "The current File bytes could not be decoded as an image.")
+          reader.resourceResult(
+            entityId,
+            basis,
+            generation,
+            "The current File bytes could not be decoded as an image.",
+          )
         }
         onRetry={() => reader.retryResource(entityId, basis)}
       />

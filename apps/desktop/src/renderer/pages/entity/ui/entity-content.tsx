@@ -1,9 +1,9 @@
+import { TwitterInspection } from "./twitter-inspection"
 import { BilibiliInspection } from "./bilibili-inspection"
 import { useLayoutEffect, useRef } from "react"
 import {
   EntityCard,
   EntityComponentDetails,
-  TwitterPost,
   entityLabel,
   type EntityItem,
   type EntitySource,
@@ -12,7 +12,7 @@ import {
 import type { PlaybackCoordinator } from "@/features/video-playback"
 import { ModelReading } from "./model-reading"
 import { CivitaiReading } from "./civitai-reading"
-import type { CivitaiCoordinator } from "@/features/civitai"
+import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
 import type { CivitaiSelection } from "../model/navigation"
 import { LiveVideo } from "./live-video"
 import type { BackendApi } from "@/shared/api"
@@ -119,15 +119,7 @@ export function EntityContent({
       ) : viewId === "bilibili.read" && bilibili ? (
         <BilibiliInspection entity={entity} component={bilibili} live={live} />
       ) : viewId === "twitter.read" && twitter ? (
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="p-6">
-            <TwitterPost
-              key={`${entity.id}:${twitter.id}`}
-              component={twitter}
-              onReread={live ? () => void live.reader.reread(entity.id) : undefined}
-            />
-          </div>
-        </ScrollArea>
+        <TwitterInspection entity={entity} component={twitter} live={live} />
       ) : viewId === "model.read" && model ? (
         <ModelReading key={`${entity.id}:${model.id}:${model.record?.revision}`} component={model} />
       ) : viewId === "file.info" && file ? (
@@ -135,6 +127,17 @@ export function EntityContent({
           <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
             <h2 className="text-lg font-medium break-words">{file.originalName ?? `File ${file.id}`}</h2>
             <EntityComponentDetails component={file} />
+            {live && !civitai && !image && !video && !twitter && !bilibili && (
+              <section aria-label="Civitai enrichment" className="flex flex-col gap-3">
+                <h3 className="text-sm font-medium">Civitai information</h3>
+                <CivitaiActions
+                  coordinator={live.civitai}
+                  entityId={entity.id}
+                  fileId={file.readStatus === "ready" ? file.id : undefined}
+                  firstOnly
+                />
+              </section>
+            )}
             {collections
               .filter((collection) => collection.ownerId === entity.id && collection.viewId === viewId)
               .map((collection) => (

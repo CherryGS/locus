@@ -29,7 +29,7 @@ import {
 } from "@/shared/ui/select"
 import { useSourceReturn } from "@/shared/source-return"
 import type { PlaybackCoordinator } from "@/features/video-playback"
-import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
+import type { CivitaiCoordinator } from "@/features/civitai"
 import type { CivitaiSelection } from "../model/navigation"
 import {
   adjacentId,
@@ -338,14 +338,6 @@ export function EntityPage({
   )
   const viewSelection = selected ? (
     <div className="flex flex-col gap-3">
-      {live && !selected.components.some((c) => c.kind === "civitai") && (
-        <CivitaiActions
-          coordinator={live.civitai}
-          entityId={selected.id}
-          fileId={selected.components.find((c) => c.kind === "file" && c.readStatus === "ready")?.id}
-          firstOnly
-        />
-      )}
       {!!views.length && (
         <Select
           items={views.map((view) => ({ value: view.id, label: view.label }))}
