@@ -67,226 +67,86 @@ export function ExternalAccessPanel({
     }
   }
   return (
-    <>
-      <section role="region" aria-label="External connection" className="flex flex-col gap-4">
-        {(settings.dirty || pending) && (
-          <div className="flex flex-wrap gap-2">
-            {settings.dirty && <Badge variant="secondary">Unsaved edits</Badge>}
-            {pending && <Badge variant="secondary">Saved · restart required</Badge>}
+    <section role="region" aria-label="External connection" className="flex flex-col gap-4">
+      {(settings.dirty || pending) && (
+        <div className="flex flex-wrap gap-2">
+          {settings.dirty && <Badge variant="secondary">Unsaved edits</Badge>}
+          {pending && <Badge variant="secondary">Saved · restart required</Badge>}
+        </div>
+      )}
+      <SettingsGroup
+        name="Connection details"
+        action={
+          runtime?.active_address && !settings.runtimeError && !runtime.problem ? (
+            <Badge variant="outline">Listening</Badge>
+          ) : undefined
+        }
+      >
+        <SettingsRow icon={<RadioIcon />} label="Connection address" hint="Active in this run.">
+          {runtime?.active_address && !settings.runtimeError ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              <code className="break-all">{`http://${runtime.active_address}`}</code>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Copy address"
+                title="Copy address"
+                onClick={() => void copyAddress(`http://${runtime.active_address}`)}
+              >
+                <CopyIcon data-icon="inline-start" />
+              </Button>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">
+              {settings.runtimeError ??
+                (runtime?.problem
+                  ? "The configured address is not listening."
+                  : "Reading the external listener state…")}
+            </p>
+          )}
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Reload / recover address"
+            title="Reload / recover address"
+            disabled={settings.busy || settings.readPending}
+            onClick={() =>
+              void (settings.attempt || settings.needsEvidence ? settings.recover() : settings.load())
+            }
+          >
+            <RefreshCwIcon data-icon="inline-start" />
+          </Button>
+        </SettingsRow>
+        {(addressFeedback || runtime?.override_address || runtime?.problem) && (
+          <div className="flex flex-col gap-2 px-4 pb-3 text-xs">
+            {addressFeedback && (
+              <p role="status" className="text-muted-foreground">
+                {addressFeedback}
+              </p>
+            )}
+            {runtime?.override_address && (
+              <p className="text-muted-foreground">
+                This run uses an explicit test address override. It does not apply the saved address.
+              </p>
+            )}
+            {runtime?.problem && (
+              <Alert variant="destructive">
+                <AlertTitle>External entry unavailable</AlertTitle>
+                <AlertDescription>
+                  {runtime.problem}{" "}
+                  {restricted
+                    ? "Repair required configuration, then retry the application."
+                    : "Browsing and local import remain available. Save a corrected address and restart when ready."}
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         )}
-        <div className="flex flex-col gap-4">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault()
-              void settings.save()
-            }}
-          >
-            <SettingsGroup
-              name="Connection address"
-              action={
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label="Reload / recover address"
-                  title="Reload / recover address"
-                  disabled={settings.busy || settings.readPending}
-                  onClick={() =>
-                    void (settings.attempt || settings.needsEvidence ? settings.recover() : settings.load())
-                  }
-                >
-                  <RefreshCwIcon data-icon="inline-start" />
-                </Button>
-              }
-              footer={
-                <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    title="Restores only the address; the shared Token is unchanged."
-                    disabled={
-                      !settings.resetRevision || settings.busy || !!settings.attempt || settings.needsEvidence
-                    }
-                    onClick={() => void settings.reset()}
-                  >
-                    <RotateCcwIcon data-icon="inline-start" />
-                    Restore default address
-                  </Button>
-                  {(settings.dirty ||
-                    settings.busy ||
-                    settings.attempt ||
-                    settings.needsEvidence ||
-                    settings.status === "failed") && (
-                    <div className="ml-auto flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={
-                          !saved ||
-                          settings.busy ||
-                          !!settings.attempt ||
-                          settings.needsEvidence ||
-                          (!settings.dirty && settings.status !== "failed")
-                        }
-                        onClick={() => settings.discard()}
-                      >
-                        Discard address edits
-                      </Button>
-                      <Button type="submit" size="sm" disabled={!settings.canSave || addressEmpty}>
-                        <SaveIcon data-icon="inline-start" />
-                        Save address
-                      </Button>
-                    </div>
-                  )}
-                </>
-              }
-            >
-              <SettingsRow
-                icon={<RadioIcon />}
-                label="Active in this run"
-                hint="Copy this address to your extension."
-              >
-                {runtime?.active_address && !settings.runtimeError ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <code className="break-all">{`http://${runtime.active_address}`}</code>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void copyAddress(`http://${runtime.active_address}`)}
-                    >
-                      <CopyIcon data-icon="inline-start" />
-                      Copy address
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">
-                    {settings.runtimeError ??
-                      (runtime?.problem
-                        ? "The configured address is not listening."
-                        : "Reading the external listener state…")}
-                  </p>
-                )}
-              </SettingsRow>
-              {(addressFeedback || runtime?.override_address || runtime?.problem) && (
-                <div className="flex flex-col gap-2 px-4 pb-3 text-xs">
-                  {addressFeedback && (
-                    <p role="status" className="text-muted-foreground">
-                      {addressFeedback}
-                    </p>
-                  )}
-                  {runtime?.override_address && (
-                    <p className="text-muted-foreground">
-                      This run uses an explicit test address override. It does not apply the saved address.
-                    </p>
-                  )}
-                  {runtime?.problem && (
-                    <Alert variant="destructive">
-                      <AlertTitle>External entry unavailable</AlertTitle>
-                      <AlertDescription>
-                        {runtime.problem}{" "}
-                        {restricted
-                          ? "Repair required configuration, then retry the application."
-                          : "Browsing and local import remain available. Save a corrected address and restart when ready."}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              )}
 
-              <Separator />
-              <FieldGroup className="gap-0">
-                <SettingsEditRow
-                  icon={<LinkIcon />}
-                  label="Saved address"
-                  id="external-address"
-                  value={settings.draft?.address ?? ""}
-                  placeholder={settings.defaults.address}
-                  disabled={!settings.editable}
-                  hint="Loopback IP and port. Save and restart to apply."
-                  error={addressEmpty ? "Enter a loopback address and port." : undefined}
-                  onChange={(event) => settings.edit("address", event.target.value)}
-                />
-              </FieldGroup>
-            </SettingsGroup>
-          </form>
-          {(settings.busy || settings.readPending) && (
-            <p role="status" className="text-sm text-muted-foreground">
-              {settings.busy ? "Saving address…" : "Reading saved address…"}
-            </p>
-          )}
-          {(settings.readError || settings.problem || settings.definitionError) && (
-            <Alert variant="destructive">
-              <AlertTitle>Address settings need attention</AlertTitle>
-              <AlertDescription>
-                {settings.readError ?? settings.problem ?? settings.definitionError}
-              </AlertDescription>
-            </Alert>
-          )}
-          {settings.observation && settings.observation.status !== "current" && (
-            <Alert>
-              <AlertTitle>Saved address unavailable</AlertTitle>
-              <AlertDescription>
-                {"message" in settings.observation
-                  ? settings.observation.message
-                  : `Observed ${settings.observation.status.replaceAll("_", " ")}.`}{" "}
-                Restore defaults only with the current observed revision.
-              </AlertDescription>
-            </Alert>
-          )}
-          {pending && settings.dirty && saved && !settings.conflict && (
-            <p className="break-all text-xs text-muted-foreground">
-              Saved for next run: {String((saved.value as { address?: unknown }).address)}.
-            </p>
-          )}
-          {settings.conflict && saved && (
-            <Alert>
-              <AlertTitle>Current saved address</AlertTitle>
-              <AlertDescription>{String((saved.value as { address?: unknown }).address)}</AlertDescription>
-            </Alert>
-          )}
-        </div>
-      </section>
-      <section role="region" aria-label="Shared Token" className="flex flex-col gap-4">
-        <SettingsGroup
-          name="Access token"
-          description="Allows connected clients to upload files, import content and read results."
-          action={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={token.attempt ? "Recover Token reset" : "Read current Token"}
-              title={token.attempt ? "Recover Token reset" : "Read current Token"}
-              disabled={token.pending || !!restricted}
-              onClick={() => void token.recover()}
-            >
-              <RefreshCwIcon data-icon="inline-start" />
-            </Button>
-          }
-          footer={
-            <>
-              <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-                Reset invalidates the old Token. Update it in every connected client.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!current || !!restricted}
-                onClick={() => {
-                  setRevealedRevision(undefined)
-                  setTokenFeedback(undefined)
-                  void token.reset()
-                }}
-              >
-                <KeyRoundIcon data-icon="inline-start" />
-                Reset shared Token
-              </Button>
-            </>
-          }
-        >
+        <Separator />
+        <section role="region" aria-label="Shared Token">
           <FieldGroup className="gap-0">
             <Field orientation="responsive" className="min-h-16 items-center gap-3 px-4 py-3">
               <div className="flex flex-1 items-center gap-3">
@@ -295,7 +155,7 @@ export function ExternalAccessPanel({
                 </IconTile>
                 <div className="flex flex-col gap-0.5">
                   <FieldLabel htmlFor="external-token">Current Token</FieldLabel>
-                  <p className="text-xs text-muted-foreground">Shared by all external clients.</p>
+                  <p className="text-xs text-muted-foreground">Shared with your connected clients.</p>
                 </div>
               </div>
               <div className="flex min-w-0 flex-wrap items-center gap-1">
@@ -306,7 +166,7 @@ export function ExternalAccessPanel({
                   readOnly
                   autoComplete="off"
                   spellCheck={false}
-                  className="w-44 max-w-full"
+                  className="w-48 max-w-full"
                   placeholder={token.pending ? "Reading or replacing Token…" : "Current Token unavailable"}
                 />
                 <Button
@@ -332,40 +192,169 @@ export function ExternalAccessPanel({
                 >
                   <CopyIcon data-icon="inline-start" />
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={token.attempt ? "Recover Token reset" : "Read current Token"}
+                  title={token.attempt ? "Recover Token reset" : "Read current Token"}
+                  disabled={token.pending || !!restricted}
+                  onClick={() => void token.recover()}
+                >
+                  <RefreshCwIcon data-icon="inline-start" />
+                </Button>
               </div>
             </Field>
           </FieldGroup>
-        </SettingsGroup>
-        {(token.problem || restricted || token.pending || token.feedback || tokenFeedback) && (
-          <div className="flex flex-col gap-3">
-            {token.problem && (
-              <Alert variant="destructive">
-                <AlertTitle>
-                  {token.attempt ? "Reset not confirmed" : "Token observation unavailable"}
-                </AlertTitle>
-                <AlertDescription>{token.problem}</AlertDescription>
-              </Alert>
-            )}
-            {restricted && (
-              <Alert>
-                <AlertDescription>
-                  Token creation and reset are unavailable during Settings repair.
-                </AlertDescription>
-              </Alert>
-            )}
-            {(token.pending || token.feedback) && (
-              <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-                {token.pending ? "Waiting for the access operation…" : token.feedback}
-              </p>
-            )}
-            {tokenFeedback && (
-              <p role="status" className="text-sm text-muted-foreground">
-                {tokenFeedback}
-              </p>
+          {(token.problem || restricted || token.pending || token.feedback || tokenFeedback) && (
+            <div className="flex flex-col gap-3 px-4 pb-3">
+              {token.problem && (
+                <Alert variant="destructive">
+                  <AlertTitle>
+                    {token.attempt ? "Reset not confirmed" : "Token observation unavailable"}
+                  </AlertTitle>
+                  <AlertDescription>{token.problem}</AlertDescription>
+                </Alert>
+              )}
+              {restricted && (
+                <Alert>
+                  <AlertDescription>
+                    Token creation and reset are unavailable during Settings repair.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {(token.pending || token.feedback) && (
+                <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+                  {token.pending ? "Waiting for the access operation…" : token.feedback}
+                </p>
+              )}
+              {tokenFeedback && (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {tokenFeedback}
+                </p>
+              )}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+              Reset invalidates the old Token. Update it in every connected client.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!current || !!restricted}
+              onClick={() => {
+                setRevealedRevision(undefined)
+                setTokenFeedback(undefined)
+                void token.reset()
+              }}
+            >
+              <KeyRoundIcon data-icon="inline-start" />
+              Reset shared Token
+            </Button>
+          </div>
+        </section>
+        <Separator />
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            void settings.save()
+          }}
+        >
+          <div className="px-4 pt-4">
+            <h3 className="text-xs font-medium text-muted-foreground">Listener settings</h3>
+          </div>
+          <FieldGroup className="gap-0">
+            <SettingsEditRow
+              icon={<LinkIcon />}
+              label="Saved address"
+              id="external-address"
+              value={settings.draft?.address ?? ""}
+              placeholder={settings.defaults.address}
+              disabled={!settings.editable}
+              hint="Loopback IP and port. Save and restart to apply."
+              error={addressEmpty ? "Enter a loopback address and port." : undefined}
+              onChange={(event) => settings.edit("address", event.target.value)}
+            />
+          </FieldGroup>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-4">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              title="Restores only the address; the shared Token is unchanged."
+              disabled={
+                !settings.resetRevision || settings.busy || !!settings.attempt || settings.needsEvidence
+              }
+              onClick={() => void settings.reset()}
+            >
+              <RotateCcwIcon data-icon="inline-start" />
+              Restore default address
+            </Button>
+            {(settings.dirty ||
+              settings.busy ||
+              settings.attempt ||
+              settings.needsEvidence ||
+              settings.status === "failed") && (
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    !saved ||
+                    settings.busy ||
+                    !!settings.attempt ||
+                    settings.needsEvidence ||
+                    (!settings.dirty && settings.status !== "failed")
+                  }
+                  onClick={() => settings.discard()}
+                >
+                  Discard address edits
+                </Button>
+                <Button type="submit" size="sm" disabled={!settings.canSave || addressEmpty}>
+                  <SaveIcon data-icon="inline-start" />
+                  Save address
+                </Button>
+              </div>
             )}
           </div>
-        )}
-      </section>
-    </>
+        </form>
+      </SettingsGroup>
+      {(settings.busy || settings.readPending) && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {settings.busy ? "Saving address…" : "Reading saved address…"}
+        </p>
+      )}
+      {(settings.readError || settings.problem || settings.definitionError) && (
+        <Alert variant="destructive">
+          <AlertTitle>Address settings need attention</AlertTitle>
+          <AlertDescription>
+            {settings.readError ?? settings.problem ?? settings.definitionError}
+          </AlertDescription>
+        </Alert>
+      )}
+      {settings.observation && settings.observation.status !== "current" && (
+        <Alert>
+          <AlertTitle>Saved address unavailable</AlertTitle>
+          <AlertDescription>
+            {"message" in settings.observation
+              ? settings.observation.message
+              : `Observed ${settings.observation.status.replaceAll("_", " ")}.`}{" "}
+            Restore defaults only with the current observed revision.
+          </AlertDescription>
+        </Alert>
+      )}
+      {pending && settings.dirty && saved && !settings.conflict && (
+        <p className="break-all text-xs text-muted-foreground">
+          Saved for next run: {String((saved.value as { address?: unknown }).address)}.
+        </p>
+      )}
+      {settings.conflict && saved && (
+        <Alert>
+          <AlertTitle>Current saved address</AlertTitle>
+          <AlertDescription>{String((saved.value as { address?: unknown }).address)}</AlertDescription>
+        </Alert>
+      )}
+    </section>
   )
 }
