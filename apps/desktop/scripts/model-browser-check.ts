@@ -44,7 +44,7 @@ try {
   await chooseContentView(page, "File")
   await page.locator('[data-view-id="file.info"]').waitFor()
   await chooseContentView(page, "Model")
-  await page.getByText("Choice saved", { exact: true }).waitFor()
+  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
   const preference = await backend.client.GET("/api/v1/entities/{entity_id}/view-preference", {
     params: { path: { entity_id: entry.entityId } },
   })

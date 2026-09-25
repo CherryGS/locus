@@ -265,7 +265,7 @@ try {
   )
   assert.equal((await page.evaluate(() => window.locusDesktop!.state())).close.phase, "idle")
   await page.evaluate(() => (window as any).__releaseSave())
-  await page.getByText("Choice saved", { exact: true }).waitFor()
+  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
   await page.getByRole("button", { name: /^Tasks/ }).click()
   await finishByClose()
   checks.push("Tasks yields focus to held preference preparation; Return preserves browsing and task access; duplicate/stale close is ignored and normal exit drains with Tasks open")
@@ -302,7 +302,7 @@ try {
   assert.equal((await status(page)).admission, "open")
   reject = false
   await page.getByRole("button", { name: "Retry saving", exact: true }).click()
-  await page.getByText("Choice saved", { exact: true }).waitFor()
+  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
   await finishByClose()
   checks.push("Failed save attributable close, no IPC loop, Escape returns without exiting viewer, later retry saves")
 

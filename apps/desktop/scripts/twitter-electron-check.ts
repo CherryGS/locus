@@ -79,7 +79,7 @@ try {
   assert.equal(await page.getByRole("button",{name:"Retry opening link",exact:true}).count(),0)
   assert.equal(page.url(),url)
   assert.equal(await page.locator('[data-slot="entity-inspection"]').getAttribute("data-entity-id"),complete.entityId)
-  await page.getByText("Choice saved",{exact:true}).waitFor()
+  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
   assert.deepEqual(errors,[])
   const links=await calls()
   const closed=application.waitForEvent("close")

@@ -409,7 +409,7 @@ try {
   const overview = page.getByRole("button", { name: "Overview", exact: true })
   if ((await overview.getAttribute("aria-expanded")) !== "true") await overview.click()
   await page
-    .getByText("Choice saved", { exact: true })
+    .getByRole("status", { name: "Choice saved", exact: true })
     .waitFor()
     .catch(async (error) => {
       console.log(await page.locator("body").innerText())

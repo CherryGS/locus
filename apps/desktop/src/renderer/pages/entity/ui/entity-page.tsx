@@ -306,6 +306,36 @@ export function EntityPage({
     if (problem.recovery === "preference-save") live.preferences.retry(selected.id)
     if (problem.recovery === "preference-check") void live.preferences.recover(selected.id)
   }
+  const preferenceStatus = preference
+    ? preference.readPending
+      ? "Reading saved view…"
+      : preference.status === "saving"
+        ? "Saving choice…"
+        : preference.status === "saved"
+          ? "Choice saved"
+          : preference.status === "unsaved"
+            ? "Choice not saved"
+            : preference.status === "unconfirmed"
+              ? "Saving not confirmed"
+              : preference.observation?.status === "saved"
+                ? "Saved view observed"
+                : preference.observation?.status === "unset"
+                  ? "No saved choice"
+                  : "Preference unavailable"
+    : undefined
+  const savedPreference = preferenceStatus === "Choice saved" || preferenceStatus === "Saved view observed"
+  const preferenceFeedback = preferenceStatus && (
+    <span
+      role="status"
+      aria-label={preferenceStatus}
+      title={preferenceStatus}
+      className="flex min-w-0 max-w-[55%] items-center gap-1 text-xs font-normal text-muted-foreground"
+    >
+      {(preference?.readPending || preference?.status === "saving") && <Spinner />}
+      {savedPreference && <CheckIcon />}
+      <span className="truncate">{savedPreference ? "Saved" : preferenceStatus}</span>
+    </span>
+  )
   const viewSelection = selected ? (
     <div className="flex flex-col gap-3">
       {live && !selected.components.some((c) => c.kind === "civitai") && (
@@ -326,7 +356,8 @@ export function EntityPage({
           }}
         >
           <SelectTrigger aria-label="Default view" className="w-full min-w-0">
-            <SelectValue placeholder="Choose a view" />
+            <SelectValue placeholder="Choose a view" className="min-w-0 truncate" />
+            {preferenceFeedback}
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false}>
             <SelectGroup>
@@ -361,37 +392,16 @@ export function EntityPage({
                 : "No content views available."}
         </p>
       )}
-      {preference && (
-        <div className="flex flex-col gap-1 text-xs text-muted-foreground" aria-live="polite">
-          <span className="flex items-center gap-1.5">
-            {(preference.readPending || preference.status === "saving") && <Spinner />}
-            {preference.status === "saved" && !preference.readPending && <CheckIcon className="size-3.5" />}
-            {preference.readPending
-              ? "Reading saved view…"
-              : preference.status === "saving"
-                ? "Saving choice…"
-                : preference.status === "saved"
-                  ? "Choice saved"
-                  : preference.status === "unsaved"
-                    ? "Choice not saved"
-                    : preference.status === "unconfirmed"
-                      ? "Saving not confirmed"
-                      : preference.observation?.status === "saved"
-                        ? "Saved view observed"
-                        : preference.observation?.status === "unset"
-                          ? "No saved choice"
-                          : "Preference unavailable"}
-          </span>
-          {preferred &&
-            preferred !== viewId &&
-            (!selected.live || selected.membershipsStatus === "present") && (
-              <span>
-                Preferred {preferred} is unavailable. Showing {viewId ?? "no preview"}; the preference is
-                unchanged.
-              </span>
-            )}
-        </div>
-      )}
+      {!views.length && preferenceFeedback}
+      {preference &&
+        preferred &&
+        preferred !== viewId &&
+        (!selected.live || selected.membershipsStatus === "present") && (
+          <p className="text-xs text-muted-foreground">
+            Preferred {preferred} is unavailable. Showing {viewId ?? "no preview"}; the preference is
+            unchanged.
+          </p>
+        )}
     </div>
   ) : undefined
   const unavailable = (

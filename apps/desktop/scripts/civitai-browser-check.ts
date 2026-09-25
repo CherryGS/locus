@@ -26,7 +26,7 @@ try {
   await page.locator(`[role="gridcell"][id$="-${existing.entityId}"]`).dblclick()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   await chooseContentView(page, "File")
-  await page.getByText("Choice saved", { exact: true }).waitFor()
+  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
   assert.equal(await hasContentView(page, "Civitai"), false)
   await data.phase("existing")
   await page.getByRole("button", { name: "Enrich this File with Civitai", exact: true }).click()
@@ -70,20 +70,10 @@ try {
     await page.locator(`[data-slot="entity-inspection"][data-entity-id="${a.entityId}"]`).count(),
     1,
   )
-  const selectedFile = reading.getByRole("button", {
-    name: "View details for B.safetensors · 300",
-    exact: true,
-  })
-  await selectedFile.click()
-  const fileDetails = civitaiPanel.locator('[data-slot="civitai-file-details"]')
-  await fileDetails.getByText("Provider declarations", { exact: true }).waitFor()
-  assert.equal(await selectedFile.getAttribute("aria-pressed"), null)
+  assert.equal(await reading.getByRole("region", { name: "Version files" }).getByRole("button").count(), 0)
+  await reading.getByRole("button", { name: "Open library and source", exact: true }).click()
   assert.equal(await reading.getByRole("region", { name: "Library and source" }).count(), 0)
-  await selectedFile.click()
-  await fileDetails.getByText("Provider declarations", { exact: true }).waitFor()
-  await selectedFile.press("Space")
-  assert.equal(await fileDetails.getAttribute("open"), "")
-  assert(await fileDetails.locator("summary").evaluate((element) => document.activeElement === element))
+  assert.equal(await civitaiPanel.getByText("B.safetensors · 300", { exact: true }).count(), 1)
   // A delayed source switch must retain the old presentation without allowing
   // its actions to target the newly selected source.
   const stage = reading.locator('[data-slot="civitai-gallery-stage"]')
@@ -122,21 +112,14 @@ try {
     await reading.getByRole("button", { name: "Inspect managed example", exact: true }).isEnabled(),
     false,
   )
-  assert.equal(
-    await reading
-      .getByRole("button", { name: "View details for B.safetensors · 300", exact: true })
-      .isEnabled(),
-    false,
-  )
   releaseSwitch()
   await versionDescription("C version description")
   await page.unroute(`**/civitai/${a.componentId}/version?*`)
-  await reading.getByText("Focused file coverage", { exact: true }).waitFor()
   await reading
     .getByText("Previous version observation · rereading selected source.", { exact: true })
     .waitFor({ state: "hidden" })
   assert.equal(await reading.getByText(/Previous version observation/).count(), 0)
-  assert.equal(await civitaiPanel.locator('[data-slot="civitai-file-details"]').count(), 0)
+  assert.equal(await civitaiPanel.getByText("B.safetensors · 300", { exact: true }).count(), 0)
   const originSnapshot = civitaiPanel.getByRole("region", { name: "Origin Civitai snapshot" })
   assert.equal(await originSnapshot.getByText(a.componentId!, { exact: true }).count(), 1)
   const originRead = await backend.client.GET("/api/v1/civitai/{component_id}/view", {
@@ -203,7 +186,6 @@ try {
     await page.locator(`[data-slot="entity-inspection"][data-entity-id="${a.entityId}"]`).count(),
     1,
   )
-  await reading.getByRole("button", { name: "View details for B.safetensors · 300", exact: true }).click()
   await page.screenshot({ path: join(output, "origin-with-peer-version.png") })
   await reading.getByRole("button", { name: "Inspect managed example", exact: true }).first().click()
   await page.locator('[data-slot="entity-inspection"][data-view-id="image.inspect"]').waitFor()
@@ -213,7 +195,7 @@ try {
   await page.getByRole("button", { name: "Return to source", exact: true }).first().click()
   await versionDescription("B version description")
   await reading.getByRole("button", { name: "Open library and source", exact: true }).click()
-  await civitaiPanel.getByText("File details · B.safetensors", { exact: true }).waitFor({ state: "attached" })
+  await civitaiPanel.getByText("B.safetensors · 300", { exact: true }).waitFor({ state: "attached" })
   if (!(await page.getByRole("combobox", { name: "Default view", exact: true }).count()))
     await page.getByRole("button", { name: "Overview", exact: true }).click()
   await chooseContentView(page, "File")

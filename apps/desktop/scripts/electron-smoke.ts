@@ -30,7 +30,7 @@ try {
   await page.locator('[data-slot="entity-inspection"]').waitFor()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   await chooseContentView(page, "File")
-  await page.getByText("Choice saved", { exact: true }).waitFor()
+  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
   const entity = await page.locator('[data-slot="entity-inspection"]').getAttribute("data-entity-id")
   await page.screenshot({ path: join(output, "connected-file.png") })
   assert.deepEqual(errors, [])

@@ -36,20 +36,6 @@ export function CivitaiReading({
   onRelated: (collection: RelatedCollection, entity: EntityItem) => void
 }) {
   const readingPanel = useCivitaiPanel()
-  const [fileDetailsOpen, setFileDetailsOpen] = useState(false)
-  const [fileDetailsRequest, setFileDetailsRequest] = useState(0)
-  const fileDetailsSummary = useRef<HTMLElement>(null)
-  const handledFileDetailsRequest = useRef(0)
-  useEffect(() => {
-    if (
-      fileDetailsRequest !== handledFileDetailsRequest.current &&
-      readingPanel?.target &&
-      fileDetailsSummary.current
-    ) {
-      fileDetailsSummary.current.focus()
-      handledFileDetailsRequest.current = fileDetailsRequest
-    }
-  }, [fileDetailsRequest, readingPanel?.target])
   useSyncExternalStore(coordinator.subscribe, coordinator.snapshot)
   const [page, setPage] = useState<Wire<"CivitaiPage">>()
   const [unit, setUnit] = useState<Wire<"CivitaiVersionView">>()
@@ -127,8 +113,6 @@ export function CivitaiReading({
     unit.model === selection?.model &&
     unit.version.id === selection?.version &&
     unit.source.component_id === requestedSource
-  const displayedFile = useRef<string | undefined>(undefined)
-  if (unitMatchesSelection) displayedFile.current = selection?.file
   useEffect(() => {
     if (!page || !selection || changedModel || !member || !eligible) {
       setUnit(undefined)
@@ -157,7 +141,7 @@ export function CivitaiReading({
           )
         if (selection.file && !value.version.files.some((f) => f.id === selection.file)) {
           setSelectionNotice(
-            "The focused file is not recorded by this source. Choose a current file; no replacement was selected.",
+            "The linked file is not recorded by this source. No replacement file was selected.",
           )
           if (changedSource.current)
             setSelection((previous) => (previous ? { ...previous, file: undefined } : previous))
@@ -178,7 +162,6 @@ export function CivitaiReading({
     }
   }, [api, component, page, selection?.version, selection?.source, changedModel, eligible, member])
   function choose(next: CivitaiSelection) {
-    setFileDetailsOpen(false)
     changedSource.current = next.source !== selection?.source
     setUnitPending(true)
     setUnitProblem(undefined)
@@ -242,7 +225,6 @@ export function CivitaiReading({
     typeof versionFields.publishedAt === "string" && Number.isFinite(Date.parse(versionFields.publishedAt))
       ? new Date(versionFields.publishedAt)
       : undefined
-  const focusedFile = unit?.version.files.find((item) => item.id === displayedFile.current)
   const operationAttention =
     coordinator.newBlocked(entity.id) ||
     !!coordinator.problem ||
@@ -305,21 +287,6 @@ export function CivitaiReading({
                 {sourceFileSummary(item)}
               </span>
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label={`View details for ${item.name} · ${item.id}`}
-              disabled={!readingPanel || !unitMatchesSelection || unitPending}
-              onClick={() => {
-                setSelectionNotice(undefined)
-                setSelection({ ...selection!, file: item.id })
-                setFileDetailsOpen(true)
-                setFileDetailsRequest((value) => value + 1)
-                readingPanel?.open()
-              }}
-            >
-              Details <PanelRightIcon data-icon="inline-end" />
-            </Button>
           </li>
         ))}
       </ul>
@@ -335,36 +302,6 @@ export function CivitaiReading({
       data-slot="civitai-reading-details"
     >
       <h2 className="text-sm font-medium">Library &amp; source</h2>
-      {focusedFile && (
-        <details
-          open={fileDetailsOpen}
-          onToggle={(event) => setFileDetailsOpen(event.currentTarget.open)}
-          className="text-xs"
-          data-slot="civitai-file-details"
-        >
-          <summary
-            ref={fileDetailsSummary}
-            className="cursor-pointer break-words text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            File details · {focusedFile.name}
-          </summary>
-          <div className="flex min-w-0 flex-col gap-3 pt-3">
-            <p className="text-muted-foreground">{sourceFileSummary(focusedFile)}</p>
-            <p className="text-muted-foreground">
-              Version {unit?.version.name} · Source file {focusedFile.id} · {focusedFile.kind}
-            </p>
-            {versionStatus && (
-              <p role="status" className="text-muted-foreground">
-                {versionStatus}
-              </p>
-            )}
-            <h3 className="font-medium">Provider declarations</h3>
-            <pre className="max-h-72 overflow-auto rounded-md bg-muted p-2 whitespace-pre-wrap break-words text-xs">
-              {focusedFile.raw_json}
-            </pre>
-          </div>
-        </details>
-      )}
       {maintenance}
       {page && model && (
         <>
@@ -421,6 +358,22 @@ export function CivitaiReading({
                   </>
                 )}
               </dl>
+              {unit && (
+                <section aria-label="Provider file declarations" className="flex min-w-0 flex-col gap-3">
+                  <h3 className="font-medium">Provider file declarations · {unit.version.name}</h3>
+                  {versionStatus && <p role="status">{versionStatus}</p>}
+                  {unit.version.files.map((item) => (
+                    <details key={item.id}>
+                      <summary className="cursor-pointer break-words">
+                        {item.name} · {item.id}
+                      </summary>
+                      <pre className="mt-2 max-h-72 overflow-auto rounded-md bg-muted p-2 whitespace-pre-wrap break-words">
+                        {item.raw_json}
+                      </pre>
+                    </details>
+                  ))}
+                </section>
+              )}
             </div>
           </details>
         </>
