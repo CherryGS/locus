@@ -15,6 +15,7 @@ const {
 } = entityGridLayout
 const stride = rowHeight + gap
 export function EntityGrid({
+  componentFor,
   source,
   position,
   onPosition,
@@ -23,6 +24,7 @@ export function EntityGrid({
   onOpen,
   revealSelectionOnMount,
 }: {
+  componentFor: (entity: EntityItem) => EntityItem["components"][number]["kind"] | undefined
   source: EntitySource
   position?: GridPosition
   onPosition?: (position: GridPosition) => void
@@ -55,9 +57,8 @@ export function EntityGrid({
   const visible = Array.from({ length: Math.max(0, last - first + 1) }, (_, index) => first + index)
   if (selectedRow >= 0 && !visible.includes(selectedRow)) visible.push(selectedRow)
   const ids = visible.flatMap((row) =>
-    Array.from(
-      { length: Math.min(columns, sequence.length - row * columns) },
-      (_, column) => sequence.at(row * columns + column)!,
+    Array.from({ length: Math.min(columns, sequence.length - row * columns) }, (_, column) =>
+      sequence.at(row * columns + column)!,
     ),
   )
   const demandKey = ids.join(",")
@@ -257,7 +258,11 @@ export function EntityGrid({
                   onClick={() => select(row * columns + column)}
                   onDoubleClick={() => onOpen(entity)}
                 >
-                  <EntityCard entity={entity} titleId={`${cellId(id)}-title`} />
+                  <EntityCard
+                    componentKind={componentFor(entity)}
+                    entity={entity}
+                    titleId={`${cellId(id)}-title`}
+                  />
                 </div>
               )
             })}

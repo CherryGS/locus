@@ -15,6 +15,7 @@ import { XIcon } from "lucide-react"
 import { CivitaiPanelContext } from "./civitai-panel-slot"
 
 export function EntityWorkspace({
+  componentFor,
   source,
   browsing,
   selectedEntity,
@@ -27,6 +28,7 @@ export function EntityWorkspace({
   onReread,
   gridFeedback,
 }: {
+  componentFor: (entity: EntityItem) => EntityItem["components"][number]["kind"] | undefined
   source: EntitySource
   browsing?: EntityBrowsingState
   selectedEntity: EntityItem | null
@@ -100,6 +102,7 @@ export function EntityWorkspace({
               : (gridFeedback ??
                 (source.sequence.length > 0 ? (
                   <EntityGrid
+                    componentFor={componentFor}
                     source={source}
                     position={retained.grid}
                     onPosition={(position) => {

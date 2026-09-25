@@ -184,6 +184,26 @@ export function EntityPage({
         previewChoices.get(selected?.id ?? "") ??
         null)
   const viewId = resolveView(selected, preferred ?? null)
+  function viewFor(entity: EntityItem) {
+    const preference = live?.preferences.get(entity.id)
+    return entity.id === selected?.id
+      ? viewId
+      : resolveView(
+          entity,
+          preference?.intended ??
+            (preference?.observation?.status === "saved"
+              ? preference.observation.view_definition_id
+              : undefined) ??
+            previewChoices.get(entity.id) ??
+            null,
+        )
+  }
+  function componentFor(entity: EntityItem) {
+    const preference = live?.preferences.get(entity.id)
+    if (live && !preference?.observation && !preference?.intended && !preference?.readProblem)
+      return undefined
+    return availableViews(entity).find((view) => view.id === viewFor(entity))?.kind
+  }
   const views = availableViews(selected)
   const preferenceWaiting =
     !!live &&
@@ -471,6 +491,7 @@ export function EntityPage({
       </Empty>
     ) : (
       <EntityContent
+        componentFor={componentFor}
         key={`${visitKey}:${selected.id}:${viewId}`}
         entity={selected}
         viewId={viewId}
@@ -524,20 +545,7 @@ export function EntityPage({
             source={source}
             selectedId={selected.id}
             canNavigate={source.sequence.length > 1}
-            viewFor={(entity) => {
-              const preference = live?.preferences.get(entity.id)
-              return entity.id === selected.id
-                ? viewId
-                : resolveView(
-                    entity,
-                    preference?.intended ??
-                      (preference?.observation?.status === "saved"
-                        ? preference.observation.view_definition_id
-                        : undefined) ??
-                      previewChoices.get(entity.id) ??
-                      null,
-                  )
-            }}
+            viewFor={viewFor}
             onSelect={open}
             onNavigate={adjacent}
           />
@@ -589,6 +597,7 @@ export function EntityPage({
       )}
       <Separator />
       <EntityWorkspace
+        componentFor={componentFor}
         browsing={browsing}
         source={source}
         selectedEntity={selected}

@@ -78,6 +78,13 @@ try {
   })
   assert.equal(result.data?.status, "saved")
   if (result.data?.status === "saved") assert.equal(result.data.view_definition_id, "file.info")
+  await sourceReturn.click()
+  const chosenCard = page.locator(`[role="gridcell"][id$="-${selected}"]`)
+  await chosenCard.locator('[data-slot="entity-card-component"][data-component="file"]').waitFor()
+  await chooseContentView(page, "Image")
+  await chosenCard.locator('[data-slot="entity-card-component"][data-component="image"]').waitFor()
+  await chosenCard.dblclick()
+
   await chooseContentView(page, "Image")
   await page.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
   await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()

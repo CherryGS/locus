@@ -26,6 +26,7 @@ import { VideoInspection } from "./video-inspection"
 import { LiveImage } from "./live-image"
 
 export function EntityContent({
+  componentFor,
   entity,
   viewId,
   source,
@@ -35,6 +36,7 @@ export function EntityContent({
   civitaiSelection,
   onCivitaiSelection,
 }: {
+  componentFor: (entity: EntityItem) => EntityItem["components"][number]["kind"] | undefined
   entity: EntityItem
   viewId: ContentViewId | null
   source: EntitySource
@@ -163,7 +165,11 @@ export function EntityContent({
                             }
                           }}
                         >
-                          <EntityCard entity={item} titleId={`gallery-${collection.id}-${item.id}`} />
+                          <EntityCard
+                            componentKind={componentFor(item)}
+                            entity={item}
+                            titleId={`gallery-${collection.id}-${item.id}`}
+                          />
                         </Button>
                       ))}
                   </div>

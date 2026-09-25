@@ -7,10 +7,20 @@ import { CircleAlertIcon } from "lucide-react"
 import { Skeleton } from "@/shared/ui/skeleton"
 import { Badge } from "@/shared/ui/badge"
 import { Spinner } from "@/shared/ui/spinner"
+import { componentAppearance } from "./component-appearance"
 
-export function EntityCard({ entity, titleId }: { entity: EntityItem; titleId: string }) {
+export function EntityCard({
+  entity,
+  titleId,
+  componentKind,
+}: {
+  entity: EntityItem
+  titleId: string
+  componentKind?: EntityItem["components"][number]["kind"]
+}) {
   const display = entityCardDisplay(entity)
   const title = display.title ?? entityLabel(entity)
+  const component = componentKind ? componentAppearance[componentKind] : undefined
 
   return (
     <Card size="sm" className="h-full gap-0 py-0">
@@ -33,6 +43,19 @@ export function EntityCard({ entity, titleId }: { entity: EntityItem; titleId: s
               <CircleAlertIcon aria-hidden="true" />
             </Badge>
           </div>
+        )}
+        {component && (
+          <Badge
+            variant="secondary"
+            className="absolute bottom-2 left-2 max-w-[calc(100%-1rem)] gap-1"
+            data-slot="entity-card-component"
+            data-component={componentKind}
+            aria-label={`Current component: ${component.label}`}
+            title={`Current component: ${component.label}`}
+          >
+            <component.icon aria-hidden="true" />
+            <span className="truncate">{component.label}</span>
+          </Badge>
         )}
       </CardContent>
       <CardHeader className="h-14 shrink-0 gap-0.5 py-1.5">
