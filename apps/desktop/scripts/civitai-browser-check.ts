@@ -48,6 +48,11 @@ try {
     await page.getByRole("button", { name: "Overview", exact: true }).click()
   await page.getByRole("button", { name: "Use Civitai view", exact: true }).click()
   const reading = page.locator('[data-slot="civitai-page"]')
+  const civitaiPanel = page.locator('#auxiliary-panel[aria-label="Civitai"]')
+  async function openReadingDetails() {
+    await reading.getByRole("button", { name: "Open Civitai details", exact: true }).click()
+    await civitaiPanel.locator('[data-slot="civitai-reading-details"]').waitFor()
+  }
   async function versionDescription(text: string) {
     const description = reading.getByText(text, { exact: true })
     await description.waitFor({ state: "attached" })
@@ -67,7 +72,8 @@ try {
     await page.locator(`[data-slot="entity-inspection"][data-entity-id="${a.entityId}"]`).count(),
     1,
   )
-  await reading.getByRole("button", { name: "B.safetensors · 300", exact: true }).click()
+  await openReadingDetails()
+  await civitaiPanel.getByRole("button", { name: "B.safetensors · 300", exact: true }).click()
   // A delayed source switch must retain the old presentation without allowing
   // its actions to target the newly selected source.
   const stage = reading.locator('[data-slot="civitai-gallery-stage"]')
@@ -107,7 +113,7 @@ try {
     false,
   )
   assert.equal(
-    await reading.getByRole("button", { name: "B.safetensors · 300", exact: true }).isEnabled(),
+    await civitaiPanel.getByRole("button", { name: "B.safetensors · 300", exact: true }).isEnabled(),
     false,
   )
   releaseSwitch()
@@ -118,7 +124,18 @@ try {
     .getByText("Previous version observation · rereading selected source.", { exact: true })
     .waitFor({ state: "hidden" })
   assert.equal(await reading.getByText(/Previous version observation/).count(), 0)
-  assert.equal(await reading.locator("summary").filter({ hasText: "provider declarations" }).count(), 0)
+  assert.equal(await civitaiPanel.locator("summary").filter({ hasText: "provider declarations" }).count(), 0)
+  const originSnapshot = civitaiPanel.getByRole("region", { name: "Origin Civitai snapshot" })
+  assert.equal(await originSnapshot.getByText(a.componentId!, { exact: true }).count(), 1)
+  const originRead = await backend.client.GET("/api/v1/civitai/{component_id}/view", {
+    params: { path: { component_id: a.componentId! } },
+  })
+  assert(originRead.data)
+  assert.equal(
+    await originSnapshot.getByText(originRead.data.record.matched_version, { exact: true }).count(),
+    1,
+    "reading a peer version must retain the origin correspondence",
+  )
   await page.route(`**/civitai/${a.componentId}/version?*`, (route) =>
     route.fulfill({
       status: 500,
@@ -174,7 +191,7 @@ try {
     await page.locator(`[data-slot="entity-inspection"][data-entity-id="${a.entityId}"]`).count(),
     1,
   )
-  await reading.getByRole("button", { name: "B.safetensors · 300", exact: true }).click()
+  await civitaiPanel.getByRole("button", { name: "B.safetensors · 300", exact: true }).click()
   await page.screenshot({ path: join(output, "origin-with-peer-version.png") })
   await reading.getByRole("button", { name: "Inspect managed example", exact: true }).first().click()
   await page.locator('[data-slot="entity-inspection"][data-view-id="image.inspect"]').waitFor()
@@ -183,7 +200,8 @@ try {
   await page.locator('[data-slot="entity-inspection"][data-view-id="image.inspect"]').waitFor()
   await page.getByRole("button", { name: "Return to source", exact: true }).first().click()
   await versionDescription("B version description")
-  await reading
+  await openReadingDetails()
+  await civitaiPanel
     .getByText("B.safetensors · Model · provider declarations", { exact: true })
     .waitFor({ state: "attached" })
   if (!(await page.getByRole("button", { name: "Use File view", exact: true }).count()))
@@ -204,9 +222,10 @@ try {
   await reading.getByRole("button", { name: "Reread saved information", exact: true }).click()
   await reading.getByText(/Controlled page read failure/).waitFor({ state: "hidden" })
   await data.phase("A")
-  await reading.locator('[data-slot="civitai-maintenance"] > summary').click()
-  await reading.getByRole("button", { name: "Refresh origin Civitai information", exact: true }).click()
-  await reading.getByText("Origin operation · complete", { exact: true }).waitFor()
+  await openReadingDetails()
+  await civitaiPanel.locator('[data-slot="civitai-maintenance"] > summary').click()
+  await civitaiPanel.getByRole("button", { name: "Refresh origin Civitai information", exact: true }).click()
+  await civitaiPanel.getByText("Origin operation · complete", { exact: true }).waitFor()
   const view = await backend.client.GET("/api/v1/civitai/{component_id}/view", {
     params: { path: { component_id: a.componentId! } },
   })

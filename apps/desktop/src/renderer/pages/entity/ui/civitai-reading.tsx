@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import { ArrowUpRightIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
+import { ArrowUpRightIcon, PanelRightIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
 import { Button } from "@/shared/ui/button"
@@ -14,6 +14,7 @@ import { providerText } from "@/shared/lib/provider-text"
 import type { CivitaiSelection, RelatedCollection } from "../model/navigation"
 import { SourceLink, type EntityItem } from "@/entities/entity"
 import { CivitaiGallery } from "./civitai-gallery"
+import { CivitaiPanelPortal, useCivitaiPanel } from "./civitai-panel-slot"
 
 export function CivitaiReading({
   api,
@@ -32,6 +33,7 @@ export function CivitaiReading({
   onSelection: (selection: CivitaiSelection) => void
   onRelated: (collection: RelatedCollection, entity: EntityItem) => void
 }) {
+  const readingPanel = useCivitaiPanel()
   useSyncExternalStore(coordinator.subscribe, coordinator.snapshot)
   const [page, setPage] = useState<Wire<"CivitaiPage">>()
   const [unit, setUnit] = useState<Wire<"CivitaiVersionView">>()
@@ -261,63 +263,219 @@ export function CivitaiReading({
       </div>
     </details>
   )
+  const versionStatus =
+    unit && (unitPending || pending)
+      ? unitMatchesSelection
+        ? "Previous version observation · rereading selected source."
+        : `Loading version… Showing ${unit.version.name}.`
+      : unit && unitProblem
+        ? unitMatchesSelection
+          ? "Previous version observation · the latest source read failed."
+          : `Selected version unavailable. Showing ${unit.version.name}.`
+        : !unit && unitPending
+          ? "Reading version…"
+          : undefined
+  const versionFiles = unit ? (
+    <section aria-label="Version files" className="flex min-w-0 flex-col gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
+        <h3 className="text-xs text-muted-foreground">Files listed by this source</h3>
+        <ToggleGroup
+          aria-label="Version file"
+          orientation="vertical"
+          variant="outline"
+          size="sm"
+          className="w-full min-w-0"
+          disabled={!unitMatchesSelection || unitPending}
+          value={focusedFile ? [focusedFile.id] : []}
+          onValueChange={(values) => {
+            if (!unitMatchesSelection || unitPending) return
+            setSelectionNotice(undefined)
+            setSelection({ ...selection!, file: values[0] })
+          }}
+        >
+          {unit.version.files.map((item) => (
+            <ToggleGroupItem
+              key={item.id}
+              value={item.id}
+              aria-label={`${item.name} · ${item.id}`}
+              title={`${item.name} · ${item.kind} · ${item.id}`}
+              className="min-w-0 max-w-full justify-start"
+            >
+              <span className="truncate">{item.name}</span>
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        {!unit.version.files.length && (
+          <p className="text-xs text-muted-foreground">No files listed in this observation.</p>
+        )}
+      </div>
+      <div className="flex min-h-4 flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        {focusedFile && (
+          <>
+            {typeof fileMetadata.format === "string" && <span>{fileMetadata.format}</span>}
+            {typeof fileMetadata.fp === "string" && <span>{fileMetadata.fp}</span>}
+            {typeof fileFields.sizeKB === "number" && Number.isFinite(fileFields.sizeKB) && (
+              <span>
+                {new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(fileFields.sizeKB)} KB
+                (source)
+              </span>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  ) : null
+  const panelContent = (
+    <div className="flex min-w-0 flex-col gap-4 px-4 py-4" data-slot="civitai-reading-details">
+      <section aria-label="Current Civitai reading" className="flex min-w-0 flex-col gap-2">
+        <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          Current reading
+        </h3>
+        <p className="text-sm font-medium">{unit?.version.name ?? "No version selected"}</p>
+        {unit && (
+          <p className="text-xs text-muted-foreground">
+            Version {unit.version.id} ·{" "}
+            {unit.in_origin ? "this entry’s snapshot" : `from Entity ${unit.source.entity_id.slice(-8)}`}
+          </p>
+        )}
+        {versionStatus && (
+          <p role="status" className="text-xs text-muted-foreground">
+            {versionStatus}
+          </p>
+        )}
+      </section>
+      {versionFiles}
+      {maintenance}
+      {page && model && (
+        <>
+          {unit && (
+            <details className="text-xs" data-slot="civitai-library-links">
+              <summary className="cursor-pointer text-muted-foreground">
+                Library links · {unit.correspondences.length} recorded
+              </summary>
+              <div className="flex flex-col gap-3 pt-3 [overflow-wrap:anywhere]">
+                <p className="text-muted-foreground">Recorded local correspondences for this version.</p>
+                {unit.correspondences.length ? (
+                  unit.correspondences.map((correspondence) => (
+                    <div key={correspondence.source.component_id} className="flex flex-col gap-1">
+                      <p>Entity {correspondence.source.entity_id}</p>
+                      <p className="text-muted-foreground">
+                        File {correspondence.file} · {correspondence.input}
+                      </p>
+                      {!unit.version.files.some((item) => item.id === correspondence.file) && (
+                        <p>File not listed by the chosen source.</p>
+                      )}
+                      {correspondence.problem && <p>{correspondence.problem}</p>}
+                    </div>
+                  ))
+                ) : (
+                  <p>
+                    No recorded local correspondence in this read. This does not prove absence from the
+                    library.
+                  </p>
+                )}
+              </div>
+            </details>
+          )}
+          <Separator />
+          <details className="text-xs text-muted-foreground" data-slot="civitai-source-details">
+            <summary className="cursor-pointer">Source details</summary>
+            <div className="flex flex-col gap-4 pt-4 [overflow-wrap:anywhere]">
+              <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
+                <dt>Origin Entity</dt>
+                <dd>{entity.id}</dd>
+                <dt>Model</dt>
+                <dd>
+                  {model.id} · {model.kind}
+                </dd>
+                <dt>Matched version</dt>
+                <dd>{page.origin.record.matched_version}</dd>
+                <dt>Matched file</dt>
+                <dd>{page.origin.record.matched_file}</dd>
+                {unit && (
+                  <>
+                    <dt>Version source</dt>
+                    <dd>{unit.in_origin ? "This entry" : `Entity ${unit.source.entity_id}`}</dd>
+                    <dt>Observation</dt>
+                    <dd>{unit.source.observation}</dd>
+                  </>
+                )}
+              </dl>
+              {focusedFile && (
+                <details key={focusedFile.id}>
+                  <summary className="cursor-pointer">
+                    {focusedFile.name} · {focusedFile.kind} · provider declarations
+                  </summary>
+                  <pre className="overflow-auto pt-3 whitespace-pre-wrap break-words text-xs">
+                    {focusedFile.raw_json}
+                  </pre>
+                </details>
+              )}
+            </div>
+          </details>
+        </>
+      )}
+    </div>
+  )
   return (
     <ScrollArea className="min-h-0 flex-1">
       <article
-        className="@container mx-auto flex w-full max-w-6xl flex-col gap-5 p-5 sm:p-6"
+        className="@container mx-auto flex w-full max-w-6xl flex-col gap-4 p-5 sm:p-6"
         data-slot="civitai-page"
         aria-label="Civitai model"
       >
-        <header className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight">{model?.name ?? "Civitai"}</h1>
-              {model && (
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  <Badge variant="secondary">
-                    {model.kind === "TextualInversion" ? "Embedding" : model.kind}
-                  </Badge>
-                  {creatorName && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <UserRoundIcon className="size-3.5" aria-hidden="true" />
-                      {creatorName}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              {model && (
-                <span className="text-xs text-muted-foreground">
-                  <SourceLink url={`https://civitai.com/models/${model.id}`}>
-                    <span className="inline-flex items-center gap-1">
-                      View on Civitai
-                      <ArrowUpRightIcon className="size-3.5" aria-hidden="true" />
-                    </span>
-                  </SourceLink>
-                </span>
-              )}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Reread saved information"
-                title="Reread saved information"
-                disabled={pending}
-                onClick={() => setRetry((value) => value + 1)}
-              >
-                {pending ? <Spinner /> : <RefreshCwIcon />}
-              </Button>
-            </div>
+        <CivitaiPanelPortal>{panelContent}</CivitaiPanelPortal>
+        <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+            <h1 className="text-xl font-semibold tracking-tight">{model?.name ?? "Civitai"}</h1>
+            {model && (
+              <Badge variant="secondary">
+                {model.kind === "TextualInversion" ? "Embedding" : model.kind}
+              </Badge>
+            )}
+            {creatorName && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <UserRoundIcon className="size-3.5" aria-hidden="true" />
+                {creatorName}
+              </span>
+            )}
           </div>
-          {!!model?.tags.length && (
-            <div className="flex flex-wrap gap-1.5">
-              {model.tags.map((tag) => (
-                <Badge key={tag} variant="outline">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {model && (
+              <span className="mr-1 text-xs text-muted-foreground">
+                <SourceLink url={`https://civitai.com/models/${model.id}`}>
+                  <span className="inline-flex items-center gap-1">
+                    Civitai
+                    <ArrowUpRightIcon className="size-3.5" aria-hidden="true" />
+                  </span>
+                </SourceLink>
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Reread saved information"
+              title="Reread saved information"
+              disabled={pending}
+              onClick={() => setRetry((value) => value + 1)}
+            >
+              {pending ? <Spinner /> : <RefreshCwIcon />}
+            </Button>
+            <Button
+              variant={operationAttention ? "outline" : "ghost"}
+              size="icon-sm"
+              aria-label="Open Civitai details"
+              title={
+                operationAttention
+                  ? "Civitai details · needs attention"
+                  : "Files, library links and maintenance"
+              }
+              disabled={!readingPanel}
+              onClick={() => readingPanel?.open()}
+            >
+              <PanelRightIcon />
+            </Button>
+          </div>
         </header>
         {problem && (
           <Alert variant="destructive">
@@ -342,7 +500,6 @@ export function CivitaiReading({
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
-            {maintenance}
           </>
         ) : (
           <>
@@ -462,118 +619,44 @@ export function CivitaiReading({
             )}
             <section
               aria-label="Version information"
-              className="flex min-w-0 flex-col gap-3"
+              className="flex min-w-0 items-center gap-4"
               aria-busy={unitPending}
             >
+              {unit && (
+                <dl className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <dt className="text-muted-foreground">Base model</dt>
+                    <dd>{unit.version.base_model ?? "Not recorded"}</dd>
+                  </div>
+                  {published && (
+                    <div className="flex items-center gap-1.5">
+                      <dt className="text-muted-foreground">Published</dt>
+                      <dd title={published.toLocaleString()}>{published.toLocaleDateString()}</dd>
+                    </div>
+                  )}
+                  {!!trainedWords.length && (
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <dt className="text-muted-foreground">Trigger words</dt>
+                      <dd className="flex flex-wrap gap-1">
+                        {trainedWords.map((word, index) => (
+                          <Badge variant="secondary" key={index}>
+                            {word}
+                          </Badge>
+                        ))}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              )}
               <div
                 role="status"
                 data-slot="civitai-version-status"
-                className="flex h-5 items-center gap-2 text-xs text-muted-foreground"
+                title={versionStatus}
+                className="flex h-5 min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground"
               >
-                {unit && (unitPending || pending) ? (
-                  <>
-                    <Spinner />
-                    <span>
-                      {unitMatchesSelection
-                        ? "Previous version observation · rereading selected source."
-                        : `Loading version… Showing ${unit.version.name}.`}
-                    </span>
-                  </>
-                ) : unit && unitProblem ? (
-                  <span>
-                    {unitMatchesSelection
-                      ? "Previous version observation · the latest source read failed."
-                      : `Selected version unavailable. Showing ${unit.version.name}.`}
-                  </span>
-                ) : !unit && unitPending ? (
-                  <>
-                    <Spinner />
-                    <span>Reading version…</span>
-                  </>
-                ) : null}
+                {(unitPending || pending) && <Spinner />}
+                <span className="truncate">{versionStatus}</span>
               </div>
-              {unit && (
-                <>
-                  {!unit.in_origin && (
-                    <p className="text-xs text-muted-foreground">
-                      Version information from Entity {unit.source.entity_id.slice(-8)}
-                    </p>
-                  )}
-                  <dl className="flex min-h-10 flex-wrap gap-x-8 gap-y-3 text-xs">
-                    <div className="flex flex-col gap-1.5">
-                      <dt className="text-muted-foreground">Base model</dt>
-                      <dd>{unit.version.base_model ?? "Not recorded"}</dd>
-                    </div>
-                    {published && (
-                      <div className="flex flex-col gap-1.5">
-                        <dt className="text-muted-foreground">Published</dt>
-                        <dd title={published.toLocaleString()}>{published.toLocaleDateString()}</dd>
-                      </div>
-                    )}
-                    {!!trainedWords.length && (
-                      <div className="flex min-w-0 flex-col gap-1.5">
-                        <dt className="text-muted-foreground">Trigger words</dt>
-                        <dd className="flex flex-wrap gap-1.5">
-                          {trainedWords.map((word, index) => (
-                            <Badge variant="secondary" key={index}>
-                              {word}
-                            </Badge>
-                          ))}
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-                  <section aria-label="Version files" className="flex min-w-0 flex-col gap-2">
-                    <div className="flex min-w-0 flex-wrap items-center gap-3">
-                      <h3 className="text-xs text-muted-foreground">Files listed by this source</h3>
-                      <ToggleGroup
-                        aria-label="Version file"
-                        variant="outline"
-                        size="sm"
-                        className="min-w-0 max-w-full flex-wrap"
-                        disabled={!unitMatchesSelection || unitPending}
-                        value={focusedFile ? [focusedFile.id] : []}
-                        onValueChange={(values) => {
-                          if (!unitMatchesSelection || unitPending) return
-                          setSelectionNotice(undefined)
-                          setSelection({ ...selection!, file: values[0] })
-                        }}
-                      >
-                        {unit.version.files.map((item) => (
-                          <ToggleGroupItem
-                            key={item.id}
-                            value={item.id}
-                            aria-label={`${item.name} · ${item.id}`}
-                            title={`${item.name} · ${item.kind} · ${item.id}`}
-                            className="min-w-0 max-w-full justify-start"
-                          >
-                            <span className="truncate">{item.name}</span>
-                          </ToggleGroupItem>
-                        ))}
-                      </ToggleGroup>
-                      {!unit.version.files.length && (
-                        <p className="text-xs text-muted-foreground">No files listed in this observation.</p>
-                      )}
-                    </div>
-                    <div className="flex min-h-4 flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      {focusedFile && (
-                        <>
-                          {typeof fileMetadata.format === "string" && <span>{fileMetadata.format}</span>}
-                          {typeof fileMetadata.fp === "string" && <span>{fileMetadata.fp}</span>}
-                          {typeof fileFields.sizeKB === "number" && Number.isFinite(fileFields.sizeKB) && (
-                            <span>
-                              {new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(
-                                fileFields.sizeKB,
-                              )}{" "}
-                              KB (source)
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </section>
-                </>
-              )}
             </section>
             <Separator />
             {unit ? (
@@ -602,76 +685,19 @@ export function CivitaiReading({
             )}
             <section aria-label="About this model" className="flex min-w-0 flex-col gap-3">
               <h2 className="text-sm font-medium">About this model</h2>
+              {!!model.tags.length && (
+                <div className="flex flex-wrap gap-1.5">
+                  {model.tags.map((tag) => (
+                    <Badge key={tag} variant="outline">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
               <p className="whitespace-pre-wrap text-sm leading-7 [overflow-wrap:anywhere]">
                 {providerText(model.description) ?? "No model description saved."}
               </p>
             </section>
-            {unit && (
-              <details className="text-xs" data-slot="civitai-library-links">
-                <summary className="cursor-pointer text-muted-foreground">
-                  Library links · {unit.correspondences.length} recorded
-                </summary>
-                <div className="flex flex-col gap-3 pt-3 [overflow-wrap:anywhere]">
-                  <p className="text-muted-foreground">Recorded local correspondences for this version.</p>
-                  {unit.correspondences.length ? (
-                    unit.correspondences.map((correspondence) => (
-                      <div key={correspondence.source.component_id} className="flex flex-col gap-1">
-                        <p>Entity {correspondence.source.entity_id}</p>
-                        <p className="text-muted-foreground">
-                          File {correspondence.file} · {correspondence.input}
-                        </p>
-                        {!unit.version.files.some((item) => item.id === correspondence.file) && (
-                          <p>File not listed by the chosen source.</p>
-                        )}
-                        {correspondence.problem && <p>{correspondence.problem}</p>}
-                      </div>
-                    ))
-                  ) : (
-                    <p>
-                      No recorded local correspondence in this read. This does not prove absence from the
-                      library.
-                    </p>
-                  )}
-                </div>
-              </details>
-            )}
-            {maintenance}
-            <Separator />
-            <details className="text-xs text-muted-foreground" data-slot="civitai-source-details">
-              <summary className="cursor-pointer">Source details</summary>
-              <div className="flex flex-col gap-4 pt-4 [overflow-wrap:anywhere]">
-                <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
-                  <dt>Origin Entity</dt>
-                  <dd>{entity.id}</dd>
-                  <dt>Model</dt>
-                  <dd>
-                    {model.id} · {model.kind}
-                  </dd>
-                  <dt>Matched version</dt>
-                  <dd>{page.origin.record.matched_version}</dd>
-                  <dt>Matched file</dt>
-                  <dd>{page.origin.record.matched_file}</dd>
-                  {unit && (
-                    <>
-                      <dt>Version source</dt>
-                      <dd>{unit.in_origin ? "This entry" : `Entity ${unit.source.entity_id}`}</dd>
-                      <dt>Observation</dt>
-                      <dd>{unit.source.observation}</dd>
-                    </>
-                  )}
-                </dl>
-                {focusedFile && (
-                  <details key={focusedFile.id}>
-                    <summary className="cursor-pointer">
-                      {focusedFile.name} · {focusedFile.kind} · provider declarations
-                    </summary>
-                    <pre className="overflow-auto pt-3 whitespace-pre-wrap break-words text-xs">
-                      {focusedFile.raw_json}
-                    </pre>
-                  </details>
-                )}
-              </div>
-            </details>
           </>
         )}
       </article>

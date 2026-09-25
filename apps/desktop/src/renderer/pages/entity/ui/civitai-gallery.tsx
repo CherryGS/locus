@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon, ImageIcon, VideoIcon } from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon, ImageIcon, InfoIcon, VideoIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Skeleton } from "@/shared/ui/skeleton"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/shared/ui/dialog"
 
 type Preview = { url?: string; problem?: string }
 const exampleKey = (example: Wire<"CivitaiManagedExample">) =>
@@ -70,6 +78,7 @@ export function CivitaiGallery({
       aria-label="Managed Civitai examples"
       className="flex min-w-0 flex-col gap-3"
       onKeyDown={(event) => {
+        if ((event.target as HTMLElement).closest('[data-slot="dialog-content"]')) return
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
         if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
         event.stopPropagation()
@@ -81,6 +90,56 @@ export function CivitaiGallery({
       <div className="flex h-8 items-center justify-between gap-3">
         <h2 className="text-sm font-medium">Examples</h2>
         <div className="flex items-center gap-2">
+          {active && (
+            <Dialog>
+              <DialogTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Example sources"
+                    title="Example sources"
+                  />
+                }
+              >
+                <InfoIcon />
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Example sources</DialogTitle>
+                  <DialogDescription>
+                    {video ? "Video" : "Image"} {index + 1} of {examples.length} · saved file and source
+                    observations.
+                  </DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="max-h-[60vh]" viewportProps={{ className: "max-h-[60vh]" }}>
+                  <div className="flex flex-col gap-4 pr-2 text-xs [overflow-wrap:anywhere]">
+                    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
+                      <dt className="text-muted-foreground">Entity</dt>
+                      <dd>{active.binding.entity_id}</dd>
+                      <dt className="text-muted-foreground">File</dt>
+                      <dd>{active.binding.file_id}</dd>
+                      <dt className="text-muted-foreground">Type</dt>
+                      <dd>{active.binding.content_type}</dd>
+                    </dl>
+                    {examples[index].contributors.map((contributor, contributorIndex) => (
+                      <div
+                        key={`${contributor.source.component_id}:${contributor.binding.occurrence}:${contributorIndex}`}
+                        className="flex flex-col gap-1.5"
+                      >
+                        <p className="font-medium">Source {contributorIndex + 1}</p>
+                        <p className="text-muted-foreground">Entity {contributor.source.entity_id}</p>
+                        <p>
+                          Occurrence {contributor.binding.occurrence + 1} ·{" "}
+                          {contributor.applicable ? "Applicable" : (contributor.problem ?? "Unavailable")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
+          )}
           <span
             className="min-w-12 text-center text-xs tabular-nums text-muted-foreground"
             aria-live="polite"
@@ -211,36 +270,6 @@ export function CivitaiGallery({
               })}
             </ToggleGroup>
           </ScrollArea>
-        )}
-      </div>
-      <div className="min-h-4 text-xs text-muted-foreground">
-        {!!examples.length && (
-          <details>
-            <summary className="cursor-pointer">Example sources</summary>
-            <div className="flex flex-col gap-3 pt-3">
-              <p>
-                {unit.version.images.length} examples listed by the selected source. Saved relationships can
-                also come from other observations.
-              </p>
-              {examples.map(({ representative: example, contributors }, exampleIndex) => (
-                <div key={exampleKey(example)} className="flex flex-col gap-1 [overflow-wrap:anywhere]">
-                  <p className="text-foreground">
-                    Example {exampleIndex + 1} · Entity {example.binding.entity_id}
-                  </p>
-                  <p>File {example.binding.file_id}</p>
-                  {contributors.map((contributor, contributorIndex) => (
-                    <p
-                      key={`${contributor.source.component_id}:${contributor.binding.occurrence}:${contributorIndex}`}
-                    >
-                      From {contributor.source.entity_id} · occurrence {contributor.binding.occurrence + 1} ·{" "}
-                      {contributor.binding.content_type} ·{" "}
-                      {contributor.applicable ? "applicable" : (contributor.problem ?? "unavailable")}
-                    </p>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </details>
         )}
       </div>
     </section>

@@ -1,5 +1,4 @@
 import { BilibiliDetails } from "./bilibili-details"
-import { providerText } from "@/shared/lib/provider-text"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { Separator } from "@/shared/ui/separator"
 import { Spinner } from "@/shared/ui/spinner"
@@ -58,7 +57,6 @@ function ComponentDetailsContent({ component }: { component: EntityComponent }) 
           <Detail label="Input">{component.view?.input ?? "Not observed"}</Detail>
           <Detail label="Observation">{component.record?.observation ?? "Not observed"}</Detail>
         </dl>
-        <p className="whitespace-pre-wrap break-words">{providerText(component.record?.model.description)}</p>
       </DetailSection>
     )
   if (component.kind === "model")
