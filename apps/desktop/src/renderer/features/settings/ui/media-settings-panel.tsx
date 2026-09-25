@@ -1,5 +1,5 @@
 import { Fragment, useState, useSyncExternalStore } from "react"
-import { RotateCcwIcon, SaveIcon, FileSearchIcon, VideoIcon } from "lucide-react"
+import { RotateCcwIcon, RefreshCwIcon, SaveIcon, FileSearchIcon, VideoIcon } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
@@ -72,7 +72,80 @@ export function MediaSettingsPanel({ settings }: { settings: SettingsCoordinator
               void settings.save()
             }}
           >
-            <SettingsGroup name="Media tool paths">
+            <SettingsGroup
+              name="Tool paths"
+              description="Executable names or full paths. Save and restart to apply."
+              action={
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="Reload / recover"
+                  title="Reload / recover"
+                  disabled={settings.busy || settings.readPending}
+                  onClick={() =>
+                    void (settings.attempt || settings.needsEvidence ? settings.recover() : settings.load())
+                  }
+                >
+                  <RefreshCwIcon />
+                </Button>
+              }
+              footer={
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={
+                      !settings.resetRevision || settings.busy || !!settings.attempt || settings.needsEvidence
+                    }
+                    onClick={() => setReset(settings.resetRevision)}
+                  >
+                    <RotateCcwIcon data-icon="inline-start" />
+                    Reset to defaults
+                  </Button>
+                  {(settings.dirty ||
+                    settings.busy ||
+                    settings.attempt ||
+                    settings.needsEvidence ||
+                    settings.status === "failed") && (
+                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        type="submit"
+                        disabled={
+                          !settings.canSave ||
+                          !settings.draft?.ffprobe.trim() ||
+                          !settings.draft.ffmpeg.trim()
+                        }
+                      >
+                        {settings.busy ? (
+                          <Spinner data-icon="inline-start" />
+                        ) : (
+                          <SaveIcon data-icon="inline-start" />
+                        )}
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                        disabled={
+                          !saved ||
+                          settings.busy ||
+                          !!settings.attempt ||
+                          settings.needsEvidence ||
+                          (!settings.dirty && settings.status !== "failed")
+                        }
+                        onClick={() => settings.discard()}
+                      >
+                        Discard edits
+                      </Button>
+                    </div>
+                  )}
+                </>
+              }
+            >
               <FieldGroup className="gap-0">
                 {(["ffprobe", "ffmpeg"] as const).map((field) => {
                   const invalid = !!settings.draft && !settings.draft[field].trim()
@@ -97,48 +170,64 @@ export function MediaSettingsPanel({ settings }: { settings: SettingsCoordinator
                   )
                 })}
               </FieldGroup>
-              {(settings.dirty ||
-                settings.busy ||
-                settings.attempt ||
-                settings.needsEvidence ||
-                settings.status === "failed") && (
-                <>
-                  <Separator />
-                  <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-3">
-                    <Button
-                      type="submit"
-                      disabled={
-                        !settings.canSave || !settings.draft?.ffprobe.trim() || !settings.draft.ffmpeg.trim()
-                      }
-                    >
-                      {settings.busy ? (
-                        <Spinner data-icon="inline-start" />
-                      ) : (
-                        <SaveIcon data-icon="inline-start" />
-                      )}
-                      Save
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={
-                        !saved ||
-                        settings.busy ||
-                        !!settings.attempt ||
-                        settings.needsEvidence ||
-                        (!settings.dirty && settings.status !== "failed")
-                      }
-                      onClick={() => settings.discard()}
-                    >
-                      Discard edits
-                    </Button>
-                  </div>
-                </>
-              )}
+              <Separator />
+              <details
+                className="bg-muted/20"
+                key={String(!!pending || !!settings.runtimeError)}
+                open={
+                  pending ||
+                  !!settings.runtimeError ||
+                  !!active?.ffprobe.environment ||
+                  !!active?.ffmpeg.environment ||
+                  !active ||
+                  undefined
+                }
+              >
+                <summary className="cursor-pointer px-4 py-3 text-xs font-medium text-muted-foreground">
+                  Active in this run
+                </summary>
+                <div className="flex flex-col gap-3 px-4 py-3 text-sm">
+                  {settings.runtimeError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>
+                        {settings.runtimeError}
+                        {active ? " Displaying the last confirmed runtime observation." : ""}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {active ? (
+                    <>
+                      <dl className="flex min-w-0 flex-col gap-3">
+                        {(["ffprobe", "ffmpeg"] as const).map((field) => (
+                          <div key={field} className="flex min-w-0 flex-col gap-1">
+                            <dt className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              {field}
+                              {active[field].environment && (
+                                <Badge variant="outline">{active[field].environment}</Badge>
+                              )}
+                            </dt>
+                            <dd className="break-all font-mono text-xs">{active[field].path}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        {active.ffprobe.environment || active.ffmpeg.environment
+                          ? "Environment variables override saved paths, including after restart. Unset them to use your saved settings."
+                          : "Captured from saved library settings at startup."}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      {settings.runtimeError
+                        ? "The current runtime configuration could not be confirmed."
+                        : settings.runtime?.status === "unavailable"
+                          ? "Media did not start; active tool paths are unavailable."
+                          : "Reading the current runtime configuration…"}
+                    </p>
+                  )}
+                </div>
+              </details>
             </SettingsGroup>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Enter executable names or full paths. Save and restart to apply.
-            </p>
           </form>
           {pending && settings.dirty && saved && !settings.conflict && (
             <p className="break-all text-xs text-muted-foreground">
@@ -157,80 +246,6 @@ export function MediaSettingsPanel({ settings }: { settings: SettingsCoordinator
               </AlertDescription>
             </Alert>
           )}
-          <details
-            className="rounded-lg border bg-card"
-            key={String(!!pending || !!settings.runtimeError)}
-            open={
-              pending ||
-              !!settings.runtimeError ||
-              !!active?.ffprobe.environment ||
-              !!active?.ffmpeg.environment ||
-              !active ||
-              undefined
-            }
-          >
-            <summary className="cursor-pointer px-4 py-3 text-sm">Active in this run</summary>
-            <Separator />
-            <div className="flex flex-col gap-3 px-4 py-3 text-sm">
-              {settings.runtimeError && (
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    {settings.runtimeError}
-                    {active ? " Displaying the last confirmed runtime observation." : ""}
-                  </AlertDescription>
-                </Alert>
-              )}
-              {active ? (
-                <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
-                  {(["ffprobe", "ffmpeg"] as const).map((field) => (
-                    <div key={field} className="contents">
-                      <dt className="text-muted-foreground">{field}</dt>
-                      <dd className="break-all">
-                        {active[field].path}
-                        <p className="text-xs text-muted-foreground">
-                          {active[field].environment
-                            ? `Overridden by ${active[field].environment}. Restart keeps this override while the environment variable is set.`
-                            : "Captured from saved library settings at startup."}
-                        </p>
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : (
-                <p className="text-muted-foreground">
-                  {settings.runtimeError
-                    ? "The current runtime configuration could not be confirmed."
-                    : settings.runtime?.status === "unavailable"
-                      ? "Media did not start; active tool paths are unavailable."
-                      : "Reading the current runtime configuration…"}
-                </p>
-              )}
-            </div>
-          </details>
-        </div>
-        <div className="-ml-2 flex flex-wrap gap-1">
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            disabled={settings.busy || settings.readPending}
-            onClick={() =>
-              void (settings.attempt || settings.needsEvidence ? settings.recover() : settings.load())
-            }
-          >
-            Reload / recover
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={
-              !settings.resetRevision || settings.busy || !!settings.attempt || settings.needsEvidence
-            }
-            onClick={() => setReset(settings.resetRevision)}
-          >
-            <RotateCcwIcon data-icon="inline-start" />
-            Reset to defaults
-          </Button>
         </div>
       </section>
       <Dialog
