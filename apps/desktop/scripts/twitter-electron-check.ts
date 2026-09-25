@@ -1,3 +1,4 @@
+import { chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
 import { join } from "node:path"
@@ -19,7 +20,7 @@ try {
   const complete=data.entries.find(e=>e.name==="complete")!
   await page.locator(`[role="gridcell"][id$="-${complete.entityId}"]`).dblclick()
   await page.getByRole("button",{name:"Overview",exact:true}).click()
-  await page.getByRole("button",{name:"Use Twitter view",exact:true}).click()
+  await chooseContentView(page, "Twitter")
   await page.getByRole("article").waitFor()
   const url=page.url()
   const link=page.getByRole("article").getByRole("link",{name:"View original post",exact:true})
@@ -58,21 +59,21 @@ try {
   await page.getByRole("button",{name:"Back",exact:true}).click()
   await page.locator(`[data-slot="entity-inspection"][data-entity-id="${complete.entityId}"]`).waitFor()
   // Actual local Video departure for Twitter releases playback and returns paused.
-  await page.getByRole("button",{name:"Use Video view",exact:true}).click()
+  await chooseContentView(page, "Video")
   await page.locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
   await page.locator("video").evaluate(async (video: HTMLVideoElement) => { video.currentTime = 2; await video.play(); (window as any).__departedTwitterVideo = video })
   await page.waitForFunction(() => !document.querySelector("video")!.paused)
-  await page.getByRole("button",{name:"Use Twitter view",exact:true}).click()
+  await chooseContentView(page, "Twitter")
   assert(await page.evaluate(() => (window as any).__departedTwitterVideo.paused))
-  await page.getByRole("button",{name:"Use Video view",exact:true}).click()
+  await chooseContentView(page, "Video")
   await page.locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
   assert(await page.locator("video").evaluate((video: HTMLVideoElement) => video.paused && video.currentTime >= 1.8))
-  await page.getByRole("button",{name:"Use Twitter view",exact:true}).click()
+  await chooseContentView(page, "Twitter")
   // Changing view must leave link-action feedback behind without changing record problems.
   await application.evaluate(()=>{(globalThis as any).__desktopTest.rejectExternal=true})
   await link.click();await page.getByRole("button",{name:"Retry opening link",exact:true}).waitFor()
-  await page.getByRole("button",{name:"Use Image view",exact:true}).click()
-  await page.getByRole("button",{name:"Use Twitter view",exact:true}).click()
+  await chooseContentView(page, "Image")
+  await chooseContentView(page, "Twitter")
   assert.equal(await page.locator('[data-slot="toast"]:not([data-ending-style])').count(), 0)
   await page.getByRole("button",{name:"Retry opening link",exact:true}).waitFor({state:"detached", timeout:1500})
   assert.equal(await page.getByRole("button",{name:"Retry opening link",exact:true}).count(),0)

@@ -190,6 +190,8 @@ export function CivitaiGallery({
                           api={api}
                           example={example}
                           onPreview={reportPreview}
+                          viewport={strip}
+                          selected={key === activeKey}
                         />
                       ) : isVideo ? (
                         <VideoIcon />
@@ -281,20 +283,40 @@ function ManagedThumbnail({
   api,
   example,
   onPreview,
+  viewport,
+  selected,
 }: {
   api: BackendApi
   example: Wire<"CivitaiManagedExample">
   onPreview: (key: string, value: Preview | undefined) => void
+  viewport: { current: HTMLDivElement | null }
+  selected: boolean
 }) {
+  const element = useRef<HTMLSpanElement>(null)
+  const [nearby, setNearby] = useState(false)
+  useEffect(() => {
+    if (!element.current) return
+    const observer = new IntersectionObserver(([entry]) => setNearby(entry.isIntersecting), {
+      root: viewport.current,
+      rootMargin: "0px 160px",
+    })
+    observer.observe(element.current)
+    return () => observer.disconnect()
+  }, [viewport])
+  const needed = selected || nearby
   const [url, setUrl] = useState<string>()
   const [problem, setProblem] = useState<string>()
   const key = exampleKey(example)
   useEffect(() => {
+    setUrl(undefined)
+    setProblem(undefined)
+    if (!needed) return
     const controller = new AbortController()
     let objectUrl: string | undefined
     let current = true
     void (async () => {
       const result = await api.memberships([example.binding.entity_id])
+      if (!current) return
       const member = result.find((entry) => entry.entity_id === example.binding.entity_id)
       if (
         !member ||
@@ -309,9 +331,11 @@ function ManagedThumbnail({
       const target = example.binding.media.find((media) => media.kind === "image") ?? example.binding.media[0]
       if (!target) throw new Error("No completed Media component")
       const preview = await api.savedPreview(target.kind, target.component_id)
+      if (!current) return
       if (!preview || preview.file_id !== example.binding.file_id)
         throw new Error("The already-produced preview is unavailable; rereading does not generate it")
       const bytes = await api.previewBytes(preview.locator, controller.signal)
+      if (!current) return
       objectUrl = URL.createObjectURL(bytes)
       if (current) {
         setUrl(objectUrl)
@@ -330,21 +354,25 @@ function ManagedThumbnail({
       if (objectUrl) URL.revokeObjectURL(objectUrl)
       onPreview(key, undefined)
     }
-  }, [api, example.binding.entity_id, example.binding.file_id, key, onPreview])
-  return problem ? (
-    <ImageIcon aria-label="Preview unavailable" />
-  ) : url ? (
-    <img
-      src={url}
-      alt="Managed Civitai example"
-      className="size-full object-contain"
-      onError={() => {
-        const message = "Managed image could not be displayed. Reread the selected version to retry."
-        setProblem(message)
-        onPreview(key, { problem: message })
-      }}
-    />
-  ) : (
-    <Skeleton className="size-full" />
+  }, [api, example.binding.entity_id, example.binding.file_id, key, onPreview, needed])
+  return (
+    <span ref={element} className="flex size-full items-center justify-center">
+      {problem ? (
+        <ImageIcon aria-label="Preview unavailable" />
+      ) : url ? (
+        <img
+          src={url}
+          alt="Managed Civitai example"
+          className="size-full object-contain"
+          onError={() => {
+            const message = "Managed image could not be displayed. Reread the selected version to retry."
+            setProblem(message)
+            onPreview(key, { problem: message })
+          }}
+        />
+      ) : (
+        <Skeleton className="size-full" />
+      )}
+    </span>
   )
 }

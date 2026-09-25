@@ -1,3 +1,4 @@
+import { chooseContentView, hasContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { chromium } from "playwright"
@@ -24,18 +25,20 @@ try {
   const existing = data.entries.find((e) => e.name === "existing")!
   await page.locator(`[role="gridcell"][id$="-${existing.entityId}"]`).dblclick()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
-  await page.getByRole("button", { name: "Use File view", exact: true }).click()
+  await chooseContentView(page, "File")
   await page.getByText("Choice saved", { exact: true }).waitFor()
-  assert.equal(await page.getByRole("button", { name: "Use Civitai view", exact: true }).count(), 0)
+  assert.equal(await hasContentView(page, "Civitai"), false)
   await data.phase("existing")
   await page.getByRole("button", { name: "Enrich this File with Civitai", exact: true }).click()
-  await page.getByRole("button", { name: "Use Civitai view", exact: true }).waitFor()
+  await page.getByRole("combobox", { name: "Default view", exact: true }).click()
+  await page.getByRole("option", { name: "Use Civitai view", exact: true }).waitFor()
+  await page.keyboard.press("Escape")
   assert.equal(await page.locator('[data-slot="entity-inspection"][data-view-id="file.info"]').count(), 1)
   const preference = await backend.client.GET("/api/v1/entities/{entity_id}/view-preference", {
     params: { path: { entity_id: existing.entityId } },
   })
   assert(preference.data?.status === "saved" && preference.data.view_definition_id === "file.info")
-  await page.getByRole("button", { name: "Use Civitai view", exact: true }).click()
+  await chooseContentView(page, "Civitai")
   await page
     .locator('[data-slot="civitai-page"]')
     .getByText("existing independent model description", { exact: true })
@@ -46,7 +49,7 @@ try {
   await page.locator(`[role="gridcell"][id$="-${a.entityId}"]`).dblclick()
   if (!(await page.locator('#auxiliary-panel[aria-label="Overview"]').count()))
     await page.getByRole("button", { name: "Overview", exact: true }).click()
-  await page.getByRole("button", { name: "Use Civitai view", exact: true }).click()
+  await chooseContentView(page, "Civitai")
   const reading = page.locator('[data-slot="civitai-page"]')
   const civitaiPanel = page.locator('#auxiliary-panel[aria-label="Civitai"]')
   async function versionDescription(text: string) {
@@ -211,10 +214,10 @@ try {
   await versionDescription("B version description")
   await reading.getByRole("button", { name: "Open library and source", exact: true }).click()
   await civitaiPanel.getByText("File details · B.safetensors", { exact: true }).waitFor({ state: "attached" })
-  if (!(await page.getByRole("button", { name: "Use File view", exact: true }).count()))
+  if (!(await page.getByRole("combobox", { name: "Default view", exact: true }).count()))
     await page.getByRole("button", { name: "Overview", exact: true }).click()
-  await page.getByRole("button", { name: "Use File view", exact: true }).click()
-  await page.getByRole("button", { name: "Use Civitai view", exact: true }).click()
+  await chooseContentView(page, "File")
+  await chooseContentView(page, "Civitai")
   await versionDescription("A version description")
   await page.route(`**/civitai/${a.componentId}/page`, (route) =>
     route.fulfill({

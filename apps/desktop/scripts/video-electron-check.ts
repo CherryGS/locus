@@ -1,3 +1,4 @@
+import { chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { createRequire } from "node:module"
@@ -353,7 +354,7 @@ try {
     await heldSave
     await route.fulfill({ response })
   })
-  await page.getByRole("button", { name: "Use Video view", exact: true }).click()
+  await chooseContentView(page, "Video")
   await Promise.race([
     startedSave,
     new Promise((_, reject) => setTimeout(() => reject(new Error("Preference save did not start")), 15000)),

@@ -1,3 +1,4 @@
+import { chooseContentView, hasContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
 import { join } from "node:path"
@@ -28,8 +29,7 @@ try {
   const entry = data.entries.find((entry) => entry.name === "complete")!
   await page.locator('[role="gridcell"][id$="-' + entry.entityId + '"]').dblclick()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
-  const choose = page.getByRole("button", { name: "Use Bilibili view", exact: true })
-  if (await choose.count()) await choose.click()
+  if (await hasContentView(page, "Bilibili")) await chooseContentView(page, "Bilibili")
   await page.locator('[data-view-id="bilibili.read"]').waitFor()
   const ready = () => page.locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
   const video = page.locator("video")
@@ -67,12 +67,12 @@ try {
   const restored = await video.evaluate((v: HTMLVideoElement) => ({ time: v.currentTime, paused: v.paused, volume: v.volume, muted: v.muted }))
   assert(Math.abs(restored.time - 1) < 0.15)
   assert.deepEqual({ paused: restored.paused, volume: restored.volume, muted: restored.muted }, { paused: true, volume: 0.35, muted: true })
-  await page.getByRole("button", { name: "Use Video view", exact: true }).click()
+  await chooseContentView(page, "Video")
   await ready()
   assert.equal(await video.count(), 1)
   assert(Math.abs(await video.evaluate((v: HTMLVideoElement) => v.currentTime) - 1) < 0.15)
   assert.equal(await video.evaluate((v: HTMLVideoElement) => v.paused), true)
-  await page.getByRole("button", { name: "Use Bilibili view", exact: true }).click()
+  await chooseContentView(page, "Bilibili")
   await ready()
   await page.screenshot({ path: join(output, "bilibili-playback.png") })
   assert.deepEqual(errors, [])

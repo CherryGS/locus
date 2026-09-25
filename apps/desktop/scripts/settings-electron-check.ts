@@ -1,3 +1,4 @@
+import { chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
 import { access, readFile, writeFile } from "node:fs/promises"
@@ -325,7 +326,7 @@ try {
   await page.reload()
   await page.getByRole("gridcell").first().dblclick()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
-  await page.getByRole("button", { name: "Use File view", exact: true }).click()
+  await chooseContentView(page, "File")
   await page.getByRole("link", { name: "Setting", exact: true }).click()
   await page.getByRole("button", { name: "Restart application", exact: true }).click()
   await page.getByRole("heading", { name: "Some choices are not confirmed saved" }).waitFor()

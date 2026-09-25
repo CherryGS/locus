@@ -1,3 +1,4 @@
+import { chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { writeFile } from "node:fs/promises"
@@ -40,9 +41,9 @@ try {
   await page.getByRole("button", { name: /layer_00000.weight/ }).click()
   await page.getByText("[0, 64]", { exact: false }).waitFor()
   await page.screenshot({ path: join(output, "complete-tensor.png") })
-  await page.getByRole("button", { name: "Use File view", exact: true }).click()
+  await chooseContentView(page, "File")
   await page.locator('[data-view-id="file.info"]').waitFor()
-  await page.getByRole("button", { name: "Use Model view", exact: true }).click()
+  await chooseContentView(page, "Model")
   await page.getByText("Choice saved", { exact: true }).waitFor()
   const preference = await backend.client.GET("/api/v1/entities/{entity_id}/view-preference", {
     params: { path: { entity_id: entry.entityId } },

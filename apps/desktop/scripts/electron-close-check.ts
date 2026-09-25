@@ -1,3 +1,4 @@
+import { chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { execFile, spawn } from "node:child_process"
 import { once } from "node:events"
@@ -125,7 +126,7 @@ try {
   })
   await page.reload()
   const heldEntity = await openImage(page)
-  await page.getByRole("button", { name: "Use File view", exact: true }).click()
+  await chooseContentView(page, "File")
   await page.getByText("Saving choice…", { exact: true }).waitFor()
   await page.waitForFunction(() => !!(window as any).__releaseSave)
   await page.getByRole("button", { name: /^Tasks/ }).click()
@@ -282,7 +283,7 @@ try {
         })
       : route.continue()
   )
-  await page.getByRole("button", { name: "Use Image view", exact: true }).click()
+  await chooseContentView(page, "Image")
   await page.getByText("Choice not saved", { exact: true }).waitFor()
   await nativeClose()
   await page.getByText("Some choices are not confirmed saved", { exact: true }).waitFor()
@@ -325,7 +326,7 @@ try {
         })
       : route.continue()
   )
-  await page.getByRole("button", { name: "Use File view", exact: true }).click()
+  await chooseContentView(page, "File")
   await page.getByLabel("Default view", { exact: true }).getByText("Saving not confirmed", { exact: true }).waitFor()
   await nativeClose()
   await page.getByText("Some choices are not confirmed saved", { exact: true }).waitFor()

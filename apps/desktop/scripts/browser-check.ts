@@ -1,3 +1,4 @@
+import { chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { writeFile } from "node:fs/promises"
@@ -25,9 +26,18 @@ try {
   })
   await page.goto(`${preview.origin}/#/entity`)
   await page.getByRole("gridcell").first().waitFor()
-  const sourceReturn = page.locator("header.title-bar").getByRole("button", { name: "Return to source", exact: true })
+  const sourceReturn = page
+    .locator("header.title-bar")
+    .getByRole("button", { name: "Return to source", exact: true })
   assert(await sourceReturn.isDisabled())
-  assert.deepEqual(await page.locator("header.title-bar button").evaluateAll(nodes => nodes.slice(0, 4).map(n => n.getAttribute("aria-label") ?? n.textContent?.trim())), ["Back", "Forward", "Return to source", "Import"])
+  assert.deepEqual(
+    await page
+      .locator("header.title-bar button")
+      .evaluateAll((nodes) =>
+        nodes.slice(0, 4).map((n) => n.getAttribute("aria-label") ?? n.textContent?.trim()),
+      ),
+    ["Back", "Forward", "Return to source", "Import"],
+  )
   const gridUrl = page.url()
   await sourceReturn.evaluate((button: HTMLButtonElement) => button.click())
   assert.equal(page.url(), gridUrl)
@@ -49,7 +59,16 @@ try {
   preferenceReadsFail = false
   await page.getByRole("button", { name: "Retry preference read", exact: true }).click()
   await page.getByText("No saved choice", { exact: true }).waitFor()
-  await page.getByRole("button", { name: "Use File view", exact: true }).click()
+  await page.getByRole("combobox", { name: "Default view", exact: true }).click()
+  await page.getByRole("option", { name: "Use Image view", exact: true }).waitFor()
+  await page.keyboard.press("ArrowRight")
+  assert.equal(await page.locator('[data-slot="entity-inspection"]').getAttribute("data-entity-id"), selected)
+  await page.keyboard.press("Escape")
+  await page.getByRole("listbox").waitFor({ state: "hidden" })
+  assert.equal(await page.locator('[data-slot="entity-inspection"]').getAttribute("data-entity-id"), selected)
+  await chooseContentView(page, "Image")
+  await page.getByText("Choice saved", { exact: true }).waitFor()
+  await chooseContentView(page, "File")
   await page.getByText("Choice saved", { exact: true }).waitFor()
   await page.getByRole("button", { name: "Next entity", exact: true }).click()
   await page.getByRole("button", { name: "Previous entity", exact: true }).click()
@@ -59,7 +78,7 @@ try {
   })
   assert.equal(result.data?.status, "saved")
   if (result.data?.status === "saved") assert.equal(result.data.view_definition_id, "file.info")
-  await page.getByRole("button", { name: "Use Image view", exact: true }).click()
+  await chooseContentView(page, "Image")
   await page.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
   await page.getByText("Choice saved", { exact: true }).waitFor()
   await page.screenshot({ path: join(output, "connected-image.png") })
@@ -173,7 +192,9 @@ try {
   assert(await sourceReturn.isDisabled())
   // A missing declared source still has a meaningful return action and fallback.
   const missingSource = encodeURIComponent(JSON.stringify({ mode: "grid", collectionId: "removed-gallery" }))
-  await page.goto(`${preview.origin}/#/entity?entityId=${selected}&mode=inspect&collectionId=library&source=${missingSource}`)
+  await page.goto(
+    `${preview.origin}/#/entity?entityId=${selected}&mode=inspect&collectionId=library&source=${missingSource}`,
+  )
   await page.getByText("Entity unavailable in this list", { exact: true }).waitFor()
   assert(await sourceReturn.isEnabled())
   await sourceReturn.click()

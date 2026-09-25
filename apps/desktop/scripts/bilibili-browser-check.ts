@@ -1,3 +1,4 @@
+import { chooseContentView, hasContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { writeFile } from "node:fs/promises"
@@ -31,8 +32,7 @@ try {
       (await page.locator("#auxiliary-panel").getAttribute("aria-label")) !== "Overview"
     )
       await page.getByRole("button", { name: "Overview", exact: true }).click()
-    const use = page.getByRole("button", { name: "Use " + kind + " view", exact: true })
-    if (await use.count()) await use.click()
+    if (await hasContentView(page, kind)) await chooseContentView(page, kind)
     await page
       .locator(
         '[data-slot="entity-inspection"][data-view-id="' +
@@ -66,7 +66,7 @@ try {
   })
   await page.waitForFunction(() => document.querySelector("video")!.currentTime > 1.1)
   const embeddedTime = await video.evaluate((v: HTMLVideoElement) => v.currentTime)
-  await page.getByRole("button", { name: "Use Video view", exact: true }).click()
+  await chooseContentView(page, "Video")
   await ready()
   assert(await page.evaluate(() => {
     const old = (window as any).__bilibiliEmbedded as HTMLVideoElement
@@ -122,7 +122,7 @@ try {
       await page.getByText("Local video unavailable.", { exact: false }).waitFor()
     }
     if (["changed-cover", "missing-cover", "failed-cover"].includes(name)) {
-      await page.getByRole("button", { name: "Use Video view", exact: true }).click()
+      await chooseContentView(page, "Video")
       await page.waitForFunction(() => !!document.querySelector("video")?.poster)
       assert(await video.getAttribute("poster"), "Existing Video frame fallback")
     }

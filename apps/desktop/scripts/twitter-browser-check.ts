@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { chooseContentView, hasContentView } from "./content-view-choice.ts"
 import { join } from "node:path"
 import { writeFile } from "node:fs/promises"
 import { chromium } from "playwright"
@@ -36,8 +37,7 @@ try {
     await page.locator(`[role="gridcell"][id$="-${entry.entityId}"]`).dblclick()
     if (!await page.locator("#auxiliary-panel").count() || await page.locator("#auxiliary-panel").getAttribute("aria-label") !== "Overview")
       await page.getByRole("button", { name: "Overview", exact: true }).click()
-    const use = page.getByRole("button", { name: "Use Twitter view", exact: true })
-    if (await use.count()) await use.click()
+    if (await hasContentView(page, "Twitter")) await chooseContentView(page, "Twitter")
     await page.locator('[data-slot="entity-inspection"][data-view-id="twitter.read"]').waitFor()
     return entry
   }

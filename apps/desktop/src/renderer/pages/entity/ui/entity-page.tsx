@@ -19,7 +19,14 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/em
 import { Spinner } from "@/shared/ui/spinner"
 import { Skeleton } from "@/shared/ui/skeleton"
 import { Separator } from "@/shared/ui/separator"
-import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select"
 import { useSourceReturn } from "@/shared/source-return"
 import type { PlaybackCoordinator } from "@/features/video-playback"
 import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
@@ -247,6 +254,8 @@ export function EntityPage({
         event.altKey ||
         event.ctrlKey ||
         event.metaKey ||
+        (event.target instanceof Element &&
+          event.target.closest('[role="combobox"], [data-slot="select-content"]')) ||
         document.querySelector('[data-slot="dialog-content"][data-open]')
       )
         return
@@ -260,7 +269,7 @@ export function EntityPage({
     if (event.defaultPrevented || !viewing || event.altKey || event.ctrlKey || event.metaKey) return
     if (
       (event.target as HTMLElement).closest(
-        "input, textarea, select, video, [contenteditable=true], [role=separator], [role=slider], [data-slot=toggle-group], [data-slot=dialog-content]",
+        "input, textarea, select, video, [contenteditable=true], [role=separator], [role=slider], [role=combobox], [role=listbox], [data-slot=toggle-group], [data-slot=dialog-content]",
       )
     )
       return
@@ -308,35 +317,38 @@ export function EntityPage({
         />
       )}
       {!!views.length && (
-        <ToggleGroup
-          aria-label="Content view"
-          className="max-w-full flex-wrap"
-          variant="outline"
-          size="sm"
-          value={viewId ? [viewId] : []}
+        <Select
+          items={views.map((view) => ({ value: view.id, label: view.label }))}
+          value={viewId}
           disabled={live?.preferences.isSealed}
-          onValueChange={(values) => {
-            const value = values[0]
+          onValueChange={(value) => {
             if (value && value !== viewId) chooseView(value)
           }}
         >
-          {views.map((view) => {
-            const Icon = componentAppearance[view.kind].icon
-            return (
-              <ToggleGroupItem
-                key={view.id}
-                value={view.id}
-                aria-label={`Use ${view.label} view`}
-                onClick={() => {
-                  if (view.id === viewId) chooseView(view.id)
-                }}
-              >
-                <Icon data-icon="inline-start" />
-                {view.label}
-              </ToggleGroupItem>
-            )
-          })}
-        </ToggleGroup>
+          <SelectTrigger aria-label="Default view" className="w-full min-w-0">
+            <SelectValue placeholder="Choose a view" />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false}>
+            <SelectGroup>
+              {views.map((view) => {
+                const Icon = componentAppearance[view.kind].icon
+                return (
+                  <SelectItem
+                    key={view.id}
+                    value={view.id}
+                    aria-label={`Use ${view.label} view`}
+                    onClick={() => {
+                      if (view.id === viewId) chooseView(view.id)
+                    }}
+                  >
+                    <Icon data-icon="inline-start" />
+                    {view.label}
+                  </SelectItem>
+                )
+              })}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       )}
       {!views.length && (
         <p className="text-xs text-muted-foreground">
