@@ -43,18 +43,39 @@ try {
     return entry
   }
   const complete = await open("complete")
-  const originalCover = page.getByRole("img", { name: "Saved Bilibili original cover", exact: true })
-  await originalCover.waitFor()
+  const video = page.locator("video")
+  const ready = () => page.locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
+  await ready()
+  assert.equal(await video.evaluate((v: HTMLVideoElement) => v.paused), true, "Bilibili waits for manual play")
+  const originalCover = page.locator('img[alt="Saved Bilibili original cover"]')
+  await originalCover.waitFor({ state: "attached" })
   const originalCoverUrl = await originalCover.getAttribute("src")
+  assert.equal(await video.getAttribute("poster"), originalCoverUrl)
   assert.equal(
     await page.locator('[data-slot="entity-filmstrip"] [aria-current="true"] img').getAttribute("src"),
     originalCoverUrl,
     "Filmstrip uses the same qualified original cover as card presentation",
   )
   await page.screenshot({ path: join(output, "complete-source.png") })
+  await video.evaluate(async (v: HTMLVideoElement) => {
+    v.currentTime = 1
+    v.volume = 0.4
+    v.muted = true
+    ;(window as any).__bilibiliEmbedded = v
+    await v.play()
+  })
+  await page.waitForFunction(() => document.querySelector("video")!.currentTime > 1.1)
+  const embeddedTime = await video.evaluate((v: HTMLVideoElement) => v.currentTime)
   await page.getByRole("button", { name: "Use Video view", exact: true }).click()
-  const video = page.locator("video")
-  await video.waitFor()
+  await ready()
+  assert(await page.evaluate(() => {
+    const old = (window as any).__bilibiliEmbedded as HTMLVideoElement
+    return old.paused && !old.getAttribute("src") && !old.isConnected
+  }), "Leaving the embedded player releases its decoder")
+  const continued = await video.evaluate((v: HTMLVideoElement) => ({ time: v.currentTime, paused: v.paused, volume: v.volume, muted: v.muted }))
+  assert(continued.paused && Math.abs(continued.time - embeddedTime) < 0.5)
+  assert.equal(continued.volume, 0.4)
+  assert.equal(continued.muted, true)
   assert.equal(await video.getAttribute("poster"), originalCoverUrl, "Pre-play artwork uses the qualified original")
   await video.evaluate(async (element) => {
     const v = element as HTMLVideoElement
@@ -96,6 +117,10 @@ try {
     if (name === "source-only" || name === "partial-source")
       await page.getByRole("img", { name: "Saved Bilibili original cover", exact: true }).waitFor()
     else await page.getByText("Original cover unavailable", { exact: true }).waitFor()
+    if (["source-only", "partial-source", "locator-only"].includes(name)) {
+      assert.equal(await video.count(), 0, "An unassociated capture does not play another local File")
+      await page.getByText("Local video unavailable.", { exact: false }).waitFor()
+    }
     if (["changed-cover", "missing-cover", "failed-cover"].includes(name)) {
       await page.getByRole("button", { name: "Use Video view", exact: true }).click()
       await page.waitForFunction(() => !!document.querySelector("video")?.poster)
@@ -108,7 +133,7 @@ try {
     )
     await page.getByRole("button", { name: "Return to source", exact: true }).click()
   }
-  const recoverable = await open("recoverable-cover", "Video")
+  const recoverable = await open("recoverable-cover")
   await video.evaluate(async (element) => {
     const v = element as HTMLVideoElement
     if (v.readyState < 2)
@@ -134,7 +159,7 @@ try {
     true,
   )
   assert.equal(await video.evaluate((v) => (v as HTMLVideoElement).paused), true)
-  await page.getByRole("button", { name: "Use Bilibili view", exact: true }).click()
+  await page.getByText("Captured details", { exact: true }).click()
   await page.getByRole("img", { name: "Saved Bilibili original cover", exact: true }).waitFor()
   await page.screenshot({ path: join(output, "external-recovered-cover.png") })
   assert.equal(recovered.items[0].current.entity_id, recoverable.entityId)
@@ -154,8 +179,31 @@ try {
   await page.getByRole("button", { name: "Reread Entity", exact: true }).first().click()
   await page.getByRole("button", { name: "Retry original-cover display", exact: true }).waitFor()
   await page.getByRole("button", { name: "Retry original-cover display", exact: true }).click()
+  await page.getByText("Captured details", { exact: true }).click()
   await page.getByRole("img", { name: "Saved Bilibili original cover", exact: true }).waitFor()
   await page.screenshot({ path: join(output, "display-recovered.png") })
+  // The Source qualifier and the actual Video input must independently agree.
+  const sourcePath = "**/bilibili/" + complete.componentId + "/view"
+  for (const mismatch of ["changed", "different-video-input"] as const) {
+    await page.route(sourcePath, async (route) => {
+      const response = await route.fetch()
+      const body = await response.json()
+      const otherFile = data.entries.find((e) => e.name === "changed-cover")!.mainFile
+      body.applicability.comparison = mismatch === "changed"
+        ? { status: "changed", basis: complete.mainFile, current: otherFile }
+        : { status: "matching", file_id: otherFile }
+      if (mismatch === "different-video-input") body.record.basis = otherFile
+      await route.fulfill({ response, json: body })
+    })
+    await page.getByRole("button", { name: "Reread Entity", exact: true }).first().click()
+    await page.getByText("Local video unavailable.", { exact: false }).waitFor()
+    assert.equal(await video.count(), 0)
+    await page.getByRole("heading", { name: "Bilibili · complete", exact: true }).waitFor()
+    await page.unroute(sourcePath)
+    await page.getByRole("button", { name: "Reread Entity", exact: true }).first().click()
+    await ready()
+    assert.equal(await video.evaluate((v: HTMLVideoElement) => v.paused), true)
+  }
   await page.getByRole("button", { name: /^Tasks/ }).click()
   await page.getByRole("dialog", { name: "Tasks this run" }).waitFor()
   const dialog = page.getByRole("dialog", { name: "Tasks this run" })

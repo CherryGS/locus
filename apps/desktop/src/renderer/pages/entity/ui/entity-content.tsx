@@ -1,4 +1,4 @@
-import { BilibiliReading } from "@/entities/entity"
+import { BilibiliInspection } from "./bilibili-inspection"
 import { useLayoutEffect, useRef } from "react"
 import {
   EntityCard,
@@ -117,16 +117,7 @@ export function EntityContent({
           />
         )
       ) : viewId === "bilibili.read" && bilibili ? (
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="p-6">
-            <BilibiliReading
-              key={entity.id + ":" + bilibili.id}
-              component={bilibili}
-              onRetryCover={live ? () => live.reader.retryBilibiliCover(entity.id) : undefined}
-              onReread={live ? () => void live.reader.reread(entity.id) : undefined}
-            />
-          </div>
-        </ScrollArea>
+        <BilibiliInspection entity={entity} component={bilibili} live={live} />
       ) : viewId === "twitter.read" && twitter ? (
         <ScrollArea className="min-h-0 flex-1">
           <div className="p-6">

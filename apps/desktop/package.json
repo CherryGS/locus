@@ -31,7 +31,8 @@
     "verify:settings-browser": "tsx scripts/settings-browser-check.ts",
     "verify:settings-native": "tsx scripts/settings-electron-check.ts",
     "verify:civitai-browser": "tsx scripts/civitai-browser-check.ts",
-    "verify:bilibili-browser": "tsx scripts/bilibili-browser-check.ts"
+    "verify:bilibili-browser": "tsx scripts/bilibili-browser-check.ts",
+    "verify:bilibili-native": "tsx scripts/bilibili-electron-check.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",
