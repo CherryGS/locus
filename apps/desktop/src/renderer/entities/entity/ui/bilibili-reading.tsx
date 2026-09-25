@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { CalendarDaysIcon, ArchiveIcon, UserRoundIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyContent } from "@/shared/ui/empty"
 import { Skeleton } from "@/shared/ui/skeleton"
@@ -75,26 +76,43 @@ export function BilibiliReading({
               <SourceLink url={link}>View original submission</SourceLink>
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            {s.author?.profile_url ? (
-              <SourceLink url={s.author.profile_url}>
-                {s.author.display_name ?? s.author.user_id ?? "Captured author"}
-              </SourceLink>
-            ) : (
-              <span>{s.author?.display_name ?? (s.author?.user_id ? "Author " + s.author.user_id : "Author not captured")}</span>
-            )}
+          <dl aria-label="Submission metadata" className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+            <div className="flex min-w-0 items-center gap-2">
+              <dt className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
+                <UserRoundIcon className="size-3.5" aria-hidden="true" />Author
+              </dt>
+              <dd className="min-w-0 font-medium">
+                {s.author?.profile_url ? (
+                  <SourceLink url={s.author.profile_url}>
+                    {s.author.display_name ?? s.author.user_id ?? "Captured author"}
+                  </SourceLink>
+                ) : (
+                  <span>{s.author?.display_name ?? (s.author?.user_id ? "Author " + s.author.user_id : "Author not captured")}</span>
+                )}
+              </dd>
+            </div>
             {s.published_at_unix_ms != null && (
-              <span title={capturedTime(s.published_at_unix_ms)}>
-                Published {new Date(Number(s.published_at_unix_ms)).toLocaleDateString()}
-              </span>
+              <div className="flex items-center gap-2">
+                <dt className="flex items-center gap-1.5 text-muted-foreground">
+                  <CalendarDaysIcon className="size-3.5" aria-hidden="true" />Published
+                </dt>
+                <dd title={capturedTime(s.published_at_unix_ms)}>
+                  {new Date(Number(s.published_at_unix_ms)).toLocaleDateString()}
+                </dd>
+              </div>
             )}
             {/* Producer capture time is not a library admission timestamp. */}
             {s.observed_at_unix_ms != null && (
-              <span title={capturedTime(s.observed_at_unix_ms)}>
-                Captured {new Date(Number(s.observed_at_unix_ms)).toLocaleDateString()}
-              </span>
+              <div className="flex items-center gap-2">
+                <dt className="flex items-center gap-1.5 text-muted-foreground">
+                  <ArchiveIcon className="size-3.5" aria-hidden="true" />Captured
+                </dt>
+                <dd title={capturedTime(s.observed_at_unix_ms)}>
+                  {new Date(Number(s.observed_at_unix_ms)).toLocaleDateString()}
+                </dd>
+              </div>
             )}
-          </div>
+          </dl>
           {s.part && (
             <section aria-label="Selected part" className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>{s.part.number == null ? "Selected part" : "Part " + s.part.number}</span>
