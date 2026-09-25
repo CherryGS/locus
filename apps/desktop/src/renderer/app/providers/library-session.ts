@@ -4,6 +4,7 @@ import {
   ExternalTokenCoordinator,
   SettingsPreparationCoordinator,
 } from "@/features/settings"
+import { SettingsNavigation } from "./settings-navigation"
 import { PlaybackCoordinator } from "@/features/video-playback"
 import { BackendApi } from "@/shared/api"
 import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
@@ -42,6 +43,8 @@ export class DesktopSession {
   }
 }
 export class LibrarySession extends DesktopSession {
+  readonly settingsNavigation = new SettingsNavigation()
+  readonly browsing = new Map<string, import("@/pages/entity").EntityBrowsingState>()
   readonly relatedCollections = new Map<string, RelatedCollection>()
   readonly civitaiExcursions = new Map<string, CivitaiSelection>()
   readonly playback = new PlaybackCoordinator()

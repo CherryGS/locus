@@ -199,7 +199,7 @@ desktop-shared-tasks: server-fixture-build desktop-build
 
 # Real Video transfer, playback and native lifecycle with owned synthetic inputs.
 desktop-video-test: server-build server-fixture-build desktop-build
-    npm --prefix apps/desktop run verify:video
+    {{ npm }} --prefix apps/desktop run verify:video
 
 # Offline provider-owned snapshots; refuses an existing metadata database.
 server-twitter-fixture root video="":
@@ -216,6 +216,9 @@ server-settings-smoke: server-build client-check
     {{ npm }} --prefix packages/locus-client run smoke:settings
 
 # Actual Settings UI and bounded native full-restart verification on isolated libraries.
+desktop-settings-workspace: server-build server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:settings-workspace
+
 desktop-settings-browser: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:settings-browser
 

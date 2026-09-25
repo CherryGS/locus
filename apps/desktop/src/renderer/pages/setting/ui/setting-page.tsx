@@ -1,7 +1,12 @@
 import { useLibrarySession } from "@/app/providers/library-provider"
+import { useSyncExternalStore } from "react"
 import { SettingsPanel } from "@/features/settings"
 export function SettingPage() {
   const session = useLibrarySession()
+  useSyncExternalStore(
+    session?.settingsNavigation.subscribe ?? noSubscribe,
+    session?.settingsNavigation.snapshot ?? zero,
+  )
   if (!session)
     return (
       <section className="p-6">
@@ -11,6 +16,7 @@ export function SettingPage() {
     )
   return (
     <SettingsPanel
+      category={session.settingsNavigation.category}
       settings={session.settings}
       externalSettings={session.externalSettings}
       externalToken={session.externalToken}
@@ -18,3 +24,6 @@ export function SettingPage() {
     />
   )
 }
+
+const noSubscribe = () => () => {}
+const zero = () => 0

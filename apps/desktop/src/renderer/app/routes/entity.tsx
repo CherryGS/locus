@@ -1,6 +1,6 @@
 import { createFileRoute, useRouterState } from "@tanstack/react-router"
-import { EntityPage, entitySearch } from "@/pages/entity"
-import { useMemo, useSyncExternalStore } from "react"
+import { EntityPage, entitySearch, type EntityBrowsingState } from "@/pages/entity"
+import { useMemo, useRef, useSyncExternalStore } from "react"
 import { suppliedSequence, type EntityItem } from "@/entities/entity"
 import { useLibrarySession, specimenMode } from "../providers/library-provider"
 
@@ -29,6 +29,18 @@ function EntityRoute() {
     [data],
   )
   const navigate = Route.useNavigate()
+  const historyIndex = useRouterState({ select: (state) => state.location.state.__TSR_index })
+  const previousBrowsing = useRef<EntityBrowsingState | undefined>(undefined)
+  const browsing = useMemo(() => {
+    const key = String(historyIndex)
+    const state = session?.browsing.get(key) ?? {
+      panel: previousBrowsing.current?.panel,
+      panelWidth: previousBrowsing.current?.panelWidth,
+    }
+    session?.browsing.set(key, state)
+    previousBrowsing.current = state
+    return state
+  }, [session, historyIndex])
   const key = useRouterState({ select: (state) => state.location.state.__TSR_key ?? "initial" })
   return (
     <EntityPage
@@ -49,6 +61,7 @@ function EntityRoute() {
       collections={data.previewCollections}
       destination={Route.useSearch()}
       visitKey={key}
+      browsing={browsing}
       navigate={(search, replace) => {
         void navigate({ search, replace })
       }}

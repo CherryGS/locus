@@ -119,6 +119,31 @@ try {
   await page.keyboard.press("Escape")
   await page.getByRole("dialog", { name: "Tasks this run" }).waitFor({ state: "hidden" })
   assert.equal(page.url(), destination)
+  console.log("Video: Settings excursion pauses and restores the original visit")
+  const settingsDeparture = await state(page)
+  const videoVisit = await page.evaluate(() => history.state.__TSR_key)
+  await page.locator("video").evaluate((v: HTMLVideoElement) => {
+    ;(window as any).__settingsVideo = v
+  })
+  await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await page.getByRole("heading", { name: "External connection", exact: true }).waitFor()
+  assert.equal(await page.locator("video").count(), 0)
+  assert(
+    await page.evaluate(
+      () => (window as any).__settingsVideo.paused && !(window as any).__settingsVideo.getAttribute("src"),
+    ),
+  )
+  await page.getByRole("button", { name: "Media tools", exact: true }).click()
+  await page.getByRole("button", { name: "Return", exact: true }).click()
+  await ready(page)
+  const settingsReturn = await state(page)
+  assert.equal(page.url(), destination)
+  assert.equal(await page.evaluate(() => history.state.__TSR_key), videoVisit)
+  assert.equal(settingsReturn.src, settingsDeparture.src)
+  assert(settingsReturn.paused && settingsReturn.time >= settingsDeparture.time - 0.2)
+  assert.equal(settingsReturn.volume, settingsDeparture.volume)
+  assert.equal(settingsReturn.muted, settingsDeparture.muted)
+  await play(page)
   // Retain the old node only inside this test to observe release, not production.
   await page.locator("video").evaluate((v: HTMLVideoElement) => {
     ;(window as any).__departedVideo = v

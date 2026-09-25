@@ -7,12 +7,17 @@ import { createServer } from "node:net"
 import { once } from "node:events"
 import { join } from "node:path"
 import { _electron as electron, type ElectronApplication, type Page } from "playwright"
-import { fixture, desktop, binary, workspace, outputDirectory } from "./fixture.ts"
+import { fixture, desktop, workspace, outputDirectory } from "./fixture.ts"
+// Native startup checks require the production startup-failure protocol.
+// Fixture seeding remains under fixture.ts; explicit binary overrides still apply.
+const binary =
+  process.env.LOCUS_SERVER_BINARY ??
+  join(workspace, "target/debug", process.platform === "win32" ? "locus-server.exe" : "locus-server")
 const require = createRequire(import.meta.url),
   data = await fixture(),
   output = await outputDirectory("settings-native")
 const env = Object.fromEntries(
-  Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+  Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
 )
 delete env.ELECTRON_RUN_AS_NODE
 delete env.LOCUS_FFPROBE
@@ -43,6 +48,7 @@ async function launch(extra: Record<string, string> = {}) {
 async function settings(page: Page) {
   await page.getByRole("grid", { name: "Entities" }).waitFor()
   await page.getByRole("link", { name: "Setting", exact: true }).click()
+  await page.getByRole("button", { name: "Media tools", exact: true }).click()
   await page.waitForFunction(() => !(document.querySelector("#media-ffprobe") as HTMLInputElement)?.disabled)
 }
 async function close() {
@@ -82,7 +88,7 @@ async function sql(statement: string) {
       join(data.library, "metadata.sqlite"),
       statement,
     ],
-    { cwd: workspace, windowsHide: true }
+    { cwd: workspace, windowsHide: true },
   )
 }
 try {
@@ -91,13 +97,25 @@ try {
   const owner = await data.start()
   const before = (await owner.client.GET("/api/v1/external-access/token")).data
   assert(before?.status === "current")
-  const conflictLog = join(output, "library-conflict.json"), retryGate = join(output, "retry-library")
+  const conflictLog = join(output, "library-conflict.json"),
+    retryGate = join(output, "retry-library")
   let launchError: unknown
-  const launching = launchApplication({ LOCUS_TEST_LIBRARY_CONFLICT_LOG: conflictLog, LOCUS_TEST_LIBRARY_RETRY_GATE: retryGate }).catch(error => { launchError = error })
-  let conflict: { message: string; title: string; buttons: string[]; ready: boolean; ended: boolean } | undefined
+  const launching = launchApplication({
+    LOCUS_TEST_LIBRARY_CONFLICT_LOG: conflictLog,
+    LOCUS_TEST_LIBRARY_RETRY_GATE: retryGate,
+  }).catch((error) => {
+    launchError = error
+  })
+  let conflict:
+    | { message: string; title: string; buttons: string[]; ready: boolean; ended: boolean }
+    | undefined
   for (let count = 0; count < 1000 && !conflict; count++) {
     if (launchError) throw launchError
-    try { conflict = JSON.parse(await readFile(conflictLog, "utf8")) } catch { await new Promise(done => setTimeout(done, 20)) }
+    try {
+      conflict = JSON.parse(await readFile(conflictLog, "utf8"))
+    } catch {
+      await new Promise((done) => setTimeout(done, 20))
+    }
   }
   assert(conflict, "Duplicate startup did not report a native failure")
   assert.match(conflict.message, /library is already open in another Locus backend/)
@@ -114,11 +132,15 @@ try {
   const duplicatePage = await application!.firstWindow()
   duplicatePage.setDefaultTimeout(15000)
   await duplicatePage.getByRole("grid", { name: "Entities" }).waitFor()
-  const afterRetry = await duplicatePage.evaluate(async () => (await fetch("/api/v1/external-access/token")).json())
+  const afterRetry = await duplicatePage.evaluate(async () =>
+    (await fetch("/api/v1/external-access/token")).json(),
+  )
   assert(afterRetry.status === "current" && afterRetry.token === before.token)
   const retryChildren = await application!.evaluate(() => (globalThis as any).__desktopTest.children.length)
   assert.equal(retryChildren, 2)
-  checks.push("duplicate library startup shows native conflict without readiness; failed child ends before explicit retry; owner exit permits retry with retained Token")
+  checks.push(
+    "duplicate library startup shows native conflict without readiness; failed child ends before explicit retry; owner exit permits retry with retained Token",
+  )
   await close()
   const log = join(output, "restart.jsonl")
   let page = await launch({ LOCUS_TEST_RELAUNCH_LOG: log })
@@ -133,20 +155,25 @@ try {
   assert(addressInfo && typeof addressInfo !== "string")
   const savedAddress = `127.0.0.1:${addressInfo.port}`
   await new Promise<void>((resolve) => addressReservation.close(() => resolve()))
+  await page.getByRole("button", { name: "External connection", exact: true }).click()
   await page.getByLabel("Saved address", { exact: true }).fill(savedAddress)
   await page.getByRole("button", { name: "Save address", exact: true }).click()
   await page
     .getByRole("region", { name: "External connection", exact: true })
     .getByText("Saved · restart required", { exact: true })
     .waitFor()
+  await page.getByRole("button", { name: "Media tools", exact: true }).click()
   await page.getByLabel("ffmpeg", { exact: true }).fill("discard-me")
+  await page.getByRole("button", { name: "External connection", exact: true }).click()
   await page.getByLabel("Saved address", { exact: true }).fill("127.0.0.1:1")
   await page.getByRole("button", { name: "Restart application", exact: true }).click()
   await page.getByRole("button", { name: "Discard draft and restart", exact: true }).waitFor()
   const first = await page.evaluate(() => window.locusDesktop!.state())
   assert(first.close.phase === "unconfirmed")
   await page.getByRole("button", { name: "Return to Locus", exact: true }).click()
+  await page.getByRole("button", { name: "Media tools", exact: true }).click()
   assert.equal(await page.getByLabel("ffmpeg", { exact: true }).inputValue(), "discard-me")
+  await page.getByRole("button", { name: "External connection", exact: true }).click()
   assert.equal(await page.getByLabel("Saved address", { exact: true }).inputValue(), "127.0.0.1:1")
   await page.evaluate(
     (state) =>
@@ -155,7 +182,7 @@ try {
         revision: (state.close as any).revision,
         settingsRevision: (state.close as any).settings.revision,
       }),
-    first
+    first,
   )
   assert.equal((await page.evaluate(() => window.locusDesktop!.state())).close.phase, "idle")
   checks.push("draft return and stale canceled commit")
@@ -163,7 +190,7 @@ try {
   await page.getByRole("button", { name: "Discard draft and restart", exact: true }).waitFor()
   await page.screenshot({ path: join(output, "discard-confirmation.png") })
   await sql(
-    "CREATE TRIGGER settings_fixture_work BEFORE INSERT ON locus_entities BEGIN SELECT (WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<100000000) SELECT sum(x) FROM n); END"
+    "CREATE TRIGGER settings_fixture_work BEFORE INSERT ON locus_entities BEGIN SELECT (WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<100000000) SELECT sum(x) FROM n); END",
   )
   await page.evaluate(() => {
     ;(window as any).__acceptedSettingsFixture = fetch("/api/v1/entities", {
@@ -188,7 +215,7 @@ try {
   assert.equal(events.filter((event) => event.event === "relaunch").length, 1)
   assert(
     BigInt(events.find((event) => event.event === "drain").active) > 0n,
-    "Restart must drain real accepted SQLite work"
+    "Restart must drain real accepted SQLite work",
   )
   await sql("DROP TRIGGER settings_fixture_work")
   assert.equal(ready.length, 2)
@@ -209,10 +236,10 @@ try {
   assert.equal(ready[1].page.hash, "#/entity")
   assert.equal(ready[1].page.settingsFields, 0)
   checks.push(
-    "one actual replacement after real accepted-work drain and old host/backend exit; fresh run/credential/session; same library adopted saved values"
+    "one actual replacement after real accepted-work drain and old host/backend exit; fresh run/credential/session; same library adopted saved values",
   )
   checks.push(
-    "both groups' draft consent; saved external address applied after full restart; same retained shared Token and access context"
+    "both groups' draft consent; saved external address applied after full restart; same retained shared Token and access context",
   )
   // Hold a real committed Settings response. Restart preparation waits; return does not cancel it.
   page = await launch()
@@ -231,8 +258,9 @@ try {
     }
   })
   await page.reload()
+  await page.getByRole("button", { name: "External connection", exact: true }).click()
   await page.waitForFunction(
-    () => !(document.querySelector("#external-address") as HTMLInputElement)?.disabled
+    () => !(document.querySelector("#external-address") as HTMLInputElement)?.disabled,
   )
   await page.getByLabel("Saved address", { exact: true }).fill("127.0.0.1:46322")
   await page.getByRole("button", { name: "Save address", exact: true }).click()
@@ -261,12 +289,13 @@ try {
               error: { code: "invalid", message: "Test-owned rejected Settings save" },
             },
           }),
-          { status: 200, headers: { "content-type": "application/json" } }
+          { status: 200, headers: { "content-type": "application/json" } },
         )
       return original(request)
     }
   })
   await page.reload()
+  await page.getByRole("button", { name: "Media tools", exact: true }).click()
   await page.waitForFunction(() => !(document.querySelector("#media-ffprobe") as HTMLInputElement)?.disabled)
   await page.getByLabel("ffprobe", { exact: true }).fill("failed-draft")
   await page.getByRole("button", { name: "Save", exact: true }).click()
@@ -288,7 +317,7 @@ try {
       if (request.method === "PUT" && new URL(request.url).pathname.endsWith("/view-preference"))
         return new Response(
           JSON.stringify({ code: "invalid_request", message: "Test-owned rejected preference" }),
-          { status: 400, headers: { "content-type": "application/json" } }
+          { status: 400, headers: { "content-type": "application/json" } },
         )
       return original(request)
     }
@@ -333,7 +362,7 @@ try {
   application = undefined
   checks.push("lost drain response invalidates backend attribution without relaunch")
   await sql(
-    "UPDATE locus_settings_values SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'"
+    "UPDATE locus_settings_values SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'",
   )
   const repairLog = join(output, "repair-restart.jsonl")
   page = await launch({ LOCUS_TEST_RELAUNCH_LOG: repairLog })
@@ -344,11 +373,11 @@ try {
   await page.getByRole("button", { name: "Reset to defaults", exact: true }).click()
   await page.getByRole("button", { name: "Confirm reset", exact: true }).click()
   await page.waitForFunction(
-    () => (document.querySelector("#media-ffprobe") as HTMLInputElement).value === "ffprobe"
+    () => (document.querySelector("#media-ffprobe") as HTMLInputElement).value === "ffprobe",
   )
   assert.equal(
     (await page.evaluate(async () => (await fetch("/api/v1/server")).json())).availability.status,
-    "restricted"
+    "restricted",
   )
   const repairEnded = application!.waitForEvent("close")
   await page.getByRole("button", { name: "Retry application", exact: true }).click()
@@ -358,7 +387,7 @@ try {
   assert.equal(repairEvents.filter((event) => event.event === "ready").at(-1).availability.status, "normal")
   checks.push("restricted repair saves without business start; explicit retry produces normal replacement")
   await sql(
-    "UPDATE locus_settings_values SET revision='invalid' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'"
+    "UPDATE locus_settings_values SET revision='invalid' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'",
   )
   page = await launch()
   await page.getByText("Library needs attention", { exact: true }).waitFor()
@@ -405,7 +434,7 @@ try {
         LOCUS_TEST_DIALOG_RESPONSE: "1",
         LOCUS_TEST_DIALOG_LOG: missingLog,
       },
-    }
+    },
   )
   const missingDialog = JSON.parse(await readFile(missingLog, "utf8"))
   assert.deepEqual(missingDialog.options.buttons, ["Retry", "Exit Locus"])

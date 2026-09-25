@@ -30,20 +30,21 @@ try {
     await route.continue().catch(() => {})
   })
   await page.goto(`${preview.origin}/#/setting`)
+  await page.getByRole("button", { name: "Media tools", exact: true }).click()
   await page.getByLabel("ffprobe", { exact: true }).waitFor()
   await page.waitForFunction(() => !(document.querySelector("#media-ffprobe") as HTMLInputElement)?.disabled)
   assert.equal(await page.getByLabel("ffprobe", { exact: true }).inputValue(), "ffprobe")
   assert.equal(await page.getByText("Saved · restart required", { exact: true }).count(), 0)
   assert.equal(
     await page.getByText("Media did not start; active tool paths are unavailable.", { exact: true }).count(),
-    0
+    0,
   )
   await page.getByText("Reading the current runtime configuration…", { exact: true }).waitFor()
   releaseRuntime()
   await page.locator("dd").filter({ hasText: "explicit-environment-probe" }).waitFor()
   await page.unroute("**/api/v1/settings/media-runtime")
   await page.getByLabel("ffprobe", { exact: true }).fill("saved-probe")
-  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await page.getByRole("button", { name: /^(Return|Open Entity)$/ }).click()
   await page.getByRole("grid", { name: "Entities" }).waitFor()
   await page.getByRole("link", { name: "Setting", exact: true }).click()
   assert.equal(await page.getByLabel("ffprobe", { exact: true }).inputValue(), "saved-probe")
@@ -58,7 +59,7 @@ try {
   await page.getByRole("button", { name: "Reset to defaults", exact: true }).click()
   await page.getByRole("button", { name: "Confirm reset", exact: true }).click()
   await page.waitForFunction(
-    () => (document.querySelector("#media-ffprobe") as HTMLInputElement).value === "ffprobe"
+    () => (document.querySelector("#media-ffprobe") as HTMLInputElement).value === "ffprobe",
   )
   await page.getByRole("button", { name: "Restart application", exact: true }).click()
   await page
@@ -72,6 +73,7 @@ try {
   assert.equal(await page.locator(":focus").getAttribute("id"), "media-ffmpeg")
   await page.screenshot({ path: join(output, "narrow.png"), fullPage: true })
   await page.setViewportSize({ width: 1200, height: 800 })
+  await page.getByRole("button", { name: "External connection", exact: true }).click()
   const external = page.getByRole("region", { name: "External connection", exact: true })
   const token = page.getByRole("region", { name: "Shared Token", exact: true })
   const initialRuntime = (await backend.client.GET("/api/v1/external-access/runtime")).data!
@@ -85,7 +87,7 @@ try {
   // This adapter checks UI copy feedback, not the user's OS clipboard. The
   // production action still calls navigator.clipboard under the browser policy.
   await page.evaluate(
-    "Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText(value) { window.__settingsCopied = value } } })"
+    "Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText(value) { window.__settingsCopied = value } } })",
   )
   await token.getByRole("button", { name: "Copy Token", exact: true }).click()
   await token.getByText("Token copied.", { exact: true }).waitFor()
@@ -93,16 +95,16 @@ try {
     await page.evaluate(
       () =>
         (window as any).__settingsCopied ===
-        (document.querySelector("#external-token") as HTMLInputElement).value
-    )
+        (document.querySelector("#external-token") as HTMLInputElement).value,
+    ),
   )
   await page.evaluate(
-    "Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText() { throw new Error('isolated denied clipboard') } } })"
+    "Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText() { throw new Error('isolated denied clipboard') } } })",
   )
   await token.getByRole("button", { name: "Copy Token", exact: true }).click()
   await token.getByText("Token could not be copied. Reveal it to copy manually.", { exact: true }).waitFor()
   externalChecks.push(
-    "masked/revealed Token and copy success/failure feedback through an isolated clipboard adapter"
+    "masked/revealed Token and copy success/failure feedback through an isolated clipboard adapter",
   )
 
   let resets = 0
@@ -116,9 +118,9 @@ try {
   await token.getByText("Reset not confirmed", { exact: true }).waitFor()
   assert.equal(
     await token.getByRole("button", { name: "Reset shared Token", exact: true }).isDisabled(),
-    true
+    true,
   )
-  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await page.getByRole("button", { name: /^(Return|Open Entity)$/ }).click()
   await page.getByRole("grid", { name: "Entities" }).waitFor()
   await page.getByRole("link", { name: "Setting", exact: true }).click()
   await token.getByRole("button", { name: "Recover Token reset", exact: true }).click()
@@ -140,7 +142,7 @@ try {
   assert.equal(await token.getByRole("button", { name: "Copy Token", exact: true }).isDisabled(), true)
   assert.equal(
     await token.getByRole("button", { name: "Reset shared Token", exact: true }).isDisabled(),
-    true
+    true,
   )
   await page.unroute("**/api/v1/external-access/token")
   await token.getByRole("button", { name: "Read current Token", exact: true }).click()
@@ -155,14 +157,14 @@ try {
   assert(bound && typeof bound !== "string")
   const occupiedAddress = `127.0.0.1:${bound.port}`
   await page.getByLabel("Saved address", { exact: true }).fill(occupiedAddress)
-  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await page.getByRole("button", { name: /^(Return|Open Entity)$/ }).click()
   await page.getByRole("link", { name: "Setting", exact: true }).click()
   assert.equal(await page.getByLabel("Saved address", { exact: true }).inputValue(), occupiedAddress)
   await external.getByRole("button", { name: "Save address", exact: true }).click()
   await external.getByText("Saved · restart required", { exact: true }).waitFor()
   assert.equal(
     (await backend.client.GET("/api/v1/external-access/runtime")).data!.active_address,
-    initialRuntime.active_address
+    initialRuntime.active_address,
   )
   await page.screenshot({ path: join(output, "external-pending.png"), fullPage: true })
   await preview.close()
@@ -186,7 +188,7 @@ try {
   await new Promise<void>((resolve) => reservedPort!.close(() => resolve()))
   reservedPort = undefined
   externalChecks.push(
-    "address draft/navigation/save, unchanged active listener, occupied-port normal browsing, group default reset independent of Token"
+    "address draft/navigation/save, unchanged active listener, occupied-port normal browsing, group default reset independent of Token",
   )
   await preview.close()
   await backend.stop()
@@ -199,7 +201,7 @@ try {
       "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute(\"UPDATE locus_settings_values SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'\"); c.commit(); c.close()",
       join(data.library, "metadata.sqlite"),
     ],
-    { cwd: workspace, windowsHide: true }
+    { cwd: workspace, windowsHide: true },
   )
   backend = await data.start()
   preview = await browserPreview(backend)
@@ -214,13 +216,13 @@ try {
   assert.equal(await page.getByRole("button", { name: "Reset to defaults", exact: true }).isEnabled(), true)
   assert(
     !requests.some((path) => /entities|events|import-batches|tasks/.test(path)),
-    JSON.stringify(requests)
+    JSON.stringify(requests),
   )
   await page.screenshot({ path: join(output, "repair.png"), fullPage: true })
   await page.getByRole("button", { name: "Reset to defaults", exact: true }).click()
   await page.getByRole("button", { name: "Confirm reset", exact: true }).click()
   await page.waitForFunction(
-    () => (document.querySelector("#media-ffprobe") as HTMLInputElement).value === "ffprobe"
+    () => (document.querySelector("#media-ffprobe") as HTMLInputElement).value === "ffprobe",
   )
   assert.equal((await backend.client.GET("/api/v1/server")).data?.availability.status, "restricted")
   assert.deepEqual(errors, [])
@@ -243,8 +245,8 @@ try {
         ],
       },
       null,
-      2
-    )
+      2,
+    ),
   )
   console.log(JSON.stringify({ passed: true, output }))
 } finally {

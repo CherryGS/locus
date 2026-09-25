@@ -36,6 +36,7 @@ import {
 import { availableViews, resolveView } from "../model/content-views"
 import { EntityContent } from "./entity-content"
 import { EntityFilmstrip } from "./entity-filmstrip"
+import type { EntityBrowsingState } from "../model/browsing-state"
 import { EntityWorkspace } from "./entity-workspace"
 import { EntityProblems } from "./entity-problems"
 
@@ -44,6 +45,7 @@ export function EntityPage({
   collections: suppliedCollections,
   destination,
   visitKey,
+  browsing,
   navigate,
   live,
 }: {
@@ -51,6 +53,7 @@ export function EntityPage({
   collections: readonly RelatedCollection[]
   destination: EntityDestination
   visitKey: string
+  browsing?: EntityBrowsingState
   navigate: (destination: EntityDestination, replace?: boolean) => void
   live?: {
     reader: EntityReader
@@ -143,8 +146,24 @@ export function EntityPage({
     (!relationship?.ready || relationship.id !== selected?.id)
   const viewing = destination.mode === "inspect"
   const [previewChoices, setPreviewChoices] = useState<ReadonlyMap<string, string>>(() => new Map())
-  const [override, setOverride] = useState<{ entityId: string; viewId: string } | null>(null)
-  const [explanation, setExplanation] = useState<string>()
+  const [override, setOverride] = useState<{ entityId: string; viewId: string } | null>(
+    browsing?.override ?? null,
+  )
+  const [explanation, setExplanation] = useState<string | undefined>(browsing?.explanation)
+  const departure = useRef({ browsing, override, explanation })
+  departure.current = { browsing, override, explanation }
+  useEffect(
+    () => () => {
+      // Retain the departing page only. Ordinary within-Entity navigation keeps
+      // its existing override/source-return and history-reset semantics.
+      const { browsing, override, explanation } = departure.current
+      if (browsing) {
+        browsing.override = override
+        browsing.explanation = explanation
+      }
+    },
+    [],
+  )
   const currentVisit = useRef(visitKey)
   currentVisit.current = visitKey
   const preference = selected && live ? live.preferences.get(selected.id) : undefined
@@ -556,6 +575,7 @@ export function EntityPage({
       )}
       <Separator />
       <EntityWorkspace
+        browsing={browsing}
         source={source}
         selectedEntity={selected}
         viewing={viewing}

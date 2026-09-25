@@ -41,6 +41,8 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 
 ## General rules
 
+- For UI appearance and usability polish, iterate directly in the application with proportionate verification. Do not start the design/implementation planning, subagent review, or separate acceptance gates unless the user explicitly requests that workflow.
+- Iterate user-facing UI in the actual application by default, using its real renderer and behavior. Use isolated libraries for verification; create a separate mock UI only when the user explicitly asks for one.
 - Verify renderer UI in an isolated in-app browser or a headless browser by default, using `just desktop-ui`. Avoid taking over the user's desktop pointer or focus for browser-testable behavior. Reserve native desktop automation for concrete Electron/OS integration checks and explain the need before using it.
 - Keep implementation natural and simple. Record speculative edge cases and potential requirements as observations; introduce behavioral barriers, quotas or policy mechanisms only for concrete observed needs or settled contracts. Unmeasured hypothetical resource growth alone does not justify blocking ordinary use.
 - Keep files that serve as module indexes or aggregation roots limited to module declarations, API re-exports, and dependency or composition wiring. Put product and domain behavior in the modules they expose.

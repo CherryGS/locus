@@ -6,6 +6,7 @@ import { Empty, EmptyDescription, EmptyHeader } from "@/shared/ui/empty"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/shared/ui/resizable"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Separator } from "@/shared/ui/separator"
+import type { EntityBrowsingState } from "../model/browsing-state"
 import { EntityGrid } from "./entity-grid"
 import { minimumEntityGridWidth } from "./entity-grid-layout"
 import { entityPanels, type EntityPanelId } from "./entity-panels"
@@ -14,6 +15,7 @@ import { XIcon } from "lucide-react"
 
 export function EntityWorkspace({
   source,
+  browsing,
   selectedEntity,
   viewing,
   onSelect,
@@ -25,6 +27,7 @@ export function EntityWorkspace({
   gridFeedback,
 }: {
   source: EntitySource
+  browsing?: EntityBrowsingState
   selectedEntity: EntityItem | null
   viewing: boolean
   onSelect: (entity: EntityItem) => void
@@ -35,7 +38,14 @@ export function EntityWorkspace({
   onReread?: () => void
   gridFeedback?: ReactNode
 }) {
-  const [activePanelId, setActivePanelId] = useState<EntityPanelId | null>(null)
+  const [localBrowsing] = useState<EntityBrowsingState>({})
+  const retained = browsing ?? localBrowsing
+  const [, redraw] = useState(0)
+  const activePanelId = retained.panel ?? null
+  const setActivePanelId = (id: EntityPanelId | null) => {
+    retained.panel = id
+    redraw((value) => value + 1)
+  }
   const panelTriggers = useRef(new Map<string, HTMLButtonElement>())
   const panels = entityPanels(selectedEntity, viewSelection, {
     feedback: overviewFeedback,
@@ -49,10 +59,10 @@ export function EntityWorkspace({
   const missingPanel = activePanelId !== null && !panels.some((panel) => panel.id === activePanelId)
   const activePanel =
     activePanelId === null ? null : (panels.find((panel) => panel.id === activePanelId) ?? panels[0])
-  const [panelDefaultWidth, setPanelDefaultWidth] = useState(256)
+  const [panelDefaultWidth, setPanelDefaultWidth] = useState(retained.panelWidth ?? 256)
   // Keep the mounted split pane's default stable during a drag; restore its
   // last live width only when reopening it.
-  const lastPanelWidth = useRef(256)
+  const lastPanelWidth = useRef(retained.panelWidth ?? 256)
   const reduceMotion = useReducedMotion()
 
   useEffect(() => {
@@ -80,6 +90,10 @@ export function EntityWorkspace({
               (source.sequence.length > 0 ? (
                 <EntityGrid
                   source={source}
+                  position={retained.grid}
+                  onPosition={(position) => {
+                    retained.grid = position
+                  }}
                   selectedId={selectedEntity?.id}
                   onSelect={onSelect}
                   onOpen={onOpen}
@@ -106,6 +120,7 @@ export function EntityWorkspace({
               groupResizeBehavior="preserve-pixel-size"
               onResize={({ inPixels }) => {
                 lastPanelWidth.current = inPixels
+                retained.panelWidth = inPixels
               }}
             >
               <motion.aside

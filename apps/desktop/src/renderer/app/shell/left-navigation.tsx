@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FocusEvent } from "react"
-import { Link } from "@tanstack/react-router"
+import { Link, useRouterState } from "@tanstack/react-router"
 import { HomeIcon, LayoutGridIcon, SettingsIcon } from "lucide-react"
 import { motion, useReducedMotion } from "motion/react"
 import { cn } from "@/shared/lib/utils"
 import { buttonVariants } from "@/shared/ui/button"
+import { SettingsNavigation, useSettingsWorkspace } from "./settings-navigation"
 import { Separator } from "@/shared/ui/separator"
 
 const collapsedWidth = 48
@@ -18,6 +19,11 @@ const navigation = [
 ] as const
 
 export function LeftNavigation() {
+  const settings = useRouterState({ select: (state) => state.location.pathname === "/setting" })
+  const { external, media } = useSettingsWorkspace()
+  const settingsStatus = [external && `External connection: ${external}`, media && `Media tools: ${media}`]
+    .filter(Boolean)
+    .join("; ")
   const [revealed, setRevealed] = useState(false)
   const nav = useRef<HTMLElement>(null)
   const pointerInside = useRef(false)
@@ -41,8 +47,7 @@ export function LeftNavigation() {
     window.clearTimeout(revealTimer.current)
     window.clearTimeout(concealTimer.current)
     concealTimer.current = window.setTimeout(() => {
-      const focusedByKeyboard = keyboardFocus.current
-        && nav.current?.contains(document.activeElement)
+      const focusedByKeyboard = keyboardFocus.current && nav.current?.contains(document.activeElement)
       if (!pointerInside.current && !focusedByKeyboard) setRevealed(false)
     }, concealDelay)
   }
@@ -76,34 +81,48 @@ export function LeftNavigation() {
   }
 
   return (
-    // Reveal extends over the main area without changing its width, using the
-    // same mounted links and fixed icon positions.
-    <div className="relative z-10 w-12 shrink-0">
+    // Browsing reveals an overlay; Settings reserves the expanded width.
+    // Keep this surface mounted so both transitions share geometry and motion.
+    <motion.div
+      className="relative z-10 shrink-0"
+      initial={false}
+      animate={{ width: settings ? expandedWidth : collapsedWidth }}
+      transition={transition}
+    >
       <motion.nav
         ref={nav}
         id="primary-navigation"
-        aria-label="Main navigation"
+        aria-label={settings ? "Settings categories" : "Main navigation"}
         className="absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden bg-sidebar p-2"
         initial={false}
-        animate={{ width: revealed ? expandedWidth : collapsedWidth }}
+        animate={{ width: settings || revealed ? expandedWidth : collapsedWidth }}
         transition={transition}
         onPointerEnter={enter}
         onPointerLeave={leave}
-        onPointerDownCapture={() => { keyboardFocus.current = false }}
+        onPointerDownCapture={() => {
+          keyboardFocus.current = false
+        }}
         onFocusCapture={focus}
         onBlurCapture={blur}
       >
-        {navigation.map(({ to, label, icon: Icon }) => (
+        {settings ? (
+          <SettingsNavigation itemClassName={linkLayout} />
+        ) : navigation.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
             aria-label={label}
+            aria-describedby={to === "/setting" && settingsStatus ? "settings-navigation-status" : undefined}
+            title={to === "/setting" && settingsStatus ? settingsStatus : label}
             activeOptions={{ exact: true }}
             activeProps={{ className: cn(buttonVariants({ variant: "secondary" }), linkLayout) }}
             inactiveProps={{ className: cn(buttonVariants({ variant: "ghost" }), linkLayout) }}
           >
             <span className="flex size-8 shrink-0 items-center justify-center">
               <Icon data-icon="inline-start" />
+              {to === "/setting" && settingsStatus && (
+                <span aria-hidden="true" className="absolute ml-5 mt-5 size-1.5 rounded-full bg-primary" />
+              )}
             </span>
             <motion.span
               aria-hidden="true"
@@ -116,8 +135,13 @@ export function LeftNavigation() {
             </motion.span>
           </Link>
         ))}
+        {!settings && settingsStatus && (
+          <span id="settings-navigation-status" className="sr-only">
+            {settingsStatus}
+          </span>
+        )}
         <Separator orientation="vertical" className="absolute inset-y-0 right-0" />
       </motion.nav>
-    </div>
+    </motion.div>
   )
 }

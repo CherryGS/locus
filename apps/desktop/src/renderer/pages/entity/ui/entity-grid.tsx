@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Keyb
 import { EntityCard, type EntityItem, type EntitySource } from "@/entities/entity"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { entityGridLayout } from "./entity-grid-layout"
+import { restoreGridPosition, type GridPosition } from "../model/browsing-state"
 import { scrollMapping } from "../model/scroll-mapping"
 
 const {
@@ -15,12 +16,16 @@ const {
 const stride = rowHeight + gap
 export function EntityGrid({
   source,
+  position,
+  onPosition,
   selectedId,
   onSelect,
   onOpen,
   revealSelectionOnMount,
 }: {
   source: EntitySource
+  position?: GridPosition
+  onPosition?: (position: GridPosition) => void
   selectedId?: string
   onSelect: (entity: EntityItem) => void
   onOpen: (entity: EntityItem) => void
@@ -28,7 +33,8 @@ export function EntityGrid({
 }) {
   const { sequence, get, demand } = source
   const viewport = useRef<HTMLDivElement>(null)
-  const reveal = useRef(revealSelectionOnMount)
+  const restore = useRef(position)
+  const reveal = useRef(revealSelectionOnMount && !position)
   const gridId = useId()
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [scroll, setScroll] = useState(0)
@@ -49,8 +55,9 @@ export function EntityGrid({
   const visible = Array.from({ length: Math.max(0, last - first + 1) }, (_, index) => first + index)
   if (selectedRow >= 0 && !visible.includes(selectedRow)) visible.push(selectedRow)
   const ids = visible.flatMap((row) =>
-    Array.from({ length: Math.min(columns, sequence.length - row * columns) }, (_, column) =>
-      sequence.at(row * columns + column)!,
+    Array.from(
+      { length: Math.min(columns, sequence.length - row * columns) },
+      (_, column) => sequence.at(row * columns + column)!,
     ),
   )
   const demandKey = ids.join(",")
@@ -104,6 +111,15 @@ export function EntityGrid({
     return () => observer.disconnect()
   }, [sequence])
   useLayoutEffect(() => {
+    if (restore.current && size.width && size.height && sequence.length) {
+      const target = restoreGridPosition(restore.current, sequence, columns, stride)
+      restore.current = undefined
+      anchor.current = undefined
+      if (viewport.current) {
+        viewport.current.scrollTop = mapping.physical(target)
+        setScroll(viewport.current.scrollTop)
+      }
+    }
     if (anchor.current !== undefined && size.width) {
       scrollToRow(Math.floor(anchor.current / columns), true)
       anchor.current = undefined
@@ -113,7 +129,7 @@ export function EntityGrid({
       if (selectedRow >= 0) scrollToRow(selectedRow)
       viewport.current?.focus({ preventScroll: true })
     }
-  }, [columns, size.width])
+  }, [columns, size.width, size.height, sequence])
   useEffect(() => {
     const element = viewport.current
     if (!element) return
@@ -194,7 +210,14 @@ export function EntityGrid({
         tabIndex: 0,
         className: "[overflow-anchor:none]",
         onKeyDown: navigate,
-        onScroll: (event) => setScroll(event.currentTarget.scrollTop),
+        onScroll: (event) => {
+          const physical = event.currentTarget.scrollTop
+          setScroll(physical)
+          if (restore.current || !size.width || !sequence.length) return
+          const logical = mapping.logical(physical)
+          const row = Math.max(0, Math.floor(logical / stride))
+          onPosition?.({ anchor: sequence.at(row * columns), offset: logical - row * stride, logical })
+        },
       }}
     >
       <div

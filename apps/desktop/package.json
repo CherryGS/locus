@@ -27,6 +27,7 @@
     "verify:twitter-native": "tsx scripts/twitter-electron-check.ts",
     "verify:video": "tsx scripts/video-electron-check.ts",
     "verify:scale": "tsx scripts/renderer-scale.ts",
+    "verify:settings-workspace": "tsx scripts/settings-workspace-check.ts",
     "verify:settings-browser": "tsx scripts/settings-browser-check.ts",
     "verify:settings-native": "tsx scripts/settings-electron-check.ts",
     "verify:civitai-browser": "tsx scripts/civitai-browser-check.ts",
