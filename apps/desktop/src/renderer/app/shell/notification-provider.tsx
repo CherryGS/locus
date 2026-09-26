@@ -62,7 +62,12 @@ function NotificationState({ children }: { children: ReactNode }) {
     >
       {children}
       <ToastPortal>
-        <ToastViewport className="bottom-11" style={open ? { visibility: "hidden" } : undefined}>
+        <ToastViewport
+          className="bottom-11"
+          inert={open}
+          aria-hidden={open || undefined}
+          style={open ? { visibility: "hidden" } : undefined}
+        >
           <ToastList />
         </ToastViewport>
       </ToastPortal>

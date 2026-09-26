@@ -6,16 +6,18 @@ import { setTimeout as delay } from "node:timers/promises"
 import { fixturePng } from "../../../packages/locus-client/smoke-png.ts"
 import { startServer, workspace } from "./fixture.ts"
 import { browserPreview } from "./browser-preview.ts"
+import { notificationPreviewRenderer } from "./notification-preview-renderer.ts"
 
 // Deliberately ignore LOCUS_DATA_DIR: review tasks must not enter a user's library.
-const root = join(workspace, "target", "task-panel-sample")
+const examples = process.argv.includes("--notifications")
+const root = join(workspace, "target", examples ? "notification-sample" : "task-panel-sample")
 const library = join(root, "library")
 await mkdir(root, { recursive: true })
 const photo = join(root, "landscape.png")
 const notes = join(root, "reference-notes.txt")
 await writeFile(photo, fixturePng(960, 540))
 await writeFile(notes, "Task panel review: retained sample library.\n")
-const backend = await startServer(library)
+const backend = await startServer(library, examples ? await notificationPreviewRenderer() : undefined)
 let preview: Awaited<ReturnType<typeof browserPreview>> | undefined
 let closing = false
 async function stop() {
@@ -55,7 +57,9 @@ try {
   const info = {
     preview: `${preview.origin}/#/entity`,
     library,
-    mode: "isolated task review; records regenerated each run",
+    mode: examples
+      ? "isolated notification examples; use Show examples"
+      : "isolated task review; records regenerated each run",
   }
   await writeFile(join(root, "connection.json"), JSON.stringify(info, null, 2))
   console.log(JSON.stringify(info))

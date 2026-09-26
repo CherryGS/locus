@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.web.json",
   "compilerOptions": { "types": ["node", "vite/client"], "composite": false },
-  "include": ["scripts/**/*.ts", "src/shared/**/*.ts", "src/renderer/app/providers/library-session.ts"]
+  "include": ["scripts/**/*.ts", "scripts/**/*.tsx", "src/shared/**/*.ts", "src/renderer/app/providers/library-session.ts"]
 }

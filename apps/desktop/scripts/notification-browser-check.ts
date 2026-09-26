@@ -31,6 +31,10 @@ try {
   await page.getByRole("link", { name: "View original post", exact: true }).click()
   await page.locator('[data-slot="toast"]').getByText("Couldn't open link", { exact: true }).waitFor()
   await page.getByRole("button", { name: "Notifications · 1 unread", exact: true }).waitFor()
+  await trigger.click()
+  await inbox.getByRole("button", { name: "Retry opening link", exact: true }).waitFor()
+  assert.equal(await page.locator('[data-slot="toast-viewport"]').getAttribute("inert"), "")
+  await page.keyboard.press("Escape")
   // Let the normal timeout dismiss the transient toast; history must outlive it.
   await page.locator('[data-slot="toast"]').waitFor({ state: "detached" })
   await trigger.click()
@@ -43,6 +47,10 @@ try {
   await trigger.click()
   await inbox.getByText("Couldn't open link", { exact: true }).waitFor()
   await page.setViewportSize({ width: 720, height: 480 })
+  await page.waitForFunction(() => {
+    const box = document.querySelector('[data-slot="popover-content"]')?.getBoundingClientRect()
+    return box && box.x >= 0 && box.y >= 0 && box.right <= innerWidth && box.bottom <= innerHeight
+  })
   const box = await inbox.boundingBox()
   assert(box && box.x >= 0 && box.y >= 0 && box.x + box.width <= 720 && box.y + box.height <= 480)
   await inbox.getByRole("button", { name: "Clear all", exact: true }).click()

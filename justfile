@@ -169,6 +169,10 @@ desktop-ui: server-build server-fixture-build desktop-build
 desktop-task-preview: server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run preview:tasks
 
+# Actual application with a preview-only notification example control.
+desktop-notification-preview: server-fixture-build
+    {{ npm }} --prefix apps/desktop run preview:notifications
+
 desktop-preview: server-build desktop-build
     {{ npm }} --prefix apps/desktop start
 

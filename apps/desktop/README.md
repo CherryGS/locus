@@ -99,6 +99,12 @@ The script recreates real tasks on each run, since tasks are run-local. It prese
 the sample files/library on exit and never uses `LOCUS_DATA_DIR` to choose a seed target.
 For a separate desktop UI session, stop the preview before pointing `LOCUS_DATA_DIR`
 at that sample library; opening its database alone does not restore task records.
+
+`just desktop-notification-preview` adds a preview-only **Show examples** control
+to the actual application. It demonstrates success, info, warning, retry and
+loading-to-success toasts, all labeled **Example**. Its separate renderer/library
+live in `target/notification-sample`; none of these examples enter production builds.
+
 Evidence JSON/screenshots go into `target/desktop-*`; set `LOCUS_VERIFY_OUTPUT`
 for an explicit output directory.
 
