@@ -216,6 +216,8 @@ const createToastManager = ToastPrimitive.createToastManager
 const useToastManager = ToastPrimitive.useToastManager
 
 export {
+  ToastList,
+  ToastIcon,
   Toaster,
   Toast,
   ToastAction,

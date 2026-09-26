@@ -21,6 +21,7 @@
     "verify:import-browser": "tsx scripts/import-browser-check.ts",
     "verify:import-native": "tsx scripts/import-electron-check.ts",
     "verify:shared-tasks": "tsx scripts/shared-task-browser-check.ts",
+    "verify:notifications": "tsx scripts/notification-browser-check.ts",
     "verify:browser": "tsx scripts/browser-check.ts",
     "verify:electron": "tsx scripts/electron-smoke.ts && tsx scripts/electron-close-check.ts",
     "verify:model-browser": "tsx scripts/model-browser-check.ts",

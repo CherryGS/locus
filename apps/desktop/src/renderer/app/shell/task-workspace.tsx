@@ -10,13 +10,19 @@ import type { DialogRootActions } from "@base-ui/react/dialog"
 import { useLibrarySession } from "../providers/library-provider"
 import type { LibrarySession } from "../providers/library-session"
 import { useImportView } from "./use-import-view"
+import { NotificationCenter } from "./notification-center"
 
 export function TaskWorkspace({ children }: { children: ReactNode }) {
   const session = useLibrarySession()
   return session ? (
     <ConnectedWorkspace session={session}>{children}</ConnectedWorkspace>
   ) : (
-    <div className="flex min-h-0 flex-1">{children}</div>
+    <>
+      <div className="flex min-h-0 flex-1">{children}</div>
+      <footer aria-label="Application footer" className="flex shrink-0 justify-end border-t bg-sidebar px-2">
+        <NotificationCenter />
+      </footer>
+    </>
   )
 }
 function ConnectedWorkspace({ session, children }: { session: LibrarySession; children: ReactNode }) {
@@ -108,6 +114,9 @@ function ConnectedWorkspace({ session, children }: { session: LibrarySession; ch
           {attention ? ` · ${attention} need attention` : ""}
           {problem ? " · feedback needs attention" : ""}
         </DialogTrigger>
+        <div className="ml-auto">
+          <NotificationCenter />
+        </div>
       </footer>
     </Dialog>
   )
