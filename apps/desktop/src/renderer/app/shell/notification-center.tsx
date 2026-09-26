@@ -31,14 +31,13 @@ export function NotificationCenter() {
         side="top"
         align="end"
         sideOffset={10}
-        className="w-96 max-w-[calc(100vw-1rem)] gap-0 overflow-hidden p-0"
+        className="w-96 max-w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0"
       >
-        <div className="flex items-start gap-3 p-4">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-center gap-2 px-4 py-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <PopoverTitle>Notifications</PopoverTitle>
-            <PopoverDescription>
-              This session{records.length ? ` · ${records.length}` : ""}
-            </PopoverDescription>
+            {records.length > 0 && <Badge variant="secondary">{records.length}</Badge>}
+            <PopoverDescription className="sr-only">Notices from this session.</PopoverDescription>
           </div>
           {records.length > 0 && (
             <Button variant="ghost" size="sm" onClick={clear}>
@@ -57,13 +56,13 @@ export function NotificationCenter() {
         <Separator />
         <div className="max-h-[min(28rem,60dvh)] overflow-y-auto overscroll-contain">
           {records.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <BellIcon />
-                </EmptyMedia>
+            <Empty className="flex-row justify-start gap-3 p-4 text-left">
+              <EmptyMedia className="mb-0">
+                <BellIcon />
+              </EmptyMedia>
+              <EmptyHeader className="items-start gap-1">
                 <EmptyTitle>No notifications yet</EmptyTitle>
-                <EmptyDescription>Recent notices stay here after their toast disappears.</EmptyDescription>
+                <EmptyDescription>Recent notices will appear here.</EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : (
@@ -78,25 +77,31 @@ export function NotificationCenter() {
                     <span className="mt-0.5">
                       <ToastIcon type={item.type ?? "info"} />
                     </span>
-                    <div className="flex min-w-0 flex-1 flex-col gap-2">
-                      <div className="text-sm font-medium [overflow-wrap:anywhere]">{item.title}</div>
-                      {item.description && (
-                        <div className="text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
-                          {item.description}
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="flex items-baseline gap-2">
+                        <div className="min-w-0 flex-1 text-sm font-medium [overflow-wrap:anywhere]">
+                          {item.title}
                         </div>
-                      )}
-                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <time
                           dateTime={new Date(item.receivedAt).toISOString()}
-                          className="text-xs text-muted-foreground"
+                          className="shrink-0 text-xs text-muted-foreground"
                         >
                           {new Date(item.receivedAt).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
                         </time>
-                        {live?.actionProps && <Button variant="outline" size="sm" {...live.actionProps} />}
                       </div>
+                      {item.description && (
+                        <div className="text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+                          {item.description}
+                        </div>
+                      )}
+                      {live?.actionProps && (
+                        <div className="mt-1">
+                          <Button variant="outline" size="sm" {...live.actionProps} />
+                        </div>
+                      )}
                     </div>
                     <Button
                       variant="ghost"
