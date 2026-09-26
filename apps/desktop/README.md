@@ -91,6 +91,14 @@ entry that intercepts native dialogs before importing the actual production host
 
 `just desktop-install` installs the pinned npm package and Electron.
 `just desktop-browser-install` installs pinned Playwright Chromium.
+
+`just desktop-task-preview` opens a live task-panel review with completed and
+incomplete imports. Its stable sample library is `target/task-panel-sample/library`;
+the preview URL and library path are written to `target/task-panel-sample/connection.json`.
+The script recreates real tasks on each run, since tasks are run-local. It preserves
+the sample files/library on exit and never uses `LOCUS_DATA_DIR` to choose a seed target.
+For a separate desktop UI session, stop the preview before pointing `LOCUS_DATA_DIR`
+at that sample library; opening its database alone does not restore task records.
 Evidence JSON/screenshots go into `target/desktop-*`; set `LOCUS_VERIFY_OUTPUT`
 for an explicit output directory.
 

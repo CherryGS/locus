@@ -67,6 +67,7 @@ export function taskRecords(
   }
   for (const value of c.batches) {
     const record = batch(value.batch_id)
+    record.searchText = value.items.map((item) => item.source_path).join(" ")
     record.label = value.items.some((item) => item.supplied)
       ? `Import ${value.items.length} ${value.items.length === 1 ? "item" : "items"}`
       : `Import ${value.items.length} ${value.items.length === 1 ? "file" : "files"}`
@@ -81,7 +82,14 @@ export function taskRecords(
     const attention = value.items.filter((item) => !item.active_request_id && !item.current.complete).length
     const stale = value.items.some((item) => item.active_request_id && ended.has(item.active_request_id))
     record.attention = attention > 0 || !!c.problem || record.attempts.some((attempt) => !!attempt.problem)
-    record.summary = `${complete} complete - ${attention} need attention${active ? ` - ${active} processing` : ""}${c.problem || stale ? " - last known details" : ""}`
+    record.summary = [
+      `${complete} complete`,
+      attention ? `${attention} need attention` : undefined,
+      active ? `${active} processing` : undefined,
+      c.problem || stale ? "Last known details" : undefined,
+    ]
+      .filter(Boolean)
+      .join(" · ")
   }
   for (const submission of c.submissions.values()) {
     const observed = [...observer.records.values()].find(
@@ -99,6 +107,7 @@ export function taskRecords(
         : submission.body.batch_id,
       "source_paths" in submission.body ? submission.body.request_id : undefined,
     )
+    if ("source_paths" in submission.body) record.searchText = submission.body.source_paths.join(" ")
     const known = record.attempts.find(
       (attempt) =>
         attempt.task.access_context === "desktop" && attempt.task.request_id === submission.body.request_id,

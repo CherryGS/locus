@@ -31,6 +31,7 @@ export type FeedbackRecord = {
   id: string
   label: string
   summary: string
+  searchText?: string
   active: boolean
   attention: boolean
   attempts: TaskObservation[]
@@ -169,6 +170,7 @@ function RecordDetails({
     <div className="flex min-w-0 flex-col gap-6 p-5 sm:p-6">
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
+          <h2 className="min-w-0 flex-1 break-words text-lg font-semibold tracking-tight">{record.label}</h2>
           {record.active && (
             <Badge variant="secondary">
               <Spinner data-icon="inline-start" />
@@ -188,7 +190,6 @@ function RecordDetails({
             </Badge>
           )}
         </div>
-        <h2 className="text-lg font-semibold tracking-tight">{record.label}</h2>
         <p className="break-words text-sm leading-relaxed text-muted-foreground">{record.summary}</p>
       </header>
       {record.details ? (
@@ -282,7 +283,10 @@ export function TaskPanel({
         (filter === "active" && record.active) ||
         (filter === "attention" && record.attention) ||
         (filter === "finished" && !record.active && !record.attention)) &&
-      (!query || `${record.label} ${record.summary} ${record.id}`.toLocaleLowerCase().includes(query)),
+      (!query ||
+        `${record.label} ${record.summary} ${record.id} ${record.searchText ?? ""}`
+          .toLocaleLowerCase()
+          .includes(query)),
   )
   const selected = filtered.find((record) => record.id === selection) ?? filtered[0]
   const active = records.filter((record) => record.active).length
@@ -426,38 +430,28 @@ export function TaskPanel({
                     <Icon data-icon="inline-start" className="mt-0.5 text-muted-foreground" />
                     <span className="flex min-w-0 flex-1 flex-col gap-1 text-left">
                       <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate">{record.label}</span>
+                        <span className="min-w-0 flex-1 truncate">{record.label}</span>
+                        <Badge variant={record.attention ? "destructive" : "outline"} className="shrink-0">
+                          {record.active ? (
+                            <Spinner />
+                          ) : record.attention ? (
+                            <TriangleAlertIcon />
+                          ) : (
+                            <CheckIcon />
+                          )}
+                          {record.active ? "Active" : record.attention ? "Attention" : "Finished"}
+                        </Badge>
                       </span>
                       <span className="line-clamp-2 whitespace-normal break-words text-xs font-normal leading-relaxed text-muted-foreground">
                         {record.summary}
                       </span>
-                      <span className="mt-1 flex flex-wrap items-center gap-2 text-xs font-normal text-muted-foreground">
-                        {record.active && (
-                          <span className="inline-flex items-center gap-1">
-                            <Spinner />
-                            Active
-                          </span>
-                        )}
-                        {record.attention && (
-                          <span className="inline-flex items-center gap-1 text-destructive">
-                            <TriangleAlertIcon />
-                            Needs attention
-                          </span>
-                        )}
-                        {!record.active && !record.attention && (
-                          <span className="inline-flex items-center gap-1">
-                            <CheckIcon />
-                            Finished
-                          </span>
-                        )}
-                        {stage && (
-                          <span className="truncate">
-                            {stage.stage ?? stage.state.replaceAll("_", " ")}
-                            {stage.completed != null &&
-                              ` · ${stage.completed}${stage.total != null ? ` / ${stage.total}` : " completed"}`}
-                          </span>
-                        )}
-                      </span>
+                      {stage && (
+                        <span className="truncate text-xs font-normal text-muted-foreground">
+                          {stage.stage ?? stage.state.replaceAll("_", " ")}
+                          {stage.completed != null &&
+                            ` · ${stage.completed}${stage.total != null ? ` / ${stage.total}` : " completed"}`}
+                        </span>
+                      )}
                     </span>
                   </Button>
                 )

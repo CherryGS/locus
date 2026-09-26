@@ -17,6 +17,7 @@
     "build:renderer": "vite build",
     "install:browser": "playwright install chromium",
     "preview:ui": "tsx scripts/browser-preview.ts",
+    "preview:tasks": "tsx scripts/task-panel-preview.ts",
     "verify:import-browser": "tsx scripts/import-browser-check.ts",
     "verify:import-native": "tsx scripts/import-electron-check.ts",
     "verify:shared-tasks": "tsx scripts/shared-task-browser-check.ts",

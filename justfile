@@ -165,6 +165,10 @@ desktop-run: server-build desktop-build
 desktop-ui: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run preview:ui
 
+# Retained sample library with real task records recreated on every preview run.
+desktop-task-preview: server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run preview:tasks
+
 desktop-preview: server-build desktop-build
     {{ npm }} --prefix apps/desktop start
 

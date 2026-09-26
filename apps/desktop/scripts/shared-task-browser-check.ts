@@ -150,6 +150,8 @@ try {
   await filter("Active")
   await region.getByRole("button", { name: "Show all tasks", exact: true }).waitFor()
   await region.getByRole("button", { name: "Show all tasks", exact: true }).click()
+  await region.getByRole("textbox", { name: "Search tasks", exact: true }).fill("recopy.txt")
+  assert.equal(await region.locator("[data-task-record]").count(), 1)
   await region.getByRole("textbox", { name: "Search tasks", exact: true }).fill(batch.batch_id)
   assert.equal(await region.locator("[data-task-record]").count(), 1)
   await region.getByRole("textbox", { name: "Search tasks", exact: true }).fill("no-such-task")

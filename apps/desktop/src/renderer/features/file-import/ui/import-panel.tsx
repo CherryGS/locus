@@ -262,16 +262,15 @@ export function ImportDetails({
         .map((batch) => (
           <section
             key={batch.batch_id}
-            className="flex min-w-0 flex-col"
+            className="flex min-w-0 flex-col gap-3"
             aria-label={`Import batch ${batch.batch_id}`}
           >
-            {batch.items.map((item, index) => (
+            {batch.items.map((item) => (
               <article
                 key={item.item_id}
                 data-import-item-id={item.item_id}
-                className="flex min-w-0 flex-col gap-3"
+                className="flex min-w-0 flex-col gap-3 rounded-lg border p-3"
               >
-                {index > 0 && <Separator />}
                 <div className="flex flex-wrap items-start gap-x-3 gap-y-2 pt-1">
                   <FileIcon className="mt-1 size-4 shrink-0 text-muted-foreground" />
                   <div className="flex min-w-0 flex-1 basis-32 flex-col gap-1">
@@ -354,7 +353,15 @@ export function ImportDetails({
                   <Alert>
                     <AlertTitle>New copy required</AlertTitle>
                     <AlertDescription className="flex flex-col gap-2 [&_p:not(:last-child)]:mb-0">
-                      <p className="break-words">{item.current.copy.reason ?? item.current.base.reason}</p>
+                      <details className="group/failure">
+                        <summary className="flex cursor-pointer list-none items-center gap-1 text-xs [&::-webkit-details-marker]:hidden">
+                          <ChevronRightIcon className="size-3.5 transition-transform group-open/failure:rotate-90" />
+                          Failure details
+                        </summary>
+                        <p className="mt-2 break-all text-xs">
+                          {item.current.copy.reason ?? item.current.base.reason}
+                        </p>
+                      </details>
                       <p>
                         The source is read again and its bytes may have changed. Earlier managed effects are
                         retained.
@@ -371,7 +378,7 @@ export function ImportDetails({
                     </AlertDescription>
                   </Alert>
                 )}
-                <details className="group/file mb-3 ml-7 min-w-0">
+                <details className="group/file ml-7 min-w-0">
                   <summary className="flex cursor-pointer list-none items-center gap-1 text-xs text-muted-foreground [&::-webkit-details-marker]:hidden">
                     <ChevronRightIcon className="size-3.5 transition-transform group-open/file:rotate-90" />
                     Details
