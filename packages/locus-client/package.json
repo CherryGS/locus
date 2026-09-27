@@ -16,7 +16,9 @@
     "smoke:entities": "tsx entity-smoke.ts",
     "smoke:preferences": "tsx preference-smoke.ts",
     "scale:entities": "node --expose-gc --import tsx entity-scale.ts",
-    "smoke:settings": "tsx settings-smoke.ts"
+    "smoke:settings": "tsx settings-smoke.ts",
+    "smoke:search": "tsx search-smoke.ts",
+    "scale:search": "node --expose-gc --import tsx search-scale.ts"
   },
   "dependencies": {
     "openapi-fetch": "0.17.0"

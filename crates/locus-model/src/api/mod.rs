@@ -7,3 +7,5 @@ pub use crate::recognition::{Recognition, RecognitionOutcome};
 pub use crate::record::{Inspection, ModelRecord, StorageSummary, TensorDescriptor};
 pub use crate::service::ModelService;
 pub use crate::view::ModelView;
+
+pub use crate::query::ModelQueryProvider;

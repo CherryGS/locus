@@ -224,7 +224,7 @@ async fn fresh_schema_reopens_without_replay_and_suffix_appends() {
             "SELECT count(*) AS count FROM locus_migration_comm_history"
         )
         .await,
-        10
+        STEPS.len() as i64
     );
     assert_eq!(
         count(
@@ -232,7 +232,7 @@ async fn fresh_schema_reopens_without_replay_and_suffix_appends() {
             "SELECT count(*) AS count FROM sqlite_schema WHERE type='table' AND name LIKE 'locus_%'"
         )
         .await,
-        15
+        17
     );
     assert_eq!(
         count(
@@ -256,7 +256,7 @@ async fn fresh_schema_reopens_without_replay_and_suffix_appends() {
             "SELECT count(*) AS count FROM locus_migration_comm_history WHERE applied_at='retained'"
         )
         .await,
-        10
+        STEPS.len() as i64
     );
     let mut s = Session::memory().await.unwrap();
     execute(&mut s, &[SEED]).await.unwrap();
@@ -265,6 +265,206 @@ async fn fresh_schema_reopens_without_replay_and_suffix_appends() {
         count(&mut s, "SELECT count(*) AS count FROM converted").await,
         0
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn common_prefix_conversion_preserves_precision_and_rejects_malformed_selected_data() {
+    let mut session = Session::memory().await.unwrap();
+    execute(&mut session, &STEPS[..10]).await.unwrap();
+    let prefix: Vec<_> = STEPS[..10].iter().map(|s| s.checksum()).collect();
+    sql(&mut session,r#"INSERT INTO locus_media_comp_video(id,revision,payload) VALUES(X'01992853c12370008000000000000001',7,'{"version":1,"basis":[1,153,40,83,193,35,112,0,128,0,0,0,0,0,0,2],"facts":{"Video":{"container":"mov","stream_index":2,"codec":null,"width":1920,"height":1080,"duration":{"seconds":0.123456789012345,"precision":"Unknown"}}},"last_failure":null}');
+INSERT INTO locus_twitter_comp_snapshot(id,revision,payload) VALUES(X'01992853c12370008000000000000003',4,'{"version":1,"basis":null,"snapshot":{"text":"","hashtags":[],"published_at_unix_ms":-9223372036854775808}}');"#).await;
+    sql(&mut session,r#"INSERT INTO locus_model_comp_model(id,revision,payload) VALUES(X'01992853c12370008000000000000004',3,'{"version":1,"basis":[1,153,40,83,193,35,112,0,128,0,0,0,0,0,0,2],"facts":{"format":"SafeTensors","tensor_count":0,"element_count":0,"storage_types":{},"tensors":[],"declarations":{}},"last_failure":null}');"#).await;
+    crate::runtime::migrate(&mut session).await.unwrap();
+    assert_eq!(
+        prefix,
+        STEPS[..10].iter().map(|s| s.checksum()).collect::<Vec<_>>()
+    );
+    assert_eq!(count(&mut session,"SELECT count(*) AS count FROM locus_media_comp_video WHERE revision=7 AND duration_seconds='0.123456789012345' AND duration_precision='Unknown' AND json_extract(payload,'$.version')=2 AND json_type(payload,'$.facts') IS NULL").await,1);
+    assert_eq!(count(&mut session,"SELECT count(*) AS count FROM locus_twitter_comp_snapshot WHERE q_text='' AND q_hashtags='[]' AND q_published_at='-9223372036854775808'").await,1);
+    assert_eq!(count(&mut session,"SELECT count(*) AS count FROM locus_model_comp_model WHERE facts_present='1' AND q_format='SafeTensors' AND q_tensor_count='0' AND q_element_count='0' AND q_storage_types='[]' AND revision=3").await,1);
+    for payload in [
+        r#"{"version":2,"snapshot":{}}"#,
+        r#"{"version":1}"#,
+        r#"{"version":1,"snapshot":{"text":12}}"#,
+        r#"{"version":1,"snapshot":{"hashtags":""}}"#,
+    ] {
+        let mut session = Session::memory().await.unwrap();
+        execute(&mut session, &STEPS[..10]).await.unwrap();
+        sql(&mut session,&format!("INSERT INTO locus_twitter_comp_snapshot(id,revision,payload) VALUES(X'01992853c12370008000000000000003',0,'{payload}')")).await;
+        assert!(crate::runtime::migrate(&mut session).await.is_err());
+        assert_eq!(
+            count(
+                &mut session,
+                "SELECT count(*) AS count FROM locus_migration_comm_history"
+            )
+            .await,
+            10
+        );
+        assert_eq!(count(&mut session,"SELECT count(*) AS count FROM pragma_table_info('locus_twitter_comp_snapshot') WHERE name='q_text'").await,0);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn durable_triggers_cover_mutations_and_roll_back_with_savepoints() {
+    let mut s = Session::memory().await.unwrap();
+    crate::runtime::migrate(&mut s).await.unwrap();
+    let entity = "01992853c12370008000000000000001";
+    let second = "01992853c12370008000000000000002";
+    let file = "01992853c12370008000000000000003";
+    let kind = "9fd73d3dd35d41bc8b73402e12f5c017";
+    sql(&mut s,&format!("INSERT INTO locus_core_comm_entity VALUES(X'{entity}');INSERT INTO locus_core_comm_entity VALUES(X'{second}');INSERT INTO locus_file_comp_file VALUES(X'{file}','object/test',1);INSERT INTO locus_core_comm_component_registry VALUES(X'{file}',X'{kind}');")).await;
+    assert_eq!(
+        count(
+            &mut s,
+            "SELECT count(*) AS count FROM locus_search_comm_invalidation"
+        )
+        .await,
+        2
+    );
+    sql(&mut s,&format!("INSERT INTO locus_core_rela_membership VALUES(X'{entity}',X'{kind}',X'{file}');UPDATE locus_file_comp_file SET byte_count=2 WHERE id=X'{file}';UPDATE locus_core_rela_membership SET entity=X'{second}' WHERE component=X'{file}';")).await;
+    assert_eq!(
+        count(
+            &mut s,
+            "SELECT count(*) AS count FROM locus_search_comm_invalidation"
+        )
+        .await,
+        7
+    );
+    s.transaction::<_, MigrationError, _>(|c| {
+        Box::pin(async move {
+            let result = c
+                .savepoint::<(), MigrationError, _>(|c| {
+                    Box::pin(async move {
+                        c.connection()
+                            .batch_execute("DELETE FROM locus_core_comm_entity")
+                            .await?;
+                        Err(MigrationError::Incompatible("rollback".into()))
+                    })
+                })
+                .await;
+            assert!(result.is_err());
+            Ok(())
+        })
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        count(
+            &mut s,
+            "SELECT count(*) AS count FROM locus_search_comm_invalidation"
+        )
+        .await,
+        7
+    );
+    let result = s
+        .transaction::<(), MigrationError, _>(|c| {
+            Box::pin(async move {
+                c.connection()
+                    .batch_execute("DELETE FROM locus_core_comm_entity")
+                    .await?;
+                Err(MigrationError::Incompatible("rollback".into()))
+            })
+        })
+        .await;
+    assert!(result.is_err());
+    assert_eq!(
+        count(
+            &mut s,
+            "SELECT count(*) AS count FROM locus_search_comm_invalidation"
+        )
+        .await,
+        7
+    );
+    sql(
+        &mut s,
+        &format!("DELETE FROM locus_core_comm_entity WHERE id=X'{second}'"),
+    )
+    .await;
+    assert_eq!(
+        count(
+            &mut s,
+            "SELECT head AS count FROM locus_search_comm_journal_identity"
+        )
+        .await,
+        9
+    );
+    assert_eq!(
+        count(
+            &mut s,
+            "SELECT count(*) AS count FROM locus_search_comm_invalidation"
+        )
+        .await,
+        9
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn civitai_selected_metadata_migration_retains_invalid_claims_with_projection_error() {
+    for value in [
+        None,
+        Some(serde_json::Value::Null),
+        Some(serde_json::json!("")),
+        Some(serde_json::json!("SafeTensor")),
+        Some(serde_json::json!(5)),
+        Some(serde_json::json!(false)),
+        Some(serde_json::json!({"x":1})),
+        Some(serde_json::json!([])),
+    ] {
+        let mut session = Session::memory().await.unwrap();
+        execute(&mut session, &STEPS[..10]).await.unwrap();
+        let mut metadata = serde_json::Map::new();
+        if let Some(v) = &value {
+            metadata.insert("format".into(), v.clone());
+        }
+        let payload=serde_json::json!({"version":1,"snapshot":{"matched_version":2,"matched_file":3,"model":{"id":1,"name":"model","type":"Checkpoint","tags":[],"modelVersions":[{"id":2,"name":"version","files":[{"id":3,"name":"file","type":"Model","metadata":metadata}]}]}}}).to_string();
+        let retained = payload.clone();
+        session.transaction::<_,MigrationError,_>(move|c|Box::pin(async move{sql_query("INSERT INTO locus_civitai_comp_snapshot(id,revision,model,matched_version,matched_file,payload) VALUES(X'01992853c12370008000000000000001',0,'1','2','3',?)").bind::<Text,_>(payload).execute(c.connection()).await?;Ok(())})).await.unwrap();
+        crate::runtime::migrate(&mut session).await.unwrap();
+        let invalid = value
+            .as_ref()
+            .is_some_and(|v| !v.is_null() && !v.is_string());
+        assert_eq!(count(&mut session,"SELECT count(*) AS count FROM locus_civitai_comp_snapshot WHERE q_projection_error IS NOT NULL").await,i64::from(invalid));
+        let observed = session
+            .transaction::<_, MigrationError, _>(|c| {
+                Box::pin(async move {
+                    Ok(
+                        sql_query("SELECT payload AS value FROM locus_civitai_comp_snapshot")
+                            .get_result::<Value>(c.connection())
+                            .await?
+                            .value,
+                    )
+                })
+            })
+            .await
+            .unwrap();
+        assert_eq!(observed, retained);
+        if !invalid {
+            let expected = value
+                .as_ref()
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned);
+            #[derive(QueryableByName)]
+            struct Projection {
+                #[diesel(sql_type=diesel::sql_types::Nullable<Text>)]
+                value: Option<String>,
+            }
+            let actual = session
+                .transaction::<_, MigrationError, _>(|c| {
+                    Box::pin(async move {
+                        Ok(sql_query(
+                            "SELECT q_file_format AS value FROM locus_civitai_comp_snapshot",
+                        )
+                        .get_result::<Projection>(c.connection())
+                        .await?
+                        .value)
+                    })
+                })
+                .await
+                .unwrap();
+            assert_eq!(actual, expected);
+        }
+    }
 }
 #[tokio::test(flavor = "multi_thread")]
 async fn incompatible_complete_prefix_is_rejected_without_mutation() {

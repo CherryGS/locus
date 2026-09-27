@@ -8,3 +8,5 @@ pub use crate::input::{
 pub use crate::owner::FileOwner;
 pub use crate::record::FileRecord;
 pub use crate::service::FileService;
+
+pub use crate::query::FileQueryProvider;

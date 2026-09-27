@@ -59,6 +59,7 @@ pub(crate) struct Registry {
     pub reject_next_launch: bool,
 }
 pub(crate) struct Shared {
+    pub search: Result<locus_search::api::SearchService, String>,
     pub(super) civitai: super::civitai::CivitaiOperationsStore,
     // Supervisors retain Shared through TaskHandle::result, including protected
     // workers after an HTTP or operation waiter disappears.
@@ -117,6 +118,9 @@ impl Shared {
     pub async fn wait_drained(&self) {
         let mut receiver = self.drained.subscribe();
         let _ = receiver.wait_for(|done| *done).await;
+        if let Ok(search) = &self.search {
+            search.shutdown().await;
+        }
     }
     pub fn admit(&self, registry: &mut Registry) -> Result<(), ApiError> {
         if !registry.open {

@@ -17,3 +17,5 @@ mod record;
 mod service;
 mod settings;
 mod view;
+
+mod query;

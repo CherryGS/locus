@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+locus-query.workspace = true
 locus-settings.workspace = true
 schemars.workspace = true
 locus-task.workspace = true

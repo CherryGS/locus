@@ -11,3 +11,8 @@ mod serde_ids;
 mod service;
 mod snapshot;
 mod view;
+
+mod query;
+
+#[cfg(test)]
+mod query_tests;

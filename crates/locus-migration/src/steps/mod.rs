@@ -11,3 +11,7 @@ mod s010_access;
 
 pub(crate) use catalog::STEPS;
 mod catalog;
+
+mod s011_common;
+mod s011_conversion;
+mod s012_search;

@@ -115,7 +115,30 @@ impl Server {
             external_runtime.problem = Some("Required configuration is unavailable".into());
             None
         };
+        let search = domain.as_ref().map_or_else(
+            || Err("Search unavailable during Settings repair".into()),
+            |domain| {
+                locus_search::api::SearchService::start(
+                    ownership.root(),
+                    queue.clone(),
+                    library.database.clone(),
+                    domain.kernel.clone(),
+                    vec![
+                        Arc::new(locus_file::api::FileQueryProvider),
+                        Arc::new(locus_media::api::ImageQueryProvider),
+                        Arc::new(locus_media::api::VideoQueryProvider),
+                        Arc::new(locus_model::api::ModelQueryProvider),
+                        Arc::new(locus_twitter::api::TwitterQueryProvider),
+                        Arc::new(locus_bilibili::api::BilibiliQueryProvider),
+                        Arc::new(locus_civitai::api::CivitaiQueryProvider),
+                    ],
+                    ownership.clone(),
+                )
+                .map_err(|e| e.to_string())
+            },
+        );
         let state = Arc::new(Shared {
+            search,
             civitai: super::civitai::CivitaiOperationsStore::default(),
             _ownership: ownership,
             uploads: crate::access::uploads::Uploads::default(),
@@ -204,6 +227,9 @@ impl Server {
                     }
                 },
             }
+        }
+        if let Ok(search) = &self.state.search {
+            search.shutdown().await;
         }
         drop(self.listener);
         drop(self.external_listener);

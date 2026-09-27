@@ -1,5 +1,22 @@
 # Locus client
 
+## Search observations
+
+`searchEntities(client, { text, filter })` returns a checked packed `entities`
+sequence plus its context, generation and covered journal sequence. Integer/time
+operands use decimal strings. Read `/api/v1/search/catalogue` for owner-defined
+types, operations and native value/exact/state references. Search availability and
+lag come from `/api/v1/search/status`; an unavailable index is not an empty result.
+Use `/api/v1/search/evidence` for up to 128 identities from that observation, then
+call `observation.release()`. Contexts expire after 600 seconds; the completed
+identity sequence remains valid after evidence expires or is released.
+
+Text follows strict Tantivy 0.26.2 syntax with implicit OR. That version rejects
+`field:*` as unsupported; the client preserves the error. Use the catalogue's
+state references for missing or recorded-empty metadata. State tests remain
+distinct from native engine value existence. `just server-search-smoke` and
+`just server-search-scale 1000000` exercise isolated real-server consumers.
+
 The server's registered Rust handlers and transport DTOs produce `openapi.json`.
 `openapi-typescript` produces `src/schema.d.ts`; do not edit either generated file.
 `src/index.ts` exports the small `openapi-fetch` factory. No credential, discovery,

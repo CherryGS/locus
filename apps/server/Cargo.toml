@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+locus-search.workspace = true
+locus-query.workspace = true
 locus-migration.workspace = true
 locus-civitai.workspace = true
 locus-settings.workspace = true

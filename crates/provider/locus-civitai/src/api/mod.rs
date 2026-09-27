@@ -11,3 +11,5 @@ pub use crate::view::{
     CivitaiView, Correspondence, InputStatus, ManagedExample, Page, SourceReference,
     VersionDirectoryEntry, VersionView,
 };
+
+pub use crate::query::CivitaiQueryProvider;

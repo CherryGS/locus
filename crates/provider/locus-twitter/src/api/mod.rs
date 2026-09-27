@@ -11,3 +11,5 @@ pub use crate::owner::TwitterOwner;
 pub use crate::record::{TwitterRecord, WriteOutcome};
 pub use crate::service::TwitterService;
 pub use crate::view::{TwitterApplicability, TwitterEntry, TwitterView};
+
+pub use crate::query::TwitterQueryProvider;

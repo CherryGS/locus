@@ -11,3 +11,8 @@ mod record;
 mod service;
 mod view;
 mod write;
+
+mod query;
+
+#[cfg(test)]
+mod query_tests;

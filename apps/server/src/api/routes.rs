@@ -34,6 +34,7 @@ struct Contract;
 fn registered() -> OpenApiRouter<Arc<Shared>> {
     OpenApiRouter::with_openapi(Contract::openapi())
         .merge(core::router())
+        .merge(super::search::router())
         .merge(file::router())
         .merge(super::imports::router())
         .merge(media::router())
@@ -50,6 +51,25 @@ fn registered() -> OpenApiRouter<Arc<Shared>> {
 
 pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
     let (_, mut document) = registered().split_for_parts();
+    super::search::register(&mut document)?;
+    if let Some(operation) = document
+        .paths
+        .paths
+        .get_mut("/api/v1/search/query")
+        .and_then(|p| p.post.as_mut())
+        && let Some(RefOr::T(response)) = operation.responses.responses.get_mut("200")
+        && let Some(content) = response.content.get_mut("application/octet-stream")
+    {
+        content.schema = Some(
+            openapi::ObjectBuilder::new()
+                .schema_type(openapi::Type::String)
+                .format(Some(openapi::SchemaFormat::KnownFormat(
+                    openapi::KnownFormat::Binary,
+                )))
+                .build()
+                .into(),
+        );
+    }
     document.merge(super::external::routes::registered().into_openapi());
     if let Some(components) = document.components.as_mut() {
         components.add_security_scheme(

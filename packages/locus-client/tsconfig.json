@@ -6,8 +6,28 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "types": ["node"]
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "support/**/*.ts", "smoke.ts", "import-smoke.ts", "media-smoke.ts", "smoke-png.ts", "entity-smoke.ts", "entity-scale.ts", "preference-smoke.ts", "settings-smoke.ts"]
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "support/**/*.ts",
+    "smoke.ts",
+    "import-smoke.ts",
+    "media-smoke.ts",
+    "smoke-png.ts",
+    "entity-smoke.ts",
+    "entity-scale.ts",
+    "preference-smoke.ts",
+    "settings-smoke.ts",
+    "search-smoke.ts",
+    "search-scale.ts"
+  ]
 }

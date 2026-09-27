@@ -93,10 +93,17 @@ pub(crate) async fn insert(context: &mut Context, record: &ModelRecord) -> Resul
     .execute(context.connection())
     .await?;
 
+    crate::query::write(context, record.id.component(), &record.facts).await?;
     Ok(())
 }
 
 pub(crate) async fn update(context: &mut Context, record: &ModelRecord) -> Result<(), ModelError> {
+    let record = record.clone();
+    context
+        .savepoint(move |c| Box::pin(async move { update_row(c, &record).await }))
+        .await
+}
+async fn update_row(context: &mut Context, record: &ModelRecord) -> Result<(), ModelError> {
     sql_query(format!(
         "UPDATE {} SET revision = ?, payload = ? WHERE id = ?",
         "locus_model_comp_model"
@@ -107,6 +114,7 @@ pub(crate) async fn update(context: &mut Context, record: &ModelRecord) -> Resul
     .execute(context.connection())
     .await?;
 
+    crate::query::write(context, record.id.component(), &record.facts).await?;
     Ok(())
 }
 

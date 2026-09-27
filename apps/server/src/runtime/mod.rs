@@ -49,3 +49,4 @@ mod civitai_tests;
 mod external_tests;
 #[cfg(test)]
 mod registered_import_tests;
+mod search;

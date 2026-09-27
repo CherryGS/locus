@@ -11,3 +11,5 @@ pub use crate::service::BilibiliService;
 pub use crate::view::{BilibiliApplicability, BilibiliEntry, BilibiliView, CoverApplicability};
 
 pub use crate::cover::PreparedCover;
+
+pub use crate::query::BilibiliQueryProvider;

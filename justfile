@@ -161,6 +161,12 @@ server-preference-smoke: server-build client-check
 server-entity-scale count="1000000": server-build client-check
     {{ npm }} --prefix packages/locus-client run scale:entities -- {{ count }}
 
+server-search-smoke: server-build client-check
+    {{ npm }} --prefix packages/locus-client run smoke:search
+
+server-search-scale count="1000000": server-build client-check
+    {{ npm }} --prefix packages/locus-client run scale:search -- {{ count }}
+
 # Production Electron entry owns the backend and uses the selected real library.
 desktop-install:
     {{ npm }} --prefix apps/desktop ci

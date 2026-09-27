@@ -112,6 +112,7 @@ pub(crate) async fn insert(
         .bind::<Text, _>(payload(record)?)
         .execute(context.connection())
         .await?;
+    crate::query::write(context, record.id.component(), &record.snapshot).await?;
     Ok(())
 }
 pub(crate) async fn update(
@@ -136,6 +137,7 @@ async fn update_row(context: &mut Context, record: &TwitterRecord) -> Result<(),
     if changed != 1 {
         return Err(TwitterError::MissingRecord(record.id));
     }
+    crate::query::write(context, record.id.component(), &record.snapshot).await?;
     Ok(())
 }
 pub(crate) async fn delete(

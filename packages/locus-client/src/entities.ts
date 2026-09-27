@@ -1,8 +1,8 @@
 import type { LocusClient } from "./client.js";
 import type { components } from "./schema.js";
 
-/** One complete immutable observation. Position order has no business meaning
- * and need not be stable across refreshes. UUID strings are created on demand. */
+/** One complete immutable observation. Basic enumeration order can change on
+ * refresh; search retains its declared ordering. UUID strings are created on demand. */
 export interface EntitySequence {
   readonly length: number;
   readonly byteLength: number;
@@ -65,6 +65,11 @@ class PackedEntities implements EntitySequence {
  * Each call returns a new observation; failure leaves previous sequences intact. */
 export async function readEntityIds(client: LocusClient, options: { signal?: AbortSignal } = {}): Promise<EntitySequence> {
   const { data, error, response } = await client.GET("/api/v1/entities", { parseAs: "arrayBuffer", signal: options.signal });
+  return decodeEntityResponse(response, data, error);
+}
+
+/** Shared packed UUIDv7 decoder for complete enumeration and search results. */
+export async function decodeEntityResponse(response: Response, data?: ArrayBuffer, error?: components["schemas"]["ApiError"]): Promise<EntitySequence> {
   const fail = (message: string): never => { throw new EntityReadError(message, response, error); };
   if (response.status !== 200) fail(`Entity enumeration failed with HTTP ${response.status}`);
   if (response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/octet-stream") fail("Expected application/octet-stream");

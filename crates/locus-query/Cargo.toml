@@ -1,0 +1,12 @@
+[package]
+name = "locus-query"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+locus-core.workspace = true
+locus-store.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+thiserror.workspace = true

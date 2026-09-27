@@ -150,14 +150,21 @@ pub(crate) async fn model_records(
 pub(crate) async fn insert(c: &mut Context, r: &CivitaiRecord) -> Result<(), CivitaiError> {
     sql_query("INSERT INTO locus_civitai_comp_snapshot(id,revision,model,matched_version,matched_file,payload) VALUES(?,?,?,?,?,?)")
         .bind::<Binary,_>(r.id.as_bytes().as_slice()).bind::<BigInt,_>(r.revision).bind::<Text,_>(r.snapshot.model.id.to_string()).bind::<Text,_>(r.snapshot.matched_version.to_string()).bind::<Text,_>(r.snapshot.matched_file.to_string()).bind::<Text,_>(encode(r)?).execute(c.connection()).await?;
+    crate::query::write(c, r.id.component(), &r.snapshot).await?;
     Ok(())
 }
 pub(crate) async fn update(c: &mut Context, r: &CivitaiRecord) -> Result<(), CivitaiError> {
+    let record = r.clone();
+    c.savepoint(move |c| Box::pin(async move { update_row(c, &record).await }))
+        .await
+}
+async fn update_row(c: &mut Context, r: &CivitaiRecord) -> Result<(), CivitaiError> {
     let count=sql_query("UPDATE locus_civitai_comp_snapshot SET revision=?,model=?,matched_version=?,matched_file=?,payload=? WHERE id=?")
         .bind::<BigInt,_>(r.revision).bind::<Text,_>(r.snapshot.model.id.to_string()).bind::<Text,_>(r.snapshot.matched_version.to_string()).bind::<Text,_>(r.snapshot.matched_file.to_string()).bind::<Text,_>(encode(r)?).bind::<Binary,_>(r.id.as_bytes().as_slice()).execute(c.connection()).await?;
     if count != 1 {
         return Err(CivitaiError::MissingRecord(r.id));
     }
+    crate::query::write(c, r.id.component(), &r.snapshot).await?;
     Ok(())
 }
 pub(crate) async fn delete(c: &mut Context, id: CivitaiId) -> Result<(), diesel::result::Error> {

@@ -13,3 +13,5 @@ pub use crate::record::MediaRecord;
 pub use crate::service::MediaService;
 pub use crate::settings::{MEDIA_TOOL_PATHS, MediaToolPaths, MediaToolPathsProvider};
 pub use crate::view::{Applicability, MediaEntry, MediaView};
+
+pub use crate::query::{ImageQueryProvider, VideoQueryProvider};

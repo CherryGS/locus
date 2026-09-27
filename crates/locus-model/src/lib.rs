@@ -15,3 +15,8 @@ mod view;
 
 #[cfg(test)]
 mod tests;
+
+mod query;
+
+#[cfg(test)]
+mod query_tests;

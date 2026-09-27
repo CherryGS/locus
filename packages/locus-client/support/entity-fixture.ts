@@ -18,9 +18,9 @@ export async function entityFixture(label: "smoke" | "scale") {
   const root = await mkdtemp(join(tmpdir(), `locus-entity-${label}-`));
   const library = join(root, "library");
   const children: ReturnType<typeof spawn>[] = [];
-  async function start(settingsEnvironment?: { ffprobe?: string; ffmpeg?: string }) {
+  async function start(settingsEnvironment?: { ffprobe?: string; ffmpeg?: string }, timeoutMs = 120_000) {
     const credential = randomBytes(32).toString("hex");
-    const deadline = AbortSignal.timeout(120_000);
+    const deadline = AbortSignal.timeout(timeoutMs);
     const environment = { ...process.env };
     delete environment.LOCUS_FFPROBE; delete environment.LOCUS_FFMPEG;
     const overrides = settingsEnvironment ?? { ffprobe: join(root, "unavailable-ffprobe"), ffmpeg: join(root, "unavailable-ffmpeg") };

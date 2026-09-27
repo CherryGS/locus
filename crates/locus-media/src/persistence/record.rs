@@ -1,6 +1,5 @@
 use crate::{
     error::{AttemptFailure, MediaError},
-    facts::Facts,
     identity::{MediaId, MediaKind},
     record::MediaRecord,
     service::MediaService,
@@ -19,7 +18,6 @@ use serde::{Deserialize, Serialize};
 struct Payload {
     version: u32,
     basis: Option<[u8; 16]>,
-    facts: Option<Facts>,
     last_failure: Option<AttemptFailure>,
 }
 #[derive(QueryableByName)]
@@ -42,9 +40,8 @@ fn table(kind: MediaKind) -> &'static str {
 fn payload(record: &MediaRecord) -> Result<String, MediaError> {
     record.validate()?;
     serde_json::to_string(&Payload {
-        version: 1,
+        version: 2,
         basis: record.basis.map(|v| *v.as_bytes()),
-        facts: record.facts.clone(),
         last_failure: record.last_failure.clone(),
     })
     .map_err(|e| MediaError::Corrupt(e.to_string()))
@@ -75,14 +72,16 @@ impl MediaService {
         }
         let payload: Payload =
             serde_json::from_str(&row.payload).map_err(|e| MediaError::Corrupt(e.to_string()))?;
-        if payload.version != 1 {
+        if payload.version != 2 {
             return Err(MediaError::Corrupt("payload version".into()));
         }
         let record = MediaRecord {
             id,
             revision: row.revision,
             basis: payload.basis.map(|v| FileId::from_bytes(&v)).transpose()?,
-            facts: payload.facts,
+            facts: super::common::Common::read(context, id)
+                .await?
+                .facts(id.kind())?,
             last_failure: payload.last_failure,
         };
         record.validate()?;
@@ -100,10 +99,17 @@ pub(crate) async fn insert(context: &mut Context, record: &MediaRecord) -> Resul
     .execute(context.connection())
     .await?;
 
+    super::common::write(context, record.id, &record.facts).await?;
     Ok(())
 }
 
 pub(crate) async fn update(context: &mut Context, record: &MediaRecord) -> Result<(), MediaError> {
+    let record = record.clone();
+    context
+        .savepoint(move |c| Box::pin(async move { update_row(c, &record).await }))
+        .await
+}
+async fn update_row(context: &mut Context, record: &MediaRecord) -> Result<(), MediaError> {
     sql_query(format!(
         "UPDATE {} SET revision = ?, payload = ? WHERE id = ?",
         table(record.id.kind())
@@ -114,6 +120,7 @@ pub(crate) async fn update(context: &mut Context, record: &MediaRecord) -> Resul
     .execute(context.connection())
     .await?;
 
+    super::common::write(context, record.id, &record.facts).await?;
     Ok(())
 }
 

@@ -313,6 +313,8 @@ async fn uploaded_file_eligibility_and_token_survive_restart_without_request_rep
         Submission::Accepted { .. }
     ));
     drop(state);
+    first.close_admission();
+    first.state.wait_drained().await;
     drop(first);
     let second = server(temp.path()).await;
     let (reopened, revision) = credential(&second.state).await;
@@ -847,6 +849,8 @@ async fn concurrent_first_provision_and_future_revision_reset_preserve_opaque_li
     assert!(Server::bind(config()).await.is_err());
     let (two, _) = credential(&a.state).await;
     assert!(one == two);
+    a.close_admission();
+    a.state.wait_drained().await;
     drop(a);
     sql(root.path(),"UPDATE locus_server_comm_access_credential SET revision='ffffffff-ffff-7fff-8fff-ffffffffffff' WHERE singleton=1".into()).await;
     let a = server(root.path()).await;
@@ -875,6 +879,8 @@ async fn corrupt_existing_credential_and_restricted_first_start_never_silently_p
     }
     let root = tempfile::tempdir().unwrap();
     let a = server(root.path()).await;
+    a.close_admission();
+    a.state.wait_drained().await;
     drop(a);
     sql(
         root.path(),

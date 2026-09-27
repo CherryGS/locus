@@ -11,4 +11,6 @@ pub(crate) const STEPS: &[Step] = &[
     super::s008_settings::STEP,
     super::s009_preferences::STEP,
     super::s010_access::STEP,
+    super::s011_common::STEP,
+    super::s012_search::STEP,
 ];
