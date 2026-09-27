@@ -11,12 +11,12 @@ pub(super) const STEP: Step = Step {
     run,
     inputs: &[
         Input {
-            path: "steps/s009_preferences.rs",
-            contents: include_str!("s009_preferences.rs"),
+            path: "steps/000000000009_locus_server_entity_view_preferences.rs",
+            contents: include_str!("000000000009_locus_server_entity_view_preferences.rs"),
         },
         Input {
-            path: "steps/s009_preferences.sql",
-            contents: include_str!("s009_preferences.sql"),
+            path: "steps/000000000009_locus_server_entity_view_preferences.sql",
+            contents: include_str!("000000000009_locus_server_entity_view_preferences.sql"),
         },
     ],
 };
@@ -24,7 +24,9 @@ fn run(context: &mut Context) -> TransactionFuture<'_, (), MigrationError> {
     Box::pin(async move {
         context
             .connection()
-            .batch_execute(include_str!("s009_preferences.sql"))
+            .batch_execute(include_str!(
+                "000000000009_locus_server_entity_view_preferences.sql"
+            ))
             .await?;
         Ok(())
     })

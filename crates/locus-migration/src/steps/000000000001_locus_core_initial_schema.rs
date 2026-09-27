@@ -6,17 +6,17 @@ use diesel_async::SimpleAsyncConnection;
 use locus_store::api::{Context, TransactionFuture};
 
 pub(super) const STEP: Step = Step {
-    id: 10,
-    name: "Initial access schema",
+    id: 1,
+    name: "Initial core schema",
     run,
     inputs: &[
         Input {
-            path: "steps/s010_access.rs",
-            contents: include_str!("s010_access.rs"),
+            path: "steps/000000000001_locus_core_initial_schema.rs",
+            contents: include_str!("000000000001_locus_core_initial_schema.rs"),
         },
         Input {
-            path: "steps/s010_access.sql",
-            contents: include_str!("s010_access.sql"),
+            path: "steps/000000000001_locus_core_initial_schema.sql",
+            contents: include_str!("000000000001_locus_core_initial_schema.sql"),
         },
     ],
 };
@@ -24,7 +24,7 @@ fn run(context: &mut Context) -> TransactionFuture<'_, (), MigrationError> {
     Box::pin(async move {
         context
             .connection()
-            .batch_execute(include_str!("s010_access.sql"))
+            .batch_execute(include_str!("000000000001_locus_core_initial_schema.sql"))
             .await?;
         Ok(())
     })

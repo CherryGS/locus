@@ -11,12 +11,12 @@ pub(super) const STEP: Step = Step {
     run,
     inputs: &[
         Input {
-            path: "steps/s006_bilibili.rs",
-            contents: include_str!("s006_bilibili.rs"),
+            path: "steps/000000000006_locus_bilibili_initial_schema.rs",
+            contents: include_str!("000000000006_locus_bilibili_initial_schema.rs"),
         },
         Input {
-            path: "steps/s006_bilibili.sql",
-            contents: include_str!("s006_bilibili.sql"),
+            path: "steps/000000000006_locus_bilibili_initial_schema.sql",
+            contents: include_str!("000000000006_locus_bilibili_initial_schema.sql"),
         },
     ],
 };
@@ -24,7 +24,9 @@ fn run(context: &mut Context) -> TransactionFuture<'_, (), MigrationError> {
     Box::pin(async move {
         context
             .connection()
-            .batch_execute(include_str!("s006_bilibili.sql"))
+            .batch_execute(include_str!(
+                "000000000006_locus_bilibili_initial_schema.sql"
+            ))
             .await?;
         Ok(())
     })

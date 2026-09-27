@@ -92,6 +92,23 @@ Examples for the current owners:
 | External context/File eligibility | `locus_server_rela_access_eligibility` |
 | Applied migration history | `locus_migration_comm_history` |
 
+## Migration filenames
+
+- Historical step files in `crates/locus-migration/src/steps` use the base
+  `<12-digit-zero-padded-id>_<crate>_<title>`, for example
+  `000000000001_locus_core_initial_schema.rs`. Normalize the full crate name to
+  snake_case and use a descriptive snake_case title.
+- A step's SQL resource shares its Rust entry's base. Step-local helpers retain
+  that base with a descriptive suffix, such as `_conversion.rs`.
+- Use the affected crate for a single-owner step and `locus_migration` for an
+  explicitly coordinated cross-domain transformation. This label does not change
+  the data ownership or table naming rules.
+- Numeric filenames use Rust `#[path = "..."]` module declarations. Execution
+  still follows the explicit ordered catalog and numeric step IDs.
+- File paths and embedded source/resource references are fingerprint inputs.
+  Renaming an applied step changes its checksum and follows the existing
+  development-history mismatch policy; never silently rewrite an applied ledger.
+
 ## Domain rules
 
 - Rust binary targets use `anyhow` for application error propagation and context.
