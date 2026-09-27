@@ -5,6 +5,10 @@ clippy_lints := "-D warnings -D unsafe_code -D clippy::undocumented_unsafe_block
 nextest_args := "--all-features --locked --no-fail-fast --no-tests pass --status-level none --final-status-level fail --failure-output final --success-output never --show-progress none"
 npm := if os() == "windows" { "npm.cmd" } else { "npm" }
 
+# Remove development build artifacts without touching retained verification data.
+rust-clean:
+    cargo clean --profile dev
+
 rust-clippy-fix:
     cargo clippy --fix --allow-dirty --workspace --all-targets --all-features --locked -- {{ clippy_lints }}
 
@@ -93,6 +97,19 @@ server-fixture-build:
 
 server-civitai-inputs root:
     cargo run --package locus-server --example civitai-fixture-inputs --locked -- '{{ replace(root, "'", "''") }}'
+
+server-civitai-inputs-build:
+    cargo build --package locus-server --example civitai-fixture-inputs --locked
+
+# Durable offline sample library; explicit optional retained inputs are passed to npm.
+desktop-sample-generate root=".local/comprehensive-library" real_inputs="": server-fixture-build server-civitai-inputs-build desktop-build
+    {{ npm }} --prefix apps/desktop run sample:generate -- '{{ replace(root, "'", "''") }}' {{ if real_inputs == "" { "" } else { "--real-inputs '" + replace(real_inputs, "'", "''") + "'" } }}
+
+desktop-sample-verify root=".local/comprehensive-library": server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run sample:verify -- '{{ replace(root, "'", "''") }}'
+
+desktop-sample-preview root=".local/comprehensive-library": server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run sample:preview -- '{{ replace(root, "'", "''") }}'
 
 desktop-civitai-browser: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:civitai-browser

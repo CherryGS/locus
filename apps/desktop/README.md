@@ -1,5 +1,11 @@
 # Desktop
 
+For a persistent offline verification library covering the existing File, Media,
+Model, Twitter, Civitai and Bilibili behavior, use `just desktop-sample-generate`,
+`just desktop-sample-verify` and `just desktop-sample-preview`. The
+[sample-library guide](scripts/SAMPLE-LIBRARY.md) documents named cases, optional
+retained public inputs, binary overrides and durable output outside `target`.
+
 `just desktop-run` and `just desktop-preview` build and open the connected
 Electron application. Electron owns one Rust backend process and loads the built
 renderer from its authorized Axum origin. Normal launch uses the existing library

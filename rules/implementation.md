@@ -5,6 +5,7 @@
 Use Just recipes rather than raw Cargo commands. The root `justfile` owns their arguments.
 
 - `just rust-validate`: run finalization, workspace metadata validation, dependency inspection, and a build.
+- `just rust-clean`: remove development build artifacts; retain other verification data in `target`.
 - `just rust-finalize`: apply Clippy fixes, format, check formatting, lint, and run all code tests.
 - `just rust-clippy-fix`: apply available Clippy fixes.
 - `just rust-fmt`: format the workspace.

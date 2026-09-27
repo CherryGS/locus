@@ -3,6 +3,7 @@
 /.agents
 /.claude
 /.codegraph
+/.local
 
 node_modules
 dist
