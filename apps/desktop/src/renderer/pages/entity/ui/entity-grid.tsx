@@ -245,6 +245,7 @@ export function EntityGrid({
             {Array.from({ length: Math.min(columns, sequence.length - row * columns) }, (_, column) => {
               const id = sequence.at(row * columns + column)!
               const entity = get(id)
+              // Paint interaction outlines above positioned preview content.
               return (
                 <div
                   key={id}
@@ -254,7 +255,7 @@ export function EntityGrid({
                   aria-labelledby={`${cellId(id)}-title`}
                   aria-selected={id === selectedId}
                   aria-busy={!!entity.loading}
-                  className="min-h-0 min-w-0 cursor-default rounded-xl outline-offset-[-2px] transition-shadow select-none hover:outline-1 hover:outline-ring/60 aria-selected:outline-2 aria-selected:outline-primary/60"
+                  className="relative isolate min-h-0 min-w-0 cursor-default rounded-xl select-none after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:outline-offset-[-2px] hover:after:outline-1 hover:after:outline-ring/60 aria-selected:after:outline-2 aria-selected:after:outline-primary/60"
                   onClick={() => select(row * columns + column)}
                   onDoubleClick={() => onOpen(entity)}
                 >
