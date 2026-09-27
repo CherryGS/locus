@@ -52,6 +52,45 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 - Domain operation entry objects use the `Service` suffix (`FileService`, `MediaService`). Keep distinct capability names such as `Kernel`, `Session`, and `Context`. Use `read` for retained-record reads, `view` for contextual projections, `open` for resource access, and `_in` for participation in an existing transaction. Preserve domain-specific verbs when their meanings differ.
 - Keep preparation tokens and implementation helpers private to their owning modules; reorganizing files must not make internal constructors or state public. Organize related unit tests under the same directory module and keep its `mod.rs` free of test behavior.
 
+## Database table names
+
+- Name application-owned tables `<crate>_<category>_<title>`. Normalize the owning
+  package's full name to lowercase snake_case (`locus-media` -> `locus_media`).
+  Use a descriptive singular snake_case title.
+- The category is `comp` for a component kind's payload, `rela` for a table whose
+  primary purpose is a relationship, and `comm` for everything else. `comm` means
+  other; it does not imply shared component ownership.
+- Use the data owner's prefix, even when `locus-migration` physically contains
+  the DDL. Settings framework records use `locus_settings`; server-owned access
+  and presentation records use `locus_server`; migration history uses
+  `locus_migration`. Table naming does not change field or operation authority.
+- A generic component identity registry is `comm`, because it does not contain
+  a component kind's payload. Entity-to-component membership is `rela`. A foreign
+  key or an identifier inside a payload does not alone make a table `rela`.
+- Apply the convention to tables the application defines, not SQLite's internal
+  tables. A table rename is an explicit schema change, not a runtime consequence
+  of changing a Rust package name.
+
+Examples for the current owners:
+
+| Stored role | Table name |
+| --- | --- |
+| Entity identity | `locus_core_comm_entity` |
+| Component identity/kind registry | `locus_core_comm_component_registry` |
+| Entity/component membership | `locus_core_rela_membership` |
+| File component | `locus_file_comp_file` |
+| Image component | `locus_media_comp_image` |
+| Video component | `locus_media_comp_video` |
+| Model component | `locus_model_comp_model` |
+| Twitter snapshot component | `locus_twitter_comp_snapshot` |
+| Bilibili snapshot component | `locus_bilibili_comp_snapshot` |
+| Civitai snapshot component | `locus_civitai_comp_snapshot` |
+| Settings group value | `locus_settings_comm_group_value` |
+| Entity view preference | `locus_server_comm_entity_view_preference` |
+| External access credential | `locus_server_comm_access_credential` |
+| External context/File eligibility | `locus_server_rela_access_eligibility` |
+| Applied migration history | `locus_migration_comm_history` |
+
 ## Domain rules
 
 - Rust binary targets use `anyhow` for application error propagation and context.
