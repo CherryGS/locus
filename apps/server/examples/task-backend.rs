@@ -62,7 +62,6 @@ async fn demonstrate(root: &std::path::Path) -> anyhow::Result<Vec<Imported>> {
     image::RgbaImage::from_pixel(1024, 768, image::Rgba([27, 93, 181, 255])).save(&source)?;
     let files = FileService::new(root.join("library")).await?;
     let media = MediaService::new(files.root(), MediaConfig::default())?;
-    let twitter = TwitterService::new();
     let mut kernel = Kernel::new();
     kernel.register(Arc::new(FileOwner))?;
     kernel.register(Arc::new(ImageOwner))?;
@@ -71,16 +70,9 @@ async fn demonstrate(root: &std::path::Path) -> anyhow::Result<Vec<Imported>> {
     let queue = TaskQueue::new();
     let database = TaskDatabase::open(&queue, files.root().join("metadata.sqlite")).await?;
     let init_db = database.clone();
-    let init_kernel = kernel.clone();
-    let init_files = files.clone();
-    let init_media = media.clone();
-    let init_twitter = twitter;
     observe(queue.submit("Initialize", move |task| async move {
         let mut session = init_db.session(&task).await?;
-        init_kernel.initialize(&mut session).await?;
-        init_files.initialize(&mut session).await?;
-        init_media.initialize(&mut session).await?;
-        init_twitter.initialize(&mut session).await?;
+        locus_migration::api::migrate(&mut session).await?;
         Ok::<_, anyhow::Error>(())
     })?)
     .await??;

@@ -46,10 +46,9 @@ impl Fixture {
         let mut kernel = Kernel::new();
         kernel.register(Arc::new(FileOwner)).unwrap();
         kernel.register(Arc::new(TwitterOwner)).unwrap();
-        kernel.initialize(&mut session).await.unwrap();
-        files.initialize(&mut session).await.unwrap();
+        locus_migration::api::migrate(&mut session).await.unwrap();
         let twitter = TwitterService::new();
-        twitter.initialize(&mut session).await.unwrap();
+        locus_migration::api::migrate(&mut session).await.unwrap();
         Self {
             session,
             kernel,

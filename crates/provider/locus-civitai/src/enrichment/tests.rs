@@ -44,10 +44,9 @@ async fn fixture() -> TestFixture {
     k.register(Arc::new(CivitaiOwner)).unwrap();
     k.register(Arc::new(locus_media::api::ImageOwner)).unwrap();
     k.register(Arc::new(locus_media::api::VideoOwner)).unwrap();
-    k.initialize(&mut s).await.unwrap();
-    files.initialize(&mut s).await.unwrap();
+    locus_migration::api::migrate(&mut s).await.unwrap();
     let service = CivitaiService::with_upstream(Arc::new(NoNetwork));
-    service.initialize(&mut s).await.unwrap();
+    locus_migration::api::migrate(&mut s).await.unwrap();
     let path = root.path().join("weight");
     std::fs::write(&path, b"original bytes").unwrap();
     let file = files.admit(&k, &mut s, path).await.unwrap().id;
@@ -106,7 +105,7 @@ async fn fixture() -> TestFixture {
     .await
     .unwrap();
     let media = locus_media::api::MediaService::new(files.root(), Default::default()).unwrap();
-    media.initialize(&mut s).await.unwrap();
+    locus_migration::api::migrate(&mut s).await.unwrap();
     TestFixture {
         root,
         files,

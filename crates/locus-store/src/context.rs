@@ -10,8 +10,10 @@ pub type TransactionFuture<'a, T, E> = Pin<Box<dyn Future<Output = Result<T, E>>
 /// until the session's transaction returns success.
 ///
 /// Raw Diesel access is for trusted owners: do not issue transaction-control SQL,
-/// disable constraints, mutate another owner's tables, or use a second connection
-/// for participating writes. Domains must route admitted component deletion through
+/// disable constraints, mutate unrelated owners' tables, or use a second connection
+/// for participating writes. Historical migration steps may evolve their declared
+/// schemas and rows under the owning domains' contracts, but still leave transaction
+/// control to the caller. Domains must route admitted component deletion through
 /// their guarded core facade; raw access is not a sandbox against malicious owners.
 pub struct Context {
     connection: Connection,

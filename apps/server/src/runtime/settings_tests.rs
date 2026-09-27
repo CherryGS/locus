@@ -146,7 +146,7 @@ async fn http_settings_auth_guards_recovery_invalid_metadata_and_saved_runtime_s
                 .transaction::<_, locus_store::api::StoreError, _>(|ctx| {
                     Box::pin(async move {
                         ctx.connection()
-                            .batch_execute("UPDATE locus_settings_values SET payload='{' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'")
+                            .batch_execute("UPDATE locus_settings_comm_group_value SET payload='{' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'")
                             .await?;
                         Ok(())
                     })
@@ -183,7 +183,7 @@ async fn http_settings_auth_guards_recovery_invalid_metadata_and_saved_runtime_s
                     Box::pin(async move {
                         ctx.connection()
                             .batch_execute(
-                                "UPDATE locus_settings_values SET version=9223372036854775807 WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'",
+                                "UPDATE locus_settings_comm_group_value SET version=9223372036854775807 WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'",
                             )
                             .await?;
                         Ok(())
@@ -207,7 +207,7 @@ async fn http_settings_auth_guards_recovery_invalid_metadata_and_saved_runtime_s
                 .transaction::<_, locus_store::api::StoreError, _>(|ctx| {
                     Box::pin(async move {
                         ctx.connection()
-                            .batch_execute("DROP TABLE locus_settings_values")
+                            .batch_execute("DROP TABLE locus_settings_comm_group_value")
                             .await?;
                         Ok(())
                     })
@@ -308,7 +308,7 @@ async fn invalid_saved_settings_fail_first_load_without_default_repair() {
                 .transaction::<_, locus_store::api::StoreError, _>(|ctx| {
                     Box::pin(async move {
                         ctx.connection()
-                            .batch_execute("UPDATE locus_settings_values SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'")
+                            .batch_execute("UPDATE locus_settings_comm_group_value SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'")
                             .await?;
                         Ok(())
                     })
@@ -441,4 +441,10 @@ async fn required_media_construction_failure_keeps_settings_and_same_queue_usabl
     assert!(server.state.domain.is_none());
     server.close_admission();
     server.state.wait_drained().await;
+}
+
+#[test]
+fn removed_conversion_request_is_not_another_settings_mutation() {
+    let value = json!({"request_id":"request", "change":{"operation":"convert", "metadata":{"version":"1","revision":"revision"},"source":"{}"}});
+    assert!(serde_json::from_value::<ChangeSettings>(value).is_err());
 }

@@ -22,8 +22,6 @@ pub enum BilibiliError {
     Corrupt(String),
     #[error("unsupported Bilibili payload version {0}")]
     PayloadVersion(u32),
-    #[error("unsupported Bilibili schema version {0}")]
-    SchemaVersion(i32),
     #[error("the intended Bilibili host/current File context is unavailable or different")]
     AssociationContext,
     #[error("Bilibili revision exhausted for {0}")]

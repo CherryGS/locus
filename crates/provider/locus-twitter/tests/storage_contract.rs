@@ -6,7 +6,7 @@ use locus_twitter::api::*;
 use support::*;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn reopen_and_unknown_schema_rejection_do_not_repair_data() {
+async fn reopen_preserves_snapshot_without_replaying_migrations() {
     let mut f = Fixture::new().await;
     let id = f
         .twitter
@@ -15,27 +15,9 @@ async fn reopen_and_unknown_schema_rejection_do_not_repair_data() {
         .unwrap();
     let expected = f.twitter.read(&mut f.session, id).await.unwrap();
     f.session = Session::open(&f.database).await.unwrap();
-    f.twitter.initialize(&mut f.session).await.unwrap();
-    f.twitter.initialize(&mut f.session).await.unwrap();
+    locus_migration::api::migrate(&mut f.session).await.unwrap();
+    locus_migration::api::migrate(&mut f.session).await.unwrap();
     assert_eq!(f.twitter.read(&mut f.session, id).await.unwrap(), expected);
-    execute(
-        &mut f.session,
-        "UPDATE locus_twitter_schema SET version=99".into(),
-    )
-    .await;
-    assert!(matches!(
-        f.twitter.initialize(&mut f.session).await,
-        Err(TwitterError::SchemaVersion(99))
-    ));
-    assert_eq!(f.twitter.read(&mut f.session, id).await.unwrap(), expected);
-    assert_eq!(
-        count(
-            &mut f.session,
-            "SELECT count(*) AS count FROM locus_twitter_schema WHERE version=99"
-        )
-        .await,
-        1
-    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -69,7 +51,7 @@ async fn corrupt_payload_unknown_version_and_missing_entry_are_distinct() {
     ] {
         execute(
             &mut f.session,
-            format!("UPDATE locus_twitter_snapshots SET payload='{payload}'"),
+            format!("UPDATE locus_twitter_comp_snapshot SET payload='{payload}'"),
         )
         .await;
         assert!(matches!(
@@ -87,14 +69,18 @@ async fn corrupt_payload_unknown_version_and_missing_entry_are_distinct() {
     }
     execute(
         &mut f.session,
-        r#"UPDATE locus_twitter_snapshots SET payload='{"version":2,"future":true}'"#.into(),
+        r#"UPDATE locus_twitter_comp_snapshot SET payload='{"version":2,"future":true}'"#.into(),
     )
     .await;
     assert!(matches!(
         f.twitter.read(&mut f.session, id).await,
         Err(TwitterError::PayloadVersion(2))
     ));
-    execute(&mut f.session, "DELETE FROM locus_twitter_snapshots".into()).await;
+    execute(
+        &mut f.session,
+        "DELETE FROM locus_twitter_comp_snapshot".into(),
+    )
+    .await;
     let entry = f
         .twitter
         .entity_view(&f.kernel, &mut f.session, entity)

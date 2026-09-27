@@ -1,5 +1,4 @@
-use crate::{config::MediaConfig, error::MediaError, persistence};
-use locus_store::api::Session;
+use crate::{config::MediaConfig, error::MediaError};
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::Semaphore;
 
@@ -36,11 +35,7 @@ impl MediaService {
         storage.check_cache()?;
         Ok(storage)
     }
-    pub async fn initialize(&self, session: &mut Session) -> Result<(), MediaError> {
-        session
-            .transaction(|context| Box::pin(persistence::initialize(context)))
-            .await
-    }
+
     pub fn cache_root(&self) -> &std::path::Path {
         &self.cache
     }

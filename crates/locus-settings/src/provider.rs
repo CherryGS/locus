@@ -6,8 +6,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 /// Owner of a complete logical value. Serialization MUST retain all fields,
 /// including null, empty and default-equal values. Do not use serde defaults or
-/// skip rules to repair missing current data. Conversion must preserve old field
-/// meanings; only new fields may acquire new defaults. Framework validation checks
+/// skip rules to repair missing current data. Framework validation checks
 /// a lossless JSON round trip but cannot infer a provider's semantic obligations.
 pub trait Provider: Send + Sync + 'static {
     type Value: Serialize + DeserializeOwned + JsonSchema;
@@ -16,18 +15,10 @@ pub trait Provider: Send + Sync + 'static {
     fn version(&self) -> u32;
     fn defaults(&self) -> Self::Value;
     fn validate(&self, value: &Self::Value) -> Result<(), String>;
-    fn supports(&self, _version: i64) -> bool {
-        false
-    }
-    fn convert(&self, version: i64, _source: Value) -> Result<Self::Value, String> {
-        Err(format!("unsupported payload version: {version}"))
-    }
 }
 pub(crate) trait Erased: Send + Sync {
     fn definition(&self) -> Result<Definition, SettingsError>;
     fn validate(&self, value: Value) -> Result<Value, SettingsError>;
-    fn supports(&self, version: i64) -> bool;
-    fn convert(&self, version: i64, value: Value) -> Result<Value, SettingsError>;
 }
 struct Adapter<P>(P);
 impl<P: Provider> Erased for Adapter<P> {
@@ -55,20 +46,6 @@ impl<P: Provider> Erased for Adapter<P> {
             ));
         }
         Ok(encoded)
-    }
-    fn supports(&self, version: i64) -> bool {
-        self.0.supports(version)
-    }
-    fn convert(&self, version: i64, value: Value) -> Result<Value, SettingsError> {
-        if !self.supports(version) {
-            return Err(SettingsError::Unsupported(version));
-        }
-        let value = self
-            .0
-            .convert(version, value)
-            .map_err(SettingsError::Invalid)?;
-        self.0.validate(&value).map_err(SettingsError::Invalid)?;
-        self.validate(serde_json::to_value(value).map_err(invalid)?)
     }
 }
 fn invalid(error: serde_json::Error) -> SettingsError {

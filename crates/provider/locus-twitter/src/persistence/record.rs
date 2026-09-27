@@ -59,7 +59,7 @@ impl TwitterService {
         id: TwitterId,
     ) -> Result<TwitterRecord, TwitterError> {
         let row =
-            sql_query("SELECT id, revision, payload FROM locus_twitter_snapshots WHERE id = ?")
+            sql_query("SELECT id, revision, payload FROM locus_twitter_comp_snapshot WHERE id = ?")
                 .bind::<Binary, _>(id.as_bytes().as_slice())
                 .get_result::<Row>(context.connection())
                 .await
@@ -106,7 +106,7 @@ pub(crate) async fn insert(
     context: &mut Context,
     record: &TwitterRecord,
 ) -> Result<(), TwitterError> {
-    sql_query("INSERT INTO locus_twitter_snapshots (id, revision, payload) VALUES (?, ?, ?)")
+    sql_query("INSERT INTO locus_twitter_comp_snapshot (id, revision, payload) VALUES (?, ?, ?)")
         .bind::<Binary, _>(record.id.as_bytes().as_slice())
         .bind::<BigInt, _>(record.revision)
         .bind::<Text, _>(payload(record)?)
@@ -127,7 +127,7 @@ pub(crate) async fn update(
 }
 async fn update_row(context: &mut Context, record: &TwitterRecord) -> Result<(), TwitterError> {
     let changed =
-        sql_query("UPDATE locus_twitter_snapshots SET revision = ?, payload = ? WHERE id = ?")
+        sql_query("UPDATE locus_twitter_comp_snapshot SET revision = ?, payload = ? WHERE id = ?")
             .bind::<BigInt, _>(record.revision)
             .bind::<Text, _>(payload(record)?)
             .bind::<Binary, _>(record.id.as_bytes().as_slice())
@@ -142,7 +142,7 @@ pub(crate) async fn delete(
     context: &mut Context,
     id: TwitterId,
 ) -> Result<(), diesel::result::Error> {
-    sql_query("DELETE FROM locus_twitter_snapshots WHERE id = ?")
+    sql_query("DELETE FROM locus_twitter_comp_snapshot WHERE id = ?")
         .bind::<Binary, _>(id.as_bytes().as_slice())
         .execute(context.connection())
         .await?;

@@ -14,7 +14,6 @@ pub enum ModelFailure {
     Store { diagnostic: Diagnostic },
     MissingRecord { component_id: String },
     Corrupt { message: String },
-    SchemaVersion { version: i32 },
     ContextChanged,
     NewerAttempt,
     Attempt { failure: ModelAttemptFailure },

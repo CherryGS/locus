@@ -36,7 +36,7 @@ async fn explicit_association_needs_current_record_but_no_bytes_or_media() {
         matches!(f.twitter.view(&f.kernel,&mut f.session,id).await.unwrap().applicability,TwitterApplicability::Input {comparison:InputComparison::Matching(v),file_error:None,..} if v==file)
     );
     let token = f.prepare(id, file).await;
-    execute(&mut f.session, "DELETE FROM locus_files".into()).await;
+    execute(&mut f.session, "DELETE FROM locus_file_comp_file".into()).await;
     assert_eq!(
         f.twitter
             .associate(&f.kernel, &mut f.session, token)
@@ -268,7 +268,10 @@ async fn overflow_and_real_read_errors_preserve_the_previous_snapshot() {
     let file = f.file(entity, "input").await;
     execute(
         &mut f.session,
-        format!("UPDATE locus_twitter_snapshots SET revision={}", i64::MAX),
+        format!(
+            "UPDATE locus_twitter_comp_snapshot SET revision={}",
+            i64::MAX
+        ),
     )
     .await;
     let before = f.twitter.read(&mut f.session, id).await.unwrap();
@@ -291,7 +294,7 @@ async fn overflow_and_real_read_errors_preserve_the_previous_snapshot() {
     ));
     assert_eq!(f.twitter.read(&mut f.session, id).await.unwrap(), before);
     let token = f.prepare(id, file).await;
-    execute(&mut f.session, "DROP TABLE locus_files".into()).await;
+    execute(&mut f.session, "DROP TABLE locus_file_comp_file".into()).await;
     assert!(matches!(
         f.twitter.associate(&f.kernel, &mut f.session, token).await,
         Err(TwitterError::File(FileError::Database(_)))

@@ -21,10 +21,9 @@ async fn failed_worker_retains_complete_group_and_competing_attempt_rejects_it()
     let mut k = Kernel::new();
     k.register(Arc::new(FileOwner)).unwrap();
     k.register(Arc::new(ModelOwner)).unwrap();
-    k.initialize(&mut s).await.unwrap();
-    files.initialize(&mut s).await.unwrap();
+    locus_migration::api::migrate(&mut s).await.unwrap();
     let m = ModelService::new();
-    m.initialize(&mut s).await.unwrap();
+    locus_migration::api::migrate(&mut s).await.unwrap();
     let p = dir.path().join("weight");
     let mut b = 2u64.to_le_bytes().to_vec();
     b.extend(b"{}");

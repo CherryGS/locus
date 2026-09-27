@@ -35,8 +35,6 @@ pub enum FileError {
     Database(#[from] diesel::result::Error),
     #[error(transparent)]
     Identity(#[from] IdentityError),
-    #[error("unsupported File schema version {0}")]
-    SchemaVersion(i32),
     #[error("File record {0} is missing")]
     MissingRecord(FileId),
     #[error("cannot access File {id}: {cause}")]

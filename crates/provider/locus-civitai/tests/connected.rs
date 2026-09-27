@@ -123,10 +123,7 @@ impl Fixture {
             content_type: acquired.content_type,
         });
         let c = CivitaiService::with_upstream(p.clone());
-        k.initialize(&mut s).await.unwrap();
-        f.initialize(&mut s).await.unwrap();
-        m.initialize(&mut s).await.unwrap();
-        c.initialize(&mut s).await.unwrap();
+        locus_migration::api::migrate(&mut s).await.unwrap();
         Self {
             _temp: temp,
             k,

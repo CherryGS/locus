@@ -101,8 +101,7 @@ export class SettingsCoordinator<
     if (observation.status === "current") return observation.saved.metadata.revision
     if (
       observation.status === "invalid" ||
-      observation.status === "unsupported" ||
-      observation.status === "conversion_required"
+      observation.status === "unsupported"
     )
       return observation.metadata.revision
     // The server reports independently validated revision metadata even when the version is corrupt.

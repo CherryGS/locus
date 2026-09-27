@@ -92,7 +92,7 @@ async fn retained_facts_retry_reopen_and_real_input_applicability() {
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_images WHERE typeof(id)='blob' AND length(id)=16"
+            "SELECT count(*) AS count FROM locus_media_comp_image WHERE typeof(id)='blob' AND length(id)=16"
         )
         .await,
         1
@@ -240,7 +240,11 @@ async fn participant_creation_savepoint_and_apply_rollback() {
         .await
         .unwrap();
     assert_eq!(
-        count(&mut f.session, "SELECT count(*) AS count FROM locus_images").await,
+        count(
+            &mut f.session,
+            "SELECT count(*) AS count FROM locus_media_comp_image"
+        )
+        .await,
         0
     );
     let kernel = f.kernel.clone();
@@ -254,7 +258,11 @@ async fn participant_creation_savepoint_and_apply_rollback() {
             .is_err()
     );
     assert_eq!(
-        count(&mut f.session, "SELECT count(*) AS count FROM locus_videos").await,
+        count(
+            &mut f.session,
+            "SELECT count(*) AS count FROM locus_media_comp_video"
+        )
+        .await,
         0
     );
     let (entity, id) = f.component(MediaKind::Image).await;
@@ -306,7 +314,7 @@ async fn common_view_retains_corrupt_entry_and_distinguishes_membership_errors()
     f.attach(entity, video.into()).await;
     execute(
         &mut f.session,
-        "UPDATE locus_images SET payload = '{}'".into(),
+        "UPDATE locus_media_comp_image SET payload = '{}'".into(),
     )
     .await;
     let entries = f
@@ -375,7 +383,7 @@ async fn missing_file_payload_is_not_missing_membership_and_invalid_payload_is_n
         .await
         .unwrap();
     let record = f.media.read(&mut f.session, id).await.unwrap();
-    execute(&mut f.session, "DELETE FROM locus_files".into()).await;
+    execute(&mut f.session, "DELETE FROM locus_file_comp_file".into()).await;
     let view = f.media.view(&f.kernel, &mut f.session, id).await.unwrap();
     assert_eq!(view.record, record);
     assert!(matches!(
@@ -405,7 +413,7 @@ async fn missing_file_payload_is_not_missing_membership_and_invalid_payload_is_n
     ] {
         execute(
             &mut f.session,
-            format!("UPDATE locus_images SET payload = '{payload}'"),
+            format!("UPDATE locus_media_comp_image SET payload = '{payload}'"),
         )
         .await;
         assert!(matches!(
@@ -413,7 +421,7 @@ async fn missing_file_payload_is_not_missing_membership_and_invalid_payload_is_n
             Err(MediaError::Corrupt(_))
         ));
     }
-    execute(&mut f.session, "DELETE FROM locus_images".into()).await;
+    execute(&mut f.session, "DELETE FROM locus_media_comp_image".into()).await;
     assert!(matches!(
         f.media.read(&mut f.session, id).await,
         Err(MediaError::MissingRecord(_))

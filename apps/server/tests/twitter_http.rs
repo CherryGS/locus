@@ -142,7 +142,7 @@ async fn retained_provider_reads_preserve_all_roles_and_failures_after_reopen() 
             Box::pin(async move {
                 use diesel_async::SimpleAsyncConnection;
                 c.connection()
-                    .batch_execute("DROP TABLE locus_memberships")
+                    .batch_execute("DROP TABLE locus_core_rela_membership")
                     .await?;
                 Ok(())
             })

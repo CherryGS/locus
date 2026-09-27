@@ -65,7 +65,7 @@ async function delayNextEntity() {
   // synthetic fixture. A foreign lock would hit Store's 2-second busy timeout
   // and could finish before the native UI handoff was observed.
   const code =
-    "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute('CREATE TRIGGER desktop_fixture_work BEFORE INSERT ON locus_entities BEGIN SELECT (WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<100000000) SELECT sum(x) FROM n); END'); c.commit(); c.close()"
+    "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute('CREATE TRIGGER desktop_fixture_work BEFORE INSERT ON locus_core_comm_entity BEGIN SELECT (WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<100000000) SELECT sum(x) FROM n); END'); c.commit(); c.close()"
   await promisify(execFile)("uv", ["run", "python", "-c", code, join(data.library, "metadata.sqlite")], {
     cwd: workspace,
     windowsHide: true,

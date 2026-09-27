@@ -53,8 +53,6 @@ pub enum MediaError {
     MissingRecord(MediaId),
     #[error("invalid Media record: {0}")]
     Corrupt(String),
-    #[error("unsupported Media schema version {0}")]
-    SchemaVersion(i32),
     #[error("Media configuration: {0}")]
     Configuration(String),
     #[error("cache: {0}")]

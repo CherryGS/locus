@@ -995,11 +995,6 @@ export interface components {
             version: number;
         } | {
             /** @enum {string} */
-            code: "schema_version";
-            /** Format: int32 */
-            version: number;
-        } | {
-            /** @enum {string} */
             code: "other";
             message: string;
         };
@@ -1635,11 +1630,6 @@ export interface components {
             message: string;
         } | {
             /** @enum {string} */
-            code: "schema_version";
-            /** Format: int32 */
-            version: number;
-        } | {
-            /** @enum {string} */
             code: "context_changed";
         } | {
             /** @enum {string} */
@@ -1759,14 +1749,6 @@ export interface components {
             entity_id: string;
         } | {
             /** @enum {string} */
-            code: "schema_version";
-            version: string;
-        } | {
-            /** @enum {string} */
-            code: "corrupt_schema";
-            message: string;
-        } | {
-            /** @enum {string} */
             code: "corrupt_record";
             entity_id: string;
             message: string;
@@ -1883,11 +1865,6 @@ export interface components {
             expected_revision: string;
             /** @enum {string} */
             operation: "reset";
-        } | {
-            metadata: components["schemas"]["SettingsMetadata"];
-            /** @enum {string} */
-            operation: "convert";
-            source: string;
         };
         SettingsDefinition: {
             defaults: unknown;
@@ -1911,15 +1888,7 @@ export interface components {
             group_id: string;
         } | {
             /** @enum {string} */
-            code: "unsupported";
-            version: string;
-        } | {
-            /** @enum {string} */
             code: "definition";
-            message: string;
-        } | {
-            /** @enum {string} */
-            code: "schema";
             message: string;
         };
         SettingsMetadata: {
@@ -1941,12 +1910,6 @@ export interface components {
             saved: components["schemas"]["SavedSettings"];
             /** @enum {string} */
             status: "current";
-        } | {
-            group_id: string;
-            metadata: components["schemas"]["SettingsMetadata"];
-            source: string;
-            /** @enum {string} */
-            status: "conversion_required";
         } | {
             group_id: string;
             metadata?: null | components["schemas"]["SettingsMetadata"];
@@ -2156,11 +2119,6 @@ export interface components {
         } | {
             /** @enum {string} */
             code: "payload_version";
-            /** Format: int32 */
-            version: number;
-        } | {
-            /** @enum {string} */
-            code: "schema_version";
             /** Format: int32 */
             version: number;
         } | {

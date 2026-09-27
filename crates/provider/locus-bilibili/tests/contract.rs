@@ -255,7 +255,7 @@ async fn explicit_cover_carry_forward_and_caught_write_failure_preserve_atomic_s
     assert_eq!(accepted.original_cover, Some(relation));
     assert!(accepted.basis.is_none());
     assert_eq!(accepted.snapshot, changed);
-    execute(&mut f.session,"CREATE TRIGGER fail_bilibili AFTER UPDATE ON locus_bilibili_snapshots BEGIN SELECT RAISE(FAIL,'test: participant failure'); END;".into()).await;
+    execute(&mut f.session,"CREATE TRIGGER fail_bilibili AFTER UPDATE ON locus_bilibili_comp_snapshot BEGIN SELECT RAISE(FAIL,'test: participant failure'); END;".into()).await;
     let kernel = f.kernel.clone();
     f.session.transaction::<_,BilibiliError,_>(move|c|Box::pin(async move{
    let token=BilibiliService::prepare_cover_in(&kernel,c,id,relation).await?;

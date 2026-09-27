@@ -20,9 +20,7 @@ async fn main() -> anyhow::Result<()> {
     k.register(Arc::new(FileOwner))?;
     k.register(Arc::new(ModelOwner))?;
     let m = ModelService::new();
-    k.initialize(&mut s).await?;
-    files.initialize(&mut s).await?;
-    m.initialize(&mut s).await?;
+    locus_migration::api::migrate(&mut s).await?;
     let mut entries = Vec::new();
     for name in [
         "complete",

@@ -25,10 +25,12 @@ async fn persisted_corruption_is_an_error_instead_of_a_different_identity() {
                     .connection()
                     .batch_execute("PRAGMA ignore_check_constraints = ON")
                     .await?;
-                sql_query("UPDATE locus_components SET kind = X'01' WHERE id = ?")
-                    .bind::<Binary, _>(component.as_bytes().as_slice())
-                    .execute(context.connection())
-                    .await?;
+                sql_query(
+                    "UPDATE locus_core_comm_component_registry SET kind = X'01' WHERE id = ?",
+                )
+                .bind::<Binary, _>(component.as_bytes().as_slice())
+                .execute(context.connection())
+                .await?;
                 context
                     .connection()
                     .batch_execute("PRAGMA ignore_check_constraints = OFF")
@@ -44,8 +46,8 @@ async fn persisted_corruption_is_an_error_instead_of_a_different_identity() {
     ));
     session.transaction::<_,CoreError,_>(move |context| Box::pin(async move {
         context.connection().batch_execute("PRAGMA ignore_check_constraints = ON").await?;
-        sql_query("INSERT INTO locus_components (id, kind) VALUES (zeroblob(16), ?)").bind::<Binary,_>(KIND.as_bytes().as_slice()).execute(context.connection()).await?;
-        sql_query("INSERT INTO locus_memberships (entity, kind, component) VALUES (?, ?, zeroblob(16))")
+        sql_query("INSERT INTO locus_core_comm_component_registry (id, kind) VALUES (zeroblob(16), ?)").bind::<Binary,_>(KIND.as_bytes().as_slice()).execute(context.connection()).await?;
+        sql_query("INSERT INTO locus_core_rela_membership (entity, kind, component) VALUES (?, ?, zeroblob(16))")
             .bind::<Binary,_>(entity.as_bytes().as_slice()).bind::<Binary,_>(KIND.as_bytes().as_slice()).execute(context.connection()).await?;
         context.connection().batch_execute("PRAGMA ignore_check_constraints = OFF").await?;
         Ok(())
@@ -88,14 +90,14 @@ async fn schema_version_is_core_owned_and_stored_identity_bytes_are_binary16() {
         })
         .await
         .unwrap();
-    kernel.initialize(&mut session).await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
     session.transaction::<_,CoreError,_>(move |context| Box::pin(async move {
         let version = sql_query("SELECT user_version AS count FROM pragma_user_version").get_result::<Count>(context.connection()).await?;
         assert_eq!(version.count, 41);
-        let entities = sql_query("SELECT count(*) AS count FROM locus_entities WHERE id = ? AND typeof(id) = 'blob' AND length(id) = 16")
+        let entities = sql_query("SELECT count(*) AS count FROM locus_core_comm_entity WHERE id = ? AND typeof(id) = 'blob' AND length(id) = 16")
             .bind::<Binary,_>(entity.as_bytes().as_slice()).get_result::<Count>(context.connection()).await?;
         assert_eq!(entities.count, 1);
-        let components = sql_query("SELECT count(*) AS count FROM locus_components WHERE typeof(id) = 'blob' AND length(id) = 16 AND typeof(kind) = 'blob' AND length(kind) = 16 AND length(id) = ?")
+        let components = sql_query("SELECT count(*) AS count FROM locus_core_comm_component_registry WHERE typeof(id) = 'blob' AND length(id) = 16 AND typeof(kind) = 'blob' AND length(kind) = 16 AND length(id) = ?")
             .bind::<BigInt,_>(16i64).get_result::<Count>(context.connection()).await?;
         assert_eq!(components.count, 2);
         Ok(())
@@ -113,76 +115,4 @@ async fn schema_version_is_core_owned_and_stored_identity_bytes_are_binary16() {
         component: second
     }));
     assert!(payload_exists(&mut session, first).await);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn version_one_migration_is_atomic_and_never_selects_a_surviving_membership() {
-    for shared in [false, true] {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("v1.sqlite");
-        let mut session = Session::open(&path).await.unwrap();
-        let kernel = fixture(&mut session).await;
-        let first = kernel.create_entity(&mut session).await.unwrap();
-        let second = kernel.create_entity(&mut session).await.unwrap();
-        let component = saved_component(&kernel, &mut session, KIND).await;
-        let link = Membership {
-            entity: first,
-            kind: KIND,
-            component,
-        };
-        kernel.attach(&mut session, link).await.unwrap();
-        // Reconstruct the actual v1 index/version, with real payload and links.
-        session.transaction::<_, CoreError, _>(move |context| Box::pin(async move {
-            context.connection().batch_execute("DROP INDEX locus_memberships_exclusive;
-                CREATE INDEX locus_memberships_component ON locus_memberships(component);
-                UPDATE locus_core_schema SET version = 1;").await?;
-            if shared {
-                sql_query("INSERT INTO locus_memberships (entity, kind, component) VALUES (?, ?, ?)")
-                    .bind::<Binary,_>(second.as_bytes().as_slice())
-                    .bind::<Binary,_>(KIND.as_bytes().as_slice())
-                    .bind::<Binary,_>(component.as_bytes().as_slice()).execute(context.connection()).await?;
-            }
-            Ok(())
-        })).await.unwrap();
-        drop(session);
-        let mut session = Session::open(&path).await.unwrap();
-        let result = kernel.initialize(&mut session).await;
-        if shared {
-            assert!(
-                matches!(result, Err(CoreError::MigrationSharedComponent(id)) if id == component)
-            );
-            assert_eq!(
-                kernel.memberships(&mut session, second).await.unwrap(),
-                vec![Membership {
-                    entity: second,
-                    ..link
-                }]
-            );
-        } else {
-            result.unwrap();
-            // The persistent constraint also rejects a trusted raw duplicate writer.
-            let duplicate = session.transaction::<_, CoreError, _>(move |context| Box::pin(async move {
-                sql_query("INSERT INTO locus_memberships (entity, kind, component) VALUES (?, ?, ?)")
-                    .bind::<Binary,_>(second.as_bytes().as_slice())
-                    .bind::<Binary,_>(KIND.as_bytes().as_slice())
-                    .bind::<Binary,_>(component.as_bytes().as_slice()).execute(context.connection()).await?;
-                Ok(())
-            })).await;
-            assert!(matches!(duplicate, Err(CoreError::Database(_))));
-        }
-        assert_eq!(
-            kernel.memberships(&mut session, first).await.unwrap(),
-            vec![link]
-        );
-        assert!(payload_exists(&mut session, component).await);
-        session.transaction::<_, CoreError, _>(move |context| Box::pin(async move {
-            let version = sql_query("SELECT version AS count FROM locus_core_schema").get_result::<Count>(context.connection()).await?.count;
-            assert_eq!(version, if shared { 1 } else { 2 });
-            let old_index = sql_query("SELECT count(*) AS count FROM sqlite_master WHERE type = 'index' AND name = 'locus_memberships_component'").get_result::<Count>(context.connection()).await?.count;
-            assert_eq!(old_index, i64::from(shared));
-            let links = sql_query("SELECT count(*) AS count FROM locus_memberships").get_result::<Count>(context.connection()).await?.count;
-            assert_eq!(links, if shared { 2 } else { 1 });
-            Ok(())
-        })).await.unwrap();
-    }
 }

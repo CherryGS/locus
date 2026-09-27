@@ -48,8 +48,6 @@ pub enum EntityViewPreference {
 #[serde(tag = "code", rename_all = "snake_case")]
 pub enum PreferenceFailure {
     RevisionExhausted { entity_id: String },
-    SchemaVersion { version: String },
-    CorruptSchema { message: String },
     CorruptRecord { entity_id: String, message: String },
     Store { diagnostic: Diagnostic },
     Core { error: CoreFailure },

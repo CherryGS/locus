@@ -226,7 +226,7 @@ pub async fn seed(root: &Path, video: Option<&Path>) -> anyhow::Result<Value> {
                 db.session
                     .transaction::<_, locus_store::api::StoreError, _>(move |c| {
                         Box::pin(async move {
-                            diesel::sql_query("DELETE FROM locus_files WHERE id = ?")
+                            diesel::sql_query("DELETE FROM locus_file_comp_file WHERE id = ?")
                                 .bind::<diesel::sql_types::Binary, _>(file.id.as_bytes().as_slice())
                                 .execute(c.connection())
                                 .await?;
@@ -242,7 +242,7 @@ pub async fn seed(root: &Path, video: Option<&Path>) -> anyhow::Result<Value> {
         if ["corrupt", "missing-record", "future-version"].contains(&name) {
             use diesel_async::RunQueryDsl;
             db.session.transaction::<_, locus_store::api::StoreError, _>(move |c| Box::pin(async move {
-                let sql = match name { "missing-record" => "DELETE FROM locus_twitter_snapshots WHERE id = ?", "future-version" => "UPDATE locus_twitter_snapshots SET payload = '{\"version\":99}' WHERE id = ?", _ => "UPDATE locus_twitter_snapshots SET payload = 'broken' WHERE id = ?" };
+                let sql = match name { "missing-record" => "DELETE FROM locus_twitter_comp_snapshot WHERE id = ?", "future-version" => "UPDATE locus_twitter_comp_snapshot SET payload = '{\"version\":99}' WHERE id = ?", _ => "UPDATE locus_twitter_comp_snapshot SET payload = 'broken' WHERE id = ?" };
                 diesel::sql_query(sql).bind::<diesel::sql_types::Binary,_>(component.as_bytes().as_slice()).execute(c.connection()).await?; Ok(())
             })).await.context("seed isolated failure")?;
         }

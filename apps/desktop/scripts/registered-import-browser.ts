@@ -13,7 +13,7 @@ export async function registeredImportBrowser(page: Page, backend: Awaited<Retur
   const sql = (statement: string) => promisify(execFile)("uv", ["run", "python", "-c", "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.executescript(sys.argv[2]); c.commit()", join(library,"metadata.sqlite"), statement], {cwd:workspace, windowsHide:true})
   const source = join(sources,"registered-before-entry.txt")
   await writeFile(source,"same registered bytes")
-  await sql("CREATE TRIGGER fail_import_entity BEFORE INSERT ON locus_entities BEGIN SELECT RAISE(ABORT, 'fixture entry failure'); END;")
+  await sql("CREATE TRIGGER fail_import_entity BEFORE INSERT ON locus_core_comm_entity BEGIN SELECT RAISE(ABORT, 'fixture entry failure'); END;")
   await page.evaluate((path) => { (globalThis as any).__importSelections.push({ status:"selected", paths:[path] }) }, source)
   await page.getByRole("button",{name:"Import",exact:true}).click()
   await page.getByRole("button",{name:/^Tasks/}).click()

@@ -115,7 +115,7 @@ async fn independent_bases_missing_context_and_unavailable_payloads_remain_disti
         f.files.open(&mut f.session, second.id).await,
         Err(FileError::Access { .. })
     ));
-    execute(&mut f.session, "DELETE FROM locus_files").await;
+    execute(&mut f.session, "DELETE FROM locus_file_comp_file").await;
     assert_eq!(
         observe_input(&f.kernel, &mut f.session, entity)
             .await
@@ -129,7 +129,7 @@ async fn independent_bases_missing_context_and_unavailable_payloads_remain_disti
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_memberships"
+            "SELECT count(*) AS count FROM locus_core_rela_membership"
         )
         .await,
         1
@@ -137,7 +137,7 @@ async fn independent_bases_missing_context_and_unavailable_payloads_remain_disti
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_components"
+            "SELECT count(*) AS count FROM locus_core_comm_component_registry"
         )
         .await,
         2
@@ -152,7 +152,7 @@ async fn independent_bases_missing_context_and_unavailable_payloads_remain_disti
             .unwrap(),
         observed
     );
-    execute(&mut reopened, "DROP TABLE locus_memberships").await;
+    execute(&mut reopened, "DROP TABLE locus_core_rela_membership").await;
     let result = compare_input(None, observe_input(&f.kernel, &mut reopened, entity).await);
     assert!(matches!(
         result,

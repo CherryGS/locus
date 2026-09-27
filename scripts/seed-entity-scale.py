@@ -26,12 +26,12 @@ def main():
         raise ValueError("Expected an isolated temporary scale database and positive Entity count")
     with sqlite3.connect(database) as connection:
         connection.execute("PRAGMA foreign_keys = ON")
-        if connection.execute("SELECT count(*) FROM locus_entities").fetchone()[0] != 0:
+        if connection.execute("SELECT count(*) FROM locus_core_comm_entity").fetchone()[0] != 0:
             raise ValueError("Scale fixture must start with no Entities")
         # Valid RFC UUIDv7 fields, deterministic unique sequence in the random tail.
         base = int.from_bytes(bytes.fromhex("01992853c12370008000000000000000"), "big")
         connection.executemany(
-            "INSERT INTO locus_entities (id) VALUES (?)",
+            "INSERT INTO locus_core_comm_entity (id) VALUES (?)",
             (((base + position).to_bytes(16, "big"),) for position in range(count)),
         )
         tables = [row[0] for row in connection.execute(
@@ -43,7 +43,7 @@ def main():
         }
         connection.commit()
     print(json.dumps({
-        "entityCount": rows["locus_entities"], "totalDatabaseRows": sum(rows.values()),
+        "entityCount": rows["locus_core_comm_entity"], "totalDatabaseRows": sum(rows.values()),
         "tableRows": rows, "sqliteFixtureVersion": sqlite3.sqlite_version,
         "setup": "actual constrained Entity rows; no payload or membership rows; fixture setup excluded from timing",
     }))

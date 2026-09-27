@@ -445,3 +445,8 @@ and a new request_id, using only the reported action. Confirm uncertain effects
 before retry. Request redelivery uses the original request_id and unchanged body;
 run and access scope remain enforced. Desktop feedback observes external recovery
 but does not perform it.
+
+Settings representations evolve through the startup migration history. The
+Settings HTTP API supports initialization, guarded complete-value update and
+explicit reset; there is no runtime conversion operation. Unexpected retained
+representation versions are reported as unsupported observations.

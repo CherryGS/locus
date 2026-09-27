@@ -4,7 +4,7 @@ use crate::api::{
     error::ApiError,
     settings::{dto::*, mapping as map},
 };
-use locus_settings::api::{GroupId, Metadata, WriteOutcome};
+use locus_settings::api::{GroupId, WriteOutcome};
 use std::sync::Arc;
 impl Shared {
     pub async fn settings_definitions(
@@ -90,20 +90,6 @@ impl Shared {
                                 .reset(&mut session, id, expected_revision)
                                 .await
                         }
-                        SettingsChange::Convert { metadata, source } => {
-                            domain
-                                .settings
-                                .convert(
-                                    &mut session,
-                                    id,
-                                    Metadata {
-                                        version: parse_version(&metadata.version)?,
-                                        revision: metadata.revision,
-                                    },
-                                    source,
-                                )
-                                .await
-                        }
                     }
                 }
                 .await;
@@ -125,16 +111,4 @@ impl Shared {
         )
         .await
     }
-}
-
-fn parse_version(value: &str) -> Result<i64, locus_settings::api::SettingsError> {
-    let parsed = value
-        .parse::<i64>()
-        .map_err(|e| locus_settings::api::SettingsError::Invalid(e.to_string()))?;
-    if parsed.to_string() != value {
-        return Err(locus_settings::api::SettingsError::Invalid(
-            "version must be a canonical decimal integer".into(),
-        ));
-    }
-    Ok(parsed)
 }

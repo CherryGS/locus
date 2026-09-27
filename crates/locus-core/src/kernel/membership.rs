@@ -33,12 +33,13 @@ impl Kernel {
         component: ComponentId,
     ) -> Result<Option<Membership>, CoreError> {
         self.component_kind_in(context, component).await?;
-        let row =
-            sql_query("SELECT entity, kind, component FROM locus_memberships WHERE component = ?")
-                .bind::<Binary, _>(component.as_bytes().as_slice())
-                .get_result::<MembershipRow>(context.connection())
-                .await
-                .optional()?;
+        let row = sql_query(
+            "SELECT entity, kind, component FROM locus_core_rela_membership WHERE component = ?",
+        )
+        .bind::<Binary, _>(component.as_bytes().as_slice())
+        .get_result::<MembershipRow>(context.connection())
+        .await
+        .optional()?;
         row.map(|row| {
             Ok(Membership {
                 entity: EntityId::from_bytes(&row.entity)?,
@@ -102,7 +103,7 @@ impl Kernel {
         self.require_entity(context, entity).await?;
         self.require_component(context, kind, component).await?;
         let existing = sql_query(
-            "SELECT component AS id FROM locus_memberships WHERE entity = ? AND kind = ?",
+            "SELECT component AS id FROM locus_core_rela_membership WHERE entity = ? AND kind = ?",
         )
         .bind::<Binary, _>(entity.as_bytes().as_slice())
         .bind::<Binary, _>(kind.as_bytes().as_slice())
@@ -117,12 +118,13 @@ impl Kernel {
                 Err(CoreError::SlotOccupied(existing))
             };
         }
-        let attached =
-            sql_query("SELECT entity, kind, component FROM locus_memberships WHERE component = ?")
-                .bind::<Binary, _>(component.as_bytes().as_slice())
-                .get_result::<MembershipRow>(context.connection())
-                .await
-                .optional()?;
+        let attached = sql_query(
+            "SELECT entity, kind, component FROM locus_core_rela_membership WHERE component = ?",
+        )
+        .bind::<Binary, _>(component.as_bytes().as_slice())
+        .get_result::<MembershipRow>(context.connection())
+        .await
+        .optional()?;
         if let Some(attached) = attached {
             return Err(CoreError::AttachmentOccupied(Membership {
                 entity: EntityId::from_bytes(&attached.entity)?,
@@ -130,12 +132,14 @@ impl Kernel {
                 component: ComponentId::from_bytes(&attached.component)?,
             }));
         }
-        sql_query("INSERT INTO locus_memberships (entity, kind, component) VALUES (?, ?, ?)")
-            .bind::<Binary, _>(entity.as_bytes().as_slice())
-            .bind::<Binary, _>(kind.as_bytes().as_slice())
-            .bind::<Binary, _>(component.as_bytes().as_slice())
-            .execute(context.connection())
-            .await?;
+        sql_query(
+            "INSERT INTO locus_core_rela_membership (entity, kind, component) VALUES (?, ?, ?)",
+        )
+        .bind::<Binary, _>(entity.as_bytes().as_slice())
+        .bind::<Binary, _>(kind.as_bytes().as_slice())
+        .bind::<Binary, _>(component.as_bytes().as_slice())
+        .execute(context.connection())
+        .await?;
         Ok(AttachOutcome::Attached)
     }
 
@@ -147,7 +151,7 @@ impl Kernel {
     ) -> Result<Vec<Membership>, CoreError> {
         self.require_entity(context, entity).await?;
         let rows = sql_query(
-            "SELECT entity, kind, component FROM locus_memberships WHERE entity = ? ORDER BY kind",
+            "SELECT entity, kind, component FROM locus_core_rela_membership WHERE entity = ? ORDER BY kind",
         )
         .bind::<Binary, _>(entity.as_bytes().as_slice())
         .load::<MembershipRow>(context.connection())
@@ -170,7 +174,7 @@ impl Kernel {
     ) -> Result<bool, CoreError> {
         self.require_entity(context, membership.entity).await?;
         let count = sql_query(
-            "DELETE FROM locus_memberships WHERE entity = ? AND kind = ? AND component = ?",
+            "DELETE FROM locus_core_rela_membership WHERE entity = ? AND kind = ? AND component = ?",
         )
         .bind::<Binary, _>(membership.entity.as_bytes().as_slice())
         .bind::<Binary, _>(membership.kind.as_bytes().as_slice())

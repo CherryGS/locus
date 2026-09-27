@@ -4,7 +4,7 @@ use diesel_async::{RunQueryDsl, SimpleAsyncConnection};
 use locus_settings::api::*;
 use locus_store::api::{Session, StoreError};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::json;
 const ID: GroupId = GroupId::from_u128(123);
 #[derive(Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -44,15 +44,6 @@ impl Provider for Owner {
             Ok(())
         }
     }
-    fn supports(&self, version: i64) -> bool {
-        version == 1
-    }
-    fn convert(&self, _: i64, mut v: Value) -> Result<Values, String> {
-        if let Some(object) = v.as_object_mut() {
-            object.insert("added".into(), json!(true));
-        }
-        serde_json::from_value(v).map_err(|e| e.to_string())
-    }
 }
 fn service(default: &'static str) -> SettingsService {
     let mut registry = Registry::new();
@@ -71,7 +62,7 @@ async fn inject(session: &mut Session, id: GroupId, version: i64, payload: &str)
         .transaction::<_, SettingsError, _>(move |ctx| {
             Box::pin(async move {
                 diesel::sql_query(
-                    "UPDATE locus_settings_values SET version=?,payload=? WHERE group_id=?",
+                    "UPDATE locus_settings_comm_group_value SET version=?,payload=? WHERE group_id=?",
                 )
                 .bind::<BigInt, _>(version)
                 .bind::<Text, _>(payload)
@@ -117,7 +108,7 @@ async fn absence_full_retention_changed_defaults_reset_and_library_isolation() {
         service.read(&mut session, ID).await,
         Err(SettingsError::Store(_))
     ));
-    service.initialize_schema(&mut session).await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
     assert!(matches!(
         service.read(&mut session, ID).await.unwrap(),
         Observation::Absent { .. }
@@ -177,7 +168,7 @@ async fn absence_full_retention_changed_defaults_reset_and_library_isolation() {
     assert_eq!(reset.value["text"], "new default");
     assert_ne!(reset.metadata.revision, second.metadata.revision);
     let mut other = Session::open(root.path().join("two.sqlite")).await.unwrap();
-    changed.initialize_schema(&mut other).await.unwrap();
+    locus_migration::api::migrate(&mut other).await.unwrap();
     assert!(matches!(
         changed.read(&mut other, ID).await.unwrap(),
         Observation::Absent { .. }
@@ -192,106 +183,14 @@ async fn absence_full_retention_changed_defaults_reset_and_library_isolation() {
     ));
     assert_ne!(isolated.metadata.revision, reset.metadata.revision);
 }
-#[tokio::test(flavor = "multi_thread")]
-async fn conversion_is_explicit_lossless_guarded_and_invalid_metadata_survives() {
-    let service = service("new");
-    let mut session = Session::memory().await.unwrap();
-    service.initialize_schema(&mut session).await.unwrap();
-    let initial = saved(service.initialize(&mut session, ID).await.unwrap());
-    inject(
-        &mut session,
-        ID,
-        1,
-        r#"{"text":"retained","optional":null,"nested":[[]]}"#,
-    )
-    .await;
-    let Observation::ConversionRequired {
-        metadata, source, ..
-    } = service.read(&mut session, ID).await.unwrap()
-    else {
-        panic!("conversion")
-    };
-    assert_eq!(metadata.revision, initial.metadata.revision);
-    assert!(matches!(
-        service
-            .convert(&mut session, ID, metadata.clone(), format!("{source} "))
-            .await
-            .unwrap(),
-        WriteOutcome::Conflict(_)
-    ));
-    let converted = saved(
-        service
-            .convert(&mut session, ID, metadata.clone(), source.clone())
-            .await
-            .unwrap(),
-    );
-    assert_eq!(
-        converted.value,
-        json!({"text":"retained","optional":null,"nested":[[]],"added":true})
-    );
-    assert_ne!(converted.metadata.revision, metadata.revision);
-    assert!(matches!(
-        service
-            .convert(&mut session, ID, metadata, source)
-            .await
-            .unwrap(),
-        WriteOutcome::Conflict(_)
-    ));
-    for payload in [
-        "{",
-        r#"{"text":"retained","nested":[],"added":true}"#,
-        r#"{"text":null,"optional":null,"nested":[],"added":true}"#,
-    ] {
-        inject(&mut session, ID, 2, payload).await;
-        let Observation::Invalid { metadata, .. } = service.read(&mut session, ID).await.unwrap()
-        else {
-            panic!("invalid")
-        };
-        assert_eq!(metadata, converted.metadata);
-    }
-    for version in [0, 3] {
-        inject(&mut session, ID, version, "{}").await;
-        let Observation::Unsupported { metadata, .. } =
-            service.read(&mut session, ID).await.unwrap()
-        else {
-            panic!("unsupported")
-        };
-        assert!(matches!(
-            service
-                .convert(&mut session, ID, metadata, "{}".into())
-                .await,
-            Err(SettingsError::Unsupported(_))
-        ));
-    }
-    let unavailable = SettingsService::new(Registry::new());
-    assert!(matches!(
-        unavailable.read(&mut session, ID).await.unwrap(),
-        Observation::Unavailable {
-            metadata: Some(_),
-            ..
-        }
-    ));
-    assert!(matches!(
-        unavailable
-            .reset(&mut session, ID, converted.metadata.revision.clone())
-            .await,
-        Err(SettingsError::Unavailable(_))
-    ));
-    let reset = saved(
-        service
-            .reset(&mut session, ID, converted.metadata.revision)
-            .await
-            .unwrap(),
-    );
-    assert_eq!(reset.value["text"], "new");
-}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn independent_connections_race_without_overwriting_and_groups_are_isolated() {
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join("race.sqlite");
     let service = service("initial");
     let mut first = Session::open(&path).await.unwrap();
-    service.initialize_schema(&mut first).await.unwrap();
+    locus_migration::api::migrate(&mut first).await.unwrap();
     let mut second = Session::open(&path).await.unwrap();
     let (a, b) = tokio::join!(
         service.initialize(&mut first, ID),
@@ -337,7 +236,7 @@ async fn participant_rollback_and_real_deferred_commit_failure_remain_distinct()
     let path = root.path().join("commit.sqlite");
     let service = service("initial");
     let mut session = Session::open(&path).await.unwrap();
-    service.initialize_schema(&mut session).await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
     let participant = service.clone();
     let error = session
         .transaction::<(), SettingsError, _>(move |ctx| {
@@ -389,10 +288,7 @@ async fn separately_opened_task_databases_share_exclusion_for_settings() {
     let holder = queue
         .submit("holder", move |task| async move {
             let mut session = first.session(&task).await.unwrap();
-            service("initial")
-                .initialize_schema(&mut session)
-                .await
-                .unwrap();
+            locus_migration::api::migrate(&mut session).await.unwrap();
             session
                 .transaction::<_, StoreError, _>(move |_| {
                     Box::pin(async move {
@@ -487,14 +383,6 @@ impl Provider for OptionalFloatOwner {
             Err("nonfinite".into())
         }
     }
-    fn supports(&self, version: i64) -> bool {
-        version == 0
-    }
-    fn convert(&self, _: i64, _: Value) -> Result<OptionalFloatValue, String> {
-        Ok(OptionalFloatValue {
-            number: Some(f64::NAN),
-        })
-    }
 }
 #[test]
 fn invalid_typed_defaults_are_rejected_before_json_can_turn_them_into_null() {
@@ -507,41 +395,14 @@ fn invalid_typed_defaults_are_rejected_before_json_can_turn_them_into_null() {
     ));
     assert!(registry.definitions().unwrap().is_empty());
 }
-#[tokio::test(flavor = "multi_thread")]
-async fn invalid_typed_conversion_is_rejected_before_json_can_turn_it_into_null() {
-    let mut registry = Registry::new();
-    registry
-        .register(OptionalFloatOwner {
-            invalid_defaults: false,
-        })
-        .unwrap();
-    let service = SettingsService::new(registry);
-    let mut session = Session::memory().await.unwrap();
-    service.initialize_schema(&mut session).await.unwrap();
-    let initial = saved(service.initialize(&mut session, ID).await.unwrap());
-    let source = r#"{"number":4.5}"#;
-    inject(&mut session, ID, 0, source).await;
-    let observation = service.read(&mut session, ID).await.unwrap();
-    let Observation::Invalid { metadata, .. } = observation.clone() else {
-        panic!("invalid converted value")
-    };
-    assert_eq!(metadata.version, 0);
-    assert_eq!(metadata.revision, initial.metadata.revision);
-    assert!(matches!(
-        service
-            .convert(&mut session, ID, metadata, source.into())
-            .await,
-        Err(SettingsError::Invalid(_))
-    ));
-    assert_eq!(service.read(&mut session, ID).await.unwrap(), observation);
-}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn integral_float_defaults_accept_js_round_trip_without_accepting_loss() {
     let mut registry = Registry::new();
     registry.register(FloatOwner).unwrap();
     let service = SettingsService::new(registry);
     let mut session = Session::memory().await.unwrap();
-    service.initialize_schema(&mut session).await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
     let first = saved(service.initialize(&mut session, ID).await.unwrap());
     let next = saved(
         service
@@ -583,9 +444,13 @@ async fn sql(session: &mut Session, statement: &str) {
 async fn corrupt_outer_metadata_and_schema_markers_never_authorize_blind_repair() {
     let service = service("initial");
     let mut session = Session::memory().await.unwrap();
-    service.initialize_schema(&mut session).await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
     let initial = saved(service.initialize(&mut session, ID).await.unwrap());
-    sql(&mut session, "UPDATE locus_settings_values SET version=2.5").await;
+    sql(
+        &mut session,
+        "UPDATE locus_settings_comm_group_value SET version=2.5",
+    )
+    .await;
     assert!(matches!(
         service.read(&mut session, ID).await.unwrap(),
         Observation::Corrupt {
@@ -601,9 +466,9 @@ async fn corrupt_outer_metadata_and_schema_markers_never_authorize_blind_repair(
             .unwrap(),
     );
     for statement in [
-        "UPDATE locus_settings_values SET version=2,revision=''",
-        "UPDATE locus_settings_values SET revision=x'0102'",
-        "UPDATE locus_settings_values SET revision='not-a-revision'",
+        "UPDATE locus_settings_comm_group_value SET version=2,revision=''",
+        "UPDATE locus_settings_comm_group_value SET revision=x'0102'",
+        "UPDATE locus_settings_comm_group_value SET revision='not-a-revision'",
     ] {
         sql(&mut session, statement).await;
         let observed = service.read(&mut session, ID).await.unwrap();
@@ -620,7 +485,7 @@ async fn corrupt_outer_metadata_and_schema_markers_never_authorize_blind_repair(
     sql(
         &mut session,
         &format!(
-            "UPDATE locus_settings_values SET version=2,revision='{}',payload=x'ff'",
+            "UPDATE locus_settings_comm_group_value SET version=2,revision='{}',payload=x'ff'",
             initial.metadata.revision
         ),
     )
@@ -628,68 +493,68 @@ async fn corrupt_outer_metadata_and_schema_markers_never_authorize_blind_repair(
     assert!(
         matches!(service.read(&mut session,ID).await.unwrap(),Observation::Invalid { metadata,.. } if metadata==initial.metadata)
     );
-    for statement in [
-        "UPDATE locus_settings_schema SET version=1.5",
-        "UPDATE locus_settings_schema SET version=4294967297",
-        "DELETE FROM locus_settings_schema",
-    ] {
-        sql(&mut session, statement).await;
-        assert!(service.initialize_schema(&mut session).await.is_err());
-        assert!(service.read(&mut session, ID).await.is_err());
-        assert!(
-            service
-                .reset(&mut session, ID, initial.metadata.revision.clone())
-                .await
-                .is_err()
-        );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn old_and_new_representations_are_unsupported_without_rewriting_values() {
+    let service = service("current");
+    let mut session = Session::memory().await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
+    let initial = saved(service.initialize(&mut session, ID).await.unwrap());
+    for version in [0, 1, 3] {
+        inject(&mut session, ID, version, "{}").await;
+        let Observation::Unsupported { metadata, .. } =
+            service.read(&mut session, ID).await.unwrap()
+        else {
+            panic!("unsupported");
+        };
+        assert_eq!(metadata.version, version);
+        assert_eq!(metadata.revision, initial.metadata.revision);
+        assert!(matches!(
+            service.initialize(&mut session, ID).await.unwrap(),
+            WriteOutcome::Existing(Observation::Unsupported { .. })
+        ));
     }
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn conversion_races_and_uncertain_conversion_do_not_publish_uncommitted_current_values() {
-    let root = tempfile::tempdir().unwrap();
-    let path = root.path().join("conversion.sqlite");
-    let service = service("new");
-    let mut one = Session::open(&path).await.unwrap();
-    service.initialize_schema(&mut one).await.unwrap();
-    service.initialize(&mut one, ID).await.unwrap();
-    inject(
-        &mut one,
-        ID,
-        1,
-        r#"{"text":"old","optional":null,"nested":[]}"#,
-    )
-    .await;
-    let Observation::ConversionRequired {
-        metadata, source, ..
-    } = service.read(&mut one, ID).await.unwrap()
-    else {
-        panic!("source")
-    };
-    let participant = service.clone();
-    let m = metadata.clone();
-    let s = source.clone();
-    let error=one.transaction::<(),SettingsError,_>(move |ctx|Box::pin(async move {
-        assert!(matches!(participant.convert_in(ctx,ID,m,s).await?,WriteOutcome::Saved(_)));
-        ctx.connection().batch_execute("CREATE TABLE parent(id INTEGER PRIMARY KEY); CREATE TABLE child(id INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED); INSERT INTO child VALUES(1);").await?;Ok(())
-    })).await.unwrap_err();
+async fn invalid_current_values_and_unavailable_owner_keep_metadata_and_guard_reset() {
+    let service = service("current");
+    let mut session = Session::memory().await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
+    let initial = saved(service.initialize(&mut session, ID).await.unwrap());
+    for payload in [
+        "{",
+        r#"{"text":"retained","nested":[],"added":true}"#,
+        r#"{"text":null,"optional":null,"nested":[],"added":true}"#,
+    ] {
+        inject(&mut session, ID, 2, payload).await;
+        let Observation::Invalid { metadata, .. } = service.read(&mut session, ID).await.unwrap()
+        else {
+            panic!("invalid");
+        };
+        assert_eq!(metadata, initial.metadata);
+    }
+    let unavailable = SettingsService::new(Registry::new());
     assert!(matches!(
-        error,
-        SettingsError::Store(StoreError::CommitOutcomeUnknown(_))
+        unavailable.read(&mut session, ID).await.unwrap(),
+        Observation::Unavailable {
+            metadata: Some(_),
+            ..
+        }
     ));
-    let mut one = Session::open(&path).await.unwrap();
-    let mut two = Session::open(&path).await.unwrap();
     assert!(matches!(
-        service.read(&mut one, ID).await.unwrap(),
-        Observation::ConversionRequired { .. }
+        unavailable
+            .reset(&mut session, ID, initial.metadata.revision.clone())
+            .await,
+        Err(SettingsError::Unavailable(_))
     ));
-    let (a, b) = tokio::join!(
-        service.convert(&mut one, ID, metadata.clone(), source),
-        service.reset(&mut two, ID, metadata.revision)
+    let reset = saved(
+        service
+            .reset(&mut session, ID, initial.metadata.revision.clone())
+            .await
+            .unwrap(),
     );
-    assert!(matches!(
-        (a.unwrap(), b.unwrap()),
-        (WriteOutcome::Saved(_), WriteOutcome::Conflict(_))
-            | (WriteOutcome::Conflict(_), WriteOutcome::Saved(_))
-    ));
+    assert_ne!(reset.metadata.revision, initial.metadata.revision);
+    assert_eq!(reset.value["text"], "current");
 }

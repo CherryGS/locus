@@ -449,7 +449,7 @@ async fn canceled_real_payload_group_is_discarded_before_commit_and_prior_rows_r
         Err(CoreError::Store(StoreError::Discarded))
     ));
     let mut reopened = Session::open(&path).await.unwrap();
-    kernel.initialize(&mut reopened).await.unwrap();
+    locus_migration::api::migrate(&mut reopened).await.unwrap();
     assert!(
         !kernel
             .entity_exists(&mut reopened, grouped_entity)
@@ -486,22 +486,22 @@ async fn durable_reopen_schema_version_and_binary_constraints_are_checked() {
     kernel.attach(&mut session, link).await.unwrap();
     drop(session);
     let mut reopened = Session::open(&path).await.unwrap();
-    kernel.initialize(&mut reopened).await.unwrap();
+    locus_migration::api::migrate(&mut reopened).await.unwrap();
     assert_eq!(
         kernel.memberships(&mut reopened, entity).await.unwrap(),
         vec![link]
     );
     assert!(payload_exists(&mut reopened, component).await);
     for statement in [
-        "INSERT INTO locus_entities (id) VALUES (NULL)",
-        "INSERT INTO locus_entities (id) VALUES (X'01')",
-        "INSERT INTO locus_entities (id) VALUES ('1234567890123456')",
-        "INSERT INTO locus_entities (id) VALUES (zeroblob(16))",
-        "INSERT INTO locus_components (id, kind) VALUES (zeroblob(16), zeroblob(16))",
-        "DELETE FROM locus_components",
-        "UPDATE locus_memberships SET component = randomblob(16)",
-        "UPDATE locus_memberships SET entity = randomblob(16)",
-        "UPDATE locus_memberships SET kind = randomblob(16)",
+        "INSERT INTO locus_core_comm_entity (id) VALUES (NULL)",
+        "INSERT INTO locus_core_comm_entity (id) VALUES (X'01')",
+        "INSERT INTO locus_core_comm_entity (id) VALUES ('1234567890123456')",
+        "INSERT INTO locus_core_comm_entity (id) VALUES (zeroblob(16))",
+        "INSERT INTO locus_core_comm_component_registry (id, kind) VALUES (zeroblob(16), zeroblob(16))",
+        "DELETE FROM locus_core_comm_component_registry",
+        "UPDATE locus_core_rela_membership SET component = randomblob(16)",
+        "UPDATE locus_core_rela_membership SET entity = randomblob(16)",
+        "UPDATE locus_core_rela_membership SET kind = randomblob(16)",
     ] {
         let result = reopened
             .transaction::<(), CoreError, _>(move |context| {
@@ -513,22 +513,6 @@ async fn durable_reopen_schema_version_and_binary_constraints_are_checked() {
             .await;
         assert!(result.is_err(), "constraint accepted {statement}");
     }
-    reopened
-        .transaction::<(), CoreError, _>(|context| {
-            Box::pin(async move {
-                context
-                    .connection()
-                    .batch_execute("UPDATE locus_core_schema SET version = 999")
-                    .await?;
-                Ok(())
-            })
-        })
-        .await
-        .unwrap();
-    assert!(matches!(
-        kernel.initialize(&mut reopened).await,
-        Err(CoreError::SchemaVersion(999))
-    ));
     assert_eq!(
         kernel.memberships(&mut reopened, entity).await.unwrap(),
         vec![link]

@@ -191,7 +191,7 @@ try {
   await page.getByRole("button", { name: "Discard draft and restart", exact: true }).waitFor()
   await page.screenshot({ path: join(output, "discard-confirmation.png") })
   await sql(
-    "CREATE TRIGGER settings_fixture_work BEFORE INSERT ON locus_entities BEGIN SELECT (WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<100000000) SELECT sum(x) FROM n); END",
+    "CREATE TRIGGER settings_fixture_work BEFORE INSERT ON locus_core_comm_entity BEGIN SELECT (WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<100000000) SELECT sum(x) FROM n); END",
   )
   await page.evaluate(() => {
     ;(window as any).__acceptedSettingsFixture = fetch("/api/v1/entities", {
@@ -365,7 +365,7 @@ try {
   application = undefined
   checks.push("lost drain response invalidates backend attribution without relaunch")
   await sql(
-    "UPDATE locus_settings_values SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'",
+    "UPDATE locus_settings_comm_group_value SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'",
   )
   const repairLog = join(output, "repair-restart.jsonl")
   page = await launch({ LOCUS_TEST_RELAUNCH_LOG: repairLog })
@@ -390,7 +390,7 @@ try {
   assert.equal(repairEvents.filter((event) => event.event === "ready").at(-1).availability.status, "normal")
   checks.push("restricted repair saves without business start; explicit retry produces normal replacement")
   await sql(
-    "UPDATE locus_settings_values SET revision='invalid' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'",
+    "UPDATE locus_settings_comm_group_value SET revision='invalid' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'",
   )
   page = await launch()
   await page.getByText("Library needs attention", { exact: true }).waitFor()

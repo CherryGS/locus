@@ -1,9 +1,7 @@
 use crate::{
     adapters::{LiveUpstream, Upstream},
     error::CivitaiError,
-    persistence,
 };
-use locus_store::api::Session;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -17,10 +15,5 @@ impl CivitaiService {
     /// Only acquisition is injected; storage, matching and all owner operations stay real.
     pub fn with_upstream(upstream: Arc<dyn Upstream>) -> Self {
         Self { upstream }
-    }
-    pub async fn initialize(&self, session: &mut Session) -> Result<(), CivitaiError> {
-        session
-            .transaction(|c| Box::pin(persistence::initialize(c)))
-            .await
     }
 }

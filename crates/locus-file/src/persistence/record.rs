@@ -24,12 +24,14 @@ impl FileService {
             .await
     }
     pub async fn read_in(context: &mut Context, id: FileId) -> Result<FileRecord, FileError> {
-        let row = sql_query("SELECT id, relative_path, byte_count FROM locus_files WHERE id = ?")
-            .bind::<Binary, _>(id.as_bytes().as_slice())
-            .get_result::<RecordRow>(context.connection())
-            .await
-            .optional()?
-            .ok_or(FileError::MissingRecord(id))?;
+        let row = sql_query(
+            "SELECT id, relative_path, byte_count FROM locus_file_comp_file WHERE id = ?",
+        )
+        .bind::<Binary, _>(id.as_bytes().as_slice())
+        .get_result::<RecordRow>(context.connection())
+        .await
+        .optional()?
+        .ok_or(FileError::MissingRecord(id))?;
         let record = FileRecord {
             id: FileId::from_bytes(&row.id)?,
             relative_path: row.relative_path,
@@ -41,7 +43,7 @@ impl FileService {
 }
 
 pub(crate) async fn insert(context: &mut Context, record: &FileRecord) -> Result<(), FileError> {
-    sql_query("INSERT INTO locus_files (id, relative_path, byte_count) VALUES (?, ?, ?)")
+    sql_query("INSERT INTO locus_file_comp_file (id, relative_path, byte_count) VALUES (?, ?, ?)")
         .bind::<Binary, _>(record.id.as_bytes().as_slice())
         .bind::<Text, _>(&record.relative_path)
         .bind::<BigInt, _>(
@@ -63,7 +65,7 @@ pub(crate) async fn exists(
     context: &mut Context,
     component: ComponentId,
 ) -> Result<bool, diesel::result::Error> {
-    let row = sql_query("SELECT count(*) AS count FROM locus_files WHERE id = ?")
+    let row = sql_query("SELECT count(*) AS count FROM locus_file_comp_file WHERE id = ?")
         .bind::<Binary, _>(component.as_bytes().as_slice())
         .get_result::<Count>(context.connection())
         .await?;

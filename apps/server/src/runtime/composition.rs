@@ -64,22 +64,6 @@ impl Domain {
             media_settings,
             external_settings,
         };
-        let init = domain.clone();
-        queue
-            .submit("Initialize File library", move |task| async move {
-                let mut session = init.database.session(&task).await?;
-                init.kernel.initialize(&mut session).await?;
-                init.files.initialize(&mut session).await?;
-                init.media.initialize(&mut session).await?;
-                init.model.initialize(&mut session).await?;
-                init.twitter.initialize(&mut session).await?;
-                init.bilibili.initialize(&mut session).await?;
-                init.civitai.initialize(&mut session).await?;
-                init.preferences.initialize(&mut session).await?;
-                Ok::<_, anyhow::Error>(())
-            })?
-            .result()
-            .await??;
         Ok(domain)
     }
 }
@@ -97,12 +81,27 @@ impl Library {
         root: &Path,
         #[cfg(test)] probe: Option<super::ownership_tests::StartupProbe>,
     ) -> anyhow::Result<Self> {
+        let database = TaskDatabase::open(queue, root.join("metadata.sqlite"))
+            .await
+            .context("open task-bound database")?;
+        let migration_database = database.clone();
+        #[cfg(test)]
+        let migration_root = root.to_path_buf();
+        queue
+            .submit("Migrate library", move |task| async move {
+                let mut session = migration_database.session(&task).await?;
+                locus_migration::api::migrate(&mut session).await?;
+                #[cfg(test)]
+                if let Some(probe) = probe {
+                    probe.run(&task, &migration_root).await?;
+                }
+                Ok::<_, anyhow::Error>(())
+            })?
+            .result()
+            .await??;
         let files = FileService::new(root)
             .await
             .context("open managed File root")?;
-        let database = TaskDatabase::open(queue, files.root().join("metadata.sqlite"))
-            .await
-            .context("open task-bound database")?;
         let settings =
             locus_settings::api::SettingsService::new(super::settings_setup::registry()?);
         let library = Self {
@@ -110,19 +109,6 @@ impl Library {
             files,
             settings,
         };
-        let init = library.clone();
-        queue
-            .submit("Initialize Settings access", move |task| async move {
-                let mut session = init.database.session(&task).await?;
-                init.settings.initialize_schema(&mut session).await?;
-                #[cfg(test)]
-                if let Some(probe) = probe {
-                    probe.run(&task, init.files.root()).await?;
-                }
-                Ok::<_, anyhow::Error>(())
-            })?
-            .result()
-            .await??;
         Ok(library)
     }
 }

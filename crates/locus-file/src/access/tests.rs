@@ -29,8 +29,7 @@ async fn denied_open_and_later_read_failure_keep_identity_and_accepted_state() {
     let mut session = Session::memory().await.unwrap();
     let mut kernel = Kernel::new();
     kernel.register(Arc::new(FileOwner)).unwrap();
-    kernel.initialize(&mut session).await.unwrap();
-    storage.initialize(&mut session).await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
     let record = storage.admit(&kernel, &mut session, &source).await.unwrap();
     // Test only opener substitution: deterministic on Windows regardless of ACLs
     // or whether the test process has administrator permissions.

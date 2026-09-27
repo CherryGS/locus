@@ -1123,6 +1123,7 @@ dependencies = [
  "diesel-async",
  "locus-core",
  "locus-file",
+ "locus-migration",
  "locus-store",
  "locus-task",
  "serde",
@@ -1145,6 +1146,7 @@ dependencies = [
  "locus-core",
  "locus-file",
  "locus-media",
+ "locus-migration",
  "locus-store",
  "locus-task",
  "provider-civitai",
@@ -1164,6 +1166,7 @@ version = "0.1.0"
 dependencies = [
  "diesel",
  "diesel-async",
+ "locus-migration",
  "locus-store",
  "tempfile",
  "thiserror",
@@ -1178,6 +1181,7 @@ dependencies = [
  "diesel",
  "diesel-async",
  "locus-core",
+ "locus-migration",
  "locus-store",
  "locus-task",
  "tempfile",
@@ -1195,6 +1199,7 @@ dependencies = [
  "image",
  "locus-core",
  "locus-file",
+ "locus-migration",
  "locus-settings",
  "locus-store",
  "locus-task",
@@ -1208,6 +1213,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "locus-migration"
+version = "0.1.0"
+dependencies = [
+ "diesel",
+ "diesel-async",
+ "locus-store",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "locus-model"
 version = "0.1.0"
 dependencies = [
@@ -1215,6 +1234,7 @@ dependencies = [
  "diesel-async",
  "locus-core",
  "locus-file",
+ "locus-migration",
  "locus-store",
  "locus-task",
  "safetensors",
@@ -1249,6 +1269,7 @@ dependencies = [
  "locus-core",
  "locus-file",
  "locus-media",
+ "locus-migration",
  "locus-model",
  "locus-settings",
  "locus-store",
@@ -1273,6 +1294,7 @@ version = "0.1.0"
 dependencies = [
  "diesel",
  "diesel-async",
+ "locus-migration",
  "locus-store",
  "locus-task",
  "schemars",
@@ -1316,6 +1338,7 @@ dependencies = [
  "locus-core",
  "locus-file",
  "locus-media",
+ "locus-migration",
  "locus-store",
  "locus-task",
  "serde",

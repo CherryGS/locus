@@ -27,17 +27,25 @@ async fn recognition_has_no_components_writes_or_cache_and_preserves_failures() 
     assert_eq!(observed.image, Recognition::Match);
     assert_eq!(observed.video, Recognition::NoMatch);
     assert_eq!(
-        count(&mut f.session, "SELECT count(*) AS count FROM locus_images").await,
-        0
-    );
-    assert_eq!(
-        count(&mut f.session, "SELECT count(*) AS count FROM locus_videos").await,
+        count(
+            &mut f.session,
+            "SELECT count(*) AS count FROM locus_media_comp_image"
+        )
+        .await,
         0
     );
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_entities"
+            "SELECT count(*) AS count FROM locus_media_comp_video"
+        )
+        .await,
+        0
+    );
+    assert_eq!(
+        count(
+            &mut f.session,
+            "SELECT count(*) AS count FROM locus_core_comm_entity"
         )
         .await,
         0

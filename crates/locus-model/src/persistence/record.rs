@@ -56,7 +56,7 @@ impl ModelService {
     pub async fn read_in(context: &mut Context, id: ModelId) -> Result<ModelRecord, ModelError> {
         let row = sql_query(format!(
             "SELECT id, revision, payload FROM {} WHERE id = ?",
-            "locus_models"
+            "locus_model_comp_model"
         ))
         .bind::<Binary, _>(id.component().as_bytes().as_slice())
         .get_result::<Row>(context.connection())
@@ -86,7 +86,7 @@ impl ModelService {
 pub(crate) async fn insert(context: &mut Context, record: &ModelRecord) -> Result<(), ModelError> {
     sql_query(format!(
         "INSERT INTO {} (id,revision,payload) VALUES (?,0,?)",
-        "locus_models"
+        "locus_model_comp_model"
     ))
     .bind::<Binary, _>(record.id.component().as_bytes().as_slice())
     .bind::<Text, _>(payload(record)?)
@@ -99,7 +99,7 @@ pub(crate) async fn insert(context: &mut Context, record: &ModelRecord) -> Resul
 pub(crate) async fn update(context: &mut Context, record: &ModelRecord) -> Result<(), ModelError> {
     sql_query(format!(
         "UPDATE {} SET revision = ?, payload = ? WHERE id = ?",
-        "locus_models"
+        "locus_model_comp_model"
     ))
     .bind::<BigInt, _>(record.revision)
     .bind::<Text, _>(payload(record)?)
@@ -114,9 +114,12 @@ pub(crate) async fn delete(
     context: &mut Context,
     id: ModelId,
 ) -> Result<(), diesel::result::Error> {
-    sql_query(format!("DELETE FROM {} WHERE id = ?", "locus_models"))
-        .bind::<Binary, _>(id.component().as_bytes().as_slice())
-        .execute(context.connection())
-        .await?;
+    sql_query(format!(
+        "DELETE FROM {} WHERE id = ?",
+        "locus_model_comp_model"
+    ))
+    .bind::<Binary, _>(id.component().as_bytes().as_slice())
+    .execute(context.connection())
+    .await?;
     Ok(())
 }

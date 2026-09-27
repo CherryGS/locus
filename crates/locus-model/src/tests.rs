@@ -28,9 +28,7 @@ async fn lifecycle_acceptance_races_and_observational_reads() {
     let mut k = Kernel::new();
     k.register(Arc::new(FileOwner)).unwrap();
     k.register(Arc::new(ModelOwner)).unwrap();
-    k.initialize(&mut s).await.unwrap();
-    files.initialize(&mut s).await.unwrap();
-    m.initialize(&mut s).await.unwrap();
+    locus_migration::api::migrate(&mut s).await.unwrap();
     let path = dir.path().join("misleading.png");
     fixture(&path, true);
     let original = std::fs::read(&path).unwrap();
@@ -128,9 +126,9 @@ async fn corruption_and_provisional_rollback() {
     let mut s = Session::open(dir.path().join("db")).await.unwrap();
     let mut k = Kernel::new();
     k.register(Arc::new(ModelOwner)).unwrap();
-    k.initialize(&mut s).await.unwrap();
+    locus_migration::api::migrate(&mut s).await.unwrap();
     let m = ModelService::new();
-    m.initialize(&mut s).await.unwrap();
+    locus_migration::api::migrate(&mut s).await.unwrap();
     let id = m.create(&k, &mut s).await.unwrap();
     for payload in [
         "not json",
@@ -139,7 +137,7 @@ async fn corruption_and_provisional_rollback() {
         let payload = payload.to_string();
         s.transaction::<(), ModelError, _>(move |c| {
             Box::pin(async move {
-                diesel::sql_query("UPDATE locus_models SET payload = ?")
+                diesel::sql_query("UPDATE locus_model_comp_model SET payload = ?")
                     .bind::<diesel::sql_types::Text, _>(payload)
                     .execute(c.connection())
                     .await?;
@@ -173,12 +171,12 @@ async fn actual_commit_failure_preserves_unknown_outcome_and_prior_record() {
     let mut s = Session::open(&path).await.unwrap();
     let mut k = Kernel::new();
     k.register(Arc::new(ModelOwner)).unwrap();
-    k.initialize(&mut s).await.unwrap();
+    locus_migration::api::migrate(&mut s).await.unwrap();
     let m = ModelService::new();
-    m.initialize(&mut s).await.unwrap();
+    locus_migration::api::migrate(&mut s).await.unwrap();
     let id = m.create(&k, &mut s).await.unwrap();
     let before = m.read(&mut s, id).await.unwrap();
-    s.transaction::<(),ModelError,_>(|c|Box::pin(async move{c.connection().batch_execute("CREATE TABLE fixture_parent (id INTEGER PRIMARY KEY); CREATE TABLE fixture_child (parent INTEGER REFERENCES fixture_parent(id) DEFERRABLE INITIALLY DEFERRED); CREATE TRIGGER uncertain_model AFTER UPDATE ON locus_models BEGIN INSERT INTO fixture_child VALUES (1); END;").await?;Ok(())})).await.unwrap();
+    s.transaction::<(),ModelError,_>(|c|Box::pin(async move{c.connection().batch_execute("CREATE TABLE fixture_parent (id INTEGER PRIMARY KEY); CREATE TABLE fixture_child (parent INTEGER REFERENCES fixture_parent(id) DEFERRABLE INITIALLY DEFERRED); CREATE TRIGGER uncertain_model AFTER UPDATE ON locus_model_comp_model BEGIN INSERT INTO fixture_child VALUES (1); END;").await?;Ok(())})).await.unwrap();
     let files = FileService::new(dir.path()).await.unwrap();
     let error = m.inspect(&k, &files, &mut s, id).await.unwrap_err();
     assert!(matches!(

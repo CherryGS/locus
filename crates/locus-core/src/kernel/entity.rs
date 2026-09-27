@@ -44,7 +44,7 @@ impl Kernel {
 
     pub async fn create_entity_in(&self, context: &mut Context) -> Result<EntityId, CoreError> {
         let id = EntityId::new();
-        sql_query("INSERT INTO locus_entities (id) VALUES (?)")
+        sql_query("INSERT INTO locus_core_comm_entity (id) VALUES (?)")
             .bind::<Binary, _>(id.as_bytes().as_slice())
             .execute(context.connection())
             .await?;
@@ -56,7 +56,7 @@ impl Kernel {
         context: &mut Context,
         entity: EntityId,
     ) -> Result<bool, CoreError> {
-        let row = sql_query("SELECT id FROM locus_entities WHERE id = ?")
+        let row = sql_query("SELECT id FROM locus_core_comm_entity WHERE id = ?")
             .bind::<Binary, _>(entity.as_bytes().as_slice())
             .get_result::<IdRow>(context.connection())
             .await
@@ -72,7 +72,7 @@ impl Kernel {
         context: &mut Context,
         entity: EntityId,
     ) -> Result<(), CoreError> {
-        let count = sql_query("DELETE FROM locus_entities WHERE id = ?")
+        let count = sql_query("DELETE FROM locus_core_comm_entity WHERE id = ?")
             .bind::<Binary, _>(entity.as_bytes().as_slice())
             .execute(context.connection())
             .await?;

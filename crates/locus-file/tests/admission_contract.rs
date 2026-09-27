@@ -20,7 +20,7 @@ async fn real_copy_reopens_binary_identity_exact_bytes_and_original() {
         record.byte_count,
         std::fs::metadata(&f.source).unwrap().len()
     );
-    assert_eq!(count(&mut f.session, "SELECT count(*) AS count FROM locus_files WHERE typeof(id) = 'blob' AND length(id) = 16").await, 1);
+    assert_eq!(count(&mut f.session, "SELECT count(*) AS count FROM locus_file_comp_file WHERE typeof(id) = 'blob' AND length(id) = 16").await, 1);
     assert_eq!(
         f.kernel
             .component_kind(&mut f.session, record.id.component())
@@ -31,7 +31,7 @@ async fn real_copy_reopens_binary_identity_exact_bytes_and_original() {
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_entities"
+            "SELECT count(*) AS count FROM locus_core_comm_entity"
         )
         .await,
         0
@@ -45,7 +45,7 @@ async fn real_copy_reopens_binary_identity_exact_bytes_and_original() {
     drop(f.session);
     let files = FileService::new(f.files.root()).await.unwrap();
     let mut session = Session::open(f.database).await.unwrap();
-    files.initialize(&mut session).await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
     assert_eq!(files.read(&mut session, record.id).await.unwrap(), record);
     let mut input = files.open(&mut session, record.id).await.unwrap();
     let mut bytes = Vec::new();
@@ -76,7 +76,11 @@ async fn missing_source_and_different_root_never_register_a_file() {
         Err(FileError::WrongRoot)
     ));
     assert_eq!(
-        count(&mut f.session, "SELECT count(*) AS count FROM locus_files").await,
+        count(
+            &mut f.session,
+            "SELECT count(*) AS count FROM locus_file_comp_file"
+        )
+        .await,
         0
     );
     assert!(
@@ -174,7 +178,7 @@ async fn group_rollback_and_standalone_commit_error_keep_completed_copy_progress
     );
     execute(&mut f.session, "CREATE TABLE test_parent (id INTEGER PRIMARY KEY);
         CREATE TABLE test_deferred (parent INTEGER REFERENCES test_parent(id) DEFERRABLE INITIALLY DEFERRED);
-        CREATE TRIGGER fail_commit AFTER INSERT ON locus_files BEGIN INSERT INTO test_deferred VALUES (1); END;").await;
+        CREATE TRIGGER fail_commit AFTER INSERT ON locus_file_comp_file BEGIN INSERT INTO test_deferred VALUES (1); END;").await;
     let error = f
         .files
         .admit(&f.kernel, &mut f.session, &f.source)

@@ -30,11 +30,11 @@ impl Kernel {
             .connection()
             .spawn_blocking(|connection| {
                 Ok((|| -> Result<EntityIds, CoreError> {
-                    let count = sql_query("SELECT count(*) AS count FROM locus_entities")
+                    let count = sql_query("SELECT count(*) AS count FROM locus_core_comm_entity")
                         .get_result::<CountRow>(connection)?
                         .count;
                     let mut bytes = Vec::with_capacity(count as usize * 16);
-                    for row in sql_query("SELECT id FROM locus_entities")
+                    for row in sql_query("SELECT id FROM locus_core_comm_entity")
                         .load_iter::<IdRow, _>(connection)?
                     {
                         let id = EntityId::from_bytes(&row?.id)?;
@@ -74,8 +74,8 @@ impl Kernel {
         for chunk in entities.chunks(500) {
             let placeholders = vec!["?"; chunk.len()].join(",");
             let mut query = sql_query(format!(
-                "SELECT e.id AS entity, m.kind, m.component FROM locus_entities e \
-                 LEFT JOIN locus_memberships m ON m.entity = e.id WHERE e.id IN ({placeholders})"
+                "SELECT e.id AS entity, m.kind, m.component FROM locus_core_comm_entity e \
+                 LEFT JOIN locus_core_rela_membership m ON m.entity = e.id WHERE e.id IN ({placeholders})"
             ))
             .into_boxed();
             for entity in chunk {

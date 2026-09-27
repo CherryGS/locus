@@ -1,0 +1,16 @@
+[package]
+name = "locus-migration"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+locus-store.workspace = true
+diesel.workspace = true
+diesel-async.workspace = true
+thiserror.workspace = true
+sha2 = "0.10"
+
+[dev-dependencies]
+tokio.workspace = true
+tempfile.workspace = true
+serde_json.workspace = true

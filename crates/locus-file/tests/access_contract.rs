@@ -78,7 +78,11 @@ async fn missing_rows_missing_bytes_and_lifecycle_preserve_known_records() {
     assert!(f.source.is_file());
     assert!(f.database.is_file());
     assert_eq!(
-        count(&mut f.session, "SELECT count(*) AS count FROM locus_files").await,
+        count(
+            &mut f.session,
+            "SELECT count(*) AS count FROM locus_file_comp_file"
+        )
+        .await,
         1
     );
 }
@@ -102,7 +106,7 @@ async fn corrupt_persisted_paths_and_counts_are_rejected_before_access() {
         f.session
             .transaction::<_, FileError, _>(move |context| {
                 Box::pin(async move {
-                    sql_query("UPDATE locus_files SET relative_path = ? WHERE id = ?")
+                    sql_query("UPDATE locus_file_comp_file SET relative_path = ? WHERE id = ?")
                         .bind::<Text, _>(corrupt)
                         .bind::<Binary, _>(id.as_bytes().as_slice())
                         .execute(context.connection())
@@ -117,9 +121,9 @@ async fn corrupt_persisted_paths_and_counts_are_rejected_before_access() {
         );
     }
     for statement in [
-        "UPDATE locus_files SET id = zeroblob(16)",
-        "UPDATE locus_files SET byte_count = -1",
-        "UPDATE locus_files SET byte_count = 1.5",
+        "UPDATE locus_file_comp_file SET id = zeroblob(16)",
+        "UPDATE locus_file_comp_file SET byte_count = -1",
+        "UPDATE locus_file_comp_file SET byte_count = 1.5",
     ] {
         let result = f
             .session
@@ -138,11 +142,6 @@ async fn corrupt_persisted_paths_and_counts_are_rejected_before_access() {
     }
     assert!(f.files.root().join(record.relative_path).is_file());
     assert!(f.source.is_file());
-    execute(&mut f.session, "UPDATE locus_file_schema SET version = 999").await;
-    assert!(matches!(
-        f.files.initialize(&mut f.session).await,
-        Err(FileError::SchemaVersion(999))
-    ));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -159,13 +158,17 @@ async fn vanished_or_truncated_prepared_copy_cannot_be_registered() {
         matches!(f.files.register(&f.kernel, &mut f.session, &prepared).await, Err(FileError::Access { id, cause: AccessCause::MissingBytes(_) }) if id == prepared.id())
     );
     assert_eq!(
-        count(&mut f.session, "SELECT count(*) AS count FROM locus_files").await,
+        count(
+            &mut f.session,
+            "SELECT count(*) AS count FROM locus_file_comp_file"
+        )
+        .await,
         0
     );
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_components"
+            "SELECT count(*) AS count FROM locus_core_comm_component_registry"
         )
         .await,
         0
@@ -199,7 +202,11 @@ async fn existing_directory_redirect_cannot_escape_managed_root() {
     assert!(matches!(failure.source, FileError::InvalidLocation { .. }));
     assert_eq!(std::fs::read_dir(outside).unwrap().count(), 0);
     assert_eq!(
-        count(&mut f.session, "SELECT count(*) AS count FROM locus_files").await,
+        count(
+            &mut f.session,
+            "SELECT count(*) AS count FROM locus_file_comp_file"
+        )
+        .await,
         0
     );
     assert!(f.source.is_file());

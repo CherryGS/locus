@@ -26,7 +26,7 @@ async fn create_participant_failure_is_atomic_when_caught_and_group_rolls_back()
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_twitter_snapshots"
+            "SELECT count(*) AS count FROM locus_twitter_comp_snapshot"
         )
         .await,
         0
@@ -47,7 +47,7 @@ async fn create_participant_failure_is_atomic_when_caught_and_group_rolls_back()
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_twitter_snapshots"
+            "SELECT count(*) AS count FROM locus_twitter_comp_snapshot"
         )
         .await,
         0
@@ -55,7 +55,7 @@ async fn create_participant_failure_is_atomic_when_caught_and_group_rolls_back()
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_components"
+            "SELECT count(*) AS count FROM locus_core_comm_component_registry"
         )
         .await,
         0
@@ -63,7 +63,7 @@ async fn create_participant_failure_is_atomic_when_caught_and_group_rolls_back()
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_entities"
+            "SELECT count(*) AS count FROM locus_core_comm_entity"
         )
         .await,
         0
@@ -183,7 +183,7 @@ async fn cancellation_discards_session_and_does_not_publish_provisional_source()
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_twitter_snapshots"
+            "SELECT count(*) AS count FROM locus_twitter_comp_snapshot"
         )
         .await,
         1
@@ -199,7 +199,7 @@ async fn cancellation_discards_session_and_does_not_publish_provisional_source()
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_entities"
+            "SELECT count(*) AS count FROM locus_core_comm_entity"
         )
         .await,
         0
@@ -213,7 +213,7 @@ async fn caught_database_failure_cannot_partly_accept_combined_snapshot_and_basi
     let file = f.file(entity, "input").await;
     let before = f.twitter.read(&mut f.session, id).await.unwrap();
     let token = f.prepare(id, file).await;
-    execute(&mut f.session,"CREATE TRIGGER fail_twitter_update AFTER UPDATE ON locus_twitter_snapshots BEGIN SELECT RAISE(FAIL, 'injected participant failure'); END".into()).await;
+    execute(&mut f.session,"CREATE TRIGGER fail_twitter_update AFTER UPDATE ON locus_twitter_comp_snapshot BEGIN SELECT RAISE(FAIL, 'injected participant failure'); END".into()).await;
     let kernel = f.kernel.clone();
     f.session
         .transaction::<_, TwitterError, _>(move |c| {

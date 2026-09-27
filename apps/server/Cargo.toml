@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+locus-migration.workspace = true
 locus-civitai.workspace = true
 locus-settings.workspace = true
 anyhow.workspace = true

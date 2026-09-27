@@ -80,7 +80,7 @@ pub async fn fixture(session: &mut Session) -> Kernel {
     let mut kernel = Kernel::new();
     kernel.register(Arc::new(PayloadOwner(KIND))).unwrap();
     kernel.register(Arc::new(PayloadOwner(OTHER_KIND))).unwrap();
-    kernel.initialize(session).await.unwrap();
+    locus_migration::api::migrate(session).await.unwrap();
     session.transaction::<_, CoreError,_>(|context| Box::pin(async move {
         context.connection().batch_execute("CREATE TABLE test_payloads (id BLOB PRIMARY KEY NOT NULL, kind BLOB NOT NULL, value TEXT NOT NULL, protected INTEGER NOT NULL DEFAULT 0, fail_after_delete INTEGER NOT NULL DEFAULT 0)").await?;
         Ok(())

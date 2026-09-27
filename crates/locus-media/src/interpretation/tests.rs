@@ -27,9 +27,7 @@ async fn video_partial_success_replaces_old_fields_and_cancelled_apply_discards_
     kernel.register(Arc::new(FileOwner)).unwrap();
     kernel.register(Arc::new(ImageOwner)).unwrap();
     kernel.register(Arc::new(VideoOwner)).unwrap();
-    kernel.initialize(&mut session).await.unwrap();
-    files.initialize(&mut session).await.unwrap();
-    media.initialize(&mut session).await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
     let path = directory.path().join("input.mp4");
     std::fs::write(&path, b"\0\0\0\x14ftypisom\0\0\0\0mp42").unwrap();
     let entity = kernel.create_entity(&mut session).await.unwrap();
@@ -146,7 +144,7 @@ async fn task_interpretation_releases_database_and_rejects_intervening_context_a
         let (db, k, f, m) = (database.clone(), kernel.clone(), files.clone(), media.clone());
         let (entity, id, membership) = queue.submit("setup", move |task| async move {
             let mut session = db.session(&task).await.unwrap();
-            k.initialize(&mut session).await.unwrap(); f.initialize(&mut session).await.unwrap(); m.initialize(&mut session).await.unwrap();
+            locus_migration::api::migrate(&mut session).await.unwrap();
             let file = f.admit(&k, &mut session, input).await.unwrap();
             let entity = k.create_entity(&mut session).await.unwrap();
             let membership = Membership { entity, kind: FILE_KIND, component: file.id.component() };

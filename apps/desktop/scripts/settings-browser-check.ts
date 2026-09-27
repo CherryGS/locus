@@ -198,7 +198,7 @@ try {
       "run",
       "python",
       "-c",
-      "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute(\"UPDATE locus_settings_values SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'\"); c.commit(); c.close()",
+      "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute(\"UPDATE locus_settings_comm_group_value SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'\"); c.commit(); c.close()",
       join(data.library, "metadata.sqlite"),
     ],
     { cwd: workspace, windowsHide: true },

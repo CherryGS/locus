@@ -70,3 +70,10 @@ exercises the real server with a private bootstrap and temporary library.
 `just server-entity-smoke` demonstrates this read path through the generated
 client. `just server-entity-scale` uses a million actual Entity rows, reports
 end-to-end completion and process memory, and cleans up only its temporary fixture.
+
+Library startup runs the ordered `locus-migration` history before current services
+or normal/restricted readiness. A nonempty database without that history, an
+unknown newer ID, or a changed applied checksum stops startup without rewriting
+the library. During development, explicitly choose a new isolated root when
+history has changed. No automatic reset or legacy adoption is performed. See
+[the migration authoring guide](../../crates/locus-migration/README.md).

@@ -30,15 +30,6 @@ pub(crate) fn observation(v: settings::Observation) -> SettingsObservation {
         },
         O::Absent { group_id } => SettingsObservation::Absent { group_id },
         O::Current { saved: v } => SettingsObservation::Current { saved: saved(v) },
-        O::ConversionRequired {
-            group_id,
-            metadata: m,
-            source,
-        } => SettingsObservation::ConversionRequired {
-            group_id,
-            metadata: metadata(m),
-            source,
-        },
         O::Unavailable {
             group_id,
             metadata: m,
@@ -70,16 +61,9 @@ pub(crate) fn failure(e: settings::SettingsError) -> DomainDiagnostic {
         E::Store(e) => SettingsFailure::Store {
             diagnostic: store::diagnostic(&e),
         },
-        E::CorruptSchema(message) => SettingsFailure::Schema { message },
-        E::SchemaVersion(version) => SettingsFailure::Schema {
-            message: format!("unsupported settings schema version: {version}"),
-        },
         E::Invalid(message) => SettingsFailure::Invalid { message },
         E::Unavailable(id) => SettingsFailure::Unavailable {
             group_id: id.to_string(),
-        },
-        E::Unsupported(version) => SettingsFailure::Unsupported {
-            version: version.to_string(),
         },
         e => SettingsFailure::Definition {
             message: e.to_string(),

@@ -39,7 +39,7 @@ struct IdRow {
     id: Vec<u8>,
 }
 pub(crate) async fn model_ids(c: &mut Context, model: u64) -> Result<Vec<CivitaiId>, CivitaiError> {
-    sql_query("SELECT id FROM locus_civitai_snapshots WHERE model=? ORDER BY id")
+    sql_query("SELECT id FROM locus_civitai_comp_snapshot WHERE model=? ORDER BY id")
         .bind::<Text, _>(model.to_string())
         .load::<IdRow>(c.connection())
         .await?
@@ -126,7 +126,7 @@ impl CivitaiService {
     }
     pub async fn read_in(c: &mut Context, id: CivitaiId) -> Result<CivitaiRecord, CivitaiError> {
         decode(
-            sql_query("SELECT id,revision,model,matched_version,matched_file,payload FROM locus_civitai_snapshots WHERE id=?")
+            sql_query("SELECT id,revision,model,matched_version,matched_file,payload FROM locus_civitai_comp_snapshot WHERE id=?")
                 .bind::<Binary, _>(id.as_bytes().as_slice())
                 .get_result::<Row>(c.connection())
                 .await
@@ -139,7 +139,7 @@ pub(crate) async fn model_records(
     c: &mut Context,
     model: u64,
 ) -> Result<Vec<CivitaiRecord>, CivitaiError> {
-    sql_query("SELECT id,revision,model,matched_version,matched_file,payload FROM locus_civitai_snapshots WHERE model=? ORDER BY id")
+    sql_query("SELECT id,revision,model,matched_version,matched_file,payload FROM locus_civitai_comp_snapshot WHERE model=? ORDER BY id")
         .bind::<Text, _>(model.to_string())
         .load::<Row>(c.connection())
         .await?
@@ -148,12 +148,12 @@ pub(crate) async fn model_records(
         .collect()
 }
 pub(crate) async fn insert(c: &mut Context, r: &CivitaiRecord) -> Result<(), CivitaiError> {
-    sql_query("INSERT INTO locus_civitai_snapshots(id,revision,model,matched_version,matched_file,payload) VALUES(?,?,?,?,?,?)")
+    sql_query("INSERT INTO locus_civitai_comp_snapshot(id,revision,model,matched_version,matched_file,payload) VALUES(?,?,?,?,?,?)")
         .bind::<Binary,_>(r.id.as_bytes().as_slice()).bind::<BigInt,_>(r.revision).bind::<Text,_>(r.snapshot.model.id.to_string()).bind::<Text,_>(r.snapshot.matched_version.to_string()).bind::<Text,_>(r.snapshot.matched_file.to_string()).bind::<Text,_>(encode(r)?).execute(c.connection()).await?;
     Ok(())
 }
 pub(crate) async fn update(c: &mut Context, r: &CivitaiRecord) -> Result<(), CivitaiError> {
-    let count=sql_query("UPDATE locus_civitai_snapshots SET revision=?,model=?,matched_version=?,matched_file=?,payload=? WHERE id=?")
+    let count=sql_query("UPDATE locus_civitai_comp_snapshot SET revision=?,model=?,matched_version=?,matched_file=?,payload=? WHERE id=?")
         .bind::<BigInt,_>(r.revision).bind::<Text,_>(r.snapshot.model.id.to_string()).bind::<Text,_>(r.snapshot.matched_version.to_string()).bind::<Text,_>(r.snapshot.matched_file.to_string()).bind::<Text,_>(encode(r)?).bind::<Binary,_>(r.id.as_bytes().as_slice()).execute(c.connection()).await?;
     if count != 1 {
         return Err(CivitaiError::MissingRecord(r.id));
@@ -161,7 +161,7 @@ pub(crate) async fn update(c: &mut Context, r: &CivitaiRecord) -> Result<(), Civ
     Ok(())
 }
 pub(crate) async fn delete(c: &mut Context, id: CivitaiId) -> Result<(), diesel::result::Error> {
-    sql_query("DELETE FROM locus_civitai_snapshots WHERE id=?")
+    sql_query("DELETE FROM locus_civitai_comp_snapshot WHERE id=?")
         .bind::<Binary, _>(id.as_bytes().as_slice())
         .execute(c.connection())
         .await?;

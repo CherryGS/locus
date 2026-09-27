@@ -21,7 +21,6 @@ pub(crate) fn model(e: model::ModelError) -> DomainDiagnostic {
                 component_id: id.component().to_string(),
             },
             E::Corrupt(message) => ModelFailure::Corrupt { message },
-            E::SchemaVersion(version) => ModelFailure::SchemaVersion { version },
             E::ContextChanged => ModelFailure::ContextChanged,
             E::NewerAttempt => ModelFailure::NewerAttempt,
             E::Attempt(f) => ModelFailure::Attempt {

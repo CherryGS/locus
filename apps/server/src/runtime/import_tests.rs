@@ -935,10 +935,12 @@ async fn model_competing_slot_is_conflict_without_adoption_or_extra_record() {
             let mut s = d.database.session(&task).await.unwrap();
             s.transaction::<i64, locus_model::api::ModelError, _>(|c| {
                 Box::pin(async move {
-                    Ok(diesel::sql_query("SELECT count(*) AS n FROM locus_models")
-                        .get_result::<Count>(c.connection())
-                        .await?
-                        .n)
+                    Ok(
+                        diesel::sql_query("SELECT count(*) AS n FROM locus_model_comp_model")
+                            .get_result::<Count>(c.connection())
+                            .await?
+                            .n,
+                    )
                 })
             })
             .await

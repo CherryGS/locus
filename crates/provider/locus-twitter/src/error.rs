@@ -22,8 +22,6 @@ pub enum TwitterError {
     Corrupt(String),
     #[error("unsupported Twitter payload version {0}")]
     PayloadVersion(u32),
-    #[error("unsupported Twitter schema version {0}")]
-    SchemaVersion(i32),
     #[error("the intended Twitter host/current File context is unavailable or different")]
     AssociationContext,
     #[error("Twitter revision exhausted for {0}")]

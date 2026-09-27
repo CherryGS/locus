@@ -213,3 +213,32 @@ fn lock_handle_child() {
     let mut line = String::new();
     std::io::stdin().read_line(&mut line).unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn migration_failure_precedes_normal_and_repair_readiness_without_mutation() {
+    for invalid_settings in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("metadata.sqlite");
+        let mut session = locus_store::api::Session::open(&path).await.unwrap();
+        locus_migration::api::migrate(&mut session).await.unwrap();
+        session.transaction::<_, locus_store::api::StoreError, _>(move |c| Box::pin(async move {
+            use diesel_async::SimpleAsyncConnection;
+            if invalid_settings {
+                c.connection().batch_execute("INSERT INTO locus_settings_comm_group_value VALUES('25c3fd2a-4148-4cb3-aca4-47c3ce3402e5',1,'0195d381-5684-7000-8000-000000000001','invalid')").await?;
+            }
+            c.connection().batch_execute("UPDATE locus_migration_comm_history SET checksum=printf('%064d',0) WHERE id=1").await?;
+            Ok(())
+        })).await.unwrap();
+        drop(session);
+        let before = std::fs::read(&path).unwrap();
+        let error = Server::bind(config(root.path()))
+            .await
+            .err()
+            .expect("migration must stop startup");
+        assert!(format!("{error:#}").contains("migration history"));
+        assert_eq!(before, std::fs::read(&path).unwrap());
+        // Failure releases actual library ownership for an explicit later attempt.
+        let ownership = LibraryOwnership::acquire(root.path(), true).unwrap();
+        drop(ownership);
+    }
+}

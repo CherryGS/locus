@@ -47,8 +47,6 @@ pub enum ModelError {
     MissingRecord(ModelId),
     #[error("invalid Model record: {0}")]
     Corrupt(String),
-    #[error("unsupported Model schema version {0}")]
-    SchemaVersion(i32),
     #[error(transparent)]
     Attempt(#[from] AttemptFailure),
 }

@@ -1,5 +1,4 @@
-use crate::{error::FileError, persistence};
-use locus_store::api::Session;
+use crate::error::FileError;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -30,10 +29,5 @@ impl FileService {
     }
     pub fn root(&self) -> &Path {
         &self.root
-    }
-    pub async fn initialize(&self, session: &mut Session) -> Result<(), FileError> {
-        session
-            .transaction(|context| Box::pin(persistence::initialize(context)))
-            .await
     }
 }

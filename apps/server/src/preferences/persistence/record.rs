@@ -30,7 +30,7 @@ pub(in crate::preferences) async fn read(
 ) -> Result<Option<SavedPreference>, PreferenceError> {
     let row = sql_query(
         "SELECT view_definition_id, revision, typeof(view_definition_id) AS definition_type,
-        typeof(revision) AS revision_type FROM locus_entity_view_preferences WHERE entity_id = ?",
+        typeof(revision) AS revision_type FROM locus_server_comm_entity_view_preference WHERE entity_id = ?",
     )
     .bind::<Binary, _>(entity.as_bytes().as_slice())
     .get_result::<Row>(context.connection())
@@ -56,7 +56,7 @@ pub(in crate::preferences) async fn write(
     context: &mut Context,
     value: &SavedPreference,
 ) -> Result<(), PreferenceError> {
-    sql_query("INSERT INTO locus_entity_view_preferences (entity_id, view_definition_id, revision) VALUES (?, ?, ?)
+    sql_query("INSERT INTO locus_server_comm_entity_view_preference (entity_id, view_definition_id, revision) VALUES (?, ?, ?)
         ON CONFLICT(entity_id) DO UPDATE SET view_definition_id = excluded.view_definition_id, revision = excluded.revision")
         .bind::<Binary, _>(value.entity.as_bytes().as_slice())
         .bind::<Text, _>(value.view_definition.as_str())

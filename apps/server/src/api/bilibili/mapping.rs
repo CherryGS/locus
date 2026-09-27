@@ -91,7 +91,6 @@ pub(crate) fn failure(e: source::BilibiliError) -> BilibiliFailure {
         },
         E::Corrupt(message) => BilibiliFailure::Corrupt { message },
         E::PayloadVersion(version) => BilibiliFailure::PayloadVersion { version },
-        E::SchemaVersion(version) => BilibiliFailure::SchemaVersion { version },
         e => BilibiliFailure::Other {
             message: e.to_string(),
         },

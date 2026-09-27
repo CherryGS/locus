@@ -89,7 +89,7 @@ async fn locator_only_and_partial_capture_round_trip_without_inference() {
             .snapshot,
         snapshot()
     );
-    assert_eq!(count(&mut f.session,"SELECT count(*) AS count FROM locus_twitter_snapshots WHERE typeof(id)='blob' AND length(id)=16").await,3);
+    assert_eq!(count(&mut f.session,"SELECT count(*) AS count FROM locus_twitter_comp_snapshot WHERE typeof(id)='blob' AND length(id)=16").await,3);
 }
 
 #[test]
@@ -231,7 +231,7 @@ async fn malformed_optional_values_and_budgets_reject_without_changing_old_state
     assert_eq!(
         count(
             &mut f.session,
-            "SELECT count(*) AS count FROM locus_twitter_snapshots"
+            "SELECT count(*) AS count FROM locus_twitter_comp_snapshot"
         )
         .await,
         1

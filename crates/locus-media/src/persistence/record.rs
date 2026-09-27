@@ -34,8 +34,8 @@ struct Row {
 
 fn table(kind: MediaKind) -> &'static str {
     match kind {
-        MediaKind::Image => "locus_images",
-        MediaKind::Video => "locus_videos",
+        MediaKind::Image => "locus_media_comp_image",
+        MediaKind::Video => "locus_media_comp_video",
     }
 }
 

@@ -57,7 +57,7 @@ impl Kernel {
         context: &mut Context,
         component: ComponentId,
     ) -> Result<KindId, CoreError> {
-        let row = sql_query("SELECT kind FROM locus_components WHERE id = ?")
+        let row = sql_query("SELECT kind FROM locus_core_comm_component_registry WHERE id = ?")
             .bind::<Binary, _>(component.as_bytes().as_slice())
             .get_result::<KindRow>(context.connection())
             .await
@@ -87,11 +87,13 @@ impl Kernel {
         if !owner.exists(context, component).await? {
             return Err(CoreError::MissingComponent(component));
         }
-        sql_query("INSERT OR IGNORE INTO locus_components (id, kind) VALUES (?, ?)")
-            .bind::<Binary, _>(component.as_bytes().as_slice())
-            .bind::<Binary, _>(kind.as_bytes().as_slice())
-            .execute(context.connection())
-            .await?;
+        sql_query(
+            "INSERT OR IGNORE INTO locus_core_comm_component_registry (id, kind) VALUES (?, ?)",
+        )
+        .bind::<Binary, _>(component.as_bytes().as_slice())
+        .bind::<Binary, _>(kind.as_bytes().as_slice())
+        .execute(context.connection())
+        .await?;
         Ok(())
     }
 
@@ -109,7 +111,7 @@ impl Kernel {
                 Box::pin(async move {
                     kernel.require_component(context, kind, component).await?;
                     let row = sql_query(
-                        "SELECT count(*) AS count FROM locus_memberships WHERE component = ?",
+                        "SELECT count(*) AS count FROM locus_core_rela_membership WHERE component = ?",
                     )
                     .bind::<Binary, _>(component.as_bytes().as_slice())
                     .get_result::<CountRow>(context.connection())
@@ -118,7 +120,7 @@ impl Kernel {
                         return Err(CoreError::ComponentAttached(component));
                     }
                     kernel.owner(kind)?.delete(context, component).await?;
-                    sql_query("DELETE FROM locus_components WHERE id = ? AND kind = ?")
+                    sql_query("DELETE FROM locus_core_comm_component_registry WHERE id = ? AND kind = ?")
                         .bind::<Binary, _>(component.as_bytes().as_slice())
                         .bind::<Binary, _>(kind.as_bytes().as_slice())
                         .execute(context.connection())

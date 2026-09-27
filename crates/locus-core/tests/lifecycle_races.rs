@@ -116,7 +116,7 @@ async fn race(first: First, against_entity: bool) {
         }
         if against_entity || matches!(first, First::DeleteEntity) {
             let memberships_left = right.transaction::<_,CoreError,_>(move |context| Box::pin(async move {
-                Ok(sql_query("SELECT count(*) AS count FROM locus_memberships WHERE entity = ?")
+                Ok(sql_query("SELECT count(*) AS count FROM locus_core_rela_membership WHERE entity = ?")
                     .bind::<Binary,_>(entity.as_bytes().as_slice()).get_result::<Count>(context.connection()).await?.count)
             })).await.unwrap();
             assert_eq!(memberships_left, 0);

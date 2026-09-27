@@ -51,22 +51,9 @@ impl ApplicationStorage {
         kernel
             .register(Arc::new(TwitterOwner))
             .context("register Twitter owner")?;
-        kernel
-            .initialize(&mut session)
+        locus_migration::api::migrate(&mut session)
             .await
-            .context("initialize identity kernel")?;
-        files
-            .initialize(&mut session)
-            .await
-            .context("initialize File schema")?;
-        media
-            .initialize(&mut session)
-            .await
-            .context("initialize Media schema")?;
-        twitter
-            .initialize(&mut session)
-            .await
-            .context("initialize Twitter schema")?;
+            .context("migrate application library")?;
         Ok(Self {
             session,
             kernel,

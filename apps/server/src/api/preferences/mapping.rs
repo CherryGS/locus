@@ -56,10 +56,6 @@ pub(crate) fn failure(error: PreferenceError) -> DomainDiagnostic {
         PreferenceError::RevisionExhausted(entity) => PreferenceFailure::RevisionExhausted {
             entity_id: entity.to_string(),
         },
-        PreferenceError::SchemaVersion(version) => PreferenceFailure::SchemaVersion {
-            version: version.to_string(),
-        },
-        PreferenceError::CorruptSchema(message) => PreferenceFailure::CorruptSchema { message },
         PreferenceError::CorruptRecord { entity, message } => PreferenceFailure::CorruptRecord {
             entity_id: entity.to_string(),
             message,

@@ -121,7 +121,6 @@ pub(crate) fn failure(e: source::TwitterError) -> TwitterFailure {
         },
         E::Corrupt(message) => TwitterFailure::Corrupt { message },
         E::PayloadVersion(version) => TwitterFailure::PayloadVersion { version },
-        E::SchemaVersion(version) => TwitterFailure::SchemaVersion { version },
         e => TwitterFailure::Other {
             message: e.to_string(),
         },

@@ -15,10 +15,6 @@ pub enum CoreError {
     Database(#[from] diesel::result::Error),
     #[error("invalid persisted identity: {0}")]
     Identity(#[from] IdentityError),
-    #[error("unsupported core schema version {0}")]
-    SchemaVersion(i32),
-    #[error("core v1 migration requires resolving shared component {0}")]
-    MigrationSharedComponent(ComponentId),
     #[error("component is already attached: {0:?}")]
     AttachmentOccupied(Membership),
     #[error("kind {0} is already registered")]

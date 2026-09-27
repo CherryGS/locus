@@ -64,7 +64,7 @@ async fn partial_copy_is_retained_and_collision_never_overwrites() {
     assert_eq!(std::fs::read(&object).unwrap(), &bytes[..70_000]);
     assert_eq!(std::fs::read(&source).unwrap(), bytes);
     let mut session = Session::memory().await.unwrap();
-    storage.initialize(&mut session).await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
     assert!(
         matches!(storage.read(&mut session, id).await, Err(FileError::MissingRecord(actual)) if actual == id)
     );
@@ -93,7 +93,7 @@ async fn canceled_awaiter_does_not_stop_blocking_copy_or_autonomously_admit() {
         std::fs::write(&source, b"copy continues").unwrap();
         let storage = FileService::new(directory.path().join("library")).await.unwrap();
         let mut session = Session::memory().await.unwrap();
-        storage.initialize(&mut session).await.unwrap();
+        locus_migration::api::migrate(&mut session).await.unwrap();
         let id = FileId::fresh();
         let initial = progress(&storage, id);
         let reader = File::open(&source).unwrap();
@@ -147,11 +147,10 @@ async fn task_copy_reports_bytes_while_database_is_available() {
         let database = TaskDatabase::open(&queue, directory.path().join("metadata.sqlite")).await.unwrap();
         let mut kernel = locus_core::api::Kernel::new();
         kernel.register(std::sync::Arc::new(crate::owner::FileOwner)).unwrap();
-        let (init_database, init_storage, init_kernel) = (database.clone(), storage.clone(), kernel.clone());
+        let init_database = database.clone();
         queue.submit("initialize", move |task| async move {
             let mut session = init_database.session(&task).await.unwrap();
-            init_kernel.initialize(&mut session).await.unwrap();
-            init_storage.initialize(&mut session).await.unwrap();
+            locus_migration::api::migrate(&mut session).await.unwrap();
         }).unwrap().result().await.unwrap();
         let worker_storage = storage.clone();
         let copy_database = database.clone();
@@ -178,7 +177,7 @@ async fn task_copy_reports_bytes_while_database_is_available() {
         let db_storage = storage.clone();
         queue.submit("DB during copy", move |task| async move {
             let mut session = database.session(&task).await.unwrap();
-            db_storage.initialize(&mut session).await.unwrap();
+            locus_migration::api::migrate(&mut session).await.unwrap();
             assert!(matches!(db_storage.read(&mut session, id).await, Err(FileError::MissingRecord(actual)) if actual == id));
         }).unwrap().result().await.unwrap();
         assert_eq!(copying.snapshot().state, TaskState::Running);

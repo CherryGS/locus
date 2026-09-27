@@ -26,8 +26,7 @@ impl Fixture {
         let mut session = Session::open(&database).await.unwrap();
         let mut kernel = Kernel::new();
         kernel.register(Arc::new(FileOwner)).unwrap();
-        kernel.initialize(&mut session).await.unwrap();
-        files.initialize(&mut session).await.unwrap();
+        locus_migration::api::migrate(&mut session).await.unwrap();
         Self {
             directory,
             source,
@@ -56,6 +55,7 @@ pub async fn count(session: &mut Session, sql: &'static str) -> i64 {
         .await
         .unwrap()
 }
+#[allow(dead_code)] // Shared by multiple integration-test crates.
 pub async fn execute(session: &mut Session, sql: &'static str) {
     session
         .transaction::<_, FileError, _>(move |context| {

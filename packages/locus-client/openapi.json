@@ -7369,25 +7369,6 @@
           {
             "type": "object",
             "required": [
-              "version",
-              "code"
-            ],
-            "properties": {
-              "code": {
-                "type": "string",
-                "enum": [
-                  "schema_version"
-                ]
-              },
-              "version": {
-                "type": "integer",
-                "format": "int32"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "message",
               "code"
             ],
@@ -10238,25 +10219,6 @@
           {
             "type": "object",
             "required": [
-              "version",
-              "code"
-            ],
-            "properties": {
-              "code": {
-                "type": "string",
-                "enum": [
-                  "schema_version"
-                ]
-              },
-              "version": {
-                "type": "integer",
-                "format": "int32"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "code"
             ],
             "properties": {
@@ -10796,42 +10758,6 @@
           {
             "type": "object",
             "required": [
-              "version",
-              "code"
-            ],
-            "properties": {
-              "code": {
-                "type": "string",
-                "enum": [
-                  "schema_version"
-                ]
-              },
-              "version": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "message",
-              "code"
-            ],
-            "properties": {
-              "code": {
-                "type": "string",
-                "enum": [
-                  "corrupt_schema"
-                ]
-              },
-              "message": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "entity_id",
               "message",
               "code"
@@ -11314,28 +11240,6 @@
                 ]
               }
             }
-          },
-          {
-            "type": "object",
-            "required": [
-              "metadata",
-              "source",
-              "operation"
-            ],
-            "properties": {
-              "metadata": {
-                "$ref": "#/components/schemas/SettingsMetadata"
-              },
-              "operation": {
-                "type": "string",
-                "enum": [
-                  "convert"
-                ]
-              },
-              "source": {
-                "type": "string"
-              }
-            }
           }
         ]
       },
@@ -11423,24 +11327,6 @@
           {
             "type": "object",
             "required": [
-              "version",
-              "code"
-            ],
-            "properties": {
-              "code": {
-                "type": "string",
-                "enum": [
-                  "unsupported"
-                ]
-              },
-              "version": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "message",
               "code"
             ],
@@ -11449,24 +11335,6 @@
                 "type": "string",
                 "enum": [
                   "definition"
-                ]
-              },
-              "message": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "message",
-              "code"
-            ],
-            "properties": {
-              "code": {
-                "type": "string",
-                "enum": [
-                  "schema"
                 ]
               },
               "message": {
@@ -11559,32 +11427,6 @@
                 "type": "string",
                 "enum": [
                   "current"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "group_id",
-              "metadata",
-              "source",
-              "status"
-            ],
-            "properties": {
-              "group_id": {
-                "type": "string"
-              },
-              "metadata": {
-                "$ref": "#/components/schemas/SettingsMetadata"
-              },
-              "source": {
-                "type": "string"
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "conversion_required"
                 ]
               }
             }
@@ -12534,25 +12376,6 @@
                 "type": "integer",
                 "format": "int32",
                 "minimum": 0
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "version",
-              "code"
-            ],
-            "properties": {
-              "code": {
-                "type": "string",
-                "enum": [
-                  "schema_version"
-                ]
-              },
-              "version": {
-                "type": "integer",
-                "format": "int32"
               }
             }
           },

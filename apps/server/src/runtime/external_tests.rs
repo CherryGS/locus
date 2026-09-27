@@ -177,7 +177,7 @@ async fn uncertain_partial_evidence_cannot_establish_usable_file_or_authorize_re
     let candidate = uncertain.candidate_file_id.unwrap();
     sql(
         root.path(),
-        format!("DELETE FROM locus_access_eligibility WHERE file_id='{candidate}'"),
+        format!("DELETE FROM locus_server_rela_access_eligibility WHERE file_id='{candidate}'"),
     )
     .await;
     let receipt = state
@@ -220,7 +220,7 @@ async fn failed_credential_observation_disables_cached_authorization_without_reg
     let (token, _) = credential(&server.state).await;
     sql(
         root.path(),
-        "UPDATE locus_access_credential SET token=X'00' WHERE singleton=1".into(),
+        "UPDATE locus_server_comm_access_credential SET token=X'00' WHERE singleton=1".into(),
     )
     .await;
     assert!(matches!(
@@ -848,7 +848,7 @@ async fn concurrent_first_provision_and_future_revision_reset_preserve_opaque_li
     let (two, _) = credential(&a.state).await;
     assert!(one == two);
     drop(a);
-    sql(root.path(),"UPDATE locus_access_credential SET revision='ffffffff-ffff-7fff-8fff-ffffffffffff' WHERE singleton=1".into()).await;
+    sql(root.path(),"UPDATE locus_server_comm_access_credential SET revision='ffffffff-ffff-7fff-8fff-ffffffffffff' WHERE singleton=1".into()).await;
     let a = server(root.path()).await;
     let (old, revision) = credential(&a.state).await;
     assert!(
@@ -866,7 +866,7 @@ async fn concurrent_first_provision_and_future_revision_reset_preserve_opaque_li
     assert!(a.state.external_authorize(&new).is_ok());
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn missing_existing_credential_and_restricted_first_start_never_silently_provision() {
+async fn corrupt_existing_credential_and_restricted_first_start_never_silently_provision() {
     use diesel_async::RunQueryDsl;
     #[derive(diesel::QueryableByName)]
     struct Count {
@@ -878,7 +878,7 @@ async fn missing_existing_credential_and_restricted_first_start_never_silently_p
     drop(a);
     sql(
         root.path(),
-        "DELETE FROM locus_access_credential WHERE singleton=1".into(),
+        "UPDATE locus_server_comm_access_credential SET token='corrupt' WHERE singleton=1".into(),
     )
     .await;
     let a = server(root.path()).await;
@@ -892,12 +892,12 @@ async fn missing_existing_credential_and_restricted_first_start_never_silently_p
     let count = session
         .transaction::<_, anyhow::Error, _>(|c| {
             Box::pin(async move {
-                Ok(
-                    diesel::sql_query("SELECT count(*) AS count FROM locus_access_credential")
-                        .get_result::<Count>(c.connection())
-                        .await?
-                        .count,
+                Ok(diesel::sql_query(
+                    "SELECT count(*) AS count FROM locus_server_comm_access_credential WHERE token != 'corrupt'",
                 )
+                .get_result::<Count>(c.connection())
+                .await?
+                .count)
             })
         })
         .await
@@ -921,7 +921,7 @@ async fn missing_existing_credential_and_restricted_first_start_never_silently_p
         .result()
         .await
         .unwrap();
-    sql(other.path(),"UPDATE locus_settings_values SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'".into()).await;
+    sql(other.path(),"UPDATE locus_settings_comm_group_value SET payload='{}' WHERE group_id='25c3fd2a-4148-4cb3-aca4-47c3ce3402e5'".into()).await;
     let repair = server(other.path()).await;
     assert!(matches!(
         repair.state.availability,
@@ -940,7 +940,19 @@ async fn missing_existing_credential_and_restricted_first_start_never_silently_p
     let mut session = locus_store::api::Session::open(other.path().join("metadata.sqlite"))
         .await
         .unwrap();
-    let count=session.transaction::<_,anyhow::Error,_>(|c|Box::pin(async move{Ok(diesel::sql_query("SELECT count(*) AS count FROM sqlite_master WHERE name='locus_access_credential'").get_result::<Count>(c.connection()).await?.count)})).await.unwrap();
+    let count = session
+        .transaction::<_, anyhow::Error, _>(|c| {
+            Box::pin(async move {
+                Ok(diesel::sql_query(
+                    "SELECT count(*) AS count FROM locus_server_comm_access_credential",
+                )
+                .get_result::<Count>(c.connection())
+                .await?
+                .count)
+            })
+        })
+        .await
+        .unwrap();
     assert_eq!(count, 0);
 }
 async fn external_http(
@@ -1295,7 +1307,7 @@ async fn bilibili_external_upload_cover_eligibility_and_original_recovery() {
         sql(
             root.path(),
             format!(
-                "DELETE FROM locus_access_eligibility WHERE file_id='{}'",
+                "DELETE FROM locus_server_rela_access_eligibility WHERE file_id='{}'",
                 if bad_cover { &cover } else { &main }
             ),
         )

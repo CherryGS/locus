@@ -105,7 +105,7 @@ are replaced by these paths and names; File record `lookup`/`lookup_in` are now
 
 Call async store/core APIs from an entered **multi-thread Tokio runtime**. The store checks this requirement before opening a connection or starting a transaction. Diesel's default SQLite async adapter uses Tokio blocking tasks and its cancellation guard requires multithread runtime support; the libraries never create their own runtime or connection pool.
 
-Use `Session::open(path)` for an explicit SQLite file or `Session::memory()` for an isolated ephemeral database. Each connection enables foreign keys and a 2-second SQLite busy timeout. The kernel initializes its own version table without claiming SQLite's shared `user_version`; repeat initialization preserves data and rejects unsupported core versions.
+Use `Session::open(path)` for an explicit SQLite file or `Session::memory()` for an isolated ephemeral database. Each connection enables foreign keys and a 2-second SQLite busy timeout. Run `locus_migration::api::migrate(&mut session)` before using current domain APIs. It validates the full applied ID/checksum prefix and initializes or advances the central history without claiming SQLite's shared `user_version`.
 
 Standalone kernel methods commit their unit before returning success. For natural composition, use `Session::transaction` and the kernel's `_in` methods, with domain queries using `Context::connection()`:
 
@@ -132,12 +132,13 @@ Cancellation discards an in-flight transaction's connection. A discarded session
 The backend composition defaults to `%LOCALAPPDATA%\Locus` on Windows (the local data
 location plus `Locus` on other platforms). Set `LOCUS_DATA_DIR` to use an isolated
 root. `ApplicationStorage::open(root)` accepts an injected root for composition
-and tests. It opens `metadata.sqlite`, registers File/Image/Video/Twitter owners and initializes
-their domain-owned schema versions. Run `just rust-run-backend` for the explicit
-console example; the server initializes its consumed kernel/File/Media schemas. Core schema
-2 upgrades unshared version-1 data
-atomically; a shared component produces `MigrationSharedComponent` without changing
-its data/schema. Resolving such legacy sharing requires an explicit decision.
+and tests. It opens `metadata.sqlite`, runs the centralized migration history and
+registers File/Image/Video/Twitter owners. Run `just rust-run-backend` for the
+explicit console example. Startup migrates before constructing current services
+or exposing Settings repair. Nonempty pre-system libraries and incompatible
+development histories are refused without resetting them; explicitly select a
+new isolated library with `LOCUS_DATA_DIR`. See
+[authoring migrations](crates/locus-migration/README.md).
 
 The File library accepts an explicit root and does not read process environment:
 
@@ -151,8 +152,7 @@ let files = FileService::new(root).await?;
 let mut kernel = Kernel::new();
 kernel.register(Arc::new(FileOwner))?;
 let mut session = Session::open(files.root().join("metadata.sqlite")).await?;
-kernel.initialize(&mut session).await?;
-files.initialize(&mut session).await?;
+locus_migration::api::migrate(&mut session).await?;
 let record = files.admit(&kernel, &mut session, source_path).await?;
 let input = files.open(&mut session, record.id).await?;
 ```

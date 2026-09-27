@@ -138,7 +138,6 @@ pub enum BilibiliFailure {
     MissingRecord { component_id: String },
     Corrupt { message: String },
     PayloadVersion { version: u32 },
-    SchemaVersion { version: i32 },
     Other { message: String },
 }
 

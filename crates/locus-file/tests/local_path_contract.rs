@@ -36,7 +36,7 @@ async fn identified_local_adapter_keeps_handle_and_checks_record_location_and_re
     std::fs::rename(&displaced, &path).unwrap();
     execute(
         &mut f.session,
-        "UPDATE locus_files SET relative_path = '../outside'",
+        "UPDATE locus_file_comp_file SET relative_path = '../outside'",
     )
     .await;
     assert!(matches!(
@@ -48,7 +48,11 @@ async fn identified_local_adapter_keeps_handle_and_checks_record_location_and_re
     assert!(f.database.is_file());
     assert!(f.source.starts_with(f.directory.path()));
     assert_eq!(
-        count(&mut f.session, "SELECT count(*) AS count FROM locus_files").await,
+        count(
+            &mut f.session,
+            "SELECT count(*) AS count FROM locus_file_comp_file"
+        )
+        .await,
         1
     );
 }

@@ -298,7 +298,7 @@ async fn real_commit_unknown_is_typed_and_recoverable_with_actual_saved_observat
     .await;
     fixture_sql(&root, "CREATE TABLE fixture_parent (id INTEGER PRIMARY KEY);
         CREATE TABLE fixture_child (parent INTEGER REFERENCES fixture_parent(id) DEFERRABLE INITIALLY DEFERRED);
-        CREATE TRIGGER unknown_preference AFTER UPDATE ON locus_entity_view_preferences BEGIN INSERT INTO fixture_child VALUES (1); END;").await;
+        CREATE TRIGGER unknown_preference AFTER UPDATE ON locus_server_comm_entity_view_preference BEGIN INSERT INTO fixture_child VALUES (1); END;").await;
     let id = request_id();
     let input = json!({"request_id":id, "view_definition_id":"uncertain", "expected_revision":"1"});
     let (status, failed) = call(&server, "PUT", &path(&entity), Some(input.clone())).await;
@@ -324,7 +324,7 @@ async fn real_commit_unknown_is_typed_and_recoverable_with_actual_saved_observat
         call(&server, "GET", &path(&entity), None).await.1,
         json!({"status":"saved", "entity_id":entity, "view_definition_id":"before", "revision":"1"})
     );
-    fixture_sql(&root, "DROP TABLE locus_entity_view_preferences").await;
+    fixture_sql(&root, "DROP TABLE locus_server_comm_entity_view_preference").await;
     let (status, error) = call(
         &server,
         "POST",

@@ -36,12 +36,6 @@ pub enum Observation {
     Current {
         saved: SavedValue,
     },
-    /// Original representation is a guard, not a current typed value.
-    ConversionRequired {
-        group_id: String,
-        metadata: Metadata,
-        source: String,
-    },
     Unavailable {
         group_id: String,
         metadata: Option<Metadata>,

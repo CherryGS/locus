@@ -20,12 +20,6 @@ impl PreferenceService {
         Self { kernel }
     }
 
-    pub async fn initialize(&self, session: &mut Session) -> Result<(), PreferenceError> {
-        session
-            .transaction(|context| Box::pin(persistence::schema::initialize(context)))
-            .await
-    }
-
     pub async fn read(
         &self,
         session: &mut Session,

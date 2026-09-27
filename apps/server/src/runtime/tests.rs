@@ -645,7 +645,7 @@ async fn mixed_entity_view_keeps_corrupt_entry_and_valid_other_kind() {
             session
                 .transaction::<_, locus_store::api::StoreError, _>(|c| {
                     Box::pin(async move {
-                        diesel::sql_query("UPDATE locus_images SET payload = 'invalid'")
+                        diesel::sql_query("UPDATE locus_media_comp_image SET payload = 'invalid'")
                             .execute(c.connection())
                             .await?;
                         Ok(())

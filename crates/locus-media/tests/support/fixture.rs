@@ -34,10 +34,9 @@ impl Fixture {
         kernel.register(Arc::new(FileOwner)).unwrap();
         kernel.register(Arc::new(ImageOwner)).unwrap();
         kernel.register(Arc::new(VideoOwner)).unwrap();
-        kernel.initialize(&mut session).await.unwrap();
-        files.initialize(&mut session).await.unwrap();
+        locus_migration::api::migrate(&mut session).await.unwrap();
         let media = MediaService::new(files.root(), config).unwrap();
-        media.initialize(&mut session).await.unwrap();
+        locus_migration::api::migrate(&mut session).await.unwrap();
         Self {
             session,
             kernel,

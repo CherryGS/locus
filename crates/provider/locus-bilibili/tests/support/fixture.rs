@@ -46,10 +46,9 @@ impl Fixture {
         let mut kernel = Kernel::new();
         kernel.register(Arc::new(FileOwner)).unwrap();
         kernel.register(Arc::new(BilibiliOwner)).unwrap();
-        kernel.initialize(&mut session).await.unwrap();
-        files.initialize(&mut session).await.unwrap();
+        locus_migration::api::migrate(&mut session).await.unwrap();
         let bilibili = BilibiliService::new();
-        bilibili.initialize(&mut session).await.unwrap();
+        locus_migration::api::migrate(&mut session).await.unwrap();
         Self {
             session,
             kernel,

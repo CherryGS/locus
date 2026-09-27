@@ -186,7 +186,7 @@ async fn both_read_routes_authorize_check_run_and_return_json_on_failure() {
         .await
         .unwrap();
     session.transaction::<_, CoreError, _>(|context| Box::pin(async move {
-        context.connection().batch_execute("PRAGMA ignore_check_constraints = ON; INSERT INTO locus_entities VALUES (zeroblob(16));").await?;
+        context.connection().batch_execute("PRAGMA ignore_check_constraints = ON; INSERT INTO locus_core_comm_entity VALUES (zeroblob(16));").await?;
         Ok(())
     })).await.unwrap();
     let failed = server

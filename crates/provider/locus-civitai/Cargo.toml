@@ -22,5 +22,6 @@ reqwest = { version = "=0.13.4", features = ["json"] }
 provider-civitai = { git = "https://github.com/CherryGS/provider-rs.git", rev = "5c5da6dd5d5beac04d26de4e959fa4b3d80d23a8" }
 
 [dev-dependencies]
+locus-migration.workspace = true
 image.workspace = true
 tokio-rustls = "0.26"

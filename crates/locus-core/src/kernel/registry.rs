@@ -1,8 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use locus_store::api::Session;
-
-use crate::{error::CoreError, identity::KindId, owner::KindOwner, persistence::schema};
+use crate::{error::CoreError, identity::KindId, owner::KindOwner};
 
 /// Generic identity and membership authority. Registration supplies domain
 /// capabilities; it neither creates payload tables nor defines their semantics.
@@ -25,12 +23,6 @@ impl Kernel {
         }
         self.owners.insert(kind, owner);
         Ok(())
-    }
-
-    pub async fn initialize(&self, session: &mut Session) -> Result<(), CoreError> {
-        session
-            .transaction(|context| Box::pin(schema::initialize(context)))
-            .await
     }
 
     pub(super) fn owner(&self, kind: KindId) -> Result<&Arc<dyn KindOwner>, CoreError> {

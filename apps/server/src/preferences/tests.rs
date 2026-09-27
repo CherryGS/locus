@@ -24,9 +24,9 @@ async fn fixture() -> Fixture {
     let mut session = Session::open(&path).await.unwrap();
     let mut kernel = Kernel::new();
     kernel.register(Arc::new(ImageOwner)).unwrap();
-    kernel.initialize(&mut session).await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
     let preferences = PreferenceService::new(kernel.clone());
-    preferences.initialize(&mut session).await.unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
     Fixture {
         root,
         path,
@@ -110,7 +110,7 @@ async fn independent_ordered_observations_and_unknown_definition_survive_reopen(
     );
     drop(f.session);
     let mut reopened = Session::open(&f.path).await.unwrap();
-    f.preferences.initialize(&mut reopened).await.unwrap();
+    locus_migration::api::migrate(&mut reopened).await.unwrap();
     assert_eq!(
         f.preferences
             .read_batch(&mut reopened, vec![a, b, a])
@@ -168,7 +168,7 @@ async fn a_b_a_revisions_never_reset_and_old_prepared_writes_are_rejected() {
     );
     sql(
         &mut f.session,
-        "UPDATE locus_entity_view_preferences SET revision = 9223372036854775807",
+        "UPDATE locus_server_comm_entity_view_preference SET revision = 9223372036854775807",
     )
     .await
     .unwrap();
@@ -223,7 +223,7 @@ async fn failure_rolls_back_previous_row_and_whole_read_failure_is_not_empty_suc
             .await
             .unwrap(),
     );
-    sql(&mut f.session, "CREATE TRIGGER reject_preference BEFORE UPDATE ON locus_entity_view_preferences BEGIN SELECT RAISE(ABORT, 'fixture write rejection'); END;").await.unwrap();
+    sql(&mut f.session, "CREATE TRIGGER reject_preference BEFORE UPDATE ON locus_server_comm_entity_view_preference BEGIN SELECT RAISE(ABORT, 'fixture write rejection'); END;").await.unwrap();
     assert!(matches!(
         f.preferences
             .update(&mut f.session, entity, view("B"), Some(value.revision))
@@ -234,9 +234,12 @@ async fn failure_rolls_back_previous_row_and_whole_read_failure_is_not_empty_suc
         f.preferences.read(&mut f.session, entity).await.unwrap(),
         Observation::Saved(value)
     );
-    sql(&mut f.session, "DROP TABLE locus_entity_view_preferences")
-        .await
-        .unwrap();
+    sql(
+        &mut f.session,
+        "DROP TABLE locus_server_comm_entity_view_preference",
+    )
+    .await
+    .unwrap();
     assert!(matches!(
         f.preferences
             .read_batch(&mut f.session, vec![EntityId::new(), entity])
@@ -257,7 +260,7 @@ async fn real_commit_failure_is_unknown_and_discarded_session_reopens_previous_s
     );
     sql(&mut f.session, "CREATE TABLE fixture_parent (id INTEGER PRIMARY KEY);
         CREATE TABLE fixture_child (parent INTEGER REFERENCES fixture_parent(id) DEFERRABLE INITIALLY DEFERRED);
-        CREATE TRIGGER uncertain_preference AFTER UPDATE ON locus_entity_view_preferences BEGIN INSERT INTO fixture_child VALUES (1); END;").await.unwrap();
+        CREATE TRIGGER uncertain_preference AFTER UPDATE ON locus_server_comm_entity_view_preference BEGIN INSERT INTO fixture_child VALUES (1); END;").await.unwrap();
     let error = f
         .preferences
         .update(
@@ -294,7 +297,7 @@ async fn schema_and_corrupt_row_validation_never_replaces_retained_values() {
         "view_definition_id = ' '",
         "view_definition_id = char(10)",
     ] {
-        sql(&mut f.session, &format!("PRAGMA ignore_check_constraints = ON; UPDATE locus_entity_view_preferences SET revision = 1, view_definition_id = 'valid'; UPDATE locus_entity_view_preferences SET {assignment}; PRAGMA ignore_check_constraints = OFF;")).await.unwrap();
+        sql(&mut f.session, &format!("PRAGMA ignore_check_constraints = ON; UPDATE locus_server_comm_entity_view_preference SET revision = 1, view_definition_id = 'valid'; UPDATE locus_server_comm_entity_view_preference SET {assignment}; PRAGMA ignore_check_constraints = OFF;")).await.unwrap();
         assert!(
             matches!(f.preferences.read(&mut f.session, entity).await, Err(PreferenceError::CorruptRecord { entity: id, .. }) if id == entity)
         );
@@ -305,29 +308,13 @@ async fn schema_and_corrupt_row_validation_never_replaces_retained_values() {
             Err(PreferenceError::CorruptRecord { .. })
         ));
     }
-    sql(
-        &mut f.session,
-        "UPDATE locus_preferences_schema SET version = 2",
-    )
-    .await
-    .unwrap();
-    assert!(matches!(
-        f.preferences.initialize(&mut f.session).await,
-        Err(PreferenceError::SchemaVersion(2))
-    ));
-    drop(f.session);
-    let mut reopened = Session::open(&f.path).await.unwrap();
-    assert!(matches!(
-        f.preferences.initialize(&mut reopened).await,
-        Err(PreferenceError::SchemaVersion(2))
-    ));
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn preference_changes_preserve_domain_records_memberships_and_entity_deletion_meaning() {
     let mut f = fixture().await;
     let media = MediaService::new(f.root.path(), MediaConfig::default()).unwrap();
-    media.initialize(&mut f.session).await.unwrap();
+    locus_migration::api::migrate(&mut f.session).await.unwrap();
     let entity = f.kernel.create_entity(&mut f.session).await.unwrap();
     let component = media
         .create(&f.kernel, &mut f.session, MediaKind::Image)
@@ -419,18 +406,6 @@ fn input_validation_preserves_precision_and_opaque_definition_identity() {
         assert!(ViewDefinitionId::new(input.into()).is_err());
     }
     assert_eq!(view("future.定义/v7").as_str(), "future.定义/v7");
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn malformed_schema_version_rows_are_rejected_without_initializing_over_them() {
-    for assignment in ["version = 1.5", "singleton = 2"] {
-        let mut f = fixture().await;
-        sql(&mut f.session, &format!("PRAGMA ignore_check_constraints = ON; UPDATE locus_preferences_schema SET {assignment}; PRAGMA ignore_check_constraints = OFF;")).await.unwrap();
-        assert!(matches!(
-            f.preferences.initialize(&mut f.session).await,
-            Err(PreferenceError::CorruptSchema(_))
-        ));
-    }
 }
 
 #[test]

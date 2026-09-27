@@ -20,7 +20,7 @@ async fn image_video_and_source_keep_independent_bases_and_diagnostics() {
         },
     )
     .unwrap();
-    media.initialize(&mut f.session).await.unwrap();
+    locus_migration::api::migrate(&mut f.session).await.unwrap();
     let (entity, id) = f.component().await;
     let (video_entity, video_source) = f.component().await;
     let first = f.file(entity, "not-image").await;

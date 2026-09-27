@@ -35,11 +35,6 @@ pub enum SettingsObservation {
     Current {
         saved: SavedSettings,
     },
-    ConversionRequired {
-        group_id: String,
-        metadata: SettingsMetadata,
-        source: String,
-    },
     Unavailable {
         group_id: String,
         metadata: Option<SettingsMetadata>,
@@ -65,10 +60,6 @@ pub enum SettingsChange {
     Reset {
         expected_revision: String,
     },
-    Convert {
-        metadata: SettingsMetadata,
-        source: String,
-    },
 }
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -88,13 +79,7 @@ pub enum SettingsFailure {
     Unavailable {
         group_id: String,
     },
-    Unsupported {
-        version: String,
-    },
     Definition {
-        message: String,
-    },
-    Schema {
         message: String,
     },
 }

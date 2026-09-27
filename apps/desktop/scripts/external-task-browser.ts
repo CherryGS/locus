@@ -38,7 +38,7 @@ export async function externalTaskBrowser(page: Page, backend: Backend, library:
     throw Error("External task did not end")
   }
   const destination = page.url()
-  await sql("CREATE TRIGGER fixture_external_admission BEFORE INSERT ON locus_access_eligibility BEGIN SELECT RAISE(ABORT,'fixture eligibility failure'); END")
+  await sql("CREATE TRIGGER fixture_external_admission BEFORE INSERT ON locus_server_rela_access_eligibility BEGIN SELECT RAISE(ABORT,'fixture eligibility failure'); END")
   const uploadId = randomUUID()
   const submission = await uploadFile(context, { request_id: uploadId, byte_count: "5", filename: "browser-supplied.txt" }, new Blob(["bytes"]), transport)
   assert(submission.status === "accepted")

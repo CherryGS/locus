@@ -12,10 +12,6 @@ pub(crate) enum PreferenceError {
     InvalidRevision,
     #[error("saved revision exhausted for Entity {0}")]
     RevisionExhausted(EntityId),
-    #[error("unsupported preference schema version {0}")]
-    SchemaVersion(i64),
-    #[error("corrupt preference schema: {0}")]
-    CorruptSchema(String),
     #[error("corrupt preference for Entity {entity}: {message}")]
     CorruptRecord { entity: EntityId, message: String },
     #[error(transparent)]
