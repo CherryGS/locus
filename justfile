@@ -209,6 +209,9 @@ desktop-ui-specimens:
 desktop-ui-test: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:browser
 
+desktop-filter-browser: server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:filter-browser
+
 desktop-native-test: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:electron
 

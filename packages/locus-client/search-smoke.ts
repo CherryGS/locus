@@ -13,7 +13,7 @@ async function ready(client: LocusClient, count?: number) {
     assert.notEqual(status.data.state, "failed", status.data.failure ?? "");
     if (status.data.state === "ready") {
       if (count === undefined) return;
-      const result = await searchEntities(client, { text: "", filter: null }); const matches = result.entities.length === count; await result.release(); if (matches) return;
+      const result = await searchEntities(client, { format: "locus-native-tantivy-0.26", version: 2, text: "entity_id:*" }); const matches = result.entities.length === count; await result.release(); if (matches) return;
     }
     await delay(20);
   }
@@ -23,8 +23,8 @@ const fixture = await entityFixture("smoke");
 try {
   let server = await fixture.start(); let client = server.client;
   const catalogue = await client.GET("/api/v1/search/catalogue"); assert(catalogue.data); assert(catalogue.data.fields.some(f => f.id === "civitai_file_name"));
-  assert(catalogue.data.fields.every(f => f.native_state && f.native_exact));
-  await ready(client, 0); const empty = await searchEntities(client, { text: "", filter: null }); assert.equal(empty.entities.length, 0); await empty.release();
+  assert(catalogue.data.fields.every(f => f.native_value && f.native_exact));
+  await ready(client, 0); const empty = await searchEntities(client, { format: "locus-native-tantivy-0.26", version: 2, text: "entity_id:*" }); assert.equal(empty.entities.length, 0); await empty.release();
   const create = await client.POST("/api/v1/entities", { body: { request_id: randomUUID() } }); assert(create.data?.status === "entity_created");
   await ready(client, 1);
   const source = join(fixture.root,"search.png");await writeFile(source,fixturePng(40,24));
@@ -35,14 +35,17 @@ try {
   const twitterRequest=randomUUID();const twitter=await client.POST("/api/v1/registered-import-batches",{body:{request_id:twitterRequest,items:[{twitter:{post_id:"123456789",text:"中文 search title",hashtags:[],published_at_unix_ms:"253402300799999"}}]}});assert(twitter.data);
   for(let i=0;i<300;i++){const receipt=await client.GET("/api/v1/requests/{request_id}",{params:{path:{request_id:twitterRequest}}});if(receipt.data?.status==="accepted"){await complete(client,receipt.data.receipt.task_id);break;}await delay(20);assert(i<299,JSON.stringify(receipt));}
   await ready(client,2);
-  for(let attempt=0;attempt<300;attempt++){const result=await searchEntities(client,{text:"",filter:{kind:"predicate",value:{field:"image_width",operation:"eq",values:[{type:"uint",value:"40"}]}}});const found=result.entities.indexOf(create.data.entity_id)>=0;await result.release();if(found)break;await delay(20);assert(attempt<299);}
-  const scoped=await searchEntities(client,{text:'"中文"',filter:{kind:"predicate",value:{field:"twitter_hashtags",operation:"empty",values:[]}}});assert.equal(scoped.entities.length,1);
-  const attributed=await client.POST("/api/v1/search/evidence",{body:{context:scoped.context,entities:[scoped.entities.at(0)!]}});assert(attributed.data?.[0].matches.some(m=>m.field==="twitter_text"&&m.component));await scoped.release();
-  const conjunction=await searchEntities(client,{text:'"中文"',filter:{kind:"predicate",value:{field:"image_width",operation:"eq",values:[{type:"uint",value:"40"}]}}});assert.equal(conjunction.entities.length,0);await conjunction.release();
-  const first = await searchEntities(client, { text: `entity_id:"${create.data.entity_id}"`, filter: null }); assert.equal(first.entities.at(0), create.data.entity_id);
-  const evidence = await client.POST("/api/v1/search/evidence", { body: { context: first.context, entities: [create.data.entity_id] } }); assert.equal(evidence.data?.[0].entity, create.data.entity_id);
-  await first.release(); assert.equal((await client.POST("/api/v1/search/evidence", { body: { context: first.context, entities: [create.data.entity_id] } })).response.status, 404);
-  assert.equal((await client.POST("/api/v1/search/query", { body: { text: "unknown:value", filter: null } })).response.status, 400);
+  for(let attempt=0;attempt<300;attempt++){const result=await searchEntities(client,{format:"locus-native-tantivy-0.26",version:2,text:"image_width:40"});const found=result.entities.indexOf(create.data.entity_id)>=0;await result.release();if(found)break;await delay(20);assert(attempt<299);}
+  const scoped=await searchEntities(client,{format:"locus-native-tantivy-0.26",version:2,text:'"中文" AND NOT twitter_hashtags:*'});assert.equal(scoped.entities.length,1);
+  const attributed=await client.POST("/api/v1/search/evidence",{body:{context:scoped.context!,entities:[scoped.entities.at(0)!]}});assert(attributed.data?.[0].matches.some(m=>m.condition?.includes("中文")));await scoped.release();
+  const conjunction=await searchEntities(client,{format:"locus-native-tantivy-0.26",version:2,text:'"中文" AND image_width:40'});assert.equal(conjunction.entities.length,0);await conjunction.release();
+  const first = await searchEntities(client, {format:"locus-native-tantivy-0.26",version:2,text:`entity_id:"${create.data.entity_id}"`}); assert.equal(first.entities.at(0), create.data.entity_id);
+  const evidence = await client.POST("/api/v1/search/evidence", { body: { context: first.context!, entities: [create.data.entity_id] } }); assert.equal(evidence.data?.[0].entity, create.data.entity_id);
+  await first.release(); assert.equal((await client.POST("/api/v1/search/evidence", { body: { context: first.context!, entities: [create.data.entity_id] } })).response.status, 404);
+  const ordinary = await searchEntities(client, { format: "locus-native-tantivy-0.26", version: 2, text: "  " });
+  assert.equal(ordinary.context, null); assert.equal(ordinary.entities.length, (await readEntityIds(client)).length); await ordinary.release();
+  assert.equal((await client.POST("/api/v1/search/query", { body: { format: "future", version: 99, text: "" } })).response.status, 400);
+  assert.equal((await client.POST("/api/v1/search/query", { body: {format:"locus-native-tantivy-0.26",version:2,text:"unknown:value"} })).response.status, 400);
   assert.equal((await client.POST("/api/v1/search/retry")).response.status, 202);
   assert.equal((await client.POST("/api/v1/search/rebuild")).response.status, 202);
   await delay(50); await ready(client, 2); assert.equal(first.entities.length, 1);

@@ -14,3 +14,6 @@ mod schema;
 mod service;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod native_tests;

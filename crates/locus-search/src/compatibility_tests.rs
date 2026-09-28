@@ -92,6 +92,7 @@ async fn compatibility_and_missing_corrupt_generation_never_certify_empty_cache(
             text: "".into(),
             filter: None
         })
+        .await
         .unwrap()
         .bytes
         .len(),
@@ -116,6 +117,7 @@ async fn compatibility_and_missing_corrupt_generation_never_certify_empty_cache(
                 text: "".into(),
                 filter: None
             })
+            .await
             .unwrap()
             .bytes
             .len(),
@@ -131,6 +133,7 @@ async fn compatibility_and_missing_corrupt_generation_never_certify_empty_cache(
             text: "".into(),
             filter: None
         })
+        .await
         .unwrap()
         .bytes
         .len(),

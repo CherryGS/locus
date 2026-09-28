@@ -2,6 +2,8 @@ import { readTaskEvents } from "./task-events"
 import {
   createLocusClient,
   readEntityIds,
+  searchEntities,
+  EntityReadError,
   type components,
   type BackendContext,
   type LocusClient,
@@ -22,11 +24,15 @@ function result<T>(value: { data?: T; error?: Wire<"ApiError">; response: Respon
   return value.data
 }
 export const errorText = (error: unknown) =>
-  error instanceof ApiFailure && error.detail.diagnostic
-    ? diagnosticText(error.detail.diagnostic)
-    : error instanceof Error
-      ? error.message
-      : "The observation could not be completed."
+  error instanceof EntityReadError && error.apiError
+    ? error.apiError.diagnostic
+      ? diagnosticText(error.apiError.diagnostic)
+      : error.apiError.message
+    : error instanceof ApiFailure && error.detail.diagnostic
+      ? diagnosticText(error.detail.diagnostic)
+      : error instanceof Error
+        ? error.message
+        : "The observation could not be completed."
 
 export function diagnosticText(value: Wire<"DomainDiagnostic">): string {
   return `${value.owner}: ${diagnosticDetail(value)}`
@@ -61,6 +67,53 @@ function diagnosticDetail(value: unknown): string {
 }
 
 export class BackendApi {
+  async filterLanguage() {
+    return result(await this.client.GET("/api/v1/filter/language"))
+  }
+
+  async filterAnalyze(body: Wire<"FilterSource">) {
+    return result(await this.client.POST("/api/v1/filter/analyze", { body }))
+  }
+  async filterPresets() {
+    return result(await this.client.GET("/api/v1/filter/presets"))
+  }
+  async filterPreset(id: string) {
+    return result(
+      await this.client.GET("/api/v1/filter/presets/{id}", {
+        params: { path: { id } },
+      }),
+    )
+  }
+  async filterWrite(body: Wire<"WriteFilterPreset">) {
+    return result(await this.client.POST("/api/v1/filter/presets", { body }))
+  }
+
+  search(query: Wire<"SearchQueryBody">) {
+    return searchEntities(this.client, query)
+  }
+  async searchCatalogue() {
+    return result(await this.client.GET("/api/v1/search/catalogue"))
+  }
+  async searchStatus() {
+    return result(await this.client.GET("/api/v1/search/status"))
+  }
+  async searchEvidence(body: Wire<"ReadEvidence">) {
+    return result(await this.client.POST("/api/v1/search/evidence", { body }))
+  }
+  async searchMaintenance(action: "retry" | "rebuild") {
+    const value =
+      action === "retry"
+        ? await this.client.POST("/api/v1/search/retry")
+        : await this.client.POST("/api/v1/search/rebuild")
+    if (value.error) throw new ApiFailure(value.error, value.response.status)
+    if (!value.response.ok) throw new Error("Search maintenance request failed.")
+  }
+  async entityPresent(id: string) {
+    const values = await this.memberships([id])
+    if (values.length !== 1 || values[0].entity_id !== id)
+      throw new Error("Presence response did not match the requested Entity.")
+    return values[0].status !== "missing"
+  }
   async savedPreview(kind: Wire<"MediaKind">, component_id: string) {
     return result(
       await this.client.GET("/api/v1/media/{kind}/{component_id}/saved-preview", {
@@ -70,12 +123,16 @@ export class BackendApi {
   }
   async civitai(component_id: string) {
     return result(
-      await this.client.GET("/api/v1/civitai/{component_id}/view", { params: { path: { component_id } } }),
+      await this.client.GET("/api/v1/civitai/{component_id}/view", {
+        params: { path: { component_id } },
+      }),
     )
   }
   async civitaiPage(component_id: string) {
     return result(
-      await this.client.GET("/api/v1/civitai/{component_id}/page", { params: { path: { component_id } } }),
+      await this.client.GET("/api/v1/civitai/{component_id}/page", {
+        params: { path: { component_id } },
+      }),
     )
   }
   async civitaiVersion(component_id: string, version: string, source?: string) {
@@ -112,12 +169,17 @@ export class BackendApi {
   }
   async settingsRead(group_id: string) {
     return result(
-      await this.client.GET("/api/v1/settings/groups/{group_id}", { params: { path: { group_id } } }),
+      await this.client.GET("/api/v1/settings/groups/{group_id}", {
+        params: { path: { group_id } },
+      }),
     )
   }
   async settingsChange(group_id: string, body: Wire<"ChangeSettings">) {
     return result(
-      await this.client.POST("/api/v1/settings/groups/{group_id}", { params: { path: { group_id } }, body }),
+      await this.client.POST("/api/v1/settings/groups/{group_id}", {
+        params: { path: { group_id } },
+        body,
+      }),
     )
   }
   async mediaRuntime() {
@@ -137,11 +199,16 @@ export class BackendApi {
   }
   async taskOutcome(id: string) {
     return result(
-      await this.client.GET("/api/v1/tasks/{task_id}/outcome", { params: { path: { task_id: id } } }),
+      await this.client.GET("/api/v1/tasks/{task_id}/outcome", {
+        params: { path: { task_id: id } },
+      }),
     )
   }
   async taskEvents(signal: AbortSignal, receive: (snapshot: Wire<"TaskSnapshot">) => void) {
-    const response = await this.client.GET("/api/v1/events", { parseAs: "stream", signal })
+    const response = await this.client.GET("/api/v1/events", {
+      parseAs: "stream",
+      signal,
+    })
     const stream = result(response)
     if (!stream) throw new Error("Task stream unavailable")
     await readTaskEvents(stream, signal, receive)
@@ -160,10 +227,18 @@ export class BackendApi {
     return readEntityIds(this.client)
   }
   async memberships(ids: string[]) {
-    return result(await this.client.POST("/api/v1/memberships/read", { body: { entity_ids: ids } }))
+    return result(
+      await this.client.POST("/api/v1/memberships/read", {
+        body: { entity_ids: ids },
+      }),
+    )
   }
   async file(id: string) {
-    return result(await this.client.GET("/api/v1/files/{file_id}", { params: { path: { file_id: id } } }))
+    return result(
+      await this.client.GET("/api/v1/files/{file_id}", {
+        params: { path: { file_id: id } },
+      }),
+    )
   }
   async media(kind: Wire<"MediaKind">, id: string) {
     return result(
@@ -174,7 +249,9 @@ export class BackendApi {
   }
   async model(id: string) {
     return result(
-      await this.client.GET("/api/v1/models/{component_id}/view", { params: { path: { component_id: id } } }),
+      await this.client.GET("/api/v1/models/{component_id}/view", {
+        params: { path: { component_id: id } },
+      }),
     )
   }
   async bilibili(id: string) {
@@ -193,7 +270,9 @@ export class BackendApi {
   }
   async preferences(ids: string[]) {
     return result(
-      await this.client.POST("/api/v1/entities/view-preferences/batch", { body: { entity_ids: ids } }),
+      await this.client.POST("/api/v1/entities/view-preferences/batch", {
+        body: { entity_ids: ids },
+      }),
     )
   }
   async savePreference(id: string, body: Wire<"UpdateViewPreference">) {
@@ -206,7 +285,9 @@ export class BackendApi {
   }
   async submission(id: string) {
     return result(
-      await this.client.GET("/api/v1/requests/{request_id}", { params: { path: { request_id: id } } }),
+      await this.client.GET("/api/v1/requests/{request_id}", {
+        params: { path: { request_id: id } },
+      }),
     )
   }
   originalUrl(id: string) {

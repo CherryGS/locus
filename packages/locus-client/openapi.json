@@ -2368,6 +2368,540 @@
         }
       }
     },
+    "/api/v1/filter/analyze": {
+      "post": {
+        "tags": [
+          "filter"
+        ],
+        "operationId": "analyze",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilterSource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterAnalysis"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/filter/language": {
+      "get": {
+        "tags": [
+          "filter"
+        ],
+        "operationId": "language",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterLanguage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/filter/presets": {
+      "get": {
+        "tags": [
+          "filter"
+        ],
+        "operationId": "presets",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FilterPresetSummary"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "filter"
+        ],
+        "operationId": "write",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteFilterPreset"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/filter/presets/{id}": {
+      "get": {
+        "tags": [
+          "filter"
+        ],
+        "operationId": "preset",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterPreset"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/import-batches": {
       "get": {
         "tags": [
@@ -4767,6 +5301,12 @@
                 "schema": {
                   "type": "string"
                 }
+              },
+              "X-Locus-Search-No-Filter": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "true for ordinary enumeration; no search context/generation headers are supplied"
               },
               "X-Locus-Search-Sequence": {
                 "schema": {
@@ -9459,6 +9999,34 @@
           {
             "type": "object",
             "required": [
+              "start",
+              "end",
+              "message",
+              "owner"
+            ],
+            "properties": {
+              "end": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "message": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string",
+                "enum": [
+                  "filter"
+                ]
+              },
+              "start": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "error",
               "owner"
             ],
@@ -9879,6 +10447,277 @@
             "type": "string"
           }
         }
+      },
+      "FilterAnalysis": {
+        "type": "object",
+        "required": [
+          "source",
+          "state",
+          "diagnostics"
+        ],
+        "properties": {
+          "diagnostics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilterDiagnostic"
+            }
+          },
+          "parsed": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ParsedStructure"
+              }
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/FilterSource"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "FilterChange": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "name",
+              "source",
+              "operation"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "create"
+                ]
+              },
+              "source": {
+                "$ref": "#/components/schemas/FilterSource"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "revision",
+              "name",
+              "source",
+              "operation"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "update"
+                ]
+              },
+              "revision": {
+                "type": "string"
+              },
+              "source": {
+                "$ref": "#/components/schemas/FilterSource"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "revision",
+              "name",
+              "operation"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "rename"
+                ]
+              },
+              "revision": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "operation"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "copy"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "revision",
+              "operation"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "delete"
+                ]
+              },
+              "revision": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "FilterDiagnostic": {
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "message"
+        ],
+        "properties": {
+          "end": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "message": {
+            "type": "string"
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "FilterLanguage": {
+        "type": "object",
+        "required": [
+          "format",
+          "version",
+          "offset_encoding",
+          "syntax"
+        ],
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "offset_encoding": {
+            "type": "string"
+          },
+          "syntax": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "FilterPreset": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "revision",
+          "source"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/FilterSource"
+          }
+        }
+      },
+      "FilterPresetSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "revision"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          }
+        }
+      },
+      "FilterSource": {
+        "type": "object",
+        "required": [
+          "format",
+          "version",
+          "text"
+        ],
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
       },
       "ImageFormat": {
         "type": "string",
@@ -11192,6 +12031,68 @@
           {
             "type": "object",
             "required": [
+              "preset",
+              "status"
+            ],
+            "properties": {
+              "preset": {
+                "$ref": "#/components/schemas/FilterPreset"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "filter_saved"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "filter_deleted"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "reason",
+              "message",
+              "uncertain",
+              "status"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "filter_failed"
+                ]
+              },
+              "uncertain": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "revision",
               "status"
             ],
@@ -11478,6 +12379,205 @@
             }
           }
         ]
+      },
+      "ParsedStructure": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "clauses"
+            ],
+            "properties": {
+              "clauses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Search_ParsedClause"
+                }
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "group"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "value",
+              "child"
+            ],
+            "properties": {
+              "child": {
+                "$ref": "#/components/schemas/ParsedStructure"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "boost"
+                ]
+              },
+              "value": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "text",
+              "delimiter",
+              "slop",
+              "prefix"
+            ],
+            "properties": {
+              "delimiter": {
+                "type": "string"
+              },
+              "field": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "literal"
+                ]
+              },
+              "prefix": {
+                "type": "boolean"
+              },
+              "slop": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "lower",
+              "upper"
+            ],
+            "properties": {
+              "field": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "range"
+                ]
+              },
+              "lower": {
+                "$ref": "#/components/schemas/Search_ParsedBound"
+              },
+              "upper": {
+                "$ref": "#/components/schemas/Search_ParsedBound"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "elements"
+            ],
+            "properties": {
+              "elements": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "field": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "set"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "field"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "presence"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "all"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "pattern"
+            ],
+            "properties": {
+              "field": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "regex"
+                ]
+              },
+              "pattern": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "title": "ParsedNode",
+        "description": "Native grammar observation, not a source map or a separately editable query."
       },
       "PreferenceFailure": {
         "oneOf": [
@@ -11969,21 +13069,24 @@
       },
       "SearchRequestData": {
         "type": "object",
-        "title": "SearchRequest",
+        "title": "Source",
+        "description": "Original source is retained verbatim. Offsets in source observations are UTF-8\nbyte offsets; browser adapters convert them to the editor's UTF-16 positions.",
+        "required": [
+          "format",
+          "version",
+          "text"
+        ],
         "properties": {
-          "filter": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Search_Condition"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "format": {
+            "type": "string"
           },
           "text": {
-            "type": "string",
-            "default": ""
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
           }
         }
       },
@@ -12036,76 +13139,6 @@
           }
         }
       },
-      "Search_Condition": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "kind",
-              "value"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string"
-              },
-              "value": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Search_Condition"
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "kind",
-              "value"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string"
-              },
-              "value": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Search_Condition"
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "kind",
-              "value"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string"
-              },
-              "value": {
-                "$ref": "#/components/schemas/Search_Condition"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "kind",
-              "value"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string"
-              },
-              "value": {
-                "$ref": "#/components/schemas/Search_Predicate"
-              }
-            }
-          }
-        ]
-      },
       "Search_Evidence": {
         "type": "object",
         "required": [
@@ -12134,7 +13167,6 @@
           "optional",
           "default_text",
           "native_value",
-          "native_state",
           "native_exact",
           "operations",
           "extraction_version"
@@ -12156,9 +13188,6 @@
             "type": "string"
           },
           "native_exact": {
-            "type": "string"
-          },
-          "native_state": {
             "type": "string"
           },
           "native_value": {
@@ -12200,6 +13229,9 @@
       },
       "Search_MatchEvidence": {
         "type": "object",
+        "required": [
+          "role"
+        ],
         "properties": {
           "component": {
             "type": [
@@ -12218,6 +13250,19 @@
               "string",
               "null"
             ]
+          },
+          "range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Search_SourceRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "type": "string"
           }
         }
       },
@@ -12238,25 +13283,73 @@
           "present"
         ]
       },
-      "Search_Predicate": {
+      "Search_ParsedBound": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "value"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "inclusive"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "value"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "exclusive"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unbounded"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "Search_ParsedClause": {
         "type": "object",
         "required": [
-          "field",
-          "operation"
+          "occurrence",
+          "node"
         ],
         "properties": {
-          "field": {
-            "type": "string"
+          "node": {
+            "$ref": "#/components/schemas/ParsedStructure"
           },
-          "operation": {
-            "$ref": "#/components/schemas/Search_Operation"
-          },
-          "values": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Search_Value"
-            },
-            "default": []
+          "occurrence": {
+            "type": "string",
+            "description": "None in the native grammar is kept distinct from explicit OR."
           }
         }
       },
@@ -12267,101 +13360,24 @@
           "collection"
         ]
       },
-      "Search_Value": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
-            "properties": {
-              "type": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
-            "properties": {
-              "type": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
-            "properties": {
-              "type": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
-            "properties": {
-              "type": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
-            "properties": {
-              "type": {
-                "type": "string"
-              },
-              "value": {
-                "type": "number",
-                "format": "double"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
-            "properties": {
-              "type": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            }
-          }
+      "Search_SourceRange": {
+        "type": "object",
+        "required": [
+          "start",
+          "end"
         ],
-        "description": "Decimal strings preserve the full integer range across JSON consumers."
+        "properties": {
+          "end": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "start": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          }
+        }
       },
       "ServerStatus": {
         "type": "object",
@@ -14075,6 +15091,22 @@
             "type": "string"
           }
         }
+      },
+      "WriteFilterPreset": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "change"
+        ],
+        "properties": {
+          "change": {
+            "$ref": "#/components/schemas/FilterChange"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

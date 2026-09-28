@@ -73,14 +73,40 @@ async fn catalogue(
 async fn status(State(state): State<Arc<Shared>>) -> Result<Json<SearchStatusBody>, ApiError> {
     Ok(Json(SearchStatusBody(service(&state)?.status())))
 }
-#[utoipa::path(post,path="/api/v1/search/query",operation_id="search_query",tag="search",request_body=SearchQueryBody,responses((status=200,description="Complete ordered packed RFC UUIDv7 identities; 16 bytes per Entity. Context expires after the advertised lifetime.",body=Vec<u8>,content_type="application/octet-stream",headers(("Content-Length"=String),("X-Locus-Search-Context"=String),("X-Locus-Search-Generation"=String),("X-Locus-Search-Sequence"=String),("X-Locus-Search-Expires"=String)))))]
+#[utoipa::path(post,path="/api/v1/search/query",operation_id="search_query",tag="search",request_body=SearchQueryBody,responses((status=200,description="Complete ordered packed RFC UUIDv7 identities; 16 bytes per Entity. Context expires after the advertised lifetime.",body=Vec<u8>,content_type="application/octet-stream",headers(("Content-Length"=String),("X-Locus-Search-No-Filter"=String,description="true for ordinary enumeration; no search context/generation headers are supplied"),("X-Locus-Search-Context"=String),("X-Locus-Search-Generation"=String),("X-Locus-Search-Sequence"=String),("X-Locus-Search-Expires"=String)))))]
 async fn query(
     State(state): State<Arc<Shared>>,
     input: Result<Json<SearchQueryBody>, JsonRejection>,
 ) -> Result<Response, ApiError> {
-    let input = body(input)?.0;
+    let input = locus_filter::api::compile(body(input)?.0.into())
+        .map_err(|d| attributed(ErrorCode::InvalidRequest, d.range, d.message))?;
+    if input.source.text.trim().is_empty() {
+        let bytes = state.entity_ids().await?;
+        return Ok((
+            [
+                ("content-type", "application/octet-stream".to_owned()),
+                ("content-length", bytes.len().to_string()),
+                ("cache-control", "no-store".into()),
+                ("x-locus-search-no-filter", "true".into()),
+            ],
+            bytes,
+        )
+            .into_response());
+    }
+    let range = locus_query::api::SourceRange {
+        start: 0,
+        end: input.source.text.len(),
+    };
     let service = service(&state)?;
-    let result = state.search_query(service, input).await?.map_err(failure)?;
+    let result = state.search_query(service, input).await?.map_err(|e| {
+        let mut error = failure(e);
+        error.diagnostic = Some(crate::api::error::DomainDiagnostic::Filter {
+            start: range.start,
+            end: range.end,
+            message: error.message.clone(),
+        });
+        error
+    })?;
     Ok((
         [
             ("content-type", "application/octet-stream".to_owned()),
@@ -147,4 +173,14 @@ pub(crate) fn router() -> utoipa_axum::router::OpenApiRouter<Arc<Shared>> {
         .routes(routes!(release))
         .routes(routes!(retry))
         .routes(routes!(rebuild))
+}
+
+fn attributed(code: ErrorCode, range: locus_query::api::SourceRange, message: String) -> ApiError {
+    let mut e = ApiError::new(code, message.clone());
+    e.diagnostic = Some(crate::api::error::DomainDiagnostic::Filter {
+        start: range.start,
+        end: range.end,
+        message,
+    });
+    e
 }

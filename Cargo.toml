@@ -1,8 +1,9 @@
 [workspace]
 resolver = "3"
-members = ["crates/locus-query", "crates/locus-search", "crates/locus-migration", "apps/server", "crates/locus-task", "crates/locus-settings", "crates/locus-store", "crates/locus-core", "crates/locus-file", "crates/locus-media", "crates/locus-model", "crates/provider/locus-twitter", "crates/provider/locus-civitai", "crates/provider/locus-bilibili"]
+members = ["crates/locus-filter", "crates/locus-query", "crates/locus-search", "crates/locus-migration", "apps/server", "crates/locus-task", "crates/locus-settings", "crates/locus-store", "crates/locus-core", "crates/locus-file", "crates/locus-media", "crates/locus-model", "crates/provider/locus-twitter", "crates/provider/locus-civitai", "crates/provider/locus-bilibili"]
 
 [workspace.dependencies]
+locus-filter = { path = "crates/locus-filter" }
 locus-query = { path = "crates/locus-query" }
 locus-search = { path = "crates/locus-search" }
 locus-migration = { path = "crates/locus-migration" }

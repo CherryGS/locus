@@ -21,6 +21,7 @@ pub(crate) struct Admission {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Arguments {
+    Filter(crate::api::filter::dto::FilterChange),
     Civitai(crate::api::civitai::dto::CivitaiRequest),
     Upload(crate::api::external::dto::UploadMetadata),
     RecoverUpload(crate::api::external::dto::RecoverUpload),

@@ -98,18 +98,18 @@ fn engine_state_precision_identifier_and_neutral_filter_matrix() {
     };
     assert_eq!(
         found("", Some(pred("title", Operation::Empty, vec![]))),
-        vec![ids[2]]
+        vec![ids[2], ids[3]]
     );
     assert_eq!(
         found(
             "",
             Some(pred("title", Operation::Eq, vec![Value::Text("".into())]))
         ),
-        vec![ids[2]]
+        vec![ids[2], ids[3]]
     );
     assert_eq!(
         found("", Some(pred("title", Operation::Missing, vec![]))),
-        vec![ids[3]]
+        vec![ids[2], ids[3]]
     );
     assert_eq!(
         found(
@@ -163,28 +163,11 @@ fn engine_state_precision_identifier_and_neutral_filter_matrix() {
         )
         .is_empty()
     );
-    // The pinned native parser rejects its Exists AST variant; surface that
-    // error without weakening/reinterpreting input. Native ExistsQuery itself
-    // observes actual values, independently of our recorded-empty state.
-    assert!(compiler::compile(&index, &mapping, &catalogue, "title:*", None).is_err());
-    let mut exists = searcher
-        .search(
-            &tantivy::query::ExistsQuery::new("title".into(), false),
-            &Complete { scoring: false },
-        )
-        .unwrap();
-    exists.sort_unstable_by_key(|hit| hit.1);
-    assert_eq!(
-        exists
-            .into_iter()
-            .map(|(_, id)| EntityId::from_bytes(&id).unwrap())
-            .collect::<Vec<_>>(),
-        vec![ids[0], ids[1]]
-    );
-    assert_eq!(found("title_state:empty", None), vec![ids[2]]);
+    assert_eq!(found("title:*", None), vec![ids[0], ids[1]]);
+    assert_eq!(found("NOT title:*", None), vec![ids[2], ids[3]]);
     assert_eq!(
         found("", Some(pred("tags", Operation::Empty, vec![]))),
-        vec![ids[0]]
+        vec![ids[0], ids[3]]
     );
     assert_eq!(
         found(
@@ -198,7 +181,7 @@ fn engine_state_precision_identifier_and_neutral_filter_matrix() {
             "",
             Some(pred("tags", Operation::None, vec![Value::Text("".into())]))
         ),
-        vec![ids[0], ids[2]]
+        vec![ids[0], ids[2], ids[3]]
     );
     let nested = Condition::And(vec![
         Condition::Or(vec![
@@ -211,7 +194,22 @@ fn engine_state_precision_identifier_and_neutral_filter_matrix() {
             vec![Value::Time(i64::MIN.to_string())],
         ))),
     ]);
-    assert_eq!(found("", Some(nested)), vec![ids[1], ids[2]]);
+    assert_eq!(found("", Some(nested)), vec![ids[1], ids[2], ids[3]]);
+    let typed = compiler::compile(
+        &index,
+        &mapping,
+        &catalogue,
+        "",
+        Some(&pred("count", Operation::Present, vec![])),
+    )
+    .unwrap();
+    assert!(
+        searcher
+            .search(&*typed, &Complete { scoring: true })
+            .unwrap()
+            .iter()
+            .all(|(score, _)| *score == 0.0)
+    );
     let scores = run("alpha", None);
     assert_eq!(scores.len(), 2);
     assert_eq!(scores[0].0, scores[1].0);

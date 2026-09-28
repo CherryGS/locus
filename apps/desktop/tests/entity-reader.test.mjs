@@ -3,6 +3,7 @@ import { test } from "node:test"
 import { setImmediate as turn } from "node:timers/promises"
 import { EntityReader } from "../src/renderer/entities/entity/model/entity-reader.ts"
 import { suppliedSequence } from "../src/renderer/entities/entity/model/identity-sequence.ts"
+import { FilterCoordinator } from "../src/renderer/features/entity-filter/model/filter-coordinator.ts"
 import { ApiFailure } from "../src/renderer/shared/api/backend-api.ts"
 
 const deferred = () => {
@@ -214,8 +215,9 @@ test("held obsolete ranges have bounded retained work and current range wins", a
 test("failed identity refresh preserves sequence; refresh epoch rereads a newly visible cached range", async () => {
   let width = 42
   const { reader, api } = fixture({ media: async (_kind, id) => image(id, `file-${id}`, width) })
-  await reader.refresh()
-  const previous = reader.sequence
+  const result = new FilterCoordinator(api, () => reader.resultReplaced())
+  await result.refresh()
+  const previous = result.sequence
   reader.demand(["a"])
   await tick()
   reader.demand(["b"])
@@ -225,11 +227,11 @@ test("failed identity refresh preserves sequence; refresh epoch rereads a newly 
   api.identities = async () => {
     throw new Error("truncated IDs")
   }
-  assert.equal(await reader.refresh(), false)
-  assert.strictEqual(reader.sequence, previous)
+  assert.equal(await result.refresh(), false)
+  assert.strictEqual(result.sequence, previous)
   api.identities = async () => suppliedSequence(["c", "b", "a"])
   width = 88
-  assert.equal(await reader.refresh(), true)
+  assert.equal(await result.refresh(), true)
   reader.demand(["b"])
   await tick()
   assert.equal(reader.get("b").components[0].width, 88)
@@ -288,10 +290,11 @@ test("import effects reread only demanded subjects and retain latest queued effe
       }))
     },
   })
-  await f.reader.refresh()
+  const result = new FilterCoordinator(f.api, () => f.reader.resultReplaced())
+  await result.refresh()
   f.reader.demand(["a"])
   await tick()
-  const sequence = f.reader.sequence
+  const sequence = result.sequence
   block = true
   const effect = (id) => ({ current: { entity_id: id, kinds: [] } })
   f.reader.importEffects([effect("a"), effect("b")])
@@ -302,7 +305,7 @@ test("import effects reread only demanded subjects and retain latest queued effe
   await tick()
   await tick()
   assert.equal(lists, 1)
-  assert.equal(f.reader.sequence, sequence)
+  assert.equal(result.sequence, sequence)
   assert(reads.every((ids) => ids.every((id) => id === "a")))
   assert(reads.length <= 3)
   f.reader.demand(["b"])

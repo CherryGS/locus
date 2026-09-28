@@ -119,6 +119,9 @@ export function EntityGrid({
       if (viewport.current) {
         viewport.current.scrollTop = mapping.physical(target)
         setScroll(viewport.current.scrollTop)
+        // Returning from direct inspection restores the viewport without moving
+        // selection, but the grid must still regain its keyboard interaction.
+        if (revealSelectionOnMount) viewport.current.focus({ preventScroll: true })
       }
     }
     if (anchor.current !== undefined && size.width) {

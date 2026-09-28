@@ -18,7 +18,7 @@ macro_rules! transport {
 }
 transport!(
     SearchQueryBody,
-    locus_search::api::SearchRequest,
+    crate::api::filter::dto::FilterSource,
     "SearchRequestData"
 );
 transport!(
@@ -49,21 +49,28 @@ pub(super) struct ReadEvidence {
 pub(super) struct ReleaseContext {
     pub context: String,
 }
-fn rewrite(value: &mut serde_json::Value) {
+fn rewrite(value: &mut serde_json::Value, root: &str) {
     match value {
         serde_json::Value::Object(map) => {
-            if let Some(serde_json::Value::String(reference)) = map.get_mut("$ref")
-                && let Some(name) = reference.strip_prefix("#/$defs/")
-            {
-                *reference = format!("#/components/schemas/Search_{name}");
+            // Utoipa's schema adapter does not retain JSON Schema const. A
+            // singleton enum preserves generated discriminants without widening.
+            if let Some(value) = map.remove("const") {
+                map.insert("enum".into(), serde_json::Value::Array(vec![value]));
+            }
+            if let Some(serde_json::Value::String(reference)) = map.get_mut("$ref") {
+                if let Some(name) = reference.strip_prefix("#/$defs/") {
+                    *reference = format!("#/components/schemas/Search_{name}");
+                } else if reference == "#" {
+                    *reference = format!("#/components/schemas/{root}");
+                }
             }
             for value in map.values_mut() {
-                rewrite(value);
+                rewrite(value, root);
             }
         }
         serde_json::Value::Array(values) => {
             for value in values {
-                rewrite(value);
+                rewrite(value, root);
             }
         }
         _ => (),
@@ -74,7 +81,7 @@ fn add<T: schemars::JsonSchema>(
     components: &mut utoipa::openapi::Components,
 ) -> anyhow::Result<()> {
     let mut value = serde_json::to_value(schemars::schema_for!(T))?;
-    rewrite(&mut value);
+    rewrite(&mut value, name);
     if let Some(serde_json::Value::Object(definitions)) =
         value.as_object_mut().and_then(|v| v.remove("$defs"))
     {
@@ -91,9 +98,10 @@ fn add<T: schemars::JsonSchema>(
 }
 pub(crate) fn register(document: &mut utoipa::openapi::OpenApi) -> anyhow::Result<()> {
     let components = document.components.get_or_insert_with(Default::default);
-    add::<locus_search::api::SearchRequest>("SearchRequestData", components)?;
+    add::<locus_query::api::Source>("SearchRequestData", components)?;
     add::<locus_search::api::SearchStatus>("SearchStatusData", components)?;
     add::<locus_query::api::Catalogue>("SearchCatalogueData", components)?;
     add::<Vec<locus_search::api::Evidence>>("SearchEvidenceData", components)?;
+    add::<locus_filter::api::ParsedNode>("ParsedStructure", components)?;
     Ok(())
 }

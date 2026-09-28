@@ -1407,6 +1407,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "locus-filter"
+version = "0.1.0"
+dependencies = [
+ "diesel",
+ "diesel-async",
+ "locus-migration",
+ "locus-query",
+ "locus-store",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tantivy-query-grammar",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "locus-media"
 version = "0.1.0"
 dependencies = [
@@ -1520,6 +1539,7 @@ dependencies = [
  "locus-civitai",
  "locus-core",
  "locus-file",
+ "locus-filter",
  "locus-media",
  "locus-migration",
  "locus-model",

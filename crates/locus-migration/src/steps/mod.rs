@@ -28,3 +28,5 @@ mod s011_common;
 mod s011_conversion;
 #[path = "000000000012_locus_search_invalidation_journal.rs"]
 mod s012_search;
+#[path = "000000000013_locus_filter_presets.rs"]
+mod s013_filter;

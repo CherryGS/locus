@@ -10,6 +10,13 @@ import {
   type EntityReader,
   type ReadProblem,
 } from "@/entities/entity"
+import {
+  FilterModal,
+  FilterResultStatus,
+  FilterEvidence,
+  type FilterCoordinator,
+} from "@/features/entity-filter"
+import { errorText } from "@/shared/api"
 import type { BackendApi } from "@/shared/api"
 import type { PreferenceCoordinator } from "@/features/entity-view-preferences"
 import { Button } from "@/shared/ui/button"
@@ -32,6 +39,7 @@ import type { PlaybackCoordinator } from "@/features/video-playback"
 import type { CivitaiCoordinator } from "@/features/civitai"
 import type { CivitaiSelection } from "../model/navigation"
 import {
+  directDestination,
   adjacentId,
   inspectionDestination,
   relatedDestination,
@@ -64,6 +72,8 @@ export function EntityPage({
   navigate: (destination: EntityDestination, replace?: boolean) => void
   live?: {
     reader: EntityReader
+    filter: FilterCoordinator
+    mainDestination: EntityDestination
     preferences: PreferenceCoordinator
     api: BackendApi
     playback: PlaybackCoordinator
@@ -90,7 +100,7 @@ export function EntityPage({
   const collection = collections.find((item) => item.id === destination.collectionId)
   const sequence = useMemo(
     () => contextSequence(destination, library.sequence, collections, suppliedSequence),
-    [destination.collectionId, library.sequence, collections],
+    [destination.collectionId, destination.direct, destination.entityId, library.sequence, collections],
   )
   const source = { ...library, sequence: sequence ?? suppliedSequence([]) }
   const selectedIndex = useMemo(
@@ -173,6 +183,26 @@ export function EntityPage({
   )
   const currentVisit = useRef(visitKey)
   currentVisit.current = visitKey
+  const previousResult = useRef(live?.filter.sequence)
+  useEffect(() => {
+    const previous = previousResult.current
+    previousResult.current = live?.filter.sequence
+    // Only a selection lost from an established result is cleared. A history
+    // target already outside that result stays at its requested unavailable visit.
+    if (
+      previous &&
+      previous !== live?.filter.sequence &&
+      destination.collectionId === "library" &&
+      destination.entityId &&
+      previous.indexOf(destination.entityId) >= 0 &&
+      sequence &&
+      sequence.indexOf(destination.entityId) < 0
+    ) {
+      setOverride(null)
+      setExplanation("The Entity is no longer in the current list. Selection was cleared.")
+      navigate({ mode: "grid", collectionId: "library" }, true)
+    }
+  }, [live?.filter.sequence, destination, sequence, navigate])
   const preference = selected && live ? live.preferences.get(selected.id) : undefined
   const preferred =
     override?.entityId === selected?.id
@@ -255,14 +285,14 @@ export function EntityPage({
       library.sequence,
       collections,
       suppliedSequence,
-      !live || !!live.reader.sequence,
+      !live || !!live.filter.sequence,
     )
     const next = result.destination
     const sourceView = destination.source?.viewId
     setOverride(next.entityId && sourceView ? { entityId: next.entityId, viewId: sourceView } : null)
     setExplanation(result.explanation)
     navigate(next)
-  }, [destination, navigate, library.sequence, collections, live?.reader.sequence])
+  }, [destination, navigate, library.sequence, collections, live?.filter.sequence])
   useSourceReturn(viewing ? exit : undefined)
   useEffect(() => {
     if (!viewing) return
@@ -300,20 +330,12 @@ export function EntityPage({
   }
   async function refresh() {
     if (!live) return
-    const requested = visitKey
-    const success = await live.reader.refresh()
-    if (!success || currentVisit.current !== requested) return
-    const id = destination.entityId
-    if (
-      selected &&
-      destination.collectionId === "library" &&
-      id &&
-      live.reader.sequence?.indexOf(id) === -1
-    ) {
-      setOverride(null)
-      setExplanation("The Entity is no longer in the current list. Selection was cleared.")
-      navigate({ mode: "grid", collectionId: "library" }, true)
+    if (destination.collectionId !== "library") {
+      if (destination.entityId) void live.reader.reread(destination.entityId)
+      setRelationshipRetry((value) => value + 1)
+      return
     }
+    await live.filter.refresh()
   }
   const recover = (problem: ReadProblem) => {
     if (!selected || !live) return
@@ -416,20 +438,57 @@ export function EntityPage({
         )}
     </div>
   ) : undefined
+  const [recoveryError, setRecoveryError] = useState<string>()
+  const [recoveryPending, setRecoveryPending] = useState(false)
+  const recoveryIntent = useRef(0)
+  useEffect(() => {
+    recoveryIntent.current++
+    setRecoveryPending(false)
+    setRecoveryError(undefined)
+    return () => {
+      recoveryIntent.current++
+    }
+  }, [visitKey])
+  async function openDirect() {
+    if (!live || !destination.entityId) return
+    const visit = visitKey
+    const intent = ++recoveryIntent.current
+    const current = () =>
+      currentVisit.current === visit && recoveryIntent.current === intent && !live.filter.hostClosing
+    setRecoveryPending(true)
+    setRecoveryError(undefined)
+    try {
+      if (!(await live.api.entityPresent(destination.entityId)))
+        throw new Error("The requested Entity is no longer available.")
+      if (current()) move(directDestination(destination.entityId, live.mainDestination))
+    } catch (error) {
+      if (current()) setRecoveryError(errorText(error))
+    } finally {
+      if (currentVisit.current === visit && recoveryIntent.current === intent) setRecoveryPending(false)
+    }
+  }
+  const directRecovery = live && destination.entityId && !destination.direct && (
+    <>
+      <Button disabled={recoveryPending} onClick={() => void openDirect()}>
+        {recoveryPending ? "Checking Entity…" : "Open direct Entity"}
+      </Button>
+      {recoveryError && <p role="alert">{recoveryError}</p>}
+    </>
+  )
   const unavailable = (
     <Empty className="h-full">
       <EmptyHeader>
         <EmptyTitle>
           {!sequence
             ? "Collection unavailable"
-            : live && !live.reader.sequence
-              ? live.reader.listError
+            : live && destination.collectionId === "library" && !live.filter.sequence
+              ? live.filter.resultError || !live.filter.pending
                 ? "Library observation unavailable"
                 : "Reading library…"
               : "Entity unavailable in this list"}
         </EmptyTitle>
         <EmptyDescription>
-          {live?.reader.listError ??
+          {(destination.collectionId === "library" ? live?.filter.resultError : undefined) ??
             "This history visit still refers to its requested Entity and context. Continue through history or return to the source."}
           <span className="block break-all">
             Requested Entity: {destination.entityId ?? "none"} · Context: {destination.collectionId}
@@ -445,17 +504,7 @@ export function EntityPage({
             Retry current list
           </Button>
         )}
-        {destination.entityId &&
-          destination.collectionId !== "library" &&
-          library.sequence.indexOf(destination.entityId) >= 0 && (
-            <Button
-              onClick={() =>
-                move(inspectionDestination({ mode: "grid", collectionId: "library" }, destination.entityId!))
-              }
-            >
-              Open in library
-            </Button>
-          )}
+        {directRecovery}
       </div>
     </Empty>
   )
@@ -472,6 +521,7 @@ export function EntityPage({
         <Button variant="outline" onClick={exit}>
           Return to source
         </Button>
+        {directRecovery}
       </Empty>
     ) : contentWaiting || relationshipWaiting ? (
       <Empty className="h-full">
@@ -518,16 +568,35 @@ export function EntityPage({
   )
   const gridFeedback = !sequence ? (
     unavailable
-  ) : live && !live.reader.sequence ? (
+  ) : live && destination.collectionId === "library" && !live.filter.sequence ? (
     <Empty className="h-full">
       <EmptyHeader>
-        {live.reader.listPending && <Spinner />}
+        {live.filter.pending && <Spinner />}
         <EmptyTitle>
-          {live.reader.listError ? "Unable to read the library" : "Reading complete Entity identities…"}
+          {live.filter.pending
+            ? "Reading complete Entity identities…"
+            : live.filter.resultError
+              ? "Unable to read the library"
+              : "No library result loaded"}
         </EmptyTitle>
-        <EmptyDescription>{live.reader.listError}</EmptyDescription>
+        <EmptyDescription>
+          {live.filter.resultError ??
+            (!live.filter.pending
+              ? "The previous read was superseded. Retry the library read or apply a Filter to begin browsing."
+              : undefined)}
+        </EmptyDescription>
       </EmptyHeader>
-      {live.reader.listError && <Button onClick={() => void refresh()}>Retry library read</Button>}
+      {!live.filter.pending && <Button onClick={() => void refresh()}>Retry library read</Button>}
+    </Empty>
+  ) : live?.filter.filtered && sequence.length === 0 && destination.collectionId === "library" ? (
+    <Empty className="h-full">
+      <EmptyHeader>
+        <EmptyTitle>No matches</EmptyTitle>
+        <EmptyDescription>
+          This complete Filter result has no matching Entities. Open Filter to adjust the draft or Clear and
+          Apply to return to the library.
+        </EmptyDescription>
+      </EmptyHeader>
     </Empty>
   ) : undefined
   return (
@@ -553,45 +622,58 @@ export function EntityPage({
           <h1 className="flex h-14 flex-1 items-center gap-2 text-lg font-semibold tracking-tight">
             <LayoutGridIcon className="size-4 text-muted-foreground" aria-hidden="true" />
             Entity{" "}
-            {sequence && (!live || live.reader.sequence) ? (
+            {sequence && (destination.collectionId !== "library" || !live || live.filter.sequence) ? (
               <Badge variant="secondary">{source.sequence.length.toLocaleString()}</Badge>
             ) : (
               <Skeleton className="h-5 w-8" />
             )}
           </h1>
         )}
+        {!viewing && destination.collectionId === "library" && live && (
+          <FilterModal coordinator={live.filter} />
+        )}
         {!viewing && selected && <span className="text-xs text-muted-foreground">1 selected</span>}
         {live && (
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Refresh library"
-            title="Refresh library"
-            disabled={live.reader.listPending}
+            aria-label={destination.collectionId === "library" ? "Refresh library" : "Reread current Entity"}
+            title={destination.collectionId === "library" ? "Refresh library" : "Reread current Entity"}
+            disabled={destination.collectionId === "library" && !!live.filter.pending}
             onClick={() => void refresh()}
           >
-            {live.reader.listPending ? <Spinner /> : <RefreshCwIcon data-icon="inline-start" />}
+            {destination.collectionId === "library" && live.filter.pending ? (
+              <Spinner />
+            ) : (
+              <RefreshCwIcon data-icon="inline-start" />
+            )}
           </Button>
         )}
       </header>
+      {destination.direct && (
+        <p className="px-4 pb-2 text-xs text-muted-foreground">
+          Direct Entity · temporary single-Entity view
+        </p>
+      )}
+      {live && destination.collectionId === "library" && <FilterResultStatus coordinator={live.filter} />}
       {collection && (
         <div className="px-4 pb-2 text-xs text-muted-foreground">
           {collection.name} · from {entityLabel(library.get(collection.ownerId))}
         </div>
       )}
       {(explanation ||
-        (!viewing && destination.entityId && !selected && sequence && (!live || live.reader.sequence))) && (
+        (!viewing && destination.entityId && !selected && sequence && (!live || live.filter.sequence))) && (
         <Alert>
           <AlertDescription>
             {explanation ?? "The recorded selection is no longer in this list. No replacement was selected."}
           </AlertDescription>
         </Alert>
       )}
-      {live?.reader.listError && !!live.reader.sequence && (
+      {destination.collectionId === "library" && live?.filter.resultError && !!live.filter.sequence && (
         <Alert variant="destructive">
           <AlertTitle>Library refresh failed</AlertTitle>
           <AlertDescription>
-            {live.reader.listError} The previous complete list is still shown.
+            {live.filter.resultError} The previous complete list is still shown.
           </AlertDescription>
         </Alert>
       )}
@@ -607,9 +689,14 @@ export function EntityPage({
         content={content}
         viewSelection={viewSelection}
         overviewFeedback={
-          selected?.problems?.length ? (
-            <EntityProblems problems={selected.problems} recover={recover} />
-          ) : undefined
+          <>
+            {!!selected?.problems?.length && (
+              <EntityProblems problems={selected.problems} recover={recover} />
+            )}
+            {selected && live && destination.collectionId === "library" && (
+              <FilterEvidence coordinator={live.filter} entity={selected.id} />
+            )}
+          </>
         }
         onReread={selected && live ? () => void live.reader.reread(selected.id) : undefined}
         gridFeedback={gridFeedback}

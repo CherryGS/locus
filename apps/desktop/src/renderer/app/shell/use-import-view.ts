@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react"
 import { useRouter } from "@tanstack/react-router"
 import type { LibrarySession } from "../providers/library-session"
+import { directDestination } from "@/pages/entity"
+import { errorText } from "@/shared/api"
 export function useImportView(session: LibrarySession | undefined, mayNavigate: () => boolean = () => true) {
   const router = useRouter()
   const navigation = useRef(0)
@@ -14,20 +16,18 @@ export function useImportView(session: LibrarySession | undefined, mayNavigate: 
   return async (id: string) => {
     if (!session) return "Library unavailable"
     const ticket = ++navigation.current
-    const success = await session.reader.refresh()
+    let present: boolean
+    try {
+      present = await session.api.entityPresent(id)
+    } catch (error) {
+      return `Unable to observe imported Entity ${id}: ${errorText(error)}`
+    }
     if (!mayNavigate()) return "Viewing was superseded by application close."
     if (navigation.current !== ticket) return "Viewing was superseded by newer navigation."
-    if (!success) return "Library refresh failed. The prior list and selection are preserved."
-    if (session.reader.sequence?.indexOf(id) === -1)
-      return `Imported Entity ${id} is absent from the refreshed library.`
+    if (!present) return `Imported Entity ${id} is no longer available.`
     await router.navigate({
       to: "/entity",
-      search: {
-        entityId: id,
-        mode: "inspect",
-        collectionId: "library",
-        source: { mode: "grid", collectionId: "library" },
-      },
+      search: directDestination(id, session.mainDestination),
     })
     return undefined
   }

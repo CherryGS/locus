@@ -1,7 +1,6 @@
 import { bilibiliProjection, bilibiliProblems, readBilibiliCover } from "./bilibili-projection"
 import { ApiFailure, errorText, type BackendApi, type Wire } from "@/shared/api"
 import type { EntityItem } from "./entity-item"
-import type { IdentitySequence } from "./identity-sequence"
 import {
   fileProjection,
   mediaProblems,
@@ -28,18 +27,14 @@ type Entry = {
   membershipObserved: boolean
   epoch: number
 }
-type ReadApi = Pick<BackendApi, "identities" | "memberships" | "file" | "media" | "twitter" | "model"> &
+type ReadApi = Pick<BackendApi, "memberships" | "file" | "media" | "twitter" | "model"> &
   Partial<Pick<BackendApi, "civitai" | "bilibili">> &
   Partial<Pick<BackendApi, "previewBytes" | "savedPreview">>
 
 export class EntityReader {
-  sequence?: IdentitySequence
-  listPending = false
-  listError?: string
-  listRevision = 0
+  private contentEpoch = 0
   private previews = new Map<string, Wire<"PreviewMetadata">>()
   private previewUrls = new Map<string, string>()
-  private listGeneration = 0
   private entries = new Map<string, Entry>()
   private needed = new Set<string>()
   private listeners = new Set<() => void>()
@@ -161,34 +156,17 @@ export class EntityReader {
         this.prune()
         void this.read(
           [...this.needed].filter(
-            (id) => !this.entries.has(id) || this.entries.get(id)!.epoch !== this.listRevision,
+            (id) => !this.entries.has(id) || this.entries.get(id)!.epoch !== this.contentEpoch,
           ),
         )
       })
     }
   }
-  async refresh() {
-    const generation = ++this.listGeneration
-    this.listPending = true
-    this.changed()
-    try {
-      const sequence = await this.api.identities()
-      if (generation !== this.listGeneration) return false
-      this.sequence = sequence
-      this.listError = undefined
-      this.listRevision++
-      this.listPending = false
-      this.changed()
-      void this.read([...this.needed].filter((id) => sequence.indexOf(id) >= 0))
-      return true
-    } catch (error) {
-      if (generation === this.listGeneration) {
-        this.listError = errorText(error)
-        this.listPending = false
-        this.changed()
-      }
-      return false
-    }
+  /** A successful complete main-result replacement invalidates bounded content.
+   * Related/direct demand is independent of membership in that result. */
+  resultReplaced() {
+    this.contentEpoch++
+    void this.read([...this.needed])
   }
   importEffects(items: Wire<"ImportItem">[]) {
     const visible: string[] = []
@@ -289,7 +267,7 @@ export class EntityReader {
         playbackPending: old?.playbackPending ?? false,
         membershipObserved: old?.membershipObserved ?? false,
         coverRetry: old?.coverRetry,
-        epoch: this.listRevision,
+        epoch: this.contentEpoch,
       }
       this.entries.set(id, entry)
       return { id, entry }

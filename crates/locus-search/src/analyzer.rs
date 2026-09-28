@@ -14,11 +14,12 @@ impl Tokenizer for Hybrid {
     fn token_stream<'a>(&'a mut self, text: &'a str) -> Stream {
         let mut tokens = Vec::new();
         let mut word: Option<usize> = None;
-        let emit = |tokens: &mut Vec<Token>, start: usize, end: usize| {
+        let mut boundaries = 0usize;
+        let emit = |tokens: &mut Vec<Token>, start: usize, end: usize, boundaries: usize| {
             tokens.push(Token {
                 offset_from: start,
                 offset_to: end,
-                position: tokens.len(),
+                position: tokens.len() + boundaries,
                 text: text[start..end].to_lowercase(),
                 position_length: 1,
             });
@@ -27,17 +28,20 @@ impl Tokenizer for Hybrid {
             let cjk = matches!(ch as u32,0x3400..=0x9fff|0x20000..=0x3134f);
             if cjk || !ch.is_alphanumeric() {
                 if let Some(start) = word.take() {
-                    emit(&mut tokens, start, offset);
+                    emit(&mut tokens, start, offset, boundaries);
                 }
                 if cjk {
-                    emit(&mut tokens, offset, offset + ch.len_utf8());
+                    emit(&mut tokens, offset, offset + ch.len_utf8(), boundaries);
+                }
+                if ch == '\u{001f}' {
+                    boundaries += 100;
                 }
             } else if word.is_none() {
                 word = Some(offset);
             }
         }
         if let Some(start) = word {
-            emit(&mut tokens, start, text.len());
+            emit(&mut tokens, start, text.len(), boundaries);
         }
         Stream {
             tokens: tokens.into_iter(),

@@ -104,6 +104,11 @@ pub struct Diagnostic {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(tag = "owner", rename_all = "snake_case")]
 pub enum DomainDiagnostic {
+    Filter {
+        start: usize,
+        end: usize,
+        message: String,
+    },
     Settings {
         error: super::settings::dto::SettingsFailure,
     },

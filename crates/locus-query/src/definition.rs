@@ -45,7 +45,6 @@ pub struct FieldDefinition {
     pub optional: bool,
     pub default_text: bool,
     pub native_value: String,
-    pub native_state: String,
     pub native_exact: String,
     pub operations: Vec<Operation>,
     /// Bump when projection meaning or exact normalization changes.
@@ -79,7 +78,6 @@ impl FieldDefinition {
             optional: true,
             default_text: field_type == FieldType::Text,
             native_value: id.into(),
-            native_state: format!("{id}_state"),
             native_exact: if field_type == FieldType::Text {
                 format!("{id}_exact")
             } else {
@@ -115,7 +113,6 @@ impl Catalogue {
                 || f.owner.is_empty()
                 || f.extraction_version == 0
                 || f.native_value != f.id
-                || f.native_state != format!("{}_state", f.id)
                 || f.native_exact
                     != if f.field_type == FieldType::Text {
                         format!("{}_exact", f.id)
@@ -129,7 +126,7 @@ impl Catalogue {
                     f.id
                 )));
             }
-            for name in [&f.native_value, &f.native_state] {
+            for name in [&f.native_value] {
                 if names.insert(name, ()).is_some() {
                     return Err(QueryError::Invalid(format!("duplicate field {name}")));
                 }

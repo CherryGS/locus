@@ -2,6 +2,12 @@ import type { EntityItem } from "@/entities/entity"
 import type { IdentitySequence } from "@/entities/entity"
 
 export type EntityDestination = {
+  /** Explicit temporary singleton, independent of the current main result. */
+  direct?: boolean
+  /** Direct exit restores the source viewport; ordinary exit follows selection. */
+  restoreMain?: boolean
+  /** Reference to existing run-local browsing state, never a query snapshot. */
+  returnVisit?: string
   civitai?: CivitaiSelection
   entityId?: string
   mode: "grid" | "inspect"
@@ -26,6 +32,9 @@ export type RelatedCollection = {
 
 export function entitySearch(search: Record<string, unknown>): EntityDestination {
   return {
+    direct: search.direct === true || undefined,
+    restoreMain: search.restoreMain === true || undefined,
+    returnVisit: typeof search.returnVisit === "string" ? search.returnVisit : undefined,
     civitai: selection(search.civitai),
     entityId: typeof search.entityId === "string" ? search.entityId : undefined,
     mode: search.mode === "inspect" ? "inspect" : "grid",
@@ -65,12 +74,30 @@ export function inspectionDestination(current: EntityDestination, entityId: stri
     civitai: undefined,
     entityId,
     mode: "inspect",
-    source: current.mode === "grid" ? { ...current, source: undefined } : current.source,
+    restoreMain: undefined,
+    source:
+      current.mode === "grid" ? { ...current, restoreMain: undefined, source: undefined } : current.source,
   }
 }
 export function exitDestination(current: EntityDestination): EntityDestination {
   const source = current.source ?? { mode: "grid", collectionId: "library" }
-  return source.mode === "grid" ? { ...source, entityId: current.entityId } : source
+  return source.mode === "grid" && !current.direct ? { ...source, entityId: current.entityId } : source
+}
+export function directDestination(entityId: string, main: EntityDestination): EntityDestination {
+  return {
+    entityId,
+    direct: true,
+    mode: "inspect",
+    collectionId: "direct",
+    source: {
+      ...main,
+      restoreMain: true,
+      direct: undefined,
+      mode: "grid",
+      collectionId: "library",
+      source: undefined,
+    },
+  }
 }
 export function relatedDestination(
   current: EntityDestination,
@@ -112,6 +139,7 @@ export function contextSequence(
   collections: readonly RelatedCollection[],
   supplied: (ids: readonly string[]) => IdentitySequence,
 ) {
+  if (destination.direct) return supplied(destination.entityId ? [destination.entityId] : [])
   return destination.collectionId === "library"
     ? library
     : (() => {

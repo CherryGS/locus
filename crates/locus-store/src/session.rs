@@ -21,6 +21,7 @@ pub type Connection = SyncConnectionWrapper<SqliteConnection>;
 pub struct Session {
     connection: Option<Connection>,
     pub(crate) binding: Option<(locus_task::api::TaskContext, locus_task::api::Resource)>,
+    pub(crate) participating: Option<locus_task::api::Stage>,
 }
 
 impl Session {
@@ -42,6 +43,7 @@ impl Session {
         Ok(Self {
             connection: Some(connection),
             binding: None,
+            participating: None,
         })
     }
 
@@ -82,7 +84,7 @@ impl Session {
                     .await
                     .map_err(StoreError::from)?,
             ),
-            None => None,
+            None => self.participating.clone(),
         };
         // Ownership, rather than Drop issuing async rollback, makes cancellation safe.
         // The wrapper can leave BEGIN open when its future is canceled. Never put its

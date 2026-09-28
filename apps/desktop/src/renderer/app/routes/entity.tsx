@@ -16,6 +16,7 @@ export const Route = createFileRoute("/entity")({
 function EntityRoute() {
   const session = useLibrarySession()
   useSyncExternalStore(session?.reader.subscribe ?? noSubscribe, session?.reader.snapshot ?? zero)
+  useSyncExternalStore(session?.filter.subscribe ?? noSubscribe, session?.filter.snapshot ?? zero)
   useSyncExternalStore(session?.preferences.subscribe ?? noSubscribe, session?.preferences.snapshot ?? zero)
   useSyncExternalStore(session?.civitai.subscribe ?? noSubscribe, session?.civitai.snapshot ?? zero)
   const data = Route.useLoaderData()
@@ -29,11 +30,16 @@ function EntityRoute() {
     [data],
   )
   const navigate = Route.useNavigate()
+  const destination = Route.useSearch()
   const historyIndex = useRouterState({ select: (state) => state.location.state.__TSR_index })
   const previousBrowsing = useRef<EntityBrowsingState | undefined>(undefined)
   const browsing = useMemo(() => {
     const key = String(historyIndex)
     const state = session?.browsing.get(key) ?? {
+      grid:
+        destination.restoreMain && destination.returnVisit
+          ? session?.browsing.get(destination.returnVisit)?.grid
+          : undefined,
       panel: previousBrowsing.current?.panel,
       panelWidth: previousBrowsing.current?.panelWidth,
     }
@@ -41,6 +47,9 @@ function EntityRoute() {
     previousBrowsing.current = state
     return state
   }, [session, historyIndex])
+  if (session && destination.collectionId === "library" && destination.mode === "grid") {
+    session.mainDestination = { ...destination, returnVisit: String(historyIndex) }
+  }
   const key = useRouterState({ select: (state) => state.location.state.__TSR_key ?? "initial" })
   return (
     <EntityPage
@@ -49,6 +58,8 @@ function EntityRoute() {
         session
           ? {
               reader: session.reader,
+              filter: session.filter,
+              mainDestination: session.mainDestination,
               preferences: session.preferences,
               api: session.api,
               playback: session.playback,
@@ -59,7 +70,7 @@ function EntityRoute() {
           : undefined
       }
       collections={data.previewCollections}
-      destination={Route.useSearch()}
+      destination={destination}
       visitKey={key}
       browsing={browsing}
       navigate={(search, replace) => {

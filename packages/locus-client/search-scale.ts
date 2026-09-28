@@ -63,7 +63,7 @@ try {
   const started = performance.now();
   let identities: EntitySequence;
   let observation;
-  try { observation=await searchEntities(client,{text:"",filter:null}); identities=observation.entities; } finally { sample(); clearInterval(sampler); }
+  try { observation=await searchEntities(client,{ format: "locus-native-tantivy-0.26", version: 2, text: "entity_id:*" }); identities=observation.entities; } finally { sample(); clearInterval(sampler); }
   const firstUsableMs = performance.now() - started;
   const clientAfterRead = process.memoryUsage();
   const clientLifetimePeakRssBytes = process.resourceUsage().maxRSS * 1024;

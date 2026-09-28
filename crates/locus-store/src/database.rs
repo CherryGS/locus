@@ -12,6 +12,23 @@ pub struct TaskDatabase {
 }
 
 impl TaskDatabase {
+    /// Own one database resource through final projection and native read capture.
+    /// Participating sessions reuse this lease and never re-enter the DB key.
+    pub async fn protect(
+        &self,
+        task: &TaskContext,
+    ) -> Result<crate::protected::ProtectedDatabase, StoreError> {
+        let stage = task
+            .enter(
+                "Aligned database observation",
+                std::slice::from_ref(&self.resource),
+            )
+            .await?;
+        Ok(crate::protected::ProtectedDatabase::new(
+            self.path.clone(),
+            stage,
+        ))
+    }
     pub async fn open(queue: &TaskQueue, path: impl AsRef<Path>) -> Result<Self, StoreError> {
         let path = path.as_ref().to_path_buf();
         let path = tokio::task::spawn_blocking(move || {

@@ -5,18 +5,11 @@ impl Shared {
     pub async fn search_query(
         self: &Arc<Self>,
         service: locus_search::api::SearchService,
-        input: locus_search::api::SearchRequest,
+        input: locus_query::api::Program,
     ) -> Result<Result<locus_search::api::SearchResult, locus_search::api::SearchError>, ApiError>
     {
-        self.query("Search Entities", move |task| async move {
-            let stage = task
-                .enter("Execute complete search", &[])
-                .await
-                .map_err(|e| ApiError::new(ErrorCode::OperationFailed, e.to_string()))?;
-            stage
-                .spawn_blocking(move |_| service.query(input))
-                .await
-                .map_err(|e| ApiError::new(ErrorCode::OperationFailed, e.to_string()))
+        self.query("Search Entities", move |_task| async move {
+            Ok(service.query_program(input).await)
         })
         .await
     }

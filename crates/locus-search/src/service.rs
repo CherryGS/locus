@@ -1,6 +1,6 @@
 use crate::{error::SearchError, journal, projection::Providers, schema::Mapping};
 use locus_core::api::{EntityId, Kernel};
-use locus_query::api::{Catalogue, Condition, Provider};
+use locus_query::api::{Catalogue, Condition, Program, Provider};
 use locus_store::api::{Context, TaskDatabase, TransactionFuture};
 use locus_task::api::TaskQueue;
 use serde::{Deserialize, Serialize};
@@ -52,6 +52,7 @@ pub(crate) struct QueryContext {
     pub searcher: Searcher,
     pub publication: Publication,
     pub request: SearchRequest,
+    pub program: Option<Program>,
     pub expires: Instant,
 }
 struct Shared {
@@ -59,6 +60,8 @@ struct Shared {
     fault: std::sync::atomic::AtomicU8,
     #[cfg(test)]
     build_pause: Mutex<Option<(Arc<tokio::sync::Notify>, Arc<tokio::sync::Notify>)>>,
+    #[cfg(test)]
+    admission_pause: Mutex<Option<(Arc<tokio::sync::Notify>, Arc<tokio::sync::Notify>)>>,
     generations: Mutex<HashMap<String, Weak<()>>>,
     publication: RwLock<Option<Publication>>,
     status: RwLock<SearchStatus>,
@@ -85,6 +88,11 @@ enum Command {
     Retry,
     Rebuild,
     Stop(oneshot::Sender<()>),
+    Query(
+        Box<Program>,
+        Option<SearchRequest>,
+        oneshot::Sender<Result<SearchResult, SearchError>>,
+    ),
 }
 pub struct SearchResult {
     pub bytes: Vec<u8>,
@@ -109,6 +117,7 @@ impl Drop for Writer {
         }
     }
 }
+#[derive(Clone)]
 struct Worker {
     stopping: Arc<AtomicBool>,
     done: tokio::sync::watch::Sender<bool>,
@@ -139,6 +148,8 @@ impl SearchService {
             fault: std::sync::atomic::AtomicU8::new(0),
             #[cfg(test)]
             build_pause: Mutex::new(None),
+            #[cfg(test)]
+            admission_pause: Mutex::new(None),
             generations: Mutex::new(HashMap::new()),
             publication: RwLock::new(None),
             status: RwLock::new(SearchStatus {
@@ -201,6 +212,21 @@ impl SearchService {
         gate
     }
     #[cfg(test)]
+    pub(crate) fn pause_next_admission(
+        &self,
+    ) -> (Arc<tokio::sync::Notify>, Arc<tokio::sync::Notify>) {
+        let gate = (
+            Arc::new(tokio::sync::Notify::new()),
+            Arc::new(tokio::sync::Notify::new()),
+        );
+        *self
+            .shared
+            .admission_pause
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(gate.clone());
+        gate
+    }
+    #[cfg(test)]
     pub(crate) fn expire_contexts(&self) {
         for context in self
             .shared
@@ -248,7 +274,16 @@ impl SearchService {
         let mut done = self.control.done.clone();
         let _ = done.wait_for(|done| *done).await;
     }
-    pub fn query(&self, request: SearchRequest) -> Result<SearchResult, SearchError> {
+    pub async fn query_program(&self, program: Program) -> Result<SearchResult, SearchError> {
+        let (tx, rx) = oneshot::channel();
+        self.control
+            .commands
+            .send(Command::Query(Box::new(program), None, tx))
+            .map_err(|_| SearchError::Unavailable("worker stopped".into()))?;
+        rx.await
+            .map_err(|_| SearchError::Unavailable("worker stopped".into()))?
+    }
+    pub fn analyze_program(&self, program: &Program) -> Result<(), SearchError> {
         let publication = self
             .shared
             .publication
@@ -256,52 +291,25 @@ impl SearchService {
             .unwrap_or_else(|e| e.into_inner())
             .clone()
             .ok_or_else(|| SearchError::Unavailable(self.status().state))?;
-        let searcher = publication.reader.searcher();
-        let query = crate::compiler::compile(
-            &publication.index,
-            &self.mapping,
-            &self.catalogue,
-            &request.text,
-            request.filter.as_ref(),
-        )?;
-        let scoring = !request.text.trim().is_empty();
-        let mut hits = searcher.search(&*query, &crate::collector::Complete { scoring })?;
-        hits.sort_unstable_by(|a, b| {
-            if scoring {
-                b.0.total_cmp(&a.0).then_with(|| a.1.cmp(&b.1))
-            } else {
-                a.1.cmp(&b.1)
-            }
-        });
-        let mut bytes = Vec::with_capacity(hits.len() * 16);
-        for (_, id) in hits {
-            EntityId::from_bytes(&id).map_err(|e| SearchError::Invalid(e.to_string()))?;
-            bytes.extend_from_slice(&id);
-        }
-        let context = uuid::Uuid::now_v7().to_string();
-        let result = SearchResult {
-            bytes,
-            context: context.clone(),
-            generation: publication.checkpoint.generation.clone(),
-            covered_sequence: publication.checkpoint.covered.to_string(),
-            expires_after_seconds: 600,
+        crate::compiler::program(&publication.index, &self.mapping, program)?;
+        Ok(())
+    }
+    /// Explicit typed predicates use the same aligned observation as source programs.
+    pub async fn query(&self, request: SearchRequest) -> Result<SearchResult, SearchError> {
+        let program = Program {
+            source: locus_query::api::Source {
+                format: String::new(),
+                version: 0,
+                text: request.text.clone(),
+            },
         };
-        let mut contexts = self
-            .shared
-            .contexts
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        contexts.retain(|_, c| c.expires > Instant::now());
-        contexts.insert(
-            context,
-            Arc::new(QueryContext {
-                searcher,
-                publication,
-                request,
-                expires: Instant::now() + Duration::from_secs(600),
-            }),
-        );
-        Ok(result)
+        let (tx, rx) = oneshot::channel();
+        self.control
+            .commands
+            .send(Command::Query(Box::new(program), Some(request), tx))
+            .map_err(|_| SearchError::Unavailable("worker stopped".into()))?;
+        rx.await
+            .map_err(|_| SearchError::Unavailable("worker stopped".into()))?
     }
     pub fn release(&self, context: &str) {
         self.shared
@@ -421,11 +429,147 @@ impl Worker {
                 rebuild = false;
             }
             tokio::select! {
-            command=commands.recv()=>match command{Some(Command::Retry)=>active=true,Some(Command::Rebuild)=>{active=true;rebuild=true;},Some(Command::Stop(reply))=>{let _=reply.send(());break},None=>break},
+            command=commands.recv()=>match command{Some(Command::Retry)=>active=true,Some(Command::Rebuild)=>{active=true;rebuild=true;},Some(Command::Query(program,typed,reply))=>{let result=self.admit(*program,typed).await;let _=reply.send(result);},Some(Command::Stop(reply))=>{let _=reply.send(());break},None=>break},
             _=tokio::time::sleep(Duration::from_millis(250))=>{},
             }
         }
         self.done.send_replace(true);
+    }
+    async fn admit(
+        &self,
+        program: Program,
+        typed: Option<SearchRequest>,
+    ) -> Result<SearchResult, SearchError> {
+        let worker = self.clone();
+        self.queue
+            .submit("Align Filter query", move |task| async move {
+                let protected = worker.database.protect(&task).await?;
+                #[cfg(test)]
+                {
+                    let pause = worker
+                        .shared
+                        .admission_pause
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .take();
+                    if let Some((entered, release)) = pause {
+                        entered.notify_one();
+                        release.notified().await;
+                    }
+                }
+                let mut session = protected.session().await?;
+                let mut publication = worker
+                    .shared
+                    .publication
+                    .read()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone()
+                    .ok_or_else(|| SearchError::Unavailable("index is not ready".into()))?;
+                loop {
+                    let after = publication.checkpoint.covered;
+                    let providers = worker.providers.clone();
+                    let kernel = worker.kernel.clone();
+                    let (covered, projected) = session
+                        .transaction(move |c| {
+                            Box::pin(async move {
+                                let (covered, ids) = journal::pending(c, after).await?;
+                                Ok::<_, SearchError>((
+                                    covered,
+                                    providers.project(c, &kernel, &ids).await?,
+                                ))
+                            })
+                        })
+                        .await?;
+                    if covered == after {
+                        break;
+                    }
+                    let mut writer = worker.writer(&publication.index)?;
+                    for (id, value) in projected {
+                        writer
+                            .get()?
+                            .delete_term(Term::from_field_text(worker.mapping.id, &id.to_string()));
+                        if let Some(value) = value {
+                            writer
+                                .get()?
+                                .add_document(worker.mapping.document(id, &value)?)?;
+                        }
+                    }
+                    publication.checkpoint.covered = covered;
+                    worker.commit(&mut writer, &publication.checkpoint)?;
+                    drop(writer);
+                    publication.reader = publication
+                        .index
+                        .reader_builder()
+                        .reload_policy(ReloadPolicy::Manual)
+                        .try_into()?;
+                    session
+                        .transaction(move |c| Box::pin(journal::acknowledge(c, covered)))
+                        .await?;
+                }
+                let boundary = session
+                    .transaction(|c| Box::pin(journal::boundary(c)))
+                    .await?;
+                worker.status(|s| {
+                    s.journal_head = boundary
+                        .head
+                        .max(s.journal_head.parse::<i64>().unwrap_or(0))
+                        .to_string()
+                });
+                worker.publish(publication.clone());
+                let searcher = publication.reader.searcher();
+                // The aligned Searcher is captured before releasing exclusion.
+                drop(session);
+                drop(protected);
+                let query = if let Some(request) = &typed {
+                    crate::compiler::compile(
+                        &publication.index,
+                        &worker.mapping,
+                        &worker.providers.catalogue,
+                        &request.text,
+                        request.filter.as_ref(),
+                    )?
+                } else {
+                    crate::compiler::program(&publication.index, &worker.mapping, &program)?
+                };
+                let mut hits =
+                    searcher.search(&*query, &crate::collector::Complete { scoring: true })?;
+                hits.sort_unstable_by(|a, b| b.0.total_cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+                let mut bytes = Vec::with_capacity(hits.len() * 16);
+                for (_, id) in hits {
+                    EntityId::from_bytes(&id).map_err(|e| SearchError::Invalid(e.to_string()))?;
+                    bytes.extend_from_slice(&id);
+                }
+                let context = uuid::Uuid::now_v7().to_string();
+                let result = SearchResult {
+                    bytes,
+                    context: context.clone(),
+                    generation: publication.checkpoint.generation.clone(),
+                    covered_sequence: publication.checkpoint.covered.to_string(),
+                    expires_after_seconds: 600,
+                };
+                let mut contexts = worker
+                    .shared
+                    .contexts
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
+                contexts.retain(|_, c| c.expires > Instant::now());
+                contexts.insert(
+                    context,
+                    Arc::new(QueryContext {
+                        searcher,
+                        publication,
+                        program: if typed.is_none() { Some(program) } else { None },
+                        request: typed.unwrap_or(SearchRequest {
+                            text: String::new(),
+                            filter: None,
+                        }),
+                        expires: Instant::now() + Duration::from_secs(600),
+                    }),
+                );
+                Ok(result)
+            })?
+            .result()
+            .await?
     }
     async fn maintain(&self, rebuild: bool) -> Result<(), SearchError> {
         let boundary = self.db(|c| Box::pin(journal::boundary(c))).await?;

@@ -386,8 +386,12 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
         locus_server::api::openapi().unwrap().to_json().unwrap()
     );
     let schema: Value = serde_json::from_str(&one).unwrap();
-    assert_eq!(schema["paths"].as_object().unwrap().len(), 60);
+    assert_eq!(schema["paths"].as_object().unwrap().len(), 64);
     for (path, methods, tag) in [
+        ("/api/v1/filter/language", &["get"][..], "filter"),
+        ("/api/v1/filter/analyze", &["post"][..], "filter"),
+        ("/api/v1/filter/presets", &["get", "post"][..], "filter"),
+        ("/api/v1/filter/presets/{id}", &["get"][..], "filter"),
         ("/api/v1/search/catalogue", &["get"][..], "search"),
         ("/api/v1/search/status", &["get"][..], "search"),
         ("/api/v1/search/query", &["post"][..], "search"),
@@ -516,4 +520,99 @@ fn bootstrap_rejects_invalid_bounded_inputs_without_echoing_credentials() {
         let error = Bootstrap::read(bytes.as_slice()).err().unwrap();
         assert!(!format!("{error:#}").contains("secret"));
     }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn native_analysis_is_source_bound_and_distinguishes_parse_validation_and_profile() {
+    let (_root, server) = app().await;
+    let language = call(&server, "GET", "/api/v1/filter/language", None)
+        .await
+        .1;
+    assert_eq!(language["version"], 2);
+    assert!(language.get("helpers").is_none());
+    let source = |text: &str, version| json!({"format": language["format"], "version": version, "text": text});
+    for (text, state, parsed) in [
+        ("", "empty", false),
+        ("(", "invalid", false),
+        ("@name(x,foo)", "invalid", false),
+        ("missing_field:value", "invalid", true),
+    ] {
+        let body = source(text, 2);
+        let mut result;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        loop {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "Search did not become ready"
+            );
+            result = call(
+                &server,
+                "POST",
+                "/api/v1/filter/analyze",
+                Some(body.clone()),
+            )
+            .await
+            .1;
+            if result["state"] != "unavailable" {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        assert_eq!(result["source"], body);
+        assert_eq!(result["state"], state);
+        assert_eq!(!result["parsed"].is_null(), parsed);
+    }
+    for text in ["", "*", "@sql(\"SELECT id FROM items\")"] {
+        let body = source(text, 1);
+        let analysis = call(
+            &server,
+            "POST",
+            "/api/v1/filter/analyze",
+            Some(body.clone()),
+        )
+        .await
+        .1;
+        assert_eq!(analysis["state"], "unsupported");
+        assert!(analysis["parsed"].is_null());
+        let (status, _) = call(&server, "POST", "/api/v1/search/query", Some(body)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+    let response = server
+        .router()
+        .oneshot(request(
+            &server,
+            "POST",
+            "/api/v1/search/query",
+            Some(source(" \r\n", 2)),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.headers()["x-locus-search-no-filter"], "true");
+    assert!(!response.headers().contains_key("x-locus-search-context"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn parsed_structure_and_preset_storage_survive_an_unavailable_index() {
+    let root = tempfile::tempdir().unwrap();
+    let library = root.path().join("library");
+    std::fs::create_dir_all(library.join("cache")).unwrap();
+    // Actual isolated filesystem failure: index generations cannot be created.
+    std::fs::write(library.join("cache/search"), "blocked index path").unwrap();
+    let server = Server::bind(ServerConfig::new(TOKEN.into(), library))
+        .await
+        .unwrap();
+    let source = json!({"format":"locus-native-tantivy-0.26", "version":2, "text":"entity_id:*"});
+    let (status, analysis) = call(
+        &server,
+        "POST",
+        "/api/v1/filter/analyze",
+        Some(source.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(analysis["state"], "unavailable");
+    assert_eq!(analysis["parsed"]["kind"], "presence");
+    assert_eq!(analysis["source"], source);
+    let saved = call(&server, "POST", "/api/v1/filter/presets", Some(json!({"request_id":uuid::Uuid::now_v7().to_string(),"change":{"operation":"create","name":"Still saveable","source":source}}))).await.1;
+    assert_eq!(saved["status"], "filter_saved");
 }

@@ -198,8 +198,7 @@ try {
   await page.waitForURL((url) => url.href !== initial)
   const destination = page.url()
   await page.getByRole("button", { name: /^Tasks/ }).click()
-  // An explicit View refresh can add a library error banner. Exercise that
-  // separately from the non-mutating modal geometry/focus checks above.
+  // Explicit fault injection: a bounded target-presence failure stays at the caller.
   let releaseRefresh!: () => void
   let sawRefresh!: () => void
   const heldRefresh = new Promise<void>((resolve) => {
@@ -208,7 +207,7 @@ try {
   const requestedRefresh = new Promise<void>((resolve) => {
     sawRefresh = resolve
   })
-  await page.route("**/api/v1/entities", async (route) => {
+  await page.route("**/api/v1/memberships/read", async (route) => {
     sawRefresh()
     await heldRefresh
     await route.fulfill({
@@ -225,7 +224,7 @@ try {
   assert.equal(await region.locator("[data-task-detail]:visible").count(), 1)
   releaseRefresh()
   await batchDetails
-    .filter({ hasText: "Library refresh failed. The prior list and selection are preserved." })
+    .filter({ hasText: /Unable to observe imported Entity .*test refresh unavailable/ })
     .waitFor({ state: "attached" })
   assert.equal(
     await standaloneEntry.getAttribute("aria-current"),
@@ -233,15 +232,13 @@ try {
     "a late View failure does not change task selection",
   )
   await batchEntry.click()
-  await batchDetails
-    .getByText("Library refresh failed. The prior list and selection are preserved.", { exact: true })
-    .waitFor()
+  await batchDetails.getByText(/Unable to observe imported Entity .*test refresh unavailable/).waitFor()
   assert.equal(
     await recoveredFile.getByText("Original and recovery attempts (2)", { exact: true }).isVisible(),
     true,
   )
   assert.equal(page.url(), destination)
-  await page.unroute("**/api/v1/entities")
+  await page.unroute("**/api/v1/memberships/read")
   for (const viewport of [
     { width: 1200, height: 800 },
     { width: 720, height: 480 },

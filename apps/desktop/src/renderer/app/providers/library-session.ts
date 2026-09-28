@@ -6,6 +6,7 @@ import {
 } from "@/features/settings"
 import { SettingsNavigation } from "./settings-navigation"
 import { PlaybackCoordinator } from "@/features/video-playback"
+import { FilterCoordinator } from "@/features/entity-filter"
 import { BackendApi } from "@/shared/api"
 import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
 import { ImportCoordinator } from "@/features/file-import"
@@ -49,6 +50,8 @@ export class LibrarySession extends DesktopSession {
   readonly civitaiExcursions = new Map<string, CivitaiSelection>()
   readonly playback = new PlaybackCoordinator()
   readonly reader: EntityReader
+  readonly filter: FilterCoordinator
+  mainDestination: import("@/pages/entity").EntityDestination = { mode: "grid", collectionId: "library" }
   readonly imports: ImportCoordinator
   readonly civitai: CivitaiCoordinator
   readonly tasks: TaskObserver
@@ -59,6 +62,7 @@ export class LibrarySession extends DesktopSession {
     this.reader = new EntityReader(this.api, 256, (entityId, fileId) =>
       this.playback.observe(entityId, fileId),
     )
+    this.filter = new FilterCoordinator(this.api, () => this.reader.resultReplaced())
     this.civitai = new CivitaiCoordinator(this.api, (ids) => this.reader.knownEffects(ids))
     this.civitai.host(initial)
     this.imports = new ImportCoordinator(this.api, bridge, (items) => {
@@ -75,11 +79,14 @@ export class LibrarySession extends DesktopSession {
       void this.civitai.observe()
     })
     this.unobserve = bridge.observe((state) => {
+      this.filter.host(state.close.phase !== "idle")
       if (state.close.phase !== "idle" || state.connection.status !== "ready") this.playback.pause()
       this.imports.host(state)
       this.civitai.host(state)
-      if (state.connection.status !== "ready" || state.connection.runId !== this.api.context.runId)
+      if (state.connection.status !== "ready" || state.connection.runId !== this.api.context.runId) {
+        this.filter.dispose()
         this.tasks.dispose()
+      }
     })
     this.tasks.start()
     window.addEventListener("pagehide", this.dispose, { once: true })
@@ -94,6 +101,7 @@ export class LibrarySession extends DesktopSession {
     this.playback.pause()
     this.unobserve()
     this.tasks.dispose()
+    this.filter.dispose()
     this.imports.dispose()
     this.unobserveImports()
     this.civitai.dispose()
@@ -104,7 +112,7 @@ export class LibrarySession extends DesktopSession {
     return { ...entity, problems: [...(entity.problems ?? []), ...this.preferences.problems(id)] }
   }
   source(): EntitySource {
-    return { sequence: this.reader.sequence ?? emptySequence, get: this.get, demand: this.demand }
+    return { sequence: this.filter.sequence ?? emptySequence, get: this.get, demand: this.demand }
   }
 }
 
@@ -120,7 +128,7 @@ export function openLibrarySession() {
     if (initial.connection.status === "ready" && initial.connection.availability?.status === "restricted")
       return new DesktopSession(bridge, initial)
     const session = new LibrarySession(bridge, initial)
-    void session.reader.refresh()
+    session.filter.start()
     return session
   })())
 }

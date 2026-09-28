@@ -43,6 +43,7 @@ try {
     if (new URL(r.url()).pathname === "/api/v1/import-batches" && r.method() === "POST") submissions++
   })
   await page.goto(`${preview.origin}/#/entity`)
+  const initialCount = await page.locator("[data-entity-count]").getAttribute("data-entity-count")
   await page.getByRole("gridcell").first().dblclick()
   await page.locator('[data-slot="entity-inspection"]').waitFor()
   const destination = page.url(),
@@ -99,15 +100,13 @@ try {
   assert.equal(lists, initialLists)
   assert.equal(submissions, 2)
   const plainRow = page.locator("article").filter({ hasText: plain })
-  await page.route("**/api/v1/entities", (route) =>
+  await page.route("**/api/v1/memberships/read", (route) =>
     route.fulfill({ status: 500, json: { code: "operation_failed", message: "test refresh unavailable" } }),
   )
   await plainRow.getByRole("button", { name: "View", exact: true }).click()
-  await page
-    .getByText("Library refresh failed. The prior list and selection are preserved.", { exact: true })
-    .waitFor()
+  await page.getByText(/Unable to observe imported Entity .*test refresh unavailable/).waitFor()
   assert.equal(page.url(), destination)
-  await page.unroute("**/api/v1/entities")
+  await page.unroute("**/api/v1/memberships/read")
   let releaseRefresh!: () => void
   let sawRefresh!: () => void
   const heldRefresh = new Promise<void>((resolve) => {
@@ -116,7 +115,7 @@ try {
   const requestedRefresh = new Promise<void>((resolve) => {
     sawRefresh = resolve
   })
-  await page.route("**/api/v1/entities", async (route) => {
+  await page.route("**/api/v1/memberships/read", async (route) => {
     sawRefresh()
     await heldRefresh
     await route.continue()
@@ -136,7 +135,7 @@ try {
   await page.getByRole("button", { name: /^Tasks/ }).click()
   await page.getByText("Viewing was superseded by newer navigation.", { exact: true }).waitFor()
   assert.equal(page.url(), newerDestination)
-  await page.unroute("**/api/v1/entities")
+  await page.unroute("**/api/v1/memberships/read")
   await writeFile(missing, "now explicitly recopy")
   await page
     .locator("article")
@@ -187,7 +186,15 @@ try {
   await page.getByRole("button", { name: /^Tasks.*1 records$/ }).waitFor()
   assert.equal(await page.getByRole("button", { name: /Tasks.*need attention/ }).count(), 0)
   await page.screenshot({ path: join(output, "imported-library.png") })
-  assert.equal((await page.locator('img[src^="blob:"]').count()) > 0, true)
+  assert.equal(lists, initialLists, "Task View does not enumerate or replace the main result")
+  assert.equal(await page.locator("[data-entity-count]").getAttribute("data-entity-count"), initialCount)
+  assert.equal(await page.locator(`[role="gridcell"][id$="-${imported.current.entity_id}"]`).count(), 0)
+  assert(
+    await page
+      .getByRole("grid", { name: "Entities" })
+      .evaluate((element) => element === document.activeElement),
+    "Direct return restores keyboard focus without selecting its temporary target",
+  )
   assert.deepEqual(errors, [])
   await registeredImportBrowser(page, backend, data.library, sources, output)
   assert.deepEqual(errors, [])
