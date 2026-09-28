@@ -1,0 +1,16 @@
+[package]
+name = "locus-tag"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+locus-core.workspace = true
+locus-store.workspace = true
+locus-query.workspace = true
+diesel.workspace = true
+diesel-async.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+[dev-dependencies]
+locus-migration.workspace = true
+tokio.workspace = true
+tempfile.workspace = true

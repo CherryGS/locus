@@ -28,6 +28,7 @@ impl Domain {
         let database = library.database.clone();
         let mut kernel = Kernel::new();
         kernel.register(Arc::new(FileOwner))?;
+        kernel.register(Arc::new(locus_tag::api::TagSetOwner))?;
         kernel.register(Arc::new(ImageOwner))?;
         kernel.register(Arc::new(VideoOwner))?;
         kernel.register(Arc::new(locus_model::api::ModelOwner))?;

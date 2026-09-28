@@ -220,6 +220,12 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                         <code>
                           Analyzed/value: {f.native_value} · Exact: {f.native_exact}
                         </code>
+                        {f.owner === "tag" && (
+                          <code>
+                            Example: {f.native_exact}:
+                            {JSON.stringify(f.field_type === "text" ? "cat" : "Tag ID from component details")}
+                          </code>
+                        )}
                       </div>
                     ))}
                   </div>

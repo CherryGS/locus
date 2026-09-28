@@ -16,6 +16,7 @@ import {
   FilterEvidence,
   type FilterCoordinator,
 } from "@/features/entity-filter"
+import { EntityTagsEditor, type TagCoordinator } from "@/features/tags"
 import { errorText } from "@/shared/api"
 import type { BackendApi } from "@/shared/api"
 import type { PreferenceCoordinator } from "@/features/entity-view-preferences"
@@ -73,6 +74,7 @@ export function EntityPage({
   live?: {
     reader: EntityReader
     filter: FilterCoordinator
+    tags: TagCoordinator
     mainDestination: EntityDestination
     preferences: PreferenceCoordinator
     api: BackendApi
@@ -655,7 +657,9 @@ export function EntityPage({
           Direct Entity · temporary single-Entity view
         </p>
       )}
-      {live && destination.collectionId === "library" && <FilterResultStatus coordinator={live.filter} />}
+      {live && destination.collectionId === "library" && (
+        <FilterResultStatus coordinator={live.filter} />
+      )}
       {collection && (
         <div className="px-4 pb-2 text-xs text-muted-foreground">
           {collection.name} · from {entityLabel(library.get(collection.ownerId))}
@@ -690,6 +694,14 @@ export function EntityPage({
         viewSelection={viewSelection}
         overviewFeedback={
           <>
+            {selected && live && (
+              <EntityTagsEditor
+                key={selected.id}
+                entity={selected}
+                coordinator={live.tags}
+                reread={() => void live.reader.reread(selected.id)}
+              />
+            )}
             {!!selected?.problems?.length && (
               <EntityProblems problems={selected.problems} recover={recover} />
             )}

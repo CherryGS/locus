@@ -1547,6 +1547,7 @@ dependencies = [
  "locus-search",
  "locus-settings",
  "locus-store",
+ "locus-tag",
  "locus-task",
  "locus-twitter",
  "schemars",
@@ -1591,6 +1592,22 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "locus-tag"
+version = "0.1.0"
+dependencies = [
+ "diesel",
+ "diesel-async",
+ "locus-core",
+ "locus-migration",
+ "locus-query",
+ "locus-store",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

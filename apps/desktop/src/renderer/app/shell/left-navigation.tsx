@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type FocusEvent } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore, type FocusEvent } from "react"
 import { Link } from "@tanstack/react-router"
-import { HomeIcon, LayoutGridIcon, SettingsIcon } from "lucide-react"
+import { HomeIcon, LayoutGridIcon, SettingsIcon, TagsIcon } from "lucide-react"
 import { motion, useReducedMotion } from "motion/react"
 import { cn } from "@/shared/lib/utils"
 import { Button, buttonVariants } from "@/shared/ui/button"
@@ -19,7 +19,11 @@ const navigation = [
 
 export function LeftNavigation() {
   const { session, external, media } = useSettingsWorkspace()
-  const settingsStatus = [external && `External connection: ${external}`, media && `Media tools: ${media}`]
+  useSyncExternalStore(session?.tags.subscribe ?? (() => () => {}), session?.tags.snapshot ?? (() => 0))
+  const settingsStatus = [
+    external && `External connection: ${external}`,
+    media && `Media tools: ${media}`,
+  ]
     .filter(Boolean)
     .join("; ")
   const [revealed, setRevealed] = useState(false)
@@ -126,6 +130,30 @@ export function LeftNavigation() {
             </motion.span>
           </Link>
         ))}
+        <Button
+          variant="ghost"
+          disabled={!session}
+          className={linkLayout}
+          aria-label={
+            session?.tags.unresolved.length
+              ? `Manage tags · ${session.tags.unresolved.length} unresolved`
+              : "Manage tags"
+          }
+          title="Manage tags"
+          onClick={() => {
+            cancelTimers()
+            setRevealed(false)
+            session?.tags.show()
+          }}
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center">
+            <TagsIcon data-icon="inline-start" />
+          </span>
+          <span className="shrink-0 whitespace-nowrap">
+            Tags
+            {session?.tags.unresolved.length ? ` · ${session.tags.unresolved.length} unresolved` : ""}
+          </span>
+        </Button>
         <Button
           id="settings-trigger"
           variant={session?.settingsNavigation.opened ? "secondary" : "ghost"}

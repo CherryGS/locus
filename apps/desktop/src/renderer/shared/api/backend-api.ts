@@ -67,6 +67,19 @@ function diagnosticDetail(value: unknown): string {
 }
 
 export class BackendApi {
+  async tags() {
+    return result(await this.client.GET("/api/v1/tags"))
+  }
+  async tagSet(id: string) {
+    return result(await this.client.GET("/api/v1/tag-sets/{id}", { params: { path: { id } } }))
+  }
+  async entityTags(id: string) {
+    return result(await this.client.GET("/api/v1/entities/{id}/tags", { params: { path: { id } } }))
+  }
+  async tagWrite(body: Wire<"WriteTag">) {
+    return result(await this.client.POST("/api/v1/tags", { body }))
+  }
+
   async filterLanguage() {
     return result(await this.client.GET("/api/v1/filter/language"))
   }

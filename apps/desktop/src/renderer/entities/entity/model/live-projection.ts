@@ -6,6 +6,7 @@ import type { ReadProblem } from "./read-problem"
 // Assigned owner identities from locus-file/src/identity.rs and
 // locus-media/src/identity.rs; labels/type names are not kind authority.
 export const supportedKinds = {
+  "8e880c8b-c7dd-4d6b-b739-a6896c716af1": "tag",
   "c42c90cb-b7ce-47f7-a42e-9d82f44b103a": "civitai",
   "6c46d4eb-5c2f-46eb-9e81-f866884e3107": "model",
   "9fd73d3d-d35d-41bc-8b73-402e12f5c017": "file",
@@ -19,7 +20,7 @@ export function membershipProjection(membership: Wire<"Membership">): EntityComp
     (
       supportedKinds as Record<
         string,
-        "file" | "image" | "video" | "twitter" | "model" | "civitai" | "bilibili" | undefined
+        "file" | "image" | "video" | "twitter" | "model" | "civitai" | "bilibili" | "tag" | undefined
       >
     )[membership.kind_id] ?? "unknown"
   return {
@@ -113,7 +114,10 @@ export function mediaProblems(view: Wire<"MediaView">): ReadProblem[] {
     add("attempt", `${view.record.last_failure.detail} (${view.record.last_failure.code})`)
   const context = view.applicability
   if (context.status === "changed")
-    add("input", `Accepted facts describe File ${context.basis}; current input is File ${context.current}.`)
+    add(
+      "input",
+      `Accepted facts describe File ${context.basis}; current input is File ${context.current}.`,
+    )
   if (context.status === "unmounted") add("input", "This component is no longer attached to an Entity.")
   if (context.status === "error") add("input", diagnosticText(context.diagnostic))
   if (context.status === "incomplete" && context.current.status !== "file")
@@ -176,7 +180,10 @@ export function twitterProblems(view: Wire<"TwitterView">, entityId: string): Re
     add("association", "The saved Twitter association has no current hosting Entity.")
   if (context.status === "input") {
     if (context.host !== entityId)
-      add("host", `The observed Twitter host is Entity ${context.host}; reread this Entity's memberships.`)
+      add(
+        "host",
+        `The observed Twitter host is Entity ${context.host}; reread this Entity's memberships.`,
+      )
     const comparison = context.comparison
     if (comparison.status === "changed")
       add(
@@ -226,4 +233,14 @@ export function modelProblems(view: Wire<"ModelView">, entityId: string): ReadPr
     add("host", `Model is now hosted by Entity ${view.host}, not this observed Entity.`)
   if (view.file_problem) add("file", diagnosticText(view.file_problem))
   return problems
+}
+
+export function tagProjection(record: Wire<"TagSetRecord">): EntityComponent {
+  return {
+    kind: "tag",
+    id: record.component_id,
+    kindId: "8e880c8b-c7dd-4d6b-b739-a6896c716af1",
+    record,
+    readStatus: "ready",
+  }
 }

@@ -30,3 +30,6 @@ mod s011_conversion;
 mod s012_search;
 #[path = "000000000013_locus_filter_presets.rs"]
 mod s013_filter;
+
+#[path = "000000000014_locus_tag_personal_tags.rs"]
+mod s014_tag;

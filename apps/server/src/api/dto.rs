@@ -73,6 +73,22 @@ pub enum Submission {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum MutationOutcome {
+    TagSaved {
+        tag: super::tag::dto::TagRecord,
+    },
+    TagDeleted {
+        id: String,
+    },
+    TagAssignment {
+        entity_id: String,
+        tag_id: String,
+        changed: bool,
+    },
+    TagFailed {
+        reason: String,
+        message: String,
+        uncertain: bool,
+    },
     FilterSaved {
         preset: super::filter::dto::FilterPreset,
     },

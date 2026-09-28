@@ -40,3 +40,4 @@ pub use settings::{dto::*, settings_definitions};
 mod search;
 
 pub(crate) mod filter;
+pub(crate) mod tag;

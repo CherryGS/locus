@@ -16,6 +16,8 @@ function componentSummary(component: EntityComponent) {
   if (component.readStatus === "failed") return "Metadata unavailable"
   if (component.readStatus === "loading") return "Reading metadata…"
   switch (component.kind) {
+    case "tag":
+      return component.record ? `${component.record.tags.length} personal tags` : "Not observed"
     case "civitai":
       return component.record?.model.name ?? "Saved provider information"
     case "file":

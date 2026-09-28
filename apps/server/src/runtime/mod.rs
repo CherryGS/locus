@@ -52,6 +52,10 @@ mod registered_import_tests;
 mod search;
 
 mod filter;
+mod tag;
 
 #[cfg(test)]
 mod filter_tests;
+
+#[cfg(test)]
+mod tag_tests;

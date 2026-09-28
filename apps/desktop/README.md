@@ -142,3 +142,30 @@ the run lifetime, routing and close UI; `pages/entity` composes browsing/inspect
 `entities/entity` owns bounded observations/projections;
 `features/entity-view-preferences` coordinates choices; `shared/api` consumes
 `@locus/client`. Desktop and client retain independent npm lockfiles.
+
+Personal Tags are available from **Tags** in the navigation rail, even with no
+Entity selected. Create, rename or globally delete vocabulary records there.
+**Overview → Personal tags** searches existing names and saves each assignment
+addition/removal immediately. Creating a vocabulary record does not assign it.
+The **Tags** component panel shows retained set identity and stable Tag IDs.
+Names are trimmed, nonblank and case-sensitive (`cat` and `Cat` are distinct).
+Global deletion removes all assignments, including unmounted retained sets,
+while preserving every Entity. Rename and deletion leave Filter drafts and
+established identity results unchanged until explicit Apply/Refresh.
+
+Filter's field catalogue supplies `tag_names_exact` for whole-name matching and
+`tag_ids` for stable identity. Examples: `tag_names_exact:"cat"` and
+`tag_ids:"<copied Tag ID>"`. Use the supplied native reference shown in the
+catalogue and quote names containing spaces or query punctuation.
+
+Unconfirmed Tag writes remain reachable through the navigation's unresolved
+count and the vocabulary manager after navigation or closing the dialog.
+**Recover original request** observes the captured request; if the same run has
+no binding, it explicitly redelivers only that original request and arguments.
+Confirmed writes remain confirmed when a subsequent metadata read fails.
+
+`just desktop-tag-browser` runs the real renderer and fixture server with an
+isolated synthetic library. Its test-only interception exercises delayed writes,
+lost committed responses and read failures. JSON evidence and normal/small
+screenshots are retained under `target/desktop-tags-*`. `just desktop-ui` opens
+an isolated live preview for manual Tag acceptance.

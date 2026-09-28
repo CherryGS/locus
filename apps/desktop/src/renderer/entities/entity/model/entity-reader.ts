@@ -3,6 +3,7 @@ import { ApiFailure, errorText, type BackendApi, type Wire } from "@/shared/api"
 import type { EntityItem } from "./entity-item"
 import {
   fileProjection,
+  tagProjection,
   mediaProblems,
   mediaProjection,
   membershipProjection,
@@ -28,7 +29,7 @@ type Entry = {
   epoch: number
 }
 type ReadApi = Pick<BackendApi, "memberships" | "file" | "media" | "twitter" | "model"> &
-  Partial<Pick<BackendApi, "civitai" | "bilibili">> &
+  Partial<Pick<BackendApi, "civitai" | "bilibili" | "tagSet">> &
   Partial<Pick<BackendApi, "previewBytes" | "savedPreview">>
 
 export class EntityReader {
@@ -192,6 +193,9 @@ export class EntityReader {
     // A single bounded membership request, never a full identity-list refresh.
     if (visible.length) void this.read([...new Set(visible)], true)
   }
+  tagEffects(ids?: string[]) {
+    this.knownEffects(ids ?? [...this.entries.keys()])
+  }
   knownEffects(ids: string[]) {
     const changed = new Set(ids)
     const affected = new Set(ids)
@@ -317,7 +321,9 @@ export class EntityReader {
         entry.membershipObserved = true
         for (const key of entry.resources.keys())
           if (
-            !components.some((c) => (c.kind === "image" || c.kind === "video") && key.startsWith(`${c.id}:`))
+            !components.some(
+              (c) => (c.kind === "image" || c.kind === "video") && key.startsWith(`${c.id}:`),
+            )
           )
             entry.resources.delete(key)
         const problems = (entry.item.problems ?? []).filter(
@@ -351,39 +357,46 @@ export class EntityReader {
             if (this.entries.get(id) !== entry) return
             try {
               const value =
-                component.kind === "bilibili"
-                  ? ((await this.api.bilibili?.(component.id)) ??
+                component.kind === "tag"
+                  ? ((await this.api.tagSet?.(component.id)) ??
                     (() => {
-                      throw new Error("Bilibili reader unavailable")
+                      throw new Error("Tag reader unavailable")
                     })())
-                  : component.kind === "civitai"
-                    ? ((await this.api.civitai?.(component.id)) ??
+                  : component.kind === "bilibili"
+                    ? ((await this.api.bilibili?.(component.id)) ??
                       (() => {
-                        throw new Error("Civitai read capability unavailable")
+                        throw new Error("Bilibili reader unavailable")
                       })())
-                    : component.kind === "file"
-                      ? await this.api.file(component.id)
-                      : component.kind === "model"
-                        ? await this.api.model(component.id)
-                        : component.kind === "twitter"
-                          ? await this.api.twitter(component.id)
-                          : await this.api.media(component.kind as "image" | "video", component.id)
+                    : component.kind === "civitai"
+                      ? ((await this.api.civitai?.(component.id)) ??
+                        (() => {
+                          throw new Error("Civitai read capability unavailable")
+                        })())
+                      : component.kind === "file"
+                        ? await this.api.file(component.id)
+                        : component.kind === "model"
+                          ? await this.api.model(component.id)
+                          : component.kind === "twitter"
+                            ? await this.api.twitter(component.id)
+                            : await this.api.media(component.kind as "image" | "video", component.id)
               if (this.entries.get(id) !== entry) return
               let next =
-                component.kind === "bilibili"
-                  ? bilibiliProjection(value as Wire<"BilibiliView">)
-                  : component.kind === "civitai"
-                    ? civitaiProjection(value as Wire<"CivitaiView">)
-                    : "file_id" in value
-                      ? fileProjection(value)
-                      : component.kind === "model"
-                        ? modelProjection(value as Wire<"ModelView">)
-                        : "snapshot" in value.record
-                          ? twitterProjection(value as Wire<"TwitterView">)
-                          : {
-                              ...mediaProjection(value as Wire<"MediaView">),
-                              kindId: component.kindId,
-                            }
+                component.kind === "tag"
+                  ? tagProjection(value as Wire<"TagSetRecord">)
+                  : component.kind === "bilibili"
+                    ? bilibiliProjection(value as Wire<"BilibiliView">)
+                    : component.kind === "civitai"
+                      ? civitaiProjection(value as Wire<"CivitaiView">)
+                      : "file_id" in value
+                        ? fileProjection(value)
+                        : component.kind === "model"
+                          ? modelProjection(value as Wire<"ModelView">)
+                          : "record" in value && "snapshot" in value.record
+                            ? twitterProjection(value as Wire<"TwitterView">)
+                            : {
+                                ...mediaProjection(value as Wire<"MediaView">),
+                                kindId: component.kindId,
+                              }
               if (
                 next.id !== component.id ||
                 next.kind !== component.kind ||
@@ -411,24 +424,26 @@ export class EntityReader {
               this.replaceProblems(
                 entry,
                 component.kind === "bilibili" ? component.id + ":metadata:" : `${component.id}:`,
-                component.kind === "bilibili"
-                  ? bilibiliProblems(value as Wire<"BilibiliView">, id).map((p) => ({
-                      ...p,
-                      key: component.id + ":metadata:" + p.key,
-                    }))
-                  : component.kind === "civitai"
-                    ? civitaiProblems(value as Wire<"CivitaiView">).map((p) => ({
+                component.kind === "tag"
+                  ? []
+                  : component.kind === "bilibili"
+                    ? bilibiliProblems(value as Wire<"BilibiliView">, id).map((p) => ({
                         ...p,
-                        key: `${component.id}:${p.key}`,
+                        key: component.id + ":metadata:" + p.key,
                       }))
-                    : "file_id" in value
-                      ? []
-                      : (component.kind === "model"
-                          ? modelProblems(value as Wire<"ModelView">, id)
-                          : "snapshot" in value.record
-                            ? twitterProblems(value as Wire<"TwitterView">, id)
-                            : mediaProblems(value as Wire<"MediaView">)
-                        ).map((p) => ({ ...p, key: `${component.id}:${p.key}` })),
+                    : component.kind === "civitai"
+                      ? civitaiProblems(value as Wire<"CivitaiView">).map((p) => ({
+                          ...p,
+                          key: `${component.id}:${p.key}`,
+                        }))
+                      : "file_id" in value
+                        ? []
+                        : (component.kind === "model"
+                            ? modelProblems(value as Wire<"ModelView">, id)
+                            : "record" in value && "snapshot" in value.record
+                              ? twitterProblems(value as Wire<"TwitterView">, id)
+                              : mediaProblems(value as Wire<"MediaView">)
+                          ).map((p) => ({ ...p, key: `${component.id}:${p.key}` })),
               )
               if (next.kind === "bilibili" && next.view) {
                 this.changed()
@@ -502,7 +517,10 @@ export class EntityReader {
                   this.api.previewBytes
                 ) {
                   try {
-                    const bytes = await this.api.previewBytes(output.locator, new AbortController().signal)
+                    const bytes = await this.api.previewBytes(
+                      output.locator,
+                      new AbortController().signal,
+                    )
                     if (this.entries.get(id) !== entry) return
                     const url = URL.createObjectURL(bytes)
                     const key = `${id}:${next.id}`

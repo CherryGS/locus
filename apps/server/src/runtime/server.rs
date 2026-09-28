@@ -128,6 +128,7 @@ impl Server {
                         Arc::new(locus_media::api::ImageQueryProvider),
                         Arc::new(locus_media::api::VideoQueryProvider),
                         Arc::new(locus_model::api::ModelQueryProvider),
+                        Arc::new(locus_tag::api::TagQueryProvider),
                         Arc::new(locus_twitter::api::TwitterQueryProvider),
                         Arc::new(locus_bilibili::api::BilibiliQueryProvider),
                         Arc::new(locus_civitai::api::CivitaiQueryProvider),

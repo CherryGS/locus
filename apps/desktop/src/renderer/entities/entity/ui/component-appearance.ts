@@ -1,7 +1,8 @@
-import { AtSignIcon, FileIcon, ImageIcon, VideoIcon, BoxIcon, type LucideIcon } from "lucide-react"
+import { TagsIcon, AtSignIcon, FileIcon, ImageIcon, VideoIcon, BoxIcon, type LucideIcon } from "lucide-react"
 import type { EntityComponent } from "../model/entity-item"
 
 export const componentAppearance = {
+  tag: { label: "Tags", icon: TagsIcon },
   civitai: { label: "Civitai", icon: BoxIcon },
   model: { label: "Model", icon: BoxIcon },
   file: { label: "File", icon: FileIcon },

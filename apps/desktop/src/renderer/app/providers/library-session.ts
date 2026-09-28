@@ -6,6 +6,7 @@ import {
 } from "@/features/settings"
 import { SettingsNavigation } from "./settings-navigation"
 import { PlaybackCoordinator } from "@/features/video-playback"
+import { TagCoordinator } from "@/features/tags"
 import { FilterCoordinator } from "@/features/entity-filter"
 import { BackendApi } from "@/shared/api"
 import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
@@ -50,6 +51,7 @@ export class LibrarySession extends DesktopSession {
   readonly civitaiExcursions = new Map<string, CivitaiSelection>()
   readonly playback = new PlaybackCoordinator()
   readonly reader: EntityReader
+  readonly tags: TagCoordinator
   readonly filter: FilterCoordinator
   mainDestination: import("@/pages/entity").EntityDestination = { mode: "grid", collectionId: "library" }
   readonly imports: ImportCoordinator
@@ -62,6 +64,10 @@ export class LibrarySession extends DesktopSession {
     this.reader = new EntityReader(this.api, 256, (entityId, fileId) =>
       this.playback.observe(entityId, fileId),
     )
+    this.tags = new TagCoordinator(this.api, this.api.context.runId, (ids) =>
+      this.reader.tagEffects(ids),
+    )
+    this.tags.host(initial.close.phase !== "idle")
     this.filter = new FilterCoordinator(this.api, () => this.reader.resultReplaced())
     this.civitai = new CivitaiCoordinator(this.api, (ids) => this.reader.knownEffects(ids))
     this.civitai.host(initial)
@@ -80,11 +86,13 @@ export class LibrarySession extends DesktopSession {
     })
     this.unobserve = bridge.observe((state) => {
       this.filter.host(state.close.phase !== "idle")
+      this.tags.host(state.close.phase !== "idle")
       if (state.close.phase !== "idle" || state.connection.status !== "ready") this.playback.pause()
       this.imports.host(state)
       this.civitai.host(state)
       if (state.connection.status !== "ready" || state.connection.runId !== this.api.context.runId) {
         this.filter.dispose()
+        this.tags.dispose()
         this.tasks.dispose()
       }
     })
@@ -102,6 +110,7 @@ export class LibrarySession extends DesktopSession {
     this.unobserve()
     this.tasks.dispose()
     this.filter.dispose()
+    this.tags.dispose()
     this.imports.dispose()
     this.unobserveImports()
     this.civitai.dispose()

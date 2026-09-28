@@ -45,6 +45,24 @@ export function EntityComponentDetails({ component }: { component: EntityCompone
   )
 }
 function ComponentDetailsContent({ component }: { component: EntityComponent }) {
+  if (component.kind === "tag")
+    return (
+      <DetailSection title="Personal Tag set">
+        <dl>
+          <Detail label="Component">{component.id}</Detail>
+          {component.record?.tags.map((tag) => (
+            <Detail key={tag.id} label={tag.name}>
+              {tag.id}
+            </Detail>
+          ))}
+        </dl>
+        {component.record?.tags.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            No assigned tags. The empty set remains retained.
+          </p>
+        )}
+      </DetailSection>
+    )
   if (component.kind === "civitai")
     return (
       <DetailSection title="Origin Civitai snapshot">
@@ -118,7 +136,9 @@ function ComponentDetailsContent({ component }: { component: EntityComponent }) 
             </>
           ) : (
             <>
-              {record && !record.facts && <Detail label="Interpretation">No accepted interpretation</Detail>}
+              {record && !record.facts && (
+                <Detail label="Interpretation">No accepted interpretation</Detail>
+              )}
               <Detail label="Format">{component.format ?? "Unknown"}</Detail>
               <Detail label="Dimensions">
                 {component.width !== undefined && component.height !== undefined

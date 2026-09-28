@@ -232,7 +232,7 @@ async fn fresh_schema_reopens_without_replay_and_suffix_appends() {
             "SELECT count(*) AS count FROM sqlite_schema WHERE type='table' AND name LIKE 'locus_%'"
         )
         .await,
-        18
+        21
     );
     assert_eq!(
         count(

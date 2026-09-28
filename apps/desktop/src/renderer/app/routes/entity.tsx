@@ -17,7 +17,10 @@ function EntityRoute() {
   const session = useLibrarySession()
   useSyncExternalStore(session?.reader.subscribe ?? noSubscribe, session?.reader.snapshot ?? zero)
   useSyncExternalStore(session?.filter.subscribe ?? noSubscribe, session?.filter.snapshot ?? zero)
-  useSyncExternalStore(session?.preferences.subscribe ?? noSubscribe, session?.preferences.snapshot ?? zero)
+  useSyncExternalStore(
+    session?.preferences.subscribe ?? noSubscribe,
+    session?.preferences.snapshot ?? zero,
+  )
   useSyncExternalStore(session?.civitai.subscribe ?? noSubscribe, session?.civitai.snapshot ?? zero)
   const data = Route.useLoaderData()
   const previewSource = useMemo(
@@ -59,6 +62,7 @@ function EntityRoute() {
           ? {
               reader: session.reader,
               filter: session.filter,
+              tags: session.tags,
               mainDestination: session.mainDestination,
               preferences: session.preferences,
               api: session.api,

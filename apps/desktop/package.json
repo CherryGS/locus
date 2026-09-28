@@ -27,6 +27,7 @@
     "verify:shared-tasks": "tsx scripts/shared-task-browser-check.ts",
     "verify:notifications": "tsx scripts/notification-browser-check.ts",
     "verify:browser": "tsx scripts/browser-check.ts",
+    "verify:tag-browser": "tsx scripts/tag-browser-check.ts",
     "verify:filter-browser": "tsx scripts/filter-browser-check.ts",
     "verify:electron": "tsx scripts/electron-smoke.ts && tsx scripts/electron-close-check.ts",
     "verify:model-browser": "tsx scripts/model-browser-check.ts",
