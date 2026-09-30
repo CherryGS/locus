@@ -6,6 +6,7 @@ import { Input } from "@/shared/ui/input"
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/shared/ui/popover"
 import { Separator } from "@/shared/ui/separator"
 import type { FilterCoordinator } from "../model/filter-coordinator"
+import { IndexMaintenance } from "./filter-feedback"
 
 type Action = "save-as" | "rename" | "delete"
 
@@ -41,14 +42,14 @@ export function PresetOptions({
       }}
     >
       <PopoverTrigger
-        aria-label="Preset options"
+        aria-label="Filter options"
         disabled={c.busy}
         render={<Button variant="ghost" size="icon" />}
       >
         <EllipsisIcon />
       </PopoverTrigger>
       <PopoverContent align="end">
-        <PopoverTitle>Preset options</PopoverTitle>
+        <PopoverTitle>Filter options</PopoverTitle>
         <Field>
           <FieldLabel htmlFor="filter-name">Preset name</FieldLabel>
           <Input
@@ -71,6 +72,11 @@ export function PresetOptions({
             Delete preset
           </Button>
         </div>
+        <Separator />
+        <details>
+          <summary className="cursor-pointer text-xs text-muted-foreground">Search index</summary>
+          <div className="mt-2"><IndexMaintenance coordinator={c} onAction={() => setOpen(false)} /></div>
+        </details>
       </PopoverContent>
     </Popover>
   )

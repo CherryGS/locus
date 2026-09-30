@@ -42,6 +42,10 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
   }, [c.open, c.hostClosing])
   const analysis =
     JSON.stringify(c.analysis?.source) === JSON.stringify(c.draft.source) ? c.analysis : undefined
+  const closeReference = () => {
+    setReference(false)
+    queueMicrotask(() => document.getElementById("filter-source")?.focus())
+  }
   return (
     <Dialog open={c.open} actionsRef={actions} onOpenChange={(open) => (open ? c.show() : c.close())}>
       <DialogTrigger ref={entry} render={<Button variant={c.filtered ? "secondary" : "outline"} size="sm" />}>
@@ -109,7 +113,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                         variant={reference ? "secondary" : "ghost"}
                         aria-expanded={reference}
                         aria-controls="filter-field-reference"
-                        onClick={() => setReference(!reference)}
+                        onClick={() => reference ? closeReference() : setReference(true)}
                       >
                         <BookOpenIcon data-icon="inline-start" />Fields
                       </Button>
@@ -137,7 +141,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                       {analysis.state === "valid"
                         ? "Query valid"
                         : analysis.state === "empty"
-                          ? "Empty query shows all Entities."
+                          ? "All Entities"
                           : `Source ${analysis.state}`}
                     </p>
                   )
@@ -176,10 +180,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                     <summary className="cursor-pointer text-sm">
                       Unconfirmed {write.change?.operation ?? "save"} · {write.draft.name || "Untitled"}
                     </summary>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      The draft retained for this attempt remains available to copy while its outcome is
-                      reconciled.
-                    </p>
+                    {/* Retain the exact submitted draft until the write outcome is reconciled. */}
                     <pre
                       aria-label="Retained draft for unconfirmed operation"
                       className="my-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs"
@@ -192,41 +193,11 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                   </details>
                 ))}
               </div>
-              <details>
-                <summary className="cursor-pointer text-xs text-muted-foreground">Syntax</summary>
-                <div className="mt-3 flex flex-col gap-3">
-                  <p className="text-xs text-muted-foreground">
-                    {c.draft.source.format || "Reading source profile…"} · version {c.draft.source.version}.
-                    Plain query text; formatting is preserved. Execution is checked on Apply.
-                  </p>
-                  {c.language?.syntax.map((s) => (
-                    <p className="text-xs text-muted-foreground" key={s}>
-                      {s}
-                    </p>
-                  ))}
-                  {c.helpError && (
-                    <Alert variant="destructive">
-                      <AlertDescription>
-                        Help unavailable: {c.helpError}
-                        <Button size="sm" onClick={() => void c.readHelp()}>
-                          Retry help
-                        </Button>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              </details>
               <IndexStatus coordinator={c} />
             </div>
           </ScrollArea>
           {reference && (
-            <FieldReference
-              coordinator={c}
-              close={() => {
-                setReference(false)
-                queueMicrotask(() => document.getElementById("filter-source")?.focus())
-              }}
-            />
+            <FieldReference coordinator={c} close={closeReference} />
           )}
         </div>
         <DialogFooter className="flex-row flex-wrap items-center">

@@ -5,70 +5,82 @@ import { Button } from "@/shared/ui/button"
 import { humanize } from "../model/draft"
 import type { FilterCoordinator } from "../model/filter-coordinator"
 
-export function IndexStatus({ coordinator: c }: { coordinator: FilterCoordinator }) {
+function indexLabel(c: FilterCoordinator) {
+  if (c.statusError) return `Index status unknown: ${c.statusError}`
   const status = c.status
-  const attention = !!(
-    c.statusError || status?.failure || (status && !status.usable) ||
-    c.maintenancePending || c.maintenanceError
-  )
+  if (!status) return "Reading index status…"
+  return `Index ${humanize(status.state)}${status.total ? ` · ${status.completed} / ${status.total} Entities` : ""}`
+}
+
+function IndexActions({ coordinator: c, rebuild = false, onAction }: {
+  coordinator: FilterCoordinator
+  rebuild?: boolean
+  onAction?: () => void
+}) {
   return (
-    <details open={attention || undefined} aria-label="Search index status">
-      <summary className="cursor-pointer text-xs text-muted-foreground">
-        {c.statusError
-          ? `Index status unknown: ${c.statusError}`
-          : status
-            ? `Index ${humanize(status.state)} · ${status.usable ? "search available" : "search unavailable"}${status.total ? ` · ${status.completed} / ${status.total} Entities` : ""}`
-            : "Reading index status…"}
-        {!c.statusError && status && status.covered_sequence !== status.journal_head && " · updates pending"}
-      </summary>
-      <div className="mt-3 flex flex-col gap-2">
-        {!c.statusError && status?.failure && (
-          <Alert variant="destructive">
-            <AlertDescription>
-              {status.failure}
-              {" New queries require aligned data; your established result is retained."}
-            </AlertDescription>
-          </Alert>
-        )}
-        {!c.statusError && status && (
-          <p className="text-xs text-muted-foreground">
-            {status.covered_sequence !== status.journal_head
-              ? "Recent changes are waiting to be indexed. "
-              : ""}
-            Index updates keep your current result unchanged; use Refresh when you want to update it.
-          </p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="ghost" disabled={c.statusPending} onClick={() => void c.readStatus()}>
-            Check index status
-          </Button>
-          {!c.statusError && status && (!status.usable || !!status.failure) && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!!c.maintenancePending}
-              onClick={() => void c.maintain("retry")}
-            >
-              Retry indexing
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!!c.maintenancePending}
-            onClick={() => void c.maintain("rebuild")}
-          >
-            Rebuild index
-          </Button>
-        </div>
-        {c.maintenancePending && <p role="status">Requesting index {c.maintenancePending}…</p>}
-        {c.maintenanceError && (
-          <Alert variant="destructive">
-            <AlertDescription>Index maintenance: {c.maintenanceError}</AlertDescription>
-          </Alert>
-        )}
-      </div>
-    </details>
+    <div className="flex flex-wrap gap-2">
+      <Button size="sm" variant="ghost" disabled={c.statusPending} onClick={() => {
+        onAction?.()
+        void c.readStatus()
+      }}>
+        Check index status
+      </Button>
+      {!c.statusError && c.status && (!c.status.usable || !!c.status.failure) && (
+        <Button size="sm" variant="outline" disabled={!!c.maintenancePending} onClick={() => {
+          onAction?.()
+          void c.maintain("retry")
+        }}>
+          Retry indexing
+        </Button>
+      )}
+      {rebuild && (
+        <Button size="sm" variant="outline" disabled={!!c.maintenancePending} onClick={() => {
+          onAction?.()
+          void c.maintain("rebuild")
+        }}>
+          Rebuild index
+        </Button>
+      )}
+    </div>
+  )
+}
+
+export function IndexMaintenance({ coordinator: c, onAction }: { coordinator: FilterCoordinator; onAction: () => void }) {
+  return (
+    <div className="flex flex-col gap-2" aria-label="Search index maintenance">
+      <p className="text-xs text-muted-foreground">{indexLabel(c)}</p>
+      <IndexActions coordinator={c} rebuild onAction={onAction} />
+    </div>
+  )
+}
+
+export function IndexStatus({ coordinator: c }: { coordinator: FilterCoordinator }) {
+  const status = c.statusError ? undefined : c.status
+  const error = c.statusError || c.maintenanceError || status?.failure
+  // Index maintenance never replaces the established result. Refresh is the
+  // explicit replacement action; routine lifecycle explanations belong here,
+  // while the editor only surfaces a current problem or pending search work.
+  const message = c.statusError
+    ? indexLabel(c)
+    : c.maintenanceError
+      ? `Index maintenance failed: ${c.maintenanceError}`
+      : status?.failure
+        ? `Index update failed: ${status.failure}`
+        : c.maintenancePending
+          ? `Requesting index ${c.maintenancePending}…`
+          : status && (!status.usable || status.state !== "ready")
+            ? indexLabel(c)
+            : status && status.covered_sequence !== status.journal_head
+              ? "Index updates pending"
+              : undefined
+  if (!message) return null
+  return (
+    <Alert variant={error ? "destructive" : "default"} aria-label="Search index status">
+      <AlertDescription>
+        <p role="status">{message}</p>
+        <IndexActions coordinator={c} />
+      </AlertDescription>
+    </Alert>
   )
 }
 export function FilterResultStatus({ coordinator: c }: { coordinator: FilterCoordinator }) {
@@ -90,11 +102,11 @@ export function FilterResultStatus({ coordinator: c }: { coordinator: FilterCoor
       <span className="min-w-0 break-words">
         {c.established?.criteria?.text ? c.established.criteria.text : "Native Filter applied"}
       </span>
-      {newer && <span>A newer index is ready. Refresh to update this result.</span>}
+      {newer && <span>New index available</span>}
       {status && status.covered_sequence !== status.journal_head && <span>Index updates pending.</span>}
-      {status?.failure && <span>Index update failed{"; established results remain available."}</span>}
+      {status?.failure && <span>Index update failed</span>}
       {c.statusError && <span>Index status unknown.</span>}
-      {status && !status.usable && <span>Search currently unavailable; completed results retained.</span>}
+      {status && !status.usable && <span>Search unavailable</span>}
     </div>
   )
 }

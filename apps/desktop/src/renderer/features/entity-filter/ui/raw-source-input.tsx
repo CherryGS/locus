@@ -25,7 +25,7 @@ export function RawSourceInput({ source, analysis, disabled, change, reveal, exp
       id="filter-source"
       ref={input}
       aria-label="Filter source"
-      placeholder="Enter a query… Leave empty to show all Entities."
+      placeholder="Enter a query…"
       spellCheck={false}
       aria-invalid={analysis?.state === "invalid"}
       disabled={disabled}
