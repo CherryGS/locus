@@ -55,6 +55,20 @@ migration history. All relative roots resolve against the repository, including
 when npm runs the entry in the desktop package.
 `LOCUS_FFMPEG` and `LOCUS_FFPROBE` retain their existing tool-path meanings.
 
+If preview reports `incompatible migration history`, the retained library was
+created against different development migration definitions. Startup includes the
+backend's diagnostic and refuses that database. Preserve the old output and
+generate a new library at an empty root, then pass that root to preview:
+
+```text
+just desktop-sample-generate .local/comprehensive-library-current
+just desktop-sample-preview .local/comprehensive-library-current
+```
+
+To keep optional retained public inputs, pass the old output's `inputs/retained`
+directory as the generation recipe's second argument. Generation validates and
+copies these inputs; it does not reuse the incompatible database or its ledger.
+
 Before invoking any of these commands through npm, use an existing current
 `apps/desktop/out/renderer`, or run `just desktop-build`.
 If necessary provision Chromium with `just desktop-browser-install`.

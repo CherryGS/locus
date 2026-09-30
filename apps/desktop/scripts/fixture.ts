@@ -38,18 +38,38 @@ export async function startServer(
       LOCUS_FIXTURE_EXTERNAL_EPHEMERAL: externalEphemeral ? "1" : undefined,
     },
   })
-  const exited = once(child, "exit")
-  child.stderr.resume()
+  // Wait for stdio to close too, so startup failures include the final diagnostic.
+  const exited = once(child, "close")
+  let diagnostic = ""
+  child.stderr.setEncoding("utf8")
+  const collectDiagnostic = (chunk: string) => {
+    diagnostic += chunk
+  }
+  child.stderr.on("data", collectDiagnostic)
   const lines = createInterface({ input: child.stdout })
   const ready = once(lines, "line", { signal: AbortSignal.timeout(30_000) })
   child.stdin.end(JSON.stringify({ credential, library_root: library, renderer_root: renderer }))
-  const [line] = await Promise.race([
-    ready,
-    exited.then(() => {
-      throw new Error("Fixture backend exited before readiness")
-    }),
-  ])
-  lines.close()
+  let line: unknown
+  try {
+    const [firstLine] = await Promise.race([
+      ready,
+      exited.then(([code, signal]) => {
+        throw new Error(
+          `Fixture backend exited before readiness (code ${code}, signal ${signal})` +
+            (diagnostic.trim() ? `\n${diagnostic.trim()}` : ""),
+        )
+      }),
+    ])
+    line = firstLine
+  } catch (error) {
+    child.kill()
+    await exited.catch(() => {})
+    throw error
+  } finally {
+    lines.close()
+    child.stderr.off("data", collectDiagnostic)
+    child.stderr.resume()
+  }
   const value = JSON.parse(String(line)) as {
     origin: string
     run_id: string
