@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react"
-import { cn } from "cn"
 import type { Wire } from "@/shared/api"
 import { Textarea } from "@/shared/ui/textarea"
 import { diagnosticPosition, displaySource, editSource } from "../model/raw-input"
@@ -10,9 +9,8 @@ type Props = {
   disabled: boolean
   change: (text: string) => void
   reveal?: number
-  expanded?: boolean
 }
-export function RawSourceInput({ source, analysis, disabled, change, reveal, expanded }: Props) {
+export function RawSourceInput({ source, analysis, disabled, change, reveal }: Props) {
   const input = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
     if (reveal === undefined || !input.current) return
@@ -29,7 +27,7 @@ export function RawSourceInput({ source, analysis, disabled, change, reveal, exp
       spellCheck={false}
       aria-invalid={analysis?.state === "invalid"}
       disabled={disabled}
-      className={cn("filter-source min-h-32 max-h-64 resize-y", expanded && "sm:min-h-[clamp(8rem,30dvh,14rem)]")}
+      className="filter-source min-h-32 max-h-64 resize-y"
       value={displaySource(source.text)}
       onChange={(event) => change(editSource(source.text, event.target.value))}
     />

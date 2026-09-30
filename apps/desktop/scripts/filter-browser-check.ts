@@ -115,7 +115,7 @@ try {
     .getByText("Query valid", { exact: true })
     .waitFor()
   await source.click()
-  // The catalogue scrolls beside the raw editor without moving or editing it.
+  // The catalogue scrolls below the raw editor without moving or editing it.
   const currentSource = await source.inputValue()
   await dialog.getByRole("button", { name: "Fields", exact: true }).click()
   const fields = dialog.getByRole("complementary", { name: "Field reference", exact: true })
@@ -123,6 +123,8 @@ try {
   assert.equal(await dialog.getByRole("button", { name: "Close", exact: true }).count(), 1)
   await dialog.evaluate((element) => Promise.allSettled(element.getAnimations().map((animation) => animation.finished)))
   const sourceBeforeScroll = await source.boundingBox()
+  const fieldBox = await fields.boundingBox()
+  assert(sourceBeforeScroll && fieldBox && fieldBox.y >= sourceBeforeScroll.y + sourceBeforeScroll.height)
   const fieldScroll = fields.getByLabel("Field list", { exact: true })
   await fieldScroll.evaluate((element) => { element.scrollTop = element.scrollHeight })
   assert(await fieldScroll.evaluate((element) => element.scrollTop > 0))
@@ -400,6 +402,14 @@ try {
   assert(compactBox && compactBox.x >= 0 && compactBox.y >= 0 &&
     compactBox.x + compactBox.width <= 720 && compactBox.y + compactBox.height <= 480)
   assert(await fields.evaluate((element) => element.scrollWidth <= element.clientWidth))
+  const compactList = await fields.getByLabel("Field list", { exact: true }).boundingBox()
+  const compactEditor = await dialog.getByLabel("Filter editor", { exact: true }).boundingBox()
+  const compactSource = await source.boundingBox()
+  assert(compactEditor && compactSource && compactSource.y >= compactEditor.y &&
+    compactSource.y + compactSource.height <= compactEditor.y + compactEditor.height)
+  const firstField = await fields.getByRole("button", { name: "Copy entity_id query field", exact: true }).boundingBox()
+  assert(compactList && firstField && firstField.y >= compactList.y &&
+    firstField.y + firstField.height <= compactList.y + compactList.height)
   assert(await dialog.getByRole("button", { name: "Apply", exact: true }).isVisible())
   await page.screenshot({ path: join(output, "field-reference-minimum.png") })
   await dialog.getByRole("button", { name: "Fields", exact: true }).click()

@@ -56,9 +56,10 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
         finalFocus={() => (c.hostClosing ? false : entry.current)}
         className={cn(
           "flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] flex-col sm:max-w-2xl",
-          reference && "h-[min(38rem,calc(100dvh-2rem))] sm:max-w-5xl",
+          reference && "h-[min(38rem,calc(100dvh-2rem))]",
         )}
         aria-describedby="filter-description"
+        data-field-reference-open={reference}
       >
         <DialogHeader className="pr-8">
           <div className="flex flex-wrap items-center gap-3">
@@ -71,13 +72,13 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
             Write a query or load a saved preset. Apply once, or save it for reuse.
           </DialogDescription>
         </DialogHeader>
-        <div className={cn(
-          "grid min-h-0 flex-1 grid-cols-1 gap-4",
-          reference && "sm:grid-cols-[minmax(0,1fr)_16rem] lg:grid-cols-[minmax(0,1fr)_20rem]",
-        )}>
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
           <ScrollArea
-            className={cn("min-h-0 min-w-0", reference && "max-sm:hidden")}
-            viewportProps={{ "aria-label": "Filter editor", className: "overscroll-contain" }}
+            className={cn("min-h-0 min-w-0", reference ? "max-h-[min(23rem,calc(100dvh-18rem))] shrink-0" : "flex-1")}
+            viewportProps={{
+              "aria-label": "Filter editor",
+              className: cn("overscroll-contain", reference && "max-h-[min(23rem,calc(100dvh-18rem))]"),
+            }}
             scrollbarProps={{ className: "data-vertical:w-1.5" }}
           >
             <div className="flex flex-col gap-3 px-1 pr-3 pb-1">
@@ -128,7 +129,6 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                     disabled={c.busy}
                     change={(text) => c.edit({ ...c.draft, source: { ...c.draft.source, text } })}
                     reveal={reveal}
-                    expanded={reference}
                   />
                 </Field>
               </FieldGroup>
@@ -197,7 +197,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
             </div>
           </ScrollArea>
           {reference && (
-            <FieldReference coordinator={c} close={closeReference} />
+            <FieldReference coordinator={c} />
           )}
         </div>
         <DialogFooter className="flex-row flex-wrap items-center">

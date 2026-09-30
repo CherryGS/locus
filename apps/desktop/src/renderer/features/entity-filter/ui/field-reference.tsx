@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ArrowLeftIcon, SearchIcon } from "lucide-react"
+import { SearchIcon } from "lucide-react"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Button } from "@/shared/ui/button"
 import { CopyIdentityButton } from "@/shared/ui/copy-identity-button"
@@ -10,13 +10,7 @@ import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/shared/ui/popover"
 import type { FilterCoordinator } from "../model/filter-coordinator"
 
-export function FieldReference({
-  coordinator: c,
-  close,
-}: {
-  coordinator: FilterCoordinator
-  close: () => void
-}) {
+export function FieldReference({ coordinator: c }: { coordinator: FilterCoordinator }) {
   const [find, setFind] = useState("")
   const groups = new Map<string, NonNullable<typeof c.catalogue>["fields"]>()
   const query = find.trim().toLocaleLowerCase()
@@ -28,51 +22,46 @@ export function FieldReference({
     <aside
       id="filter-field-reference"
       aria-label="Field reference"
-      className="flex min-h-0 min-w-0 flex-col gap-3 sm:border-l sm:pl-4"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 border-t pt-3"
     >
-      <div className="flex shrink-0 items-center justify-between gap-2">
-        <h3 className="text-sm font-medium">Fields</h3>
-        <div className="flex items-center gap-1">
-          <Popover>
-            <PopoverTrigger render={<Button variant="ghost" size="sm" />}>Syntax</PopoverTrigger>
-            <PopoverContent align="end">
-              <PopoverTitle>Query syntax</PopoverTitle>
-              {c.language?.syntax.map((syntax) => (
-                <p key={syntax} className="text-xs text-muted-foreground">{syntax}</p>
-              ))}
-              {c.helpError && (
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    {c.helpError}
-                    <Button size="sm" variant="outline" onClick={() => void c.readHelp()}>Retry help</Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-            </PopoverContent>
-          </Popover>
-          <Button variant="ghost" size="icon-sm" className="sm:hidden" aria-label="Back to query" onClick={close}>
-            <ArrowLeftIcon />
-          </Button>
-        </div>
+      <h3 className="sr-only">Fields</h3>
+      <div className="flex shrink-0 items-center gap-3">
+        <Field className="min-w-0 flex-1">
+          <FieldLabel htmlFor="filter-find" className="sr-only">Find fields</FieldLabel>
+          <InputGroup>
+            <InputGroupAddon><SearchIcon /></InputGroupAddon>
+            <InputGroupInput
+              id="filter-find"
+              placeholder="Search fields…"
+              value={find}
+              onChange={(event) => setFind(event.target.value)}
+            />
+          </InputGroup>
+        </Field>
+        <Popover>
+          <PopoverTrigger render={<Button variant="ghost" size="sm" />}>Syntax</PopoverTrigger>
+          <PopoverContent align="end">
+            <PopoverTitle>Query syntax</PopoverTitle>
+            {c.language?.syntax.map((syntax) => (
+              <p key={syntax} className="text-xs text-muted-foreground">{syntax}</p>
+            ))}
+            {c.helpError && (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  {c.helpError}
+                  <Button size="sm" variant="outline" onClick={() => void c.readHelp()}>Retry help</Button>
+                </AlertDescription>
+              </Alert>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
-      <Field className="shrink-0">
-        <FieldLabel htmlFor="filter-find" className="sr-only">Find fields</FieldLabel>
-        <InputGroup>
-          <InputGroupAddon><SearchIcon /></InputGroupAddon>
-          <InputGroupInput
-            id="filter-find"
-            placeholder="Search fields…"
-            value={find}
-            onChange={(event) => setFind(event.target.value)}
-          />
-        </InputGroup>
-      </Field>
       <ScrollArea
         className="min-h-0 flex-1"
         viewportProps={{ "aria-label": "Field list", className: "overscroll-contain" }}
         scrollbarProps={{ className: "data-vertical:w-1.5" }}
       >
-        <div className="flex flex-col gap-3 pr-3 pb-1">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-3 pr-3 pb-1 sm:grid-cols-2">
           {c.cataloguePending && <p role="status" className="text-xs text-muted-foreground">Loading fields…</p>}
           {c.catalogueError && (
             <Alert variant="destructive">

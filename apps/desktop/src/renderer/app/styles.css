@@ -119,6 +119,13 @@ a, button, input, select, textarea {
   -webkit-app-region: no-drag;
 }
 
+@media (max-height: 600px) {
+  [data-field-reference-open="true"] .filter-source {
+    min-height: 5rem;
+    max-height: 6rem;
+  }
+}
+
 @layer components {
   .filter-source::-webkit-scrollbar {
     width: 6px;
