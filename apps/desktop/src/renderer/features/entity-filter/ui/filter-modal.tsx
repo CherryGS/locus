@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/shared/ui/dialog"
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/shared/ui/field"
+import { Field, FieldGroup, FieldLabel } from "@/shared/ui/field"
 import { Input } from "@/shared/ui/input"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Badge } from "@/shared/ui/badge"
@@ -19,6 +19,7 @@ import { Spinner } from "@/shared/ui/spinner"
 import type { FilterCoordinator } from "../model/filter-coordinator"
 import { RawSourceInput } from "./raw-source-input"
 import { PresetPicker } from "./preset-picker"
+import { PresetOptions } from "./preset-options"
 import { IndexStatus } from "./filter-feedback"
 
 export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator }) {
@@ -26,7 +27,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
   useEffect(() => () => c.close(), [c])
   const actions = useRef<DialogRootActions | null>(null),
     entry = useRef<HTMLButtonElement>(null)
-  const [naming, setNaming] = useState<"save-as" | "rename" | "delete">(),
+  const [naming, setNaming] = useState<"save" | "save-as" | "rename" | "delete">(),
     [name, setName] = useState(""),
     [find, setFind] = useState(""),
     [reveal, setReveal] = useState<number>()
@@ -49,30 +50,24 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
         Filter{c.filtered ? " · applied" : ""}
       </DialogTrigger>
       <DialogContent
-        showCloseButton={false}
         finalFocus={() => (c.hostClosing ? false : entry.current)}
-        className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-4xl"
+        className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-2xl"
         aria-describedby="filter-description"
       >
-        <DialogHeader>
-          <DialogTitle>Filter Entities</DialogTitle>
-          <DialogDescription id="filter-description">
-            Write a query, reuse a library preset, or apply a temporary draft.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto px-1 pb-1">
-          <div className="flex flex-wrap items-center gap-2">
+        <DialogHeader className="pr-8">
+          <div className="flex flex-wrap items-center gap-3">
+            <DialogTitle>Filter Entities</DialogTitle>
             <Badge variant="secondary">
               {c.dirty ? "Unsaved draft" : c.saved ? "Saved preset" : "New draft"}
             </Badge>
-            <span className="text-xs text-muted-foreground">
-              {c.established
-                ? `${c.filtered ? "Filtered" : "Library"} · ${c.sequence!.length.toLocaleString()} Entities`
-                : "No complete result"}
-            </span>
           </div>
+          <DialogDescription id="filter-description" className="sr-only">
+            Write a query or load a saved preset. Apply once, or save it for reuse.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto px-1 pb-1">
           <FieldGroup>
-            <div className="flex flex-wrap items-end gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <PresetPicker
                 presets={c.presets}
                 selected={c.saved}
@@ -86,32 +81,21 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
               <Button variant="outline" disabled={c.busy} onClick={() => c.requestSwitch(null)}>
                 New
               </Button>
-              <Button
-                variant="ghost"
-                disabled={!c.saved || c.busy}
-                onClick={() => {
-                  setName(c.saved!.name)
-                  setNaming("rename")
+              <PresetOptions
+                coordinator={c}
+                onAction={(action) => {
+                  setName(action === "rename" ? c.saved!.name : "")
+                  setNaming(action)
                 }}
-              >
-                Rename
-              </Button>
-              <Button variant="ghost" disabled={!c.saved || c.busy} onClick={() => setNaming("delete")}>
-                Delete preset
-              </Button>
-            </div>
-            <Field>
-              <FieldLabel htmlFor="filter-name">Preset name</FieldLabel>
-              <Input
-                id="filter-name"
-                value={c.draft.name}
-                disabled={c.busy}
-                onChange={(e) => c.edit({ ...c.draft, name: e.target.value })}
-                placeholder="Optional until Save"
               />
-            </Field>
+            </div>
             <Field data-invalid={analysis?.state === "invalid"}>
-              <FieldLabel htmlFor="filter-source">Query source</FieldLabel>
+              <div className="flex items-center justify-between gap-2">
+                <FieldLabel htmlFor="filter-source">Query</FieldLabel>
+                <Button size="sm" variant="ghost" disabled={c.busy} onClick={() => c.clear()}>
+                  Clear
+                </Button>
+              </div>
               <RawSourceInput
                 source={c.draft.source}
                 analysis={analysis}
@@ -119,10 +103,6 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                 change={(text) => c.edit({ ...c.draft, source: { ...c.draft.source, text } })}
                 reveal={reveal}
               />
-              <FieldDescription>
-                {c.draft.source.format || "Reading source profile…"} · version {c.draft.source.version}. Plain
-                native query text. Your formatting is preserved.
-              </FieldDescription>
             </Field>
           </FieldGroup>
           <div aria-live="polite" className="flex flex-col gap-2">
@@ -132,9 +112,9 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
               analysis && (
                 <p className="text-xs text-muted-foreground">
                   {analysis.state === "valid"
-                    ? "Source validated; data-dependent execution is checked on Apply."
+                    ? "Query valid"
                     : analysis.state === "empty"
-                      ? "Empty source uses ordinary library enumeration."
+                      ? "Empty query shows all Entities."
                       : `Source ${analysis.state}`}
                 </p>
               )
@@ -192,6 +172,10 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
           <details>
             <summary className="cursor-pointer text-sm text-muted-foreground">Fields and syntax</summary>
             <div className="mt-3 flex flex-col gap-3">
+              <p className="text-xs text-muted-foreground">
+                {c.draft.source.format || "Reading source profile…"} · version {c.draft.source.version}.
+                Plain query text; formatting is preserved. Execution is checked on Apply.
+              </p>
               {c.cataloguePending && <p>Reading catalogue…</p>}
               {c.catalogueError && (
                 <Alert variant="destructive">
@@ -250,25 +234,23 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
           </details>
           <IndexStatus coordinator={c} />
         </div>
-        <DialogFooter>
-          <Button variant="outline" disabled={c.busy} onClick={() => c.clear()}>
-            Clear
-          </Button>
+        <DialogFooter className="flex-row flex-wrap items-center">
+          <span className="mr-auto text-xs text-muted-foreground">
+            {c.established
+              ? `${c.filtered ? "Filtered" : "Library"} · ${c.sequence!.length.toLocaleString()} Entities`
+              : "No complete result"}
+          </span>
           <Button
             variant="outline"
             disabled={c.busy}
             onClick={() => {
-              setName("")
-              setNaming("save-as")
+              if (!c.saved && !c.draft.name.trim()) {
+                setName("")
+                setNaming("save")
+              } else void c.save()
             }}
           >
-            Save As
-          </Button>
-          <Button variant="outline" disabled={c.busy} onClick={() => void c.save()}>
             {c.saving && <Spinner data-icon="inline-start" />}Save
-          </Button>
-          <Button variant="outline" onClick={() => c.close()}>
-            Close
           </Button>
           <Button disabled={c.busy} onClick={() => void c.apply()}>
             {c.pending === "apply" && <Spinner data-icon="inline-start" />}Apply
@@ -311,7 +293,9 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                   ? `Delete “${c.saved?.name}”?`
                   : naming === "rename"
                     ? "Rename preset"
-                    : "Save As"}
+                    : naming === "save"
+                      ? "Save preset"
+                      : "Save As"}
               </DialogTitle>
               <DialogDescription>
                 {naming === "delete"

@@ -64,9 +64,9 @@ try {
   await source.fill('@name("removed", entity_id:*)')
   await dialog.getByRole("button", { name: /Unsupported reserved call/ }).waitFor()
   await source.fill('"@sql(literal)"')
-  await dialog.getByText("Source validated; data-dependent execution is checked on Apply.", { exact: true }).waitFor()
+  await dialog.getByText("Query valid", { exact: true }).waitFor()
   await source.fill('entity_id:IN ["" " " "a  b" "a · b"]')
-  await dialog.getByText("Source validated; data-dependent execution is checked on Apply.", { exact: true }).waitFor()
+  await dialog.getByText("Query valid", { exact: true }).waitFor()
   assert.equal(await dialog.getByLabel("Parsed interpretation").count(), 0)
   // Explicit delayed analysis fault: an older valid response cannot clear a newer error.
   let releaseAnalysis!: () => void, analysisReceived!: () => void
@@ -107,16 +107,30 @@ try {
   await page.unroute("**/api/v1/filter/analyze")
   await dialog.getByRole("button", { name: "Retry analysis", exact: true }).click()
   await dialog
-    .getByText("Source validated; data-dependent execution is checked on Apply.", { exact: true })
+    .getByText("Query valid", { exact: true })
     .waitFor()
   await source.fill("model_tensor_count:*\nAND file_byte_count:[0 TO *]")
   await dialog
-    .getByText("Source validated; data-dependent execution is checked on Apply.", { exact: true })
+    .getByText("Query valid", { exact: true })
     .waitFor()
   await source.click()
-  await dialog.getByLabel("Preset name", { exact: true }).fill("Models")
+  await dialog.getByRole("button", { name: "Save", exact: true }).click()
+  await page.getByRole("dialog", { name: "Save preset", exact: true })
+    .getByRole("button", { name: "Cancel", exact: true }).click()
+  assert.equal(await source.inputValue(), "model_tensor_count:*\nAND file_byte_count:[0 TO *]")
+  await dialog.getByRole("button", { name: "Preset options", exact: true }).click()
+  await page.getByRole("button", { name: "Save As", exact: true }).click()
+  await page.getByRole("dialog", { name: "Save As", exact: true })
+    .getByRole("button", { name: "Cancel", exact: true }).click()
+  await page.waitForFunction(
+    () => document.activeElement?.getAttribute("aria-label") === "Preset options",
+  )
+  await dialog.getByRole("button", { name: "Preset options", exact: true }).click()
+  await page.getByLabel("Preset name", { exact: true }).fill("Models")
+  await page.keyboard.press("Escape")
+  assert(await dialog.isVisible())
   await dialog
-    .getByText("Source validated; data-dependent execution is checked on Apply.", { exact: true })
+    .getByText("Query valid", { exact: true })
     .waitFor()
   await source.scrollIntoViewIfNeeded()
   await page.screenshot({ path: join(output, "filter-normal.png") })
@@ -335,13 +349,14 @@ try {
   await page.unroute("**/api/v1/search/status")
   await dialog.getByRole("button", { name: "Check index status", exact: true }).click()
   await dialog.getByText(/Index ready/).waitFor()
+  await dialog.getByText(/Index ready/).click()
   await dialog.getByRole("button", { name: "Rebuild index", exact: true }).click()
   assert.equal(await page.locator("[data-entity-count]").getAttribute("data-entity-count"), "1")
   const box = await dialog.boundingBox()
   assert(box && box.y >= 0 && box.y + box.height <= 480)
   await source.fill("model_tensor_count:*\nAND file_byte_count:[0 TO *]")
   await dialog
-    .getByText("Source validated; data-dependent execution is checked on Apply.", { exact: true })
+    .getByText("Query valid", { exact: true })
     .waitFor()
   await source.scrollIntoViewIfNeeded()
   await page.screenshot({ path: join(output, "filter-minimum.png") })
@@ -456,13 +471,8 @@ try {
   await dialog.getByRole("button", { name: "Load preset" }).click()
   await picker.getByRole("button", { name: "Load Raw fidelity", exact: true }).click()
   await guard.getByRole("button", { name: "Discard", exact: true }).click()
-  await dialog
-    .getByLabel("Preset name", { exact: true })
-    .evaluate((element: HTMLInputElement) => element.value)
+  await dialog.getByRole("button", { name: "Load preset", exact: true }).getByText("Raw fidelity", { exact: true }).waitFor()
   await source.waitFor()
-  await page.waitForFunction(
-    () => (document.querySelector("#filter-name") as HTMLInputElement)?.value === "Raw fidelity",
-  )
   await page.waitForFunction(() => document.activeElement?.id === "filter-preset")
   assert.equal(await source.inputValue(), raw.replaceAll("\r\n", "\n"))
   await dialog.getByRole("button", { name: "Save", exact: true }).click()
@@ -473,7 +483,7 @@ try {
   assert.equal(await readRaw(), raw)
   await open()
   await dialog
-    .getByText("Source validated; data-dependent execution is checked on Apply.", { exact: true })
+    .getByText("Query valid", { exact: true })
     .waitFor()
   await dialog.getByRole("button", { name: "Load preset" }).click()
   await picker.getByRole("textbox", { name: "Search presets" }).fill("No such preset")

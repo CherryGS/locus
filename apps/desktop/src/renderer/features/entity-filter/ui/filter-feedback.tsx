@@ -7,61 +7,68 @@ import type { FilterCoordinator } from "../model/filter-coordinator"
 
 export function IndexStatus({ coordinator: c }: { coordinator: FilterCoordinator }) {
   const status = c.status
+  const attention = !!(
+    c.statusError || status?.failure || (status && !status.usable) ||
+    c.maintenancePending || c.maintenanceError
+  )
   return (
-    <div className="flex flex-col gap-2" aria-label="Search index status">
-      <p className="text-xs text-muted-foreground">
+    <details open={attention || undefined} aria-label="Search index status">
+      <summary className="cursor-pointer text-xs text-muted-foreground">
         {c.statusError
           ? `Index status unknown: ${c.statusError}`
           : status
             ? `Index ${humanize(status.state)} · ${status.usable ? "search available" : "search unavailable"}${status.total ? ` · ${status.completed} / ${status.total} Entities` : ""}`
             : "Reading index status…"}
-      </p>
-      {!c.statusError && status?.failure && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {status.failure}
-            {" New queries require aligned data; your established result is retained."}
-          </AlertDescription>
-        </Alert>
-      )}
-      {!c.statusError && status && (
-        <p className="text-xs text-muted-foreground">
-          {status.covered_sequence !== status.journal_head
-            ? "Recent changes are waiting to be indexed. "
-            : ""}
-          Index updates keep your current result unchanged; use Refresh when you want to update it.
-        </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="ghost" disabled={c.statusPending} onClick={() => void c.readStatus()}>
-          Check index status
-        </Button>
-        {!c.statusError && status && (!status.usable || !!status.failure) && (
+        {!c.statusError && status && status.covered_sequence !== status.journal_head && " · updates pending"}
+      </summary>
+      <div className="mt-3 flex flex-col gap-2">
+        {!c.statusError && status?.failure && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              {status.failure}
+              {" New queries require aligned data; your established result is retained."}
+            </AlertDescription>
+          </Alert>
+        )}
+        {!c.statusError && status && (
+          <p className="text-xs text-muted-foreground">
+            {status.covered_sequence !== status.journal_head
+              ? "Recent changes are waiting to be indexed. "
+              : ""}
+            Index updates keep your current result unchanged; use Refresh when you want to update it.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="ghost" disabled={c.statusPending} onClick={() => void c.readStatus()}>
+            Check index status
+          </Button>
+          {!c.statusError && status && (!status.usable || !!status.failure) && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!!c.maintenancePending}
+              onClick={() => void c.maintain("retry")}
+            >
+              Retry indexing
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
             disabled={!!c.maintenancePending}
-            onClick={() => void c.maintain("retry")}
+            onClick={() => void c.maintain("rebuild")}
           >
-            Retry indexing
+            Rebuild index
           </Button>
+        </div>
+        {c.maintenancePending && <p role="status">Requesting index {c.maintenancePending}…</p>}
+        {c.maintenanceError && (
+          <Alert variant="destructive">
+            <AlertDescription>Index maintenance: {c.maintenanceError}</AlertDescription>
+          </Alert>
         )}
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!!c.maintenancePending}
-          onClick={() => void c.maintain("rebuild")}
-        >
-          Rebuild index
-        </Button>
       </div>
-      {c.maintenancePending && <p role="status">Requesting index {c.maintenancePending}…</p>}
-      {c.maintenanceError && (
-        <Alert variant="destructive">
-          <AlertDescription>Index maintenance: {c.maintenanceError}</AlertDescription>
-        </Alert>
-      )}
-    </div>
+    </details>
   )
 }
 export function FilterResultStatus({ coordinator: c }: { coordinator: FilterCoordinator }) {
