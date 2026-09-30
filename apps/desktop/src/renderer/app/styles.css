@@ -120,6 +120,23 @@ a, button, input, select, textarea {
 }
 
 @layer components {
+  .filter-source::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .filter-source::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .filter-source::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+  }
+  .filter-source:hover::-webkit-scrollbar-thumb {
+    background: var(--muted-foreground);
+  }
+  .filter-source::-webkit-scrollbar-button {
+    display: none;
+  }
   .civitai-rich-text {
     @apply min-w-0 text-sm leading-7 [overflow-wrap:anywhere];
   }
