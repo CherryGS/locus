@@ -11,8 +11,8 @@
 
 ## Subagent preferences
 
-- Use `gpt-6-astra` with `medium` reasoning for coder subagents.
-- Use `gpt-6-astra` with `high` reasoning for all other subagents.
+- Use `gpt-6.1-sol` with `high` reasoning for subagents by default.
+- Use `gpt-6-astra` with `high` reasoning for challenging subagents.
 
 ## Project authority
 
