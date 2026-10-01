@@ -10,7 +10,12 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
     await source.fill("")
     await source.pressSequentially(text)
   }
-  const exited = () => panel.waitFor({ state: "hidden" })
+  const exited = async () => {
+    // A provisional helper can await its first owner reply before showing a
+    // popup. Hidden content alone does not mean asynchronous Enter has finished.
+    await page.waitForFunction(() => !document.getElementById("filter-source")?.hasAttribute("aria-controls"))
+    await panel.waitFor({ state: "hidden" })
+  }
   const field = catalogue.fields.find((f) => f.id === "civitai_file_name")!
   assert(field && field.assistance === "strings")
 
@@ -84,6 +89,77 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
   await source.evaluate((element: HTMLTextAreaElement) => { element.scrollTop = element.scrollHeight })
   await observed.first().waitFor()
   assert((await source.inputValue()).includes(`@${field.native_exact}:`), "Scrolling cannot finish the helper")
+  await source.press("Escape"); await exited()
+
+  // Keep the existing menu visible, inert and still while both owner requests
+  // are in flight. Sample rendered frames, not only the final settled screenshot.
+  await type(`@${field.native_exact}:`)
+  await observed.first().waitFor()
+  await panel.getByText("Writing help", { exact: true }).waitFor()
+  const stable = await panel.boundingBox()
+  assert(stable)
+  const gate = () => {
+    let resolve!: () => void
+    const promise = new Promise<void>((done) => { resolve = done })
+    return { promise, resolve }
+  }
+  const editingGate = gate(), valuesGate = gate(), editingSeen = gate(), valuesSeen = gate()
+  let edits = 0, valueReads = 0, helpReads = 0
+  const countHelp = (request: import("playwright").Request) => {
+    if (new URL(request.url()).pathname === "/api/v1/filter/help") helpReads++
+  }
+  page.on("request", countHelp)
+  await page.route("**/api/v1/filter/editing", async (route) => {
+    edits++
+    const response = await route.fetch()
+    editingSeen.resolve(); await editingGate.promise; await route.fulfill({ response })
+  })
+  await page.route("**/api/v1/search/strings", async (route) => {
+    valueReads++
+    const response = await route.fetch()
+    valuesSeen.resolve(); await valuesGate.promise; await route.fulfill({ response })
+  })
+  const stablePendingFrames = async () => {
+    const frames = await panel.evaluate(async (element) => {
+      const samples = []
+      for (let i = 0; i < 16; i++) {
+        await new Promise(requestAnimationFrame)
+        const rect = element.getBoundingClientRect()
+        samples.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height,
+          visible: getComputedStyle(element).visibility, opacity: getComputedStyle(element).opacity,
+          busy: element.getAttribute("aria-busy"), connected: element.isConnected })
+      }
+      return samples
+    })
+    assert(frames.every((frame) => frame.connected && frame.visible === "visible" && frame.opacity === "1" &&
+      frame.busy === "true" && Math.abs(frame.x - stable.x) < 1 && Math.abs(frame.y - stable.y) < 1 &&
+      Math.abs(frame.height - stable.height) < 1 && Math.abs(frame.width - stable.width) < 1),
+      `Pending completion must not blink, collapse or move: ${JSON.stringify(frames)}`)
+    assert.equal(await observed.count(), 3)
+    assert.equal(await observed.first().getAttribute("aria-disabled"), "true")
+  }
+  try {
+    await source.pressSequentially("B")
+    await editingSeen.promise
+    await stablePendingFrames()
+    editingGate.resolve()
+    await valuesSeen.promise
+    await stablePendingFrames()
+    valuesGate.resolve()
+    await page.waitForFunction(() => document.querySelectorAll('#filter-assistance button[aria-label^="Use value "]').length === 1 &&
+      document.getElementById("filter-assistance")?.getAttribute("aria-busy") === "false")
+    assert.equal(edits, 1, "One physical input must not also fetch for its selection event")
+    assert.equal(valueReads, 1)
+    assert.equal(helpReads, 0, "The current field's help stays cached")
+    await source.press("Tab")
+    await page.waitForFunction(() => (document.getElementById("filter-source") as HTMLTextAreaElement)?.value.endsWith(':"B.safetensors"'))
+  } finally {
+    editingGate.resolve(); valuesGate.resolve()
+    // These are the fixture's only active routes. Drain the follow-up reads
+    // started by literal acceptance before removing their handlers.
+    await page.unrouteAll({ behavior: "wait" })
+    page.off("request", countHelp)
+  }
   await source.press("Escape"); await exited()
 
   // Native manual text stays unquoted and incomplete syntax stays recoverable.

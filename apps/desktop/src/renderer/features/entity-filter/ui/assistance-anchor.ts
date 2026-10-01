@@ -5,9 +5,11 @@ type Anchor = { getBoundingClientRect: () => DOMRect; contextElement: HTMLTextAr
 // Textareas expose selection offsets but no caret rectangle. A hidden layout
 // mirror preserves their actual wrapping, typography and scrolling; it never
 // interprets or changes query source. The popover owns collision handling.
-export function useAssistanceAnchor(input: RefObject<HTMLTextAreaElement | null>, active: boolean) {
+export function useAssistanceAnchor(input: RefObject<HTMLTextAreaElement | null>, active: boolean, position?: number) {
   const [anchor, setAnchor] = useState<Anchor | null>(null)
   const measure = useRef<() => void>(() => {})
+  const start = useRef(position)
+  start.current = position
   useLayoutEffect(() => {
     const element = input.current
     if (!active || !element) { setAnchor(null); return }
@@ -26,21 +28,26 @@ export function useAssistanceAnchor(input: RefObject<HTMLTextAreaElement | null>
         mirror.style.setProperty(property, style.getPropertyValue(property))
       mirror.style.boxSizing = "border-box"
       mirror.style.width = `${element.clientWidth + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth)}px`
-      mirror.textContent = element.value.slice(0, element.selectionStart)
-      marker.textContent = element.value.slice(element.selectionStart) || "\u200b"
-      mirror.append(marker)
       const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2
-      const x = box.left + element.clientLeft + marker.offsetLeft - element.scrollLeft
-      const y = box.top + element.clientTop + marker.offsetTop - element.scrollTop
-      const rect = new DOMRect(x, y, 1, lineHeight)
+      const rectangleAt = (offset: number) => {
+        mirror.textContent = element.value.slice(0, offset)
+        marker.textContent = element.value.slice(offset) || "\u200b"
+        mirror.append(marker)
+        return new DOMRect(box.left + element.clientLeft + marker.offsetLeft - element.scrollLeft,
+          box.top + element.clientTop + marker.offsetTop - element.scrollTop, 1, lineHeight)
+      }
+      const visible = (rect: DOMRect) => rect.bottom > box.top + element.clientTop &&
+        rect.top < box.top + element.clientTop + element.clientHeight && rect.left >= box.left && rect.left <= box.right
+      // Anchor to the current native field/value start, not every new character.
+      // When a long value scrolls its beginning away, follow the visible caret.
+      let rect = rectangleAt(start.current ?? element.selectionStart)
+      if (!visible(rect)) rect = rectangleAt(element.selectionStart)
       // Scrolling source away from the caret hides the menu without ending the
       // editing session. Typing/selection can reveal it again at the real caret.
-      const visible = y + lineHeight > box.top + element.clientTop && y < box.top + element.clientTop + element.clientHeight &&
-        x >= box.left && x <= box.right
       setAnchor((old) => {
-        if (!visible) return null
+        if (!visible(rect)) return null
         const previous = old?.getBoundingClientRect()
-        return previous?.x === x && previous.y === y && previous.height === lineHeight ? old :
+        return previous?.x === rect.x && previous.y === rect.y && previous.height === lineHeight ? old :
           { getBoundingClientRect: () => rect, contextElement: element }
       })
     }

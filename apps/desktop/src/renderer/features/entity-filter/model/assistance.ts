@@ -38,6 +38,7 @@ export class FilterAssistance {
   private acceptanceIntent = 0
   private observationFailure?: string
   private caretPosition = 0
+  private locationKey?: string
   constructor(
     private readonly api: AssistanceApi,
     private readonly source: () => Wire<"FilterSource">,
@@ -70,6 +71,7 @@ export class FilterAssistance {
     return result
   }
   get candidateCount() {
+    if (this.editing || this.loading) return 0
     return this.context?.kind === "field" ? this.fieldCandidates.length : this.candidates.length
   }
   input(text: string, caret: number, freshMarker?: number) {
@@ -97,17 +99,22 @@ export class FilterAssistance {
       this.exit()
     else this.recontext(position)
   }
-  private recontext(position: number) { this.caretPosition = position; this.locating = this.locate(position) }
+  private recontext(position: number, force = false) {
+    const key = JSON.stringify([this.session?.id, this.source(), position])
+    if (!force && key === this.locationKey) return
+    this.locationKey = key
+    this.caretPosition = position
+    this.locating = this.locate(position)
+  }
   private async locate(caret: number) {
     const session = this.session
     if (!session) return
     const source = structuredClone(this.source()), ticket = ++this.edit
-    this.context = undefined
-    this.observed = []
-    this.bounds = undefined
-    this.continuation = undefined
+    // Keep the previous presentation while the owner resolves this edit. It is
+    // not selectable until the current spans and observations have arrived.
+    // Clearing it on every input/selection event made the popup collapse and
+    // flip sides several times for a single keystroke.
     this.error = this.observationFailure
-    this.help = undefined; this.helpError = undefined; this.helpKey = undefined; this.helpSerial++
     this.editing = true
     this.loading = false
     this.discovery++
@@ -132,15 +139,21 @@ export class FilterAssistance {
       }
       session.confirmed = true
       session.end = Math.max(session.end, byteToRaw(source.text, context.condition_range?.end ?? marker + 1))
+      const previous = this.context
+      if (!previous || previous.field !== context.field || previous.reference !== context.reference || previous.kind !== context.kind) {
+        this.observed = []; this.bounds = undefined; this.continuation = undefined; this.noValues = false
+      }
       this.context = context
       this.editing = false
       this.readHelp(context.field ? context.reference || undefined : undefined)
-      this.changed()
       if (this.field?.assistance === "bounds" || this.field?.assistance === "strings" && context.kind === "value")
         void this.readDiscovery()
+      this.changed()
     } catch (error) {
       if (current()) {
         this.editing = false
+        this.context = undefined; this.observed = []; this.bounds = undefined; this.continuation = undefined
+        this.help = undefined; this.helpError = undefined; this.helpKey = undefined; this.helpSerial++
         this.error = `Editing assistance unavailable: ${errorText(error)}`
         this.changed()
       }
@@ -193,12 +206,12 @@ export class FilterAssistance {
   }
   async readDiscovery(more = false) {
     const session = this.session, context = this.context, field = this.field
-    if (!session || !field || !context || field.assistance === "manual") return
+    if (!session || !field || !context || this.editing || field.assistance === "manual") return
     if (this.observationFailure) return
     if (field.assistance === "strings" && (context.kind !== "value" || !context.value_range)) return
     const ticket = ++this.discovery, editing = this.edit
     this.loading = true; this.error = undefined
-    if (!more) { this.observed = []; this.bounds = undefined; this.continuation = undefined; this.noValues = false }
+    if (!more) this.noValues = false
     this.changed()
     const current = () => this.session === session && ticket === this.discovery && editing === this.edit
     try {
@@ -232,13 +245,14 @@ export class FilterAssistance {
     this.observed = []; this.bounds = undefined; this.continuation = undefined
     void this.readDiscovery()
   }
-  retry() { if (!this.context) this.recontext(this.caretPosition); else this.refresh() }
+  retry() { if (!this.context) this.recontext(this.caretPosition, true); else this.refresh() }
   move(direction: number) {
     const count = this.candidateCount
     if (!count) return false
     this.highlight = (this.highlight + direction + count) % count; this.changed(); return true
   }
   acceptHighlighted() {
+    if (this.editing || this.loading) return false
     if (this.context?.kind === "field") {
       const field = this.fieldCandidates[this.highlight]
       if (field) { this.acceptField(field); return true }
@@ -259,14 +273,14 @@ export class FilterAssistance {
     this.recontext(position)
   }
   acceptField(field: Field) {
-    if (!this.canEdit()) return
+    if (!this.canEdit() || this.editing) return
     const context = this.context
     if (!context?.field_range || context.kind !== "field" || !this.fields.includes(field)) return
     try { this.replace(context.field_range, field.native_exact + (context.separator_range ? "" : ":"), context.separator_range ? 1 : 0) }
     catch (error) { this.error = errorText(error); this.changed() }
   }
   acceptValue(value: string) {
-    if (!this.canEdit()) return Promise.resolve(false)
+    if (!this.canEdit() || this.editing || this.loading) return Promise.resolve(false)
     const pending = this.insertValue(value, ++this.acceptanceIntent)
     this.accepting = pending
     void pending.finally(() => { if (this.accepting === pending) this.accepting = undefined })
@@ -326,6 +340,7 @@ export class FilterAssistance {
     if (!this.session) return
     this.session = undefined; this.context = undefined; this.help = undefined; this.helpKey = undefined
     this.accepting = undefined; this.locating = undefined; this.selection = undefined
+    this.locationKey = undefined
     this.acceptanceIntent++
     this.observed = []; this.bounds = undefined; this.continuation = undefined; this.noValues = false
     this.error = undefined; this.helpError = undefined; this.loading = false; this.editing = false; this.observationFailure = undefined

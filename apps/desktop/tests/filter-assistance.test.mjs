@@ -55,6 +55,40 @@ test("fresh direct provenance survives fast typing and rejects stale lexical rep
   f.a.input("@loaded", 7)
   assert(!f.a.active)
 })
+
+test("typing retains presentation without accepting stale values or repeating identical caret requests", async (t) => {
+  let editingCalls = 0, helpCalls = 0
+  const nextContext = deferred(), nextPage = deferred()
+  const f = fixture({
+    filterEditing: () => ++editingCalls === 1 ? Promise.resolve(valueContext) : nextContext.promise,
+    filterHelp: async () => { helpCalls++; return { guidance: "Keep this help", examples: [] } },
+  })
+  t.after(() => f.a.exit())
+  f.a.input("@tag_names_exact:", 17, 0)
+  await delay(0)
+  const help = f.a.help
+  f.api.searchStrings = () => nextPage.promise
+  f.a.input("@tag_names_exact:n", 18)
+  f.a.caret(18)
+  assert.equal(editingCalls, 2, "The input and selection event share one owner request")
+  assert.equal(f.a.context, valueContext)
+  assert.deepEqual(f.a.observed, ["chosen"])
+  assert.equal(f.a.help, help)
+  assert.equal(await f.a.acceptValue("chosen"), false)
+  assert.equal(f.a.acceptHighlighted(), false)
+  nextContext.resolve({ ...valueContext, fragment: "n", value_range: { start: 17, end: 18 } })
+  await delay(0)
+  assert(f.a.loading)
+  assert.deepEqual(f.a.observed, ["chosen"])
+  assert.equal(await f.a.acceptValue("chosen"), false)
+  assert.equal(helpCalls, 1, "Unchanged field help is reused while typing")
+  nextPage.resolve({ values: ["new"], no_values: false })
+  await delay(0)
+  assert.deepEqual(f.a.observed, ["new"])
+  assert.equal(f.a.loading, false)
+  assert.equal(f.a.candidateCount, 1)
+  f.a.exit()
+})
 test("completion waits for owner eligibility and preserves an ineligible literal marker", async () => {
   const owner = deferred(), f = fixture({ filterEditing: () => owner.promise })
   f.a.input('"@', 2, 1)
