@@ -640,6 +640,7 @@ export class FilterCoordinator {
       if (!this.disposed) {
         this.catalogue = value
         this.assistance.fields = value.fields
+        this.assistance.updateHelp()
       }
     } catch (error) {
       if (!this.disposed) this.catalogueError = errorText(error)

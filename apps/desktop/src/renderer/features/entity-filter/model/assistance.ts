@@ -49,6 +49,10 @@ export class FilterAssistance {
   get active() { return !!this.session }
   get locked() { return !this.canEdit() }
   get field() { return this.fields.find((f) => f.id === this.context?.field) }
+  private get helpReference() {
+    return this.context?.kind === "field" ? this.fieldCandidates[this.highlight]?.native_exact :
+      this.context?.field ? this.context.reference || undefined : undefined
+  }
   get fieldCandidates() {
     const fragment = this.context?.fragment.toLowerCase() ?? ""
     return this.fields.filter((f) => [f.id, f.owner, f.native_exact, f.native_value]
@@ -145,7 +149,7 @@ export class FilterAssistance {
       }
       this.context = context
       this.editing = false
-      this.readHelp(context.field ? context.reference || undefined : undefined)
+      this.updateHelp()
       if (this.field?.assistance === "bounds" || this.field?.assistance === "strings" && context.kind === "value")
         void this.readDiscovery()
       this.changed()
@@ -176,7 +180,8 @@ export class FilterAssistance {
         }
       })
   }
-  retryHelp() { this.helpKey = undefined; this.readHelp(this.context?.reference || undefined) }
+  updateHelp() { if (this.session && this.context) this.readHelp(this.helpReference) }
+  retryHelp() { this.helpKey = undefined; this.updateHelp() }
   private release(context?: string) {
     if (context) void this.api.releaseSearchObservation(context).catch(() => {})
   }
@@ -249,7 +254,9 @@ export class FilterAssistance {
   move(direction: number) {
     const count = this.candidateCount
     if (!count) return false
-    this.highlight = (this.highlight + direction + count) % count; this.changed(); return true
+    this.highlight = (this.highlight + direction + count) % count
+    if (this.context?.kind === "field") this.updateHelp()
+    this.changed(); return true
   }
   acceptHighlighted() {
     if (this.editing || this.loading) return false

@@ -166,7 +166,7 @@ test("late help and values cannot repopulate a departed helper", async () => {
   assert.equal(f.a.observed.length, 0)
   assert.equal(f.source().text, "@tag_names_exact:")
 })
-test("identifier candidates use their native value tag and incomplete references use default help", async () => {
+test("identifier candidates use their native value tag and field previews use a real catalogue reference", async () => {
   let requestedHelp
   const f = fixture({ filterHelp: async (request) => { requestedHelp = request; return { guidance: "help", examples: [] } } })
   f.a.fields = [{ ...field, field_type: "identifier" }]
@@ -178,8 +178,32 @@ test("identifier candidates use their native value tag and incomplete references
   f.api.filterEditing = async () => ({ ...fieldContext, fragment: "ta", reference: "ta", field_range: { start: 1, end: 3 } })
   f.a.input("@ta", 3, 0)
   await delay(0)
+  assert.equal(requestedHelp.field, "tag_names_exact")
+  f.a.exit()
+  f.api.filterEditing = async () => ({ ...fieldContext, fragment: "unknown", reference: "unknown" })
+  f.a.input("@unknown", 8, 0)
+  await delay(0)
   assert.equal(requestedHelp.field, undefined)
   f.a.exit()
+})
+
+test("field examples follow keyboard highlight and reject an older preview reply", async (t) => {
+  const first = deferred(), second = deferred(), requested = []
+  const f = fixture({ filterEditing: async () => fieldContext,
+    filterHelp: (request) => { requested.push(request.field); return request.field === "tag_names_exact" ? first.promise : second.promise } })
+  t.after(() => f.a.exit())
+  f.a.fields = [field, { ...field, id: "file_name", native_exact: "file_name_exact", native_value: "file_name" }]
+  f.a.input("@", 1, 0)
+  await delay(0)
+  assert(f.a.move(1))
+  assert.deepEqual(requested, ["tag_names_exact", "file_name_exact"])
+  second.resolve({ reference: "file_name_exact", examples: ['file_name_exact:"name"'], guidance: "Current preview" })
+  await delay(0)
+  first.resolve({ reference: "tag_names_exact", examples: ['tag_names_exact:"tag"'], guidance: "Old preview" })
+  await delay(0)
+  assert.equal(f.a.help.reference, "file_name_exact")
+  assert.equal(f.source().text, "@", "Previewing must not insert a field")
+  assert.equal(f.captures(), 0, "Field previews do not start library discovery")
 })
 test("an exact declared choice leads matching suggestions and keeps observed provenance", async () => {
   const f = fixture({ filterEditing: async () => ({ ...valueContext, fragment: "Jpeg" }),

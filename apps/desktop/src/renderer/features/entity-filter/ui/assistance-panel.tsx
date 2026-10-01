@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from "react"
-import { RefreshCwIcon } from "lucide-react"
+import { BracesIcon, ChevronRightIcon, QuoteIcon, RefreshCwIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
@@ -30,6 +30,7 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
   }, [a.highlight, a.context?.kind, a.active])
   if (!a.active) return null
   const field = a.field, fields = a.context?.kind === "field", values = a.candidates
+  const examples = field?.assistance === "bounds" ? a.help?.examples : a.help?.examples.slice(0, 1)
   return (
     <Popover open={!!anchor && !!(a.context || a.error)} modal={false} onOpenChange={(_open, details) => {
       // The textarea/coordinator owns literal departure and direct actions.
@@ -54,10 +55,11 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
         onBlurCapture={(event) => {
           if (!a.locked && !(event.relatedTarget as Element | null)?.closest('[data-filter-helper-interaction], #filter-source')) a.exit()
         }}
-        onPointerDown={(event) => { if (!(event.target as Element).closest("summary")) event.preventDefault() }}>
+        onPointerDown={(event) => event.preventDefault()}>
         <div className="flex shrink-0 items-center gap-2 px-1">
+          <Badge variant={fields ? "secondary" : "outline"}>{fields ? "Field" : "Value"}</Badge>
           <div className="min-w-0 flex-1">
-            <PopoverTitle className="truncate">{fields ? "Fields" : field?.id ?? "Query assistance"}</PopoverTitle>
+            <PopoverTitle className="truncate">{fields ? "Choose a field" : a.context?.reference || "Native query"}</PopoverTitle>
             {field && !fields && <p className="text-xs text-muted-foreground">{field.owner} · {field.field_type} · {field.shape}{field.unit && ` · ${field.unit}`}</p>}
           </div>
           <div className="flex size-6 shrink-0 items-center justify-center">
@@ -71,6 +73,10 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
           viewportProps={{ ref: viewport, className: "max-h-[min(16rem,calc(var(--available-height)-6rem))] overscroll-contain",
             "aria-label": fields ? "Assisted fields" : "Assisted values" }}>
           <div className="flex flex-col gap-2 pr-2">
+            {!fields && a.help && <section aria-label="Value syntax" className="flex flex-col gap-1 px-1 pb-1 text-xs">
+              <p className="text-muted-foreground">{a.help.guidance.split(/(?<=\.)\s/)[0]}</p>
+              {examples?.map((example) => <code key={example} className="break-all whitespace-pre-wrap">{example}</code>)}
+            </section>}
             {fields && c.cataloguePending && <p role="status">Reading fields…</p>}
             {fields && c.catalogueError && <Alert variant="destructive"><AlertDescription>
               Fields unavailable: {c.catalogueError}<Button size="sm" variant="outline" onClick={() => void c.readCatalogue()}>Retry fields</Button>
@@ -78,15 +84,23 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
             {(fields || values.length > 0) && <div className="flex flex-col gap-1">
               {fields ? a.fieldCandidates.map((f, i) => <Button key={f.id} size="sm"
                 variant={a.highlight === i ? "secondary" : "ghost"} aria-current={a.highlight === i}
-                className="h-auto justify-start whitespace-normal py-1.5 text-left" aria-label={`Use field ${f.id}`}
+                className="h-auto items-start justify-start gap-2 whitespace-normal py-1.5 text-left" aria-label={`Use field ${f.id}`}
+                aria-describedby={a.highlight === i ? `filter-field-example-${i}` : undefined}
                 disabled={a.locked} aria-disabled={a.editing || undefined} onClick={() => a.acceptField(f)}>
-                <span className="flex min-w-0 flex-col items-start gap-0.5">
+                <BracesIcon data-icon="inline-start" />
+                <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
                   <span className="break-all">{f.native_exact}:</span><span className="text-xs text-muted-foreground">{f.owner} · {f.field_type} · {f.shape}{f.unit && ` · ${f.unit}`}</span>
+                  {a.highlight === i && <span id={`filter-field-example-${i}`} className="mt-1 flex h-12 w-full flex-col gap-0.5 text-xs text-muted-foreground">
+                    <span>Example</span>
+                    <code className="line-clamp-2 break-all">{a.help?.reference === f.native_exact ? a.help.examples[0] : a.helpError ? "Example unavailable" : "Reading example…"}</code>
+                  </span>}
                 </span>
+                <ChevronRightIcon data-icon="inline-end" />
               </Button>) : values.map((candidate, i) => <Button key={candidate.value} size="sm"
                 variant={a.highlight === i ? "secondary" : "ghost"} aria-current={a.highlight === i}
                 className="h-auto justify-start gap-3 whitespace-normal py-1.5 text-left" aria-label={`Use value ${candidate.value || "(empty)"}`}
                 disabled={a.locked} aria-disabled={a.editing || a.loading || undefined} onClick={() => void a.acceptValue(candidate.value)}>
+                <QuoteIcon data-icon="inline-start" />
                 <span className="min-w-0 flex-1 break-all whitespace-pre-wrap">{candidate.value || '"" (empty)'}</span>
                 <Badge variant="outline">{candidate.declared && candidate.observed ? "Declared · observed" : candidate.declared ? "Declared" : "Observed"}</Badge>
               </Button>)}
@@ -103,11 +117,6 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
               {a.bounds.minimum && a.bounds.maximum ? <>Observed library range: <span className="select-text">{a.bounds.minimum.value} – {a.bounds.maximum.value}</span>{field?.unit && ` ${field.unit}`}</> : "No observed values"}
             </p>}
             {a.continuation && <Button size="sm" variant="outline" disabled={a.editing || a.loading || a.locked} onClick={() => void a.readDiscovery(true)}>More values</Button>}
-            {a.help && <details className="px-1"><summary className="cursor-pointer text-xs text-muted-foreground">Writing help</summary>
-              <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground"><p>{a.help.guidance}</p>
-                {a.help.examples.map((example) => <code key={example} className="break-all whitespace-pre-wrap">{example}</code>)}
-              </div>
-            </details>}
             {a.helpError && <Alert variant="destructive"><AlertDescription>Writing help unavailable: {a.helpError}
               <Button size="sm" variant="outline" onClick={() => a.retryHelp()}>Retry writing help</Button>
             </AlertDescription></Alert>}

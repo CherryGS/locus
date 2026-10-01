@@ -42,6 +42,9 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
   await request
   await source.pressSequentially("civitai_file_name")
   await panel.getByRole("button", { name: "Use field civitai_file_name", exact: true }).waitFor()
+  await panel.getByRole("heading", { name: "Choose a field", exact: true }).waitFor()
+  await panel.getByText(`${field.native_exact}:"cat girl"`, { exact: true }).waitFor()
+  await page.screenshot({ path: join(output, "filter-assistance-fields.png"), animations: "disabled" })
   release()
   await delivery
   await page.unroute("**/api/v1/filter/editing")
@@ -49,6 +52,9 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
   await page.waitForFunction((reference) => (document.getElementById("filter-source") as HTMLTextAreaElement)?.value === `@${reference}:`, field.native_exact)
   const observed = panel.getByRole("button", { name: /^Use value / })
   await observed.first().waitFor()
+  await panel.getByText("Value", { exact: true }).waitFor()
+  await panel.getByRole("region", { name: "Value syntax" }).getByText(`${field.native_exact}:"cat girl"`, { exact: true }).waitFor()
+  assert.equal(await panel.locator("details").count(), 0, "Contextual examples need no expand/click step")
   const candidate = await observed.first().getAttribute("aria-label")
   assert(candidate)
   const popupBox = await panel.boundingBox(), inputBox = await source.boundingBox()
@@ -95,7 +101,7 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
   // are in flight. Sample rendered frames, not only the final settled screenshot.
   await type(`@${field.native_exact}:`)
   await observed.first().waitFor()
-  await panel.getByText("Writing help", { exact: true }).waitFor()
+  await panel.getByRole("region", { name: "Value syntax" }).waitFor()
   const stable = await panel.boundingBox()
   assert(stable)
   const gate = () => {
@@ -230,7 +236,7 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
   await panel.getByText(/Library observation unavailable:/).waitFor()
   await source.pressSequentially("a")
   await panel.getByText(/Library observation unavailable:/).waitFor()
-  await panel.getByText("Writing help", { exact: true }).waitFor()
+  await panel.getByRole("region", { name: "Value syntax" }).waitFor()
   await page.unroute("**/api/v1/search/observation")
   await panel.getByRole("button", { name: "Refresh values", exact: true }).click()
   await observed.first().waitFor()
@@ -297,7 +303,7 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
   await page.setViewportSize({ width: 1200, height: 800 })
 
   await type("@unknown_field:")
-  await panel.getByText("Writing help", { exact: true }).waitFor()
+  await panel.getByRole("region", { name: "Value syntax" }).waitFor()
   for (let i = 0; i < 12; i++) {
     await page.keyboard.press("Tab")
     if (await dialog.getByRole("button", { name: "Save", exact: true }).evaluate((element) => element === document.activeElement)) break
