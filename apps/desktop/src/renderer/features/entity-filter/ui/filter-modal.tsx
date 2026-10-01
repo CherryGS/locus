@@ -157,21 +157,9 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                   <AssistancePanel coordinator={c} inputRef={sourceInput} />
                 </Field>
               </FieldGroup>
-              <div aria-live="polite" className="flex min-h-4 flex-col gap-2">
-                {c.assistance.active ? (
-                  <p className="text-xs text-muted-foreground">Assisted editing · finish to validate source</p>
-                ) : c.analysisPending ? (
-                  <p className="text-xs text-muted-foreground">Analyzing current source…</p>
-                ) : (
-                  analysis && (
-                    <p className="text-xs text-muted-foreground">
-                      {analysis.state === "valid"
-                        ? "Query valid"
-                        : analysis.state === "empty"
-                          ? "All Entities"
-                          : `Source ${analysis.state}`}
-                    </p>
-                  )
+              <div aria-live="polite" className="flex flex-col gap-2 empty:hidden">
+                {analysis && analysis.state !== "valid" && analysis.state !== "empty" && (
+                  <p className="text-xs text-muted-foreground">Source {analysis.state}</p>
                 )}
                 {analysis?.diagnostics.map((d, i) => (
                   <Button

@@ -61,15 +61,23 @@ try {
     name: "Filter source",
     exact: true,
   })
+  const quietValidation = async () => {
+    assert.equal(await dialog.getByText(/^(Query valid|All Entities|Analyzing current source…|Assisted editing · finish to validate source)$/).count(), 0)
+  }
+  const validateSource = async (text: string) => {
+    const response = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/v1/filter/analyze" && response.request().postDataJSON().text === text)
+    await source.fill(text)
+    assert.equal((await (await response).json()).state, "valid")
+    await quietValidation()
+  }
   await checkFilterAssistance(page, dialog, source, catalogue, output)
   await source.fill("+entity_id:* unknown_field:value -entity_id:missing")
   await dialog.getByText("Source invalid", { exact: true }).waitFor()
   await source.fill('@name("removed", entity_id:*)')
   await dialog.getByRole("button", { name: /Unsupported reserved call/ }).waitFor()
-  await source.fill('"@sql(literal)"')
-  await dialog.getByText("Query valid", { exact: true }).waitFor()
-  await source.fill('entity_id:IN ["" " " "a  b" "a · b"]')
-  await dialog.getByText("Query valid", { exact: true }).waitFor()
+  await validateSource('"@sql(literal)"')
+  await validateSource('entity_id:IN ["" " " "a  b" "a · b"]')
   assert.equal(await dialog.getByLabel("Parsed interpretation").count(), 0)
   // Explicit delayed analysis fault: an older valid response cannot clear a newer error.
   let releaseAnalysis!: () => void, analysisReceived!: () => void
@@ -91,6 +99,7 @@ try {
   })
   await source.fill("entity_id:*")
   await firstAnalysis
+  await quietValidation()
   await source.fill("(")
   releaseAnalysis()
   await dialog.getByRole("button", { name: /Native syntax:/ }).waitFor()
@@ -108,14 +117,12 @@ try {
   await dialog.getByText("Source unavailable", { exact: true }).waitFor()
   assert.equal(await source.inputValue(), "entity_id:*")
   await page.unroute("**/api/v1/filter/analyze")
+  const recoveredAnalysis = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/filter/analyze")
   await dialog.getByRole("button", { name: "Retry analysis", exact: true }).click()
-  await dialog
-    .getByText("Query valid", { exact: true })
-    .waitFor()
-  await source.fill("model_tensor_count:*\nAND file_byte_count:[0 TO *]")
-  await dialog
-    .getByText("Query valid", { exact: true })
-    .waitFor()
+  assert.equal((await (await recoveredAnalysis).json()).state, "valid")
+  await dialog.getByText("Source unavailable", { exact: true }).waitFor({ state: "hidden" })
+  await quietValidation()
+  await validateSource("model_tensor_count:*\nAND file_byte_count:[0 TO *]")
   await source.click()
   // The catalogue scrolls below the raw editor without moving or editing it.
   const currentSource = await source.inputValue()
@@ -194,10 +201,9 @@ try {
   await dialog.getByRole("button", { name: "Filter options", exact: true }).click()
   await page.getByLabel("Preset name", { exact: true }).fill("Models")
   await page.keyboard.press("Escape")
+  await page.getByRole("dialog", { name: "Filter options", exact: true }).waitFor({ state: "hidden" })
   assert(await dialog.isVisible())
-  await dialog
-    .getByText("Query valid", { exact: true })
-    .waitFor()
+  await quietValidation()
   await source.scrollIntoViewIfNeeded()
   await page.screenshot({ path: join(output, "filter-normal.png") })
   await dialog.getByRole("button", { name: "Save", exact: true }).click()
@@ -424,10 +430,7 @@ try {
   assert.equal(await page.locator("[data-entity-count]").getAttribute("data-entity-count"), "1")
   const box = await dialog.boundingBox()
   assert(box && box.y >= 0 && box.y + box.height <= 480)
-  await source.fill("model_tensor_count:*\nAND file_byte_count:[0 TO *]")
-  await dialog
-    .getByText("Query valid", { exact: true })
-    .waitFor()
+  await validateSource("model_tensor_count:*\nAND file_byte_count:[0 TO *]")
   await source.scrollIntoViewIfNeeded()
   await page.screenshot({ path: join(output, "filter-minimum.png") })
   await dialog.getByRole("button", { name: "Fields", exact: true }).click()
@@ -571,9 +574,7 @@ try {
       .data!.source.text
   assert.equal(await readRaw(), raw)
   await open()
-  await dialog
-    .getByText("Query valid", { exact: true })
-    .waitFor()
+  await quietValidation()
   await dialog.getByRole("button", { name: "Load preset" }).click()
   await picker.getByRole("textbox", { name: "Search presets" }).fill("No such preset")
   await picker.getByText("No matching presets", { exact: true }).waitFor()
