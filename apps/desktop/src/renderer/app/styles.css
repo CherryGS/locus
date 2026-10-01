@@ -127,6 +127,21 @@ a, button, input, select, textarea {
 }
 
 @layer components {
+  .filter-dialog::-webkit-resizer {
+    background: transparent;
+  }
+  .filter-resize-hint {
+    opacity: 0;
+    transition: opacity 120ms;
+    background: linear-gradient(
+      135deg, transparent 55%, var(--muted-foreground) 55%,
+      var(--muted-foreground) 61%, transparent 61%, transparent 73%,
+      var(--muted-foreground) 73%, var(--muted-foreground) 79%, transparent 79%
+    );
+  }
+  .filter-dialog[data-resize-hover="true"] .filter-resize-hint {
+    opacity: 0.5;
+  }
   .filter-source::-webkit-scrollbar {
     width: 6px;
     height: 6px;

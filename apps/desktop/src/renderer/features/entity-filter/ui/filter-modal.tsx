@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { DialogRootActions } from "@base-ui/react/dialog"
-import { BookOpenIcon, FilterIcon, GripIcon } from "lucide-react"
+import { BookOpenIcon, FilterIcon } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/shared/ui/button"
 import {
@@ -33,10 +33,12 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
   const [naming, setNaming] = useState<"save" | "save-as" | "rename" | "delete">(),
     [name, setName] = useState(""),
     [reference, setReference] = useState(false),
+    [resizeHint, setResizeHint] = useState(false),
     [reveal, setReveal] = useState<number>()
   useLayoutEffect(() => {
     if (!c.open) {
       setNaming(undefined)
+      setResizeHint(false)
       if (c.hostClosing) actions.current?.unmount()
     }
   }, [c.open, c.hostClosing])
@@ -55,13 +57,21 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
       <DialogContent
         finalFocus={() => (c.hostClosing ? false : entry.current)}
         className={cn(
-          "flex max-h-[calc(100dvh-2rem)] w-[min(42rem,calc(100dvw-2rem))] flex-col",
+          "filter-dialog flex max-h-[calc(100dvh-2rem)] w-[min(42rem,calc(100dvw-2rem))] flex-col",
           reference
             ? "h-[min(44rem,calc(100dvh-2rem))] min-h-[min(32rem,calc(100dvh-2rem))] min-w-[min(30rem,calc(100dvw-2rem))] max-w-[calc(100dvw-2rem)] resize overflow-hidden sm:max-w-[calc(100dvw-2rem)]"
             : "sm:max-w-2xl",
         )}
         aria-describedby="filter-description"
         data-field-reference-open={reference}
+        data-resize-hover={reference && resizeHint}
+        onPointerMove={(event) => {
+          if (!reference) return
+          const box = event.currentTarget.getBoundingClientRect()
+          const next = event.clientX >= box.right - 16 && event.clientY >= box.bottom - 16
+          if (next !== resizeHint) setResizeHint(next)
+        }}
+        onPointerLeave={() => setResizeHint(false)}
       >
         <DialogHeader className="pr-8">
           <div className="flex flex-wrap items-center gap-3">
@@ -224,7 +234,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
             {c.pending === "apply" && <Spinner data-icon="inline-start" />}Apply
           </Button>
         </DialogFooter>
-        {reference && <GripIcon aria-hidden="true" className="pointer-events-none absolute right-1 bottom-1 size-3 rotate-45 text-muted-foreground" />}
+        {reference && <span aria-hidden="true" className="filter-resize-hint pointer-events-none absolute right-1 bottom-1 size-3" />}
         <Dialog
           open={!!c.guard}
           onOpenChange={(open) => {
