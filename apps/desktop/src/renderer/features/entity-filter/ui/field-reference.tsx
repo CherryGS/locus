@@ -2,13 +2,13 @@ import { useState } from "react"
 import { SearchIcon } from "lucide-react"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Button } from "@/shared/ui/button"
-import { CopyIdentityButton } from "@/shared/ui/copy-identity-button"
 import { Empty, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
 import { Field, FieldLabel } from "@/shared/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-group"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/shared/ui/popover"
 import type { FilterCoordinator } from "../model/filter-coordinator"
+import { FieldReferenceRow } from "./field-reference-row"
 
 export function FieldReference({ coordinator: c }: { coordinator: FilterCoordinator }) {
   const [find, setFind] = useState("")
@@ -22,7 +22,7 @@ export function FieldReference({ coordinator: c }: { coordinator: FilterCoordina
     <aside
       id="filter-field-reference"
       aria-label="Field reference"
-      className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 border-t pt-3"
+      className="@container flex min-h-0 min-w-0 flex-1 flex-col gap-3 border-t pt-3"
     >
       <h3 className="sr-only">Fields</h3>
       <div className="flex shrink-0 items-center gap-3">
@@ -56,12 +56,13 @@ export function FieldReference({ coordinator: c }: { coordinator: FilterCoordina
           </PopoverContent>
         </Popover>
       </div>
+      {/* Keep focus scrolling inside this viewport, rather than the resizable dialog. */}
       <ScrollArea
-        className="min-h-0 flex-1"
+        className="min-h-0 flex-1 overflow-clip"
         viewportProps={{ "aria-label": "Field list", className: "overscroll-contain" }}
         scrollbarProps={{ className: "data-vertical:w-1.5" }}
       >
-        <div className="grid grid-cols-1 gap-x-6 gap-y-3 pr-3 pb-1 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-3 pr-3 pb-1 @xl:grid-cols-2">
           {c.cataloguePending && <p role="status" className="text-xs text-muted-foreground">Loading fields…</p>}
           {c.catalogueError && (
             <Alert variant="destructive">
@@ -76,17 +77,19 @@ export function FieldReference({ coordinator: c }: { coordinator: FilterCoordina
               <h4 className="mb-1 text-xs font-medium text-muted-foreground">{owner}</h4>
               {fields.map((field) => (
                 <div key={field.id} data-field-id={field.id}>
-                  <div className="flex min-w-0 items-start gap-2">
-                    <CopyIdentityButton label={`${field.id} query field`} value={field.native_value} />
-                    <span className="shrink-0 pt-1 text-xs text-muted-foreground" title={`${field.field_type} · ${field.shape}${field.unit ? ` · ${field.unit}` : ""}`}>
-                      {field.unit ?? field.field_type}
-                    </span>
-                  </div>
+                  <FieldReferenceRow
+                    label={`${field.id} query field`}
+                    value={field.native_value}
+                    type={field.unit ?? field.field_type}
+                    description={`${field.field_type} · ${field.shape}${field.unit ? ` · ${field.unit}` : ""}`}
+                  />
                   {field.native_exact !== field.native_value && (
-                    <div className="flex min-w-0 items-start gap-2">
-                      <CopyIdentityButton label={`${field.id} exact field`} value={field.native_exact} />
-                      <span className="shrink-0 pt-1 text-xs text-muted-foreground">exact</span>
-                    </div>
+                    <FieldReferenceRow
+                      label={`${field.id} exact field`}
+                      value={field.native_exact}
+                      type="exact"
+                      description={`${field.field_type} · ${field.shape}`}
+                    />
                   )}
                 </div>
               ))}
