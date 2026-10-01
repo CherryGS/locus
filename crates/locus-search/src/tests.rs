@@ -25,11 +25,15 @@ impl Provider for FixtureProvider {
         KindId::from_uuid(uuid::Uuid::from_u128(1))
     }
     fn definitions(&self) -> Vec<FieldDefinition> {
-        vec![
+        let mut fields = vec![
             FieldDefinition::new("title", "fixture", FieldType::Text, Shape::Scalar),
             FieldDefinition::new("tags", "fixture", FieldType::Text, Shape::Collection),
             FieldDefinition::new("width", "fixture", FieldType::Uint, Shape::Scalar),
-        ]
+        ];
+        fields[0].assistance = Assistance::Strings;
+        fields[1].assistance = Assistance::Strings;
+        fields[2].assistance = Assistance::Bounds;
+        fields
     }
     fn project<'a>(&'a self, c: &'a mut Context, id: ComponentId) -> ProjectionFuture<'a> {
         Box::pin(async move {
@@ -534,4 +538,137 @@ async fn dropping_live_worker_retains_lifetime_and_stops_after_actual_work() {
     })
     .await
     .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn discovery_real_admission_snapshot_refresh_failure_release_expiry_and_rebuild() {
+    use crate::discovery::{BoundsRequest, StringPageRequest};
+    let root = tempfile::tempdir().unwrap();
+    let queue = TaskQueue::new();
+    let database = TaskDatabase::open(&queue, root.path().join("metadata.sqlite"))
+        .await
+        .unwrap();
+    let mut session = Session::open(root.path().join("metadata.sqlite"))
+        .await
+        .unwrap();
+    locus_migration::api::migrate(&mut session).await.unwrap();
+    sql(
+        &mut session,
+        "CREATE TABLE fixture(id BLOB PRIMARY KEY,title TEXT,tags TEXT,width TEXT)".into(),
+    )
+    .await;
+    let fail = Arc::new(AtomicBool::new(false));
+    let provider = FixtureProvider { fail: fail.clone() };
+    let kind = hex(provider.kind().as_bytes());
+    let search = SearchService::start(
+        root.path(),
+        queue,
+        database,
+        Kernel::new(),
+        vec![Arc::new(provider)],
+        Arc::new(()),
+    )
+    .unwrap();
+    ready(&search).await;
+    let empty = search.observation().await.unwrap();
+    let page = |context: &str, field: &str, fragment: &str, continuation: Option<String>| {
+        search.string_page(StringPageRequest {
+            context: context.into(),
+            field: field.into(),
+            fragment: fragment.into(),
+            continuation,
+            limit: Some(1),
+        })
+    };
+    assert!(page(&empty.context, "title", "", None).unwrap().no_values);
+    assert!(page(&empty.context, "entity_id", "", None).is_err());
+    let entity = EntityId::new();
+    let component = ComponentId::new();
+    let long = format!("{}é", "a".repeat(65534));
+    sql(&mut session,format!("INSERT INTO locus_core_comm_entity VALUES(X'{}');INSERT INTO locus_core_comm_component_registry VALUES(X'{}',X'{kind}');INSERT INTO fixture VALUES(X'{}','{long}','[\"Straße\",\"STRASSE\",\"\"]','18446744073709551615');INSERT INTO locus_core_rela_membership VALUES(X'{}',X'{kind}',X'{}');",hex(entity.as_bytes()),hex(component.as_bytes()),hex(component.as_bytes()),hex(entity.as_bytes()),hex(component.as_bytes()))).await;
+    let first = search.observation().await.unwrap();
+    assert_ne!(first.context, empty.context);
+    assert_eq!(first.generation, empty.generation);
+    let tags = page(&first.context, "tags", "", None).unwrap();
+    assert_eq!(tags.values, vec![""]);
+    assert!(tags.continuation.is_some());
+    assert_eq!(
+        search
+            .bounds(BoundsRequest {
+                context: first.context.clone(),
+                field: "width".into()
+            })
+            .unwrap()
+            .maximum,
+        Some(Value::Uint(u64::MAX.to_string()))
+    );
+    sql(&mut session,format!("UPDATE fixture SET title='new title',tags='[\"new\"]',width='0' WHERE id=X'{}';INSERT INTO locus_search_comm_invalidation(entity) VALUES(X'{}');UPDATE locus_search_comm_journal_identity SET head=(SELECT MAX(sequence) FROM locus_search_comm_invalidation) WHERE singleton=1;",hex(component.as_bytes()),hex(entity.as_bytes()))).await;
+    // First read of this field is after the write, but still sees the pinned original.
+    assert_eq!(
+        page(&first.context, "title", "", None).unwrap().values,
+        vec![long.clone()]
+    );
+    let continued = page(&first.context, "tags", "", tags.continuation).unwrap();
+    assert_eq!(continued.values, vec!["STRASSE"]);
+    let refresh = search.observation().await.unwrap();
+    assert_eq!(refresh.generation, first.generation);
+    assert_eq!(
+        page(&refresh.context, "title", "", None).unwrap().values,
+        vec!["new title"]
+    );
+    assert_eq!(
+        page(&empty.context, "title", "", None)
+            .unwrap()
+            .values
+            .len(),
+        0
+    );
+    let generation = search.status().generation;
+    search.rebuild().unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(20), async {
+        while search.status().generation == generation {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        page(&first.context, "title", "", None).unwrap().values,
+        vec![long]
+    );
+    fail.store(true, Ordering::SeqCst);
+    sql(&mut session,format!("INSERT INTO locus_search_comm_invalidation(entity) VALUES(X'{}');UPDATE locus_search_comm_journal_identity SET head=(SELECT MAX(sequence) FROM locus_search_comm_invalidation) WHERE singleton=1;",hex(entity.as_bytes()))).await;
+    assert!(search.observation().await.is_err());
+    fail.store(false, Ordering::SeqCst);
+    search.retry().unwrap();
+    let restored = search.observation().await.unwrap();
+    sql(
+        &mut session,
+        format!(
+            "DELETE FROM locus_core_comm_entity WHERE id=X'{}'",
+            hex(entity.as_bytes())
+        ),
+    )
+    .await;
+    let deleted = search.observation().await.unwrap();
+    assert!(page(&deleted.context, "title", "", None).unwrap().no_values);
+    assert_eq!(
+        page(&restored.context, "title", "", None).unwrap().values,
+        vec!["new title"]
+    );
+    search.release_observation(&first.context);
+    assert!(matches!(
+        page(&first.context, "title", "", None),
+        Err(SearchError::ContextUnavailable)
+    ));
+    search.expire_observations();
+    assert!(matches!(
+        page(&restored.context, "title", "", None),
+        Err(SearchError::ContextUnavailable)
+    ));
+    assert!(matches!(
+        page("foreign-run-context", "title", "", None),
+        Err(SearchError::ContextUnavailable)
+    ));
+    search.shutdown().await;
 }

@@ -8,7 +8,7 @@ import { Separator } from "@/shared/ui/separator"
 import type { FilterCoordinator } from "../model/filter-coordinator"
 import { IndexMaintenance } from "./filter-feedback"
 
-type Action = "save-as" | "rename" | "delete"
+type Action = "rename" | "delete"
 
 export function PresetOptions({
   coordinator: c,
@@ -62,9 +62,6 @@ export function PresetOptions({
         </Field>
         <Separator />
         <div className="flex flex-col gap-1">
-          <Button variant="ghost" className="justify-start" disabled={c.busy} onClick={() => choose("save-as")}>
-            Save As
-          </Button>
           <Button variant="ghost" className="justify-start" disabled={!c.saved || c.busy} onClick={() => choose("rename")}>
             Rename
           </Button>

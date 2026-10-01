@@ -87,6 +87,29 @@ export class BackendApi {
   async filterAnalyze(body: Wire<"FilterSource">) {
     return result(await this.client.POST("/api/v1/filter/analyze", { body }))
   }
+  async filterEditing(body: Wire<"FilterEditingRequestData">) {
+    return result(await this.client.POST("/api/v1/filter/editing", { body }))
+  }
+  async filterLiteral(body: Wire<"FilterLiteralRequestData">) {
+    return result(await this.client.POST("/api/v1/filter/literal", { body }))
+  }
+  async filterHelp(body: Wire<"FilterFieldHelpRequestData">) {
+    return result(await this.client.POST("/api/v1/filter/help", { body }))
+  }
+  async searchObservation() {
+    return result(await this.client.POST("/api/v1/search/observation"))
+  }
+  async searchStrings(body: Wire<"SearchStringPageRequestData">) {
+    return result(await this.client.POST("/api/v1/search/strings", { body }))
+  }
+  async searchBounds(body: Wire<"SearchBoundsRequestData">) {
+    return result(await this.client.POST("/api/v1/search/bounds", { body }))
+  }
+  async releaseSearchObservation(context: string) {
+    const value = await this.client.POST("/api/v1/search/observation/release", { body: { context } })
+    if (value.error) throw new ApiFailure(value.error, value.response.status)
+    if (!value.response.ok) throw new Error("Could not release discovery observation.")
+  }
   async filterPresets() {
     return result(await this.client.GET("/api/v1/filter/presets"))
   }

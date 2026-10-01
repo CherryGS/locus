@@ -1,6 +1,27 @@
 // HTML textarea values normalize CRLF/CR to LF. Apply the actual edit to the
 // original string so untouched line endings survive loading and ordinary edits.
 export const displaySource = (source: string) => source.replace(/\r\n?/g, "\n")
+export function rawPosition(source: string, position: number) {
+  let raw = 0, visible = 0
+  while (visible < position && raw < source.length) {
+    raw += source[raw] === "\r" && source[raw + 1] === "\n" ? 2 : 1
+    visible++
+  }
+  return raw
+}
+export const bytePosition = (source: string, position: number) =>
+  new TextEncoder().encode(source.slice(0, rawPosition(source, position))).length
+export function byteToRaw(source: string, bytes: number) {
+  if (bytes === 0) return 0
+  let consumed = 0, raw = 0
+  for (const ch of source) {
+    consumed += new TextEncoder().encode(ch).length
+    if (consumed > bytes) throw new Error("Assistance returned an invalid UTF-8 boundary.")
+    raw += ch.length
+    if (consumed === bytes) return raw
+  }
+  throw new Error("Assistance returned a range outside the source.")
+}
 export function editSource(original: string, value: string) {
   const previous = displaySource(original)
   if (previous === value) return original
@@ -12,17 +33,8 @@ export function editSource(original: string, value: string) {
     oldEnd--
     newEnd--
   }
-  const rawPosition = (position: number) => {
-    let raw = 0,
-      visible = 0
-    while (visible < position) {
-      raw += original[raw] === "\r" && original[raw + 1] === "\n" ? 2 : 1
-      visible++
-    }
-    return raw
-  }
   return (
-    original.slice(0, rawPosition(start)) + value.slice(start, newEnd) + original.slice(rawPosition(oldEnd))
+    original.slice(0, rawPosition(original, start)) + value.slice(start, newEnd) + original.slice(rawPosition(original, oldEnd))
   )
 }
 export function diagnosticPosition(source: string, bytes: number) {

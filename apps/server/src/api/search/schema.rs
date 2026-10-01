@@ -17,6 +17,27 @@ macro_rules! transport {
     };
 }
 transport!(
+    ObservationBody,
+    locus_search::api::Observation,
+    "SearchObservationData"
+);
+transport!(
+    StringPageRequestBody,
+    locus_search::api::StringPageRequest,
+    "SearchStringPageRequestData"
+);
+transport!(
+    StringPageBody,
+    locus_search::api::StringPage,
+    "SearchStringPageData"
+);
+transport!(
+    BoundsRequestBody,
+    locus_search::api::BoundsRequest,
+    "SearchBoundsRequestData"
+);
+transport!(BoundsBody, locus_search::api::Bounds, "SearchBoundsData");
+transport!(
     SearchQueryBody,
     crate::api::filter::dto::FilterSource,
     "SearchRequestData"
@@ -76,7 +97,7 @@ fn rewrite(value: &mut serde_json::Value, root: &str) {
         _ => (),
     }
 }
-fn add<T: schemars::JsonSchema>(
+pub(crate) fn add<T: schemars::JsonSchema>(
     name: &str,
     components: &mut utoipa::openapi::Components,
 ) -> anyhow::Result<()> {
@@ -99,6 +120,17 @@ fn add<T: schemars::JsonSchema>(
 pub(crate) fn register(document: &mut utoipa::openapi::OpenApi) -> anyhow::Result<()> {
     let components = document.components.get_or_insert_with(Default::default);
     add::<locus_query::api::Source>("SearchRequestData", components)?;
+    add::<locus_search::api::Observation>("SearchObservationData", components)?;
+    add::<locus_search::api::StringPageRequest>("SearchStringPageRequestData", components)?;
+    add::<locus_search::api::StringPage>("SearchStringPageData", components)?;
+    add::<locus_search::api::BoundsRequest>("SearchBoundsRequestData", components)?;
+    add::<locus_search::api::Bounds>("SearchBoundsData", components)?;
+    add::<locus_filter::api::LiteralRequest>("FilterLiteralRequestData", components)?;
+    add::<locus_filter::api::Literal>("FilterLiteralData", components)?;
+    add::<locus_filter::api::FieldHelpRequest>("FilterFieldHelpRequestData", components)?;
+    add::<locus_filter::api::FieldHelp>("FilterFieldHelpData", components)?;
+    add::<locus_filter::api::EditingRequest>("FilterEditingRequestData", components)?;
+    add::<locus_filter::api::EditingContext>("FilterEditingData", components)?;
     add::<locus_search::api::SearchStatus>("SearchStatusData", components)?;
     add::<locus_query::api::Catalogue>("SearchCatalogueData", components)?;
     add::<Vec<locus_search::api::Evidence>>("SearchEvidenceData", components)?;

@@ -17,6 +17,8 @@ diesel.workspace = true
 diesel-async.workspace = true
 uuid.workspace = true
 sha2 = "0.10"
+caseless = "=0.2.2"
+tantivy-fst = "=0.5.0"
 [dev-dependencies]
 locus-migration.workspace = true
 tempfile.workspace = true

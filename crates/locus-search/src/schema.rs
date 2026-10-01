@@ -13,6 +13,8 @@ pub(crate) struct Mapping {
     pub values: Field,
     pub text: Field,
     pub presence: Field,
+    pub oversized: Field,
+    pub lookup: Field,
     pub defaults: Vec<Field>,
     pub catalogue: Catalogue,
     pub fingerprint: String,
@@ -26,14 +28,22 @@ impl Mapping {
         let raw = JsonObjectOptions::default()
             .set_indexing_options(
                 TextFieldIndexing::default()
-                    .set_tokenizer("raw")
+                    .set_tokenizer("locus_original_v1")
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             )
             .set_fast(None);
         let analyzed = TextFieldIndexing::default()
             .set_tokenizer("locus_hybrid_v1")
             .set_index_option(IndexRecordOption::WithFreqsAndPositions);
-        let values = schema.add_json_field("_values", raw);
+        let lookup = schema.add_json_field(
+            "_lookup",
+            JsonObjectOptions::default().set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer("raw")
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            ),
+        );
+        let values = schema.add_json_field("_values", raw.set_stored());
         let text = schema.add_json_field(
             "_text",
             JsonObjectOptions::default()
@@ -41,13 +51,14 @@ impl Mapping {
                 .set_fast(Some("locus_hybrid_v1")),
         );
         let presence = schema.add_text_field("_presence", STRING);
+        let oversized = schema.add_text_field("_oversized", STRING);
         let aggregate = schema.add_text_field(
             "_aggregate",
             TextOptions::default().set_indexing_options(analyzed),
         );
         let mut hash = Sha256::new();
         hash.update(
-            b"locus-search:tantivy-0.26.2:selected-json-2:aggregate-gap-1:normalized-presence-1",
+            b"locus-search:tantivy-0.26.2:selected-stored-json-3:bounded-raw-65526-v1:oversized-original-1:aggregate-gap-1:normalized-presence-1",
         );
         hash.update(serde_json::to_vec(catalogue)?);
         Ok(Self {
@@ -58,12 +69,17 @@ impl Mapping {
             values,
             text,
             presence,
+            oversized,
+            lookup,
             defaults: vec![aggregate],
             catalogue: catalogue.clone(),
             fingerprint: format!("{:x}", hash.finalize()),
         })
     }
     pub fn configure(&self, index: &Index) {
+        index
+            .tokenizers()
+            .register("locus_original_v1", crate::analyzer::Original);
         index
             .tokenizers()
             .register("locus_hybrid_v1", crate::analyzer::Hybrid);
@@ -113,6 +129,7 @@ impl Mapping {
         );
         let mut selected = BTreeMap::new();
         let mut text = BTreeMap::new();
+        let mut lookup = BTreeMap::new();
         let mut fragments = Vec::new();
         for projection in values {
             let definition = self.catalogue.field(&projection.field)?;
@@ -126,6 +143,16 @@ impl Mapping {
             let mut typed = Vec::new();
             let mut analyzed = Vec::new();
             for value in values {
+                if matches!(value, Value::Identifier(s) | Value::Text(s) if s.len() > crate::original::MAX_TERM_BYTES)
+                {
+                    doc.add_text(self.oversized, &projection.field);
+                    if let Value::Identifier(s) | Value::Text(s) = value {
+                        lookup
+                            .entry(projection.field.clone())
+                            .or_insert_with(Vec::new)
+                            .push(OwnedValue::Str(crate::original::lookup(s)));
+                    }
+                }
                 let v = match value {
                     Value::Identifier(v) => OwnedValue::Str(v.clone()),
                     Value::Text(v) => {
@@ -152,6 +179,13 @@ impl Mapping {
             }
         }
         doc.add_object(self.values, selected);
+        doc.add_object(
+            self.lookup,
+            lookup
+                .into_iter()
+                .map(|(k, v)| (k, OwnedValue::Array(v)))
+                .collect(),
+        );
         doc.add_object(self.text, text);
         // A tokenizer-recognized boundary increments positions without adding a
         // searchable sentinel term. It prevents cross-fragment zero-slop phrases.

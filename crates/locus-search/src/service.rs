@@ -66,6 +66,7 @@ struct Shared {
     publication: RwLock<Option<Publication>>,
     status: RwLock<SearchStatus>,
     contexts: Mutex<HashMap<String, Arc<QueryContext>>>,
+    discoveries: Mutex<HashMap<String, Arc<crate::discovery::DiscoveryContext>>>,
 }
 #[derive(Clone)]
 pub struct SearchService {
@@ -85,6 +86,7 @@ impl Drop for Control {
     }
 }
 enum Command {
+    Observe(oneshot::Sender<Result<crate::discovery::Observation, SearchError>>),
     Retry,
     Rebuild,
     Stop(oneshot::Sender<()>),
@@ -103,6 +105,20 @@ pub struct SearchResult {
 }
 /// A writer's owned threads are joined even when its surrounding future is dropped.
 struct Writer(Option<IndexWriter>);
+#[cfg(test)]
+pub(crate) fn test_publication(index: Index, reader: IndexReader) -> Publication {
+    Publication {
+        _lease: Arc::new(()),
+        index,
+        reader,
+        checkpoint: Checkpoint {
+            identity: "fixture".into(),
+            fingerprint: "fixture".into(),
+            generation: "fixture".into(),
+            covered: 0,
+        },
+    }
+}
 impl Writer {
     fn get(&mut self) -> Result<&mut IndexWriter, SearchError> {
         self.0
@@ -163,6 +179,7 @@ impl SearchService {
                 failure: None,
             }),
             contexts: Mutex::new(HashMap::new()),
+            discoveries: Mutex::new(HashMap::new()),
         });
         let (commands, receiver) = mpsc::unbounded_channel();
         let stopping = Arc::new(AtomicBool::new(false));
@@ -239,6 +256,20 @@ impl SearchService {
         }
     }
     #[cfg(test)]
+    pub(crate) fn expire_observations(&self) {
+        for context in self
+            .shared
+            .discoveries
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .values_mut()
+        {
+            if let Some(context) = Arc::get_mut(context) {
+                context.expires = Instant::now();
+            }
+        }
+    }
+    #[cfg(test)]
     pub(crate) fn context_count(&self) -> usize {
         self.shared
             .contexts
@@ -311,6 +342,48 @@ impl SearchService {
         rx.await
             .map_err(|_| SearchError::Unavailable("worker stopped".into()))?
     }
+    pub async fn observation(&self) -> Result<crate::discovery::Observation, SearchError> {
+        let (tx, rx) = oneshot::channel();
+        self.control
+            .commands
+            .send(Command::Observe(tx))
+            .map_err(|_| SearchError::Unavailable("worker stopped".into()))?;
+        rx.await
+            .map_err(|_| SearchError::Unavailable("worker stopped".into()))?
+    }
+    fn discovery(&self, id: &str) -> Result<Arc<crate::discovery::DiscoveryContext>, SearchError> {
+        let mut contexts = self
+            .shared
+            .discoveries
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        contexts.retain(|_, c| c.expires > Instant::now());
+        contexts
+            .get(id)
+            .cloned()
+            .ok_or(SearchError::ContextUnavailable)
+    }
+    pub fn string_page(
+        &self,
+        request: crate::discovery::StringPageRequest,
+    ) -> Result<crate::discovery::StringPage, SearchError> {
+        self.discovery(&request.context)?
+            .strings(&self.mapping, request)
+    }
+    pub fn bounds(
+        &self,
+        request: crate::discovery::BoundsRequest,
+    ) -> Result<crate::discovery::Bounds, SearchError> {
+        self.discovery(&request.context)?
+            .bounds(&self.mapping, &request.field)
+    }
+    pub fn release_observation(&self, context: &str) {
+        self.shared
+            .discoveries
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(context);
+    }
     pub fn release(&self, context: &str) {
         self.shared
             .contexts
@@ -379,6 +452,11 @@ impl Worker {
     }
     fn reclaim(&self) {
         self.shared
+            .discoveries
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .retain(|_, c| c.expires > Instant::now());
+        self.shared
             .contexts
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -429,11 +507,129 @@ impl Worker {
                 rebuild = false;
             }
             tokio::select! {
-            command=commands.recv()=>match command{Some(Command::Retry)=>active=true,Some(Command::Rebuild)=>{active=true;rebuild=true;},Some(Command::Query(program,typed,reply))=>{let result=self.admit(*program,typed).await;let _=reply.send(result);},Some(Command::Stop(reply))=>{let _=reply.send(());break},None=>break},
+            command=commands.recv()=>match command{Some(Command::Observe(reply))=>{let result=self.observe().await;let _=reply.send(result);},Some(Command::Retry)=>active=true,Some(Command::Rebuild)=>{active=true;rebuild=true;},Some(Command::Query(program,typed,reply))=>{let result=self.admit(*program,typed).await;let _=reply.send(result);},Some(Command::Stop(reply))=>{let _=reply.send(());break},None=>break},
             _=tokio::time::sleep(Duration::from_millis(250))=>{},
             }
         }
         self.done.send_replace(true);
+    }
+    async fn observe(&self) -> Result<crate::discovery::Observation, SearchError> {
+        let (searcher, publication) = self.capture().await?;
+        let context = uuid::Uuid::now_v7().to_string();
+        let result = crate::discovery::Observation {
+            context: context.clone(),
+            generation: publication.checkpoint.generation.clone(),
+            covered_sequence: publication.checkpoint.covered.to_string(),
+            expires_after_seconds: crate::discovery::LIFETIME_SECONDS,
+            matching_policy: crate::discovery::MATCHING_POLICY.into(),
+        };
+        self.shared
+            .discoveries
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(
+                context,
+                Arc::new(crate::discovery::DiscoveryContext {
+                    searcher,
+                    _publication: publication,
+                    expires: Instant::now()
+                        + Duration::from_secs(crate::discovery::LIFETIME_SECONDS),
+                    fields: Mutex::new(HashMap::new()),
+                    cursors: Mutex::new(HashMap::new()),
+                }),
+            );
+        Ok(result)
+    }
+    async fn capture(&self) -> Result<(Searcher, Publication), SearchError> {
+        let worker = self.clone();
+        self.queue
+            .submit(
+                "Capture aligned Search observation",
+                move |task| async move {
+                    let protected = worker.database.protect(&task).await?;
+                    #[cfg(test)]
+                    {
+                        let pause = worker
+                            .shared
+                            .admission_pause
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .take();
+                        if let Some((entered, release)) = pause {
+                            entered.notify_one();
+                            release.notified().await;
+                        }
+                    }
+                    let mut session = protected.session().await?;
+                    let mut publication = worker
+                        .shared
+                        .publication
+                        .read()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .clone()
+                        .ok_or_else(|| SearchError::Unavailable("index is not ready".into()))?;
+                    loop {
+                        worker.check_stop()?;
+                        let after = publication.checkpoint.covered;
+                        let providers = worker.providers.clone();
+                        let kernel = worker.kernel.clone();
+                        let (covered, projected) = session
+                            .transaction(move |c| {
+                                Box::pin(async move {
+                                    let (covered, ids) = journal::pending(c, after).await?;
+                                    Ok::<_, SearchError>((
+                                        covered,
+                                        providers.project(c, &kernel, &ids).await?,
+                                    ))
+                                })
+                            })
+                            .await?;
+                        if covered == after {
+                            break;
+                        }
+                        let mut writer = worker.writer(&publication.index)?;
+                        for (id, value) in projected {
+                            writer.get()?.delete_term(Term::from_field_text(
+                                worker.mapping.id,
+                                &id.to_string(),
+                            ));
+                            if let Some(value) = value {
+                                writer
+                                    .get()?
+                                    .add_document(worker.mapping.document(id, &value)?)?;
+                            }
+                        }
+                        publication.checkpoint.covered = covered;
+                        worker.commit(&mut writer, &publication.checkpoint)?;
+                        drop(writer);
+                        publication.reader = publication
+                            .index
+                            .reader_builder()
+                            .reload_policy(ReloadPolicy::Manual)
+                            .try_into()?;
+                        session
+                            .transaction(move |c| Box::pin(journal::acknowledge(c, covered)))
+                            .await?;
+                    }
+                    let boundary = session
+                        .transaction(|c| Box::pin(journal::boundary(c)))
+                        .await?;
+                    worker.status(|s| {
+                        s.journal_head = boundary
+                            .head
+                            .max(s.journal_head.parse::<i64>().unwrap_or(0))
+                            .to_string()
+                    });
+                    worker.publish(publication.clone());
+                    let searcher = publication.reader.searcher();
+                    // The aligned Searcher is captured before releasing exclusion.
+                    drop(session);
+                    drop(protected);
+                    Ok((searcher, publication))
+                },
+            )?
+            .result()
+            .await?
     }
     async fn admit(
         &self,
@@ -442,84 +638,8 @@ impl Worker {
     ) -> Result<SearchResult, SearchError> {
         let worker = self.clone();
         self.queue
-            .submit("Align Filter query", move |task| async move {
-                let protected = worker.database.protect(&task).await?;
-                #[cfg(test)]
-                {
-                    let pause = worker
-                        .shared
-                        .admission_pause
-                        .lock()
-                        .unwrap_or_else(|e| e.into_inner())
-                        .take();
-                    if let Some((entered, release)) = pause {
-                        entered.notify_one();
-                        release.notified().await;
-                    }
-                }
-                let mut session = protected.session().await?;
-                let mut publication = worker
-                    .shared
-                    .publication
-                    .read()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .clone()
-                    .ok_or_else(|| SearchError::Unavailable("index is not ready".into()))?;
-                loop {
-                    let after = publication.checkpoint.covered;
-                    let providers = worker.providers.clone();
-                    let kernel = worker.kernel.clone();
-                    let (covered, projected) = session
-                        .transaction(move |c| {
-                            Box::pin(async move {
-                                let (covered, ids) = journal::pending(c, after).await?;
-                                Ok::<_, SearchError>((
-                                    covered,
-                                    providers.project(c, &kernel, &ids).await?,
-                                ))
-                            })
-                        })
-                        .await?;
-                    if covered == after {
-                        break;
-                    }
-                    let mut writer = worker.writer(&publication.index)?;
-                    for (id, value) in projected {
-                        writer
-                            .get()?
-                            .delete_term(Term::from_field_text(worker.mapping.id, &id.to_string()));
-                        if let Some(value) = value {
-                            writer
-                                .get()?
-                                .add_document(worker.mapping.document(id, &value)?)?;
-                        }
-                    }
-                    publication.checkpoint.covered = covered;
-                    worker.commit(&mut writer, &publication.checkpoint)?;
-                    drop(writer);
-                    publication.reader = publication
-                        .index
-                        .reader_builder()
-                        .reload_policy(ReloadPolicy::Manual)
-                        .try_into()?;
-                    session
-                        .transaction(move |c| Box::pin(journal::acknowledge(c, covered)))
-                        .await?;
-                }
-                let boundary = session
-                    .transaction(|c| Box::pin(journal::boundary(c)))
-                    .await?;
-                worker.status(|s| {
-                    s.journal_head = boundary
-                        .head
-                        .max(s.journal_head.parse::<i64>().unwrap_or(0))
-                        .to_string()
-                });
-                worker.publish(publication.clone());
-                let searcher = publication.reader.searcher();
-                // The aligned Searcher is captured before releasing exclusion.
-                drop(session);
-                drop(protected);
+            .submit("Align Filter query", move |_task| async move {
+                let (searcher, publication) = worker.capture().await?;
                 let query = if let Some(request) = &typed {
                     crate::compiler::compile(
                         &publication.index,

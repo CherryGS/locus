@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod assistance_tests;
 mod bilibili;
 mod bootstrap;
 mod bytes;

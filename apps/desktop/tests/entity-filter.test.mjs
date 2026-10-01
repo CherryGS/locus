@@ -24,6 +24,8 @@ const deferred = () => {
   return { resolve, reject, promise }
 }
 const fields = []
+const helperContext = { kind: "field", fragment: "", reference: "", field_range: { start: 1, end: 1 },
+  condition_range: { start: 0, end: 1 } }
 const source = (text = "") => ({
   format: "locus-native-tantivy-0.26",
   version: 2,
@@ -95,6 +97,67 @@ function fixture(overrides = {}) {
   const coordinator = new FilterCoordinator(api)
   return { api, c: coordinator, released, observation }
 }
+test("pending helper submission protects its source and rejects a later visit", async () => {
+  const lexical = deferred()
+  let writes = 0
+  const { c } = fixture({ filterEditing: () => lexical.promise,
+    filterHelp: async () => ({ guidance: "help", examples: [] }),
+    filterWrite: async () => { writes++; throw new Error("must not write") } })
+  c.show()
+  c.assistance.input("@", 1, 0)
+  const saving = c.save("pending")
+  assert(c.busy)
+  c.assistance.input("@changed", 8)
+  c.edit(draft("changed"))
+  c.requestSwitch(null)
+  assert.equal(c.draft.source.text, "@")
+  assert(c.assistance.active)
+  c.close(); c.show()
+  lexical.resolve(helperContext)
+  assert.equal(await saving, false)
+  assert.equal(writes, 0)
+  assert.equal(c.draft.source.text, "@")
+  assert(c.open)
+  c.dispose()
+})
+test("naming preparation is qualified before delayed helper completion", async () => {
+  const lexical = deferred()
+  const { c } = fixture({ filterEditing: () => lexical.promise, filterHelp: async () => ({ guidance: "help", examples: [] }) })
+  c.show(); c.assistance.input("@", 1, 0)
+  const naming = c.prepareHelperAction()
+  assert(c.busy)
+  c.close(); c.show()
+  lexical.resolve(helperContext)
+  assert.equal(await naming, false)
+  assert.equal(c.draft.source.text, "@")
+  c.dispose()
+})
+test("delayed selected literal and Close cannot apply into a reopened visit", async () => {
+  const literal = deferred()
+  let searches = 0
+  const { c } = fixture({
+    filterEditing: async () => ({ kind: "value", fragment: "", field: "tag_names", reference: "tag_names_exact",
+      field_range: { start: 1, end: 16 }, value_range: { start: 17, end: 17 }, condition_range: { start: 0, end: 17 } }),
+    filterHelp: async () => ({ guidance: "help", examples: [] }), filterLiteral: () => literal.promise,
+    searchObservation: async () => ({ context: "c", expires_after_seconds: 600 }),
+    searchStrings: async () => ({ values: ["chosen"], no_values: false }),
+    releaseSearchObservation: async () => {}, search: async () => { searches++; throw new Error("must not search") },
+  })
+  c.show()
+  c.assistance.fields = [{ id: "tag_names", native_exact: "tag_names_exact", native_value: "tag_names", field_type: "text", assistance: "strings" }]
+  c.assistance.input("@tag_names_exact:", 17, 0)
+  await delay(0)
+  const accepting = c.assistance.acceptValue("chosen"), applying = c.apply()
+  assert(c.busy)
+  c.close(); c.show()
+  literal.resolve({ literal: '"chosen"' })
+  assert.equal(await accepting, false)
+  assert.equal(await applying, false)
+  assert.equal(searches, 0)
+  assert.equal(c.draft.source.text, "@tag_names_exact:")
+  assert(c.open)
+  c.dispose()
+})
 test("Apply publishes query and complete zero result, failure retains result/draft, Clear bypasses index/catalogue", async () => {
   const { c, api, observation } = fixture()
   await c.refresh()

@@ -35,6 +35,27 @@ try {
   const twitterRequest=randomUUID();const twitter=await client.POST("/api/v1/registered-import-batches",{body:{request_id:twitterRequest,items:[{twitter:{post_id:"123456789",text:"中文 search title",hashtags:[],published_at_unix_ms:"253402300799999"}}]}});assert(twitter.data);
   for(let i=0;i<300;i++){const receipt=await client.GET("/api/v1/requests/{request_id}",{params:{path:{request_id:twitterRequest}}});if(receipt.data?.status==="accepted"){await complete(client,receipt.data.receipt.task_id);break;}await delay(20);assert(i<299,JSON.stringify(receipt));}
   await ready(client,2);
+  const profile = { format: "locus-native-tantivy-0.26", version: 2 };
+  assert.equal(catalogue.data.fields.filter(f => f.assistance === "strings").length, 24);
+  assert.equal(catalogue.data.fields.filter(f => f.assistance === "bounds").length, 13);
+  assert.deepEqual(catalogue.data.fields.find(f => f.id === "image_format")?.choices?.values, ["Png", "Jpeg", "WebP", "Gif"]);
+  const observation = await client.POST("/api/v1/search/observation"); assert(observation.data, JSON.stringify(observation.error));
+  const observedContext = observation.data.context;
+  const originalFormats = await client.POST("/api/v1/search/strings", { body: { context: observedContext, field: "image_format", fragment: "png", limit: 1 } });
+  assert.deepEqual(originalFormats.data?.values, ["Png"]);
+  const widthBounds = await client.POST("/api/v1/search/bounds", { body: { context: observedContext, field: "image_width" } });
+  assert.deepEqual(widthBounds.data, { minimum: { type: "uint", value: "40" }, maximum: { type: "uint", value: "40" } });
+  const timeBounds = await client.POST("/api/v1/search/bounds", { body: { context: observedContext, field: "twitter_published_at" } });
+  assert.deepEqual(timeBounds.data?.maximum, { type: "time", value: "253402300799999" });
+  const generatedLiteral = await client.POST("/api/v1/filter/literal", { body: { ...profile, field: "image_format", value: { type: "identifier", value: "Png" } } });
+  assert.equal(generatedLiteral.data?.condition, 'image_format:"Png"');
+  const help = await client.POST("/api/v1/filter/help", { body: { ...profile, field: "image_width" } }); assert(help.data?.examples.includes("image_width:>=1920"));
+  const defaultHelp = await client.POST("/api/v1/filter/help", { body: profile }); assert(defaultHelp.data?.guidance.includes("default OR"));
+  const helperText = "@image_width:>=1920";
+  const editing = await client.POST("/api/v1/filter/editing", { body: { source: { ...profile, text: helperText }, offset: helperText.length, marker: 0 } });
+  assert.equal(editing.data?.kind, "indeterminate"); assert.equal(editing.data?.field, "image_width"); assert.equal(editing.data?.value_range, null);
+  assert.equal((await client.POST("/api/v1/search/observation/release", { body: { context: observedContext } })).response.status, 204);
+  assert.equal((await client.POST("/api/v1/search/strings", { body: { context: observedContext, field: "image_format", fragment: "" } })).response.status, 404);
   for(let attempt=0;attempt<300;attempt++){const result=await searchEntities(client,{format:"locus-native-tantivy-0.26",version:2,text:"image_width:40"});const found=result.entities.indexOf(create.data.entity_id)>=0;await result.release();if(found)break;await delay(20);assert(attempt<299);}
   const scoped=await searchEntities(client,{format:"locus-native-tantivy-0.26",version:2,text:'"中文" AND NOT twitter_hashtags:*'});assert.equal(scoped.entities.length,1);
   const attributed=await client.POST("/api/v1/search/evidence",{body:{context:scoped.context!,entities:[scoped.entities.at(0)!]}});assert(attributed.data?.[0].matches.some(m=>m.condition?.includes("中文")));await scoped.release();
@@ -56,6 +77,8 @@ try {
   server = await fixture.start(); client = server.client;
   for (let attempt = 0; attempt < 100; attempt++) { if ((await client.GET("/api/v1/search/status")).data?.state === "failed") break; await delay(20); }
   assert.equal((await client.GET("/api/v1/search/status")).data?.state, "failed"); assert.equal((await readEntityIds(client)).length, 2);
+  assert.equal((await client.POST("/api/v1/filter/help", { body: { ...profile, field: "image_format" } })).response.status, 200);
+  assert.equal((await client.POST("/api/v1/search/observation")).response.status, 503);
   await rm(cache); assert.equal((await client.POST("/api/v1/search/retry")).response.status, 202); await ready(client, 2); await server.stop();
   console.log("PASS real search catalogue/query/evidence/release/status/retry/rebuild, fixed packed observation, reopen, and search-only degradation with continued Entity reads.");
 } finally { await fixture.dispose(); }

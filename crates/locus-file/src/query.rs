@@ -18,6 +18,7 @@ impl Provider for FileQueryProvider {
     }
     fn definitions(&self) -> Vec<FieldDefinition> {
         let mut f = FieldDefinition::new("file_byte_count", "file", FieldType::Uint, Shape::Scalar);
+        f.assistance = Assistance::Bounds;
         f.unit = Some("bytes".into());
         f.optional = false;
         vec![f]

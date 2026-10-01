@@ -5,9 +5,34 @@ use tantivy::tokenizer::{Token, TokenStream, Tokenizer};
 /// preserve Chinese phrase order without a mutable dictionary dependency.
 #[derive(Clone)]
 pub(crate) struct Hybrid;
+/// Raw originals below the engine's JSON-key limit retain native postings.
+/// Oversized originals remain stored, and use verified bounded lookup postings;
+/// emitting them here could create a truncated alias of an ordinary short term.
+#[derive(Clone)]
+pub(crate) struct Original;
 pub(crate) struct Stream {
     tokens: std::vec::IntoIter<Token>,
     current: Token,
+}
+impl Tokenizer for Original {
+    type TokenStream<'a> = Stream;
+    fn token_stream<'a>(&'a mut self, text: &'a str) -> Stream {
+        let tokens = if text.len() <= crate::original::MAX_TERM_BYTES {
+            vec![Token {
+                offset_from: 0,
+                offset_to: text.len(),
+                position: 0,
+                text: text.into(),
+                position_length: 1,
+            }]
+        } else {
+            Vec::new()
+        };
+        Stream {
+            tokens: tokens.into_iter(),
+            current: Token::default(),
+        }
+    }
 }
 impl Tokenizer for Hybrid {
     type TokenStream<'a> = Stream;

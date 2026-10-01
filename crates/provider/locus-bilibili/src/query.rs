@@ -79,6 +79,7 @@ impl Provider for BilibiliQueryProvider {
                     FieldType::Text,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },
@@ -109,6 +110,7 @@ impl Provider for BilibiliQueryProvider {
                     FieldType::Text,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },
@@ -119,6 +121,7 @@ impl Provider for BilibiliQueryProvider {
                     FieldType::Text,
                     Shape::Collection,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },
@@ -129,6 +132,7 @@ impl Provider for BilibiliQueryProvider {
                     FieldType::Time,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Bounds;
                 f.unit = Some("unix_ms".into());
                 f
             },
@@ -139,6 +143,7 @@ impl Provider for BilibiliQueryProvider {
                     FieldType::Time,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Bounds;
                 f.unit = Some("unix_ms".into());
                 f
             },
@@ -159,6 +164,7 @@ impl Provider for BilibiliQueryProvider {
                     FieldType::Uint,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Bounds;
                 f.unit = None;
                 f
             },
@@ -169,6 +175,7 @@ impl Provider for BilibiliQueryProvider {
                     FieldType::Text,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },

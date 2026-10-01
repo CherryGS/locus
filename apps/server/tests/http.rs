@@ -386,7 +386,7 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
         locus_server::api::openapi().unwrap().to_json().unwrap()
     );
     let schema: Value = serde_json::from_str(&one).unwrap();
-    assert_eq!(schema["paths"].as_object().unwrap().len(), 68);
+    assert_eq!(schema["paths"].as_object().unwrap().len(), 75);
     for (path, methods, tag) in [
         ("/api/v1/tags", &["get", "post"][..], "tag"),
         ("/api/v1/tags/{id}", &["get"][..], "tag"),
@@ -394,10 +394,21 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
         ("/api/v1/entities/{id}/tags", &["get"][..], "tag"),
         ("/api/v1/filter/language", &["get"][..], "filter"),
         ("/api/v1/filter/analyze", &["post"][..], "filter"),
+        ("/api/v1/filter/literal", &["post"][..], "filter"),
+        ("/api/v1/filter/help", &["post"][..], "filter"),
+        ("/api/v1/filter/editing", &["post"][..], "filter"),
         ("/api/v1/filter/presets", &["get", "post"][..], "filter"),
         ("/api/v1/filter/presets/{id}", &["get"][..], "filter"),
         ("/api/v1/search/catalogue", &["get"][..], "search"),
         ("/api/v1/search/status", &["get"][..], "search"),
+        ("/api/v1/search/observation", &["post"][..], "search"),
+        ("/api/v1/search/strings", &["post"][..], "search"),
+        ("/api/v1/search/bounds", &["post"][..], "search"),
+        (
+            "/api/v1/search/observation/release",
+            &["post"][..],
+            "search",
+        ),
         ("/api/v1/search/query", &["post"][..], "search"),
         ("/api/v1/search/evidence", &["post"][..], "search"),
         ("/api/v1/search/release", &["post"][..], "search"),

@@ -10,7 +10,12 @@ impl Provider for TagQueryProvider {
     fn definitions(&self) -> Vec<FieldDefinition> {
         vec![
             FieldDefinition::new("tag_ids", "tag", FieldType::Identifier, Shape::Collection),
-            FieldDefinition::new("tag_names", "tag", FieldType::Text, Shape::Collection),
+            {
+                let mut f =
+                    FieldDefinition::new("tag_names", "tag", FieldType::Text, Shape::Collection);
+                f.assistance = Assistance::Strings;
+                f
+            },
         ]
     }
     fn project<'a>(&'a self, c: &'a mut Context, id: ComponentId) -> ProjectionFuture<'a> {

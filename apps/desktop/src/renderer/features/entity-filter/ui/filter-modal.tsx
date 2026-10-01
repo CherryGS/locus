@@ -24,12 +24,14 @@ import { PresetPicker } from "./preset-picker"
 import { PresetOptions } from "./preset-options"
 import { IndexStatus } from "./filter-feedback"
 import { FieldReference } from "./field-reference"
+import { AssistancePanel } from "./assistance-panel"
 
 export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator }) {
   useSyncExternalStore(c.subscribe, c.snapshot)
   useEffect(() => () => c.close(), [c])
   const actions = useRef<DialogRootActions | null>(null),
-    entry = useRef<HTMLButtonElement>(null)
+    entry = useRef<HTMLButtonElement>(null),
+    sourceInput = useRef<HTMLTextAreaElement>(null)
   const [naming, setNaming] = useState<"save" | "save-as" | "rename" | "delete">(),
     [name, setName] = useState(""),
     [reference, setReference] = useState(false),
@@ -43,7 +45,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
     }
   }, [c.open, c.hostClosing])
   const analysis =
-    JSON.stringify(c.analysis?.source) === JSON.stringify(c.draft.source) ? c.analysis : undefined
+    !c.assistance.active && JSON.stringify(c.analysis?.source) === JSON.stringify(c.draft.source) ? c.analysis : undefined
   const closeReference = () => {
     setReference(false)
     queueMicrotask(() => document.getElementById("filter-source")?.focus())
@@ -65,6 +67,15 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
         aria-describedby="filter-description"
         data-field-reference-open={reference}
         data-resize-hover={reference && resizeHint}
+        onPointerDownCapture={(event) => {
+          // Keep the target in place until its click is dispatched. Collapsing
+          // assistance during pointerdown/blur can recenter this dialog and
+          // move Load/New away from the pointer before their click arrives.
+          if (c.assistance.active && (event.target as Element).closest("button")) event.preventDefault()
+        }}
+        onClickCapture={(event) => {
+          if (!(event.target as Element).closest('[data-filter-helper-interaction], [data-filter-direct-action], #filter-source')) c.assistance.exit()
+        }}
         onPointerMove={(event) => {
           if (!reference) return
           const box = event.currentTarget.getBoundingClientRect()
@@ -139,13 +150,17 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                     source={c.draft.source}
                     analysis={analysis}
                     disabled={c.busy}
-                    change={(text) => c.edit({ ...c.draft, source: { ...c.draft.source, text } })}
                     reveal={reveal}
+                    assistance={c.assistance}
+                    inputRef={sourceInput}
                   />
+                  <AssistancePanel coordinator={c} inputRef={sourceInput} />
                 </Field>
               </FieldGroup>
-              <div aria-live="polite" className="flex flex-col gap-2">
-                {c.analysisPending ? (
+              <div aria-live="polite" className="flex min-h-4 flex-col gap-2">
+                {c.assistance.active ? (
+                  <p className="text-xs text-muted-foreground">Assisted editing · finish to validate source</p>
+                ) : c.analysisPending ? (
                   <p className="text-xs text-muted-foreground">Analyzing current source…</p>
                 ) : (
                   analysis && (
@@ -171,7 +186,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                     {d.message}
                   </Button>
                 ))}
-                {(c.analysisError || analysis?.state === "unavailable") && (
+                {!c.assistance.active && (c.analysisError || analysis?.state === "unavailable") && (
                   <Alert variant="destructive">
                     <AlertDescription>
                       Analysis unavailable: {c.analysisError ?? "Retry validation when Search is ready."}
@@ -221,7 +236,10 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
           <Button
             variant="outline"
             disabled={c.busy}
-            onClick={() => {
+            data-filter-direct-action
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={async () => {
+              if (!await c.prepareHelperAction()) return
               if (!c.saved && !c.draft.name.trim()) {
                 setName("")
                 setNaming("save")
@@ -230,7 +248,15 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
           >
             {c.saving && <Spinner data-icon="inline-start" />}Save
           </Button>
-          <Button disabled={c.busy} onClick={() => void c.apply()}>
+          <Button variant="outline" disabled={c.busy} data-filter-direct-action
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={async () => {
+              if (!await c.prepareHelperAction()) return
+              setName("")
+              setNaming("save-as")
+            }}>Save As</Button>
+          <Button disabled={c.busy} data-filter-direct-action
+            onPointerDown={(event) => event.preventDefault()} onClick={() => void c.apply()}>
             {c.pending === "apply" && <Spinner data-icon="inline-start" />}Apply
           </Button>
         </DialogFooter>

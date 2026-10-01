@@ -2588,6 +2588,228 @@
         }
       }
     },
+    "/api/v1/filter/editing": {
+      "post": {
+        "tags": [
+          "filter"
+        ],
+        "operationId": "filter_editing",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditingInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditingBody"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/filter/help": {
+      "post": {
+        "tags": [
+          "filter"
+        ],
+        "operationId": "filter_help",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HelpInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HelpBody"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/filter/language": {
       "get": {
         "tags": [
@@ -2612,6 +2834,117 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FilterLanguage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/filter/literal": {
+      "post": {
+        "tags": [
+          "filter"
+        ],
+        "operationId": "filter_literal",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiteralInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiteralBody"
                 }
               }
             }
@@ -5148,6 +5481,117 @@
         }
       }
     },
+    "/api/v1/search/bounds": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "operationId": "search_bounds",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoundsRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundsBody"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/search/catalogue": {
       "get": {
         "tags": [
@@ -5286,6 +5730,211 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search/observation": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "operationId": "search_observation",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservationBody"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search/observation/release": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "operationId": "search_observation_release",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReleaseContext"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Discovery observation released"
           },
           "400": {
             "description": "Invalid request",
@@ -5821,6 +6470,117 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SearchStatusBody"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search/strings": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "operationId": "search_strings",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StringPageRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringPageBody"
                 }
               }
             }
@@ -9561,6 +10321,12 @@
           }
         }
       },
+      "BoundsBody": {
+        "$ref": "#/components/schemas/SearchBoundsData"
+      },
+      "BoundsRequestBody": {
+        "$ref": "#/components/schemas/SearchBoundsRequestData"
+      },
       "ChangeMembership": {
         "type": "object",
         "required": [
@@ -10753,6 +11519,12 @@
           "unknown"
         ]
       },
+      "EditingBody": {
+        "$ref": "#/components/schemas/FilterEditingData"
+      },
+      "EditingInput": {
+        "$ref": "#/components/schemas/FilterEditingRequestData"
+      },
       "EffectiveToolPath": {
         "type": "object",
         "required": [
@@ -11188,6 +11960,158 @@
           }
         }
       },
+      "FilterEditingData": {
+        "type": "object",
+        "title": "EditingContext",
+        "required": [
+          "kind",
+          "fragment",
+          "offset_encoding"
+        ],
+        "properties": {
+          "condition_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Search_SourceRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "field_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Search_SourceRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fragment": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Search_EditingKind"
+          },
+          "offset_encoding": {
+            "type": "string"
+          },
+          "reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "separator_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Search_SourceRange"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Existing colon separator, separate from the editable reference span."
+          },
+          "value_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Search_SourceRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "FilterEditingRequestData": {
+        "type": "object",
+        "title": "EditingRequest",
+        "required": [
+          "source",
+          "offset"
+        ],
+        "properties": {
+          "marker": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint",
+            "description": "Consumer-owned helper marker. This does not assert a fresh input event.",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "source": {
+            "$ref": "#/components/schemas/Search_Source"
+          }
+        }
+      },
+      "FilterFieldHelpData": {
+        "type": "object",
+        "title": "FieldHelp",
+        "required": [
+          "reference",
+          "examples",
+          "guidance",
+          "offset_encoding"
+        ],
+        "properties": {
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "guidance": {
+            "type": "string"
+          },
+          "offset_encoding": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          }
+        }
+      },
+      "FilterFieldHelpRequestData": {
+        "type": "object",
+        "title": "FieldHelpRequest",
+        "required": [
+          "format",
+          "version"
+        ],
+        "properties": {
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "None requests native unfielded/default-source guidance."
+          },
+          "format": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        }
+      },
       "FilterLanguage": {
         "type": "object",
         "required": [
@@ -11212,6 +12136,52 @@
           "version": {
             "type": "integer",
             "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "FilterLiteralData": {
+        "type": "object",
+        "title": "Literal",
+        "required": [
+          "reference",
+          "literal",
+          "condition"
+        ],
+        "properties": {
+          "condition": {
+            "type": "string"
+          },
+          "literal": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          }
+        }
+      },
+      "FilterLiteralRequestData": {
+        "type": "object",
+        "title": "LiteralRequest",
+        "required": [
+          "format",
+          "version",
+          "field",
+          "value"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/Search_Value"
+          },
+          "version": {
+            "type": "integer",
+            "format": "uint32",
             "minimum": 0
           }
         }
@@ -11279,6 +12249,12 @@
           }
         },
         "additionalProperties": false
+      },
+      "HelpBody": {
+        "$ref": "#/components/schemas/FilterFieldHelpData"
+      },
+      "HelpInput": {
+        "$ref": "#/components/schemas/FilterFieldHelpRequestData"
       },
       "ImageFormat": {
         "type": "string",
@@ -11794,6 +12770,12 @@
             }
           }
         ]
+      },
+      "LiteralBody": {
+        "$ref": "#/components/schemas/FilterLiteralData"
+      },
+      "LiteralInput": {
+        "$ref": "#/components/schemas/FilterLiteralRequestData"
       },
       "MediaEntry": {
         "type": "object",
@@ -12993,6 +13975,9 @@
           }
         ]
       },
+      "ObservationBody": {
+        "$ref": "#/components/schemas/SearchObservationData"
+      },
       "OutcomeResponse": {
         "oneOf": [
           {
@@ -13685,6 +14670,48 @@
           }
         }
       },
+      "SearchBoundsData": {
+        "type": "object",
+        "title": "Bounds",
+        "properties": {
+          "maximum": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Search_Value"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Search_Value"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "SearchBoundsRequestData": {
+        "type": "object",
+        "title": "BoundsRequest",
+        "required": [
+          "context",
+          "field"
+        ],
+        "properties": {
+          "context": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          }
+        }
+      },
       "SearchCatalogueBody": {
         "$ref": "#/components/schemas/SearchCatalogueData"
       },
@@ -13711,6 +14738,36 @@
         "title": "Array_of_Evidence",
         "items": {
           "$ref": "#/components/schemas/Search_Evidence"
+        }
+      },
+      "SearchObservationData": {
+        "type": "object",
+        "title": "Observation",
+        "required": [
+          "context",
+          "generation",
+          "covered_sequence",
+          "expires_after_seconds",
+          "matching_policy"
+        ],
+        "properties": {
+          "context": {
+            "type": "string"
+          },
+          "covered_sequence": {
+            "type": "string"
+          },
+          "expires_after_seconds": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          },
+          "generation": {
+            "type": "string"
+          },
+          "matching_policy": {
+            "type": "string"
+          }
         }
       },
       "SearchQueryBody": {
@@ -13788,6 +14845,102 @@
           }
         }
       },
+      "SearchStringPageData": {
+        "type": "object",
+        "title": "StringPage",
+        "required": [
+          "values",
+          "no_values"
+        ],
+        "properties": {
+          "continuation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "no_values": {
+            "type": "boolean",
+            "description": "The field has no original values, distinct from no fragment matches."
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SearchStringPageRequestData": {
+        "type": "object",
+        "title": "StringPageRequest",
+        "required": [
+          "context",
+          "field"
+        ],
+        "properties": {
+          "context": {
+            "type": "string"
+          },
+          "continuation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "field": {
+            "type": "string"
+          },
+          "fragment": {
+            "type": "string",
+            "default": ""
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint",
+            "minimum": 0
+          }
+        }
+      },
+      "Search_Assistance": {
+        "type": "string",
+        "description": "Owner-declared authoring capability; observations never become an enum.",
+        "enum": [
+          "manual",
+          "strings",
+          "bounds"
+        ]
+      },
+      "Search_DeclaredChoices": {
+        "type": "object",
+        "required": [
+          "closed",
+          "values"
+        ],
+        "properties": {
+          "closed": {
+            "type": "boolean"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Search_EditingKind": {
+        "type": "string",
+        "enum": [
+          "condition_start",
+          "field",
+          "value",
+          "indeterminate"
+        ]
+      },
       "Search_Evidence": {
         "type": "object",
         "required": [
@@ -13809,6 +14962,7 @@
       "Search_FieldDefinition": {
         "type": "object",
         "required": [
+          "assistance",
           "id",
           "owner",
           "field_type",
@@ -13821,6 +14975,19 @@
           "extraction_version"
         ],
         "properties": {
+          "assistance": {
+            "$ref": "#/components/schemas/Search_Assistance"
+          },
+          "choices": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Search_DeclaredChoices"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "default_text": {
             "type": "boolean"
           },
@@ -14009,6 +15176,28 @@
           "collection"
         ]
       },
+      "Search_Source": {
+        "type": "object",
+        "description": "Original source is retained verbatim. Offsets in source observations are UTF-8\nbyte offsets; browser adapters convert them to the editor's UTF-16 positions.",
+        "required": [
+          "format",
+          "version",
+          "text"
+        ],
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        }
+      },
       "Search_SourceRange": {
         "type": "object",
         "required": [
@@ -14027,6 +15216,120 @@
             "minimum": 0
           }
         }
+      },
+      "Search_Value": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "identifier"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "uint"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "int"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "float"
+                ]
+              },
+              "value": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "time"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "description": "Decimal strings preserve the full integer range across JSON consumers."
       },
       "ServerStatus": {
         "type": "object",
@@ -14389,6 +15692,12 @@
             "format": "double"
           }
         }
+      },
+      "StringPageBody": {
+        "$ref": "#/components/schemas/SearchStringPageData"
+      },
+      "StringPageRequestBody": {
+        "$ref": "#/components/schemas/SearchStringPageRequestData"
       },
       "Submission": {
         "oneOf": [

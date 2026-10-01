@@ -35,8 +35,23 @@ pub enum Operation {
     Empty,
     Present,
 }
+/// Owner-declared authoring capability; observations never become an enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Assistance {
+    Manual,
+    Strings,
+    Bounds,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DeclaredChoices {
+    pub closed: bool,
+    pub values: Vec<String>,
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct FieldDefinition {
+    pub assistance: Assistance,
+    pub choices: Option<DeclaredChoices>,
     pub id: String,
     pub owner: String,
     pub field_type: FieldType,
@@ -70,6 +85,8 @@ impl FieldDefinition {
             }
         }
         Self {
+            assistance: Assistance::Manual,
+            choices: None,
             id: id.into(),
             owner: owner.into(),
             field_type,
@@ -96,6 +113,18 @@ impl Catalogue {
     pub fn new(fields: Vec<FieldDefinition>) -> Result<Self, QueryError> {
         let mut names = BTreeMap::new();
         for f in &fields {
+            if (f.assistance == Assistance::Strings
+                && !matches!(f.field_type, FieldType::Identifier | FieldType::Text))
+                || (f.assistance == Assistance::Bounds
+                    && matches!(f.field_type, FieldType::Identifier | FieldType::Text))
+                || (f.choices.is_some()
+                    && !matches!(f.field_type, FieldType::Identifier | FieldType::Text))
+            {
+                return Err(QueryError::Invalid(format!(
+                    "incompatible assistance {}",
+                    f.id
+                )));
+            }
             let supported = FieldDefinition::new(&f.id, &f.owner, f.field_type, f.shape).operations;
             if f.operations.iter().any(|op| !supported.contains(op))
                 || f.operations

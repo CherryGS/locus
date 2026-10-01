@@ -33,6 +33,11 @@ impl Provider for ModelQueryProvider {
                     FieldType::Identifier,
                     Shape::Scalar,
                 );
+                f.choices = Some(DeclaredChoices {
+                    closed: true,
+                    values: vec!["SafeTensors".into()],
+                });
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },
@@ -43,6 +48,7 @@ impl Provider for ModelQueryProvider {
                     FieldType::Uint,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Bounds;
                 f.unit = Some("tensors".into());
                 f
             },
@@ -53,6 +59,7 @@ impl Provider for ModelQueryProvider {
                     FieldType::Uint,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Bounds;
                 f.unit = Some("elements".into());
                 f
             },
@@ -63,6 +70,7 @@ impl Provider for ModelQueryProvider {
                     FieldType::Identifier,
                     Shape::Collection,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },

@@ -32,6 +32,11 @@ impl Provider for ImageQueryProvider {
                     FieldType::Identifier,
                     Shape::Scalar,
                 );
+                d.choices = Some(DeclaredChoices {
+                    closed: true,
+                    values: vec!["Png".into(), "Jpeg".into(), "WebP".into(), "Gif".into()],
+                });
+                d.assistance = Assistance::Strings;
                 d.default_text = false;
                 d.unit = None;
                 d
@@ -39,6 +44,7 @@ impl Provider for ImageQueryProvider {
             {
                 let mut d =
                     FieldDefinition::new("image_width", "image", FieldType::Uint, Shape::Scalar);
+                d.assistance = Assistance::Bounds;
                 d.default_text = false;
                 d.unit = Some("pixels".into());
                 d
@@ -46,6 +52,7 @@ impl Provider for ImageQueryProvider {
             {
                 let mut d =
                     FieldDefinition::new("image_height", "image", FieldType::Uint, Shape::Scalar);
+                d.assistance = Assistance::Bounds;
                 d.default_text = false;
                 d.unit = Some("pixels".into());
                 d
@@ -96,6 +103,11 @@ impl Provider for VideoQueryProvider {
                     FieldType::Identifier,
                     Shape::Scalar,
                 );
+                d.choices = Some(DeclaredChoices {
+                    closed: true,
+                    values: vec!["mov".into(), "matroska".into()],
+                });
+                d.assistance = Assistance::Strings;
                 d.default_text = false;
                 d.unit = None;
                 d
@@ -107,6 +119,7 @@ impl Provider for VideoQueryProvider {
                     FieldType::Identifier,
                     Shape::Scalar,
                 );
+                d.assistance = Assistance::Strings;
                 d.default_text = false;
                 d.unit = None;
                 d
@@ -114,6 +127,7 @@ impl Provider for VideoQueryProvider {
             {
                 let mut d =
                     FieldDefinition::new("video_width", "video", FieldType::Uint, Shape::Scalar);
+                d.assistance = Assistance::Bounds;
                 d.default_text = false;
                 d.unit = Some("pixels".into());
                 d
@@ -121,6 +135,7 @@ impl Provider for VideoQueryProvider {
             {
                 let mut d =
                     FieldDefinition::new("video_height", "video", FieldType::Uint, Shape::Scalar);
+                d.assistance = Assistance::Bounds;
                 d.default_text = false;
                 d.unit = Some("pixels".into());
                 d
@@ -132,6 +147,7 @@ impl Provider for VideoQueryProvider {
                     FieldType::Float,
                     Shape::Scalar,
                 );
+                d.assistance = Assistance::Bounds;
                 d.default_text = false;
                 d.unit = Some("seconds".into());
                 d

@@ -68,6 +68,7 @@ impl Provider for CivitaiQueryProvider {
                     FieldType::Text,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f.optional = false;
                 f
@@ -79,6 +80,7 @@ impl Provider for CivitaiQueryProvider {
                     FieldType::Identifier,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f.optional = false;
                 f
@@ -100,6 +102,7 @@ impl Provider for CivitaiQueryProvider {
                     FieldType::Text,
                     Shape::Collection,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f.optional = false;
                 f
@@ -111,6 +114,7 @@ impl Provider for CivitaiQueryProvider {
                     FieldType::Text,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },
@@ -132,6 +136,7 @@ impl Provider for CivitaiQueryProvider {
                     FieldType::Text,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f.optional = false;
                 f
@@ -153,6 +158,7 @@ impl Provider for CivitaiQueryProvider {
                     FieldType::Identifier,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },
@@ -174,6 +180,7 @@ impl Provider for CivitaiQueryProvider {
                     FieldType::Text,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f.optional = false;
                 f
@@ -185,6 +192,7 @@ impl Provider for CivitaiQueryProvider {
                     FieldType::Identifier,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f.optional = false;
                 f
@@ -196,6 +204,7 @@ impl Provider for CivitaiQueryProvider {
                     FieldType::Identifier,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },
@@ -206,6 +215,7 @@ impl Provider for CivitaiQueryProvider {
                     FieldType::Identifier,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },
@@ -216,6 +226,7 @@ impl Provider for CivitaiQueryProvider {
                     FieldType::Identifier,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },

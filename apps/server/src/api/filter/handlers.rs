@@ -118,6 +118,7 @@ async fn analyze(
 pub(crate) fn router() -> utoipa_axum::router::OpenApiRouter<Arc<Shared>> {
     use utoipa_axum::{router::OpenApiRouter, routes};
     OpenApiRouter::new()
+        .merge(super::assistance::router())
         .routes(routes!(language))
         .routes(routes!(presets, write))
         .routes(routes!(preset))

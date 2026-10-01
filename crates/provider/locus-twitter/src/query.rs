@@ -89,6 +89,7 @@ impl Provider for TwitterQueryProvider {
                     FieldType::Identifier,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },
@@ -99,6 +100,7 @@ impl Provider for TwitterQueryProvider {
                     FieldType::Text,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },
@@ -109,6 +111,7 @@ impl Provider for TwitterQueryProvider {
                     FieldType::Text,
                     Shape::Collection,
                 );
+                f.assistance = Assistance::Strings;
                 f.unit = None;
                 f
             },
@@ -119,6 +122,7 @@ impl Provider for TwitterQueryProvider {
                     FieldType::Time,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Bounds;
                 f.unit = Some("unix_ms".into());
                 f
             },
@@ -129,6 +133,7 @@ impl Provider for TwitterQueryProvider {
                     FieldType::Time,
                     Shape::Scalar,
                 );
+                f.assistance = Assistance::Bounds;
                 f.unit = Some("unix_ms".into());
                 f
             },

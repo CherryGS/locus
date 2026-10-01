@@ -30,3 +30,20 @@ fn rejects_contradictory_definitions_and_values() {
             .is_ok()
     );
 }
+#[test]
+fn owner_assistance_metadata_rejects_incompatible_types() {
+    for (kind, capability) in [
+        (FieldType::Text, Assistance::Bounds),
+        (FieldType::Time, Assistance::Strings),
+    ] {
+        let mut field = FieldDefinition::new("field", "owner", kind, Shape::Scalar);
+        field.assistance = capability;
+        assert!(Catalogue::new(vec![field]).is_err());
+    }
+    let mut field = FieldDefinition::new("field", "owner", FieldType::Uint, Shape::Scalar);
+    field.choices = Some(DeclaredChoices {
+        closed: true,
+        values: vec!["Png".into()],
+    });
+    assert!(Catalogue::new(vec![field]).is_err());
+}

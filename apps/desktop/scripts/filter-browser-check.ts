@@ -9,6 +9,7 @@ import { civitaiFixture } from "./civitai-fixture.ts"
 import { browserPreview } from "./browser-preview.ts"
 import { outputDirectory } from "./fixture.ts"
 import { chooseContentView } from "./content-view-choice.ts"
+import { checkFilterAssistance } from "./filter-assistance-browser.ts"
 
 const data = await civitaiFixture(),
   backend = await data.start(),
@@ -60,6 +61,7 @@ try {
     name: "Filter source",
     exact: true,
   })
+  await checkFilterAssistance(page, dialog, source, catalogue, output)
   await source.fill("+entity_id:* unknown_field:value -entity_id:missing")
   await dialog.getByText("Source invalid", { exact: true }).waitFor()
   await source.fill('@name("removed", entity_id:*)')
@@ -183,12 +185,11 @@ try {
   await page.getByRole("dialog", { name: "Save preset", exact: true })
     .getByRole("button", { name: "Cancel", exact: true }).click()
   assert.equal(await source.inputValue(), "model_tensor_count:*\nAND file_byte_count:[0 TO *]")
-  await dialog.getByRole("button", { name: "Filter options", exact: true }).click()
   await page.getByRole("button", { name: "Save As", exact: true }).click()
   await page.getByRole("dialog", { name: "Save As", exact: true })
     .getByRole("button", { name: "Cancel", exact: true }).click()
   await page.waitForFunction(
-    () => document.activeElement?.getAttribute("aria-label") === "Filter options",
+    () => document.activeElement?.id === "filter-source",
   )
   await dialog.getByRole("button", { name: "Filter options", exact: true }).click()
   await page.getByLabel("Preset name", { exact: true }).fill("Models")
@@ -619,6 +620,8 @@ try {
         enumerations,
         corpus: all.length,
         scenarios: [
+          "live transient assistance, provenance, delayed lexical responses, field/value acceptance and bounds",
+          "native manual source, IME, declared choices, observed paging/reuse/failure/refresh and action precedence",
           "raw multiline source and CRLF/Unicode/large-lexeme round trip",
           "stale validation rejection and unavailable validation recovery",
           "preset dialog search, selection, dirty guard and Escape return",

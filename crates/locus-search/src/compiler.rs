@@ -11,8 +11,89 @@ use tantivy::{
     schema::IndexRecordOption,
 };
 
+fn parser(index: &Index, m: &Mapping) -> QueryParser {
+    let mut parser = QueryParser::for_index(index, m.defaults.clone());
+    parser.allow_regexes();
+    parser
+}
+fn regex_query(
+    m: &Mapping,
+    field: &str,
+    analyzed: bool,
+    pattern: &str,
+) -> Result<Box<dyn Query>, SearchError> {
+    let mapped = if analyzed { m.text } else { m.values };
+    let mut prefix = Term::from_field_json_path(mapped, field, false);
+    prefix.append_type_and_str("");
+    let prefix = prefix
+        .serialized_value_bytes()
+        .iter()
+        .map(|b| format!("\\x{b:02x}"))
+        .collect::<String>();
+    Ok(Box::new(
+        tantivy::query::RegexQuery::from_pattern(&format!("{prefix}(?:{pattern})"), mapped)
+            .map_err(|e| SearchError::Native(e.to_string()))?,
+    ))
+}
+fn regex_escape(value: &str) -> String {
+    let mut pattern = String::new();
+    for c in value.chars() {
+        if ".*+?()[]{}|^$\\".contains(c) {
+            pattern.push('\\');
+        }
+        pattern.push(c);
+    }
+    pattern
+}
 fn exact(term: Term) -> Box<dyn Query> {
     Box::new(TermQuery::new(term, IndexRecordOption::Basic))
+}
+fn with_original(
+    m: &Mapping,
+    field: &str,
+    matcher: crate::original::Match,
+    native: Box<dyn Query>,
+) -> Box<dyn Query> {
+    or(vec![
+        and(vec![
+            native,
+            not(exact(Term::from_field_text(m.oversized, field))),
+        ]),
+        Box::new(crate::original::OriginalQuery {
+            values: m.values,
+            marker: m.oversized,
+            field: field.into(),
+            matcher,
+            native: None,
+        }),
+    ])
+}
+fn long_equality(m: &Mapping, field: &str, value: &str, scoring: bool) -> Box<dyn Query> {
+    let mut lookup = Term::from_field_json_path(m.lookup, field, false);
+    lookup.append_type_and_str(&crate::original::lookup(value));
+    Box::new(crate::original::OriginalQuery {
+        values: m.values,
+        marker: m.oversized,
+        field: field.into(),
+        matcher: crate::original::Match::Equal(value.into()),
+        native: Some(Box::new(TermQuery::new(
+            lookup,
+            if scoring {
+                IndexRecordOption::WithFreqs
+            } else {
+                IndexRecordOption::Basic
+            },
+        ))),
+    })
+}
+fn equality_term(m: &Mapping, field: &str, value: &Value) -> Result<Box<dyn Query>, SearchError> {
+    let native = exact(term(m, field, value)?);
+    Ok(match value {
+        Value::Text(s) | Value::Identifier(s) if s.len() > crate::original::MAX_TERM_BYTES => {
+            long_equality(m, field, s, false)
+        }
+        _ => native,
+    })
 }
 pub(crate) fn and(queries: Vec<Box<dyn Query>>) -> Box<dyn Query> {
     Box::new(BooleanQuery::new(
@@ -69,7 +150,7 @@ pub(crate) fn predicate(p: &Predicate, m: &Mapping) -> Result<Box<dyn Query>, Se
         if matches!(v,Value::Text(s)|Value::Identifier(s) if s.is_empty()) {
             Ok(not(present()))
         } else {
-            Ok(exact(term(m, &p.field, v)?))
+            equality_term(m, &p.field, v)
         }
     };
     Ok(match p.operation {
@@ -88,7 +169,7 @@ pub(crate) fn predicate(p: &Predicate, m: &Mapping) -> Result<Box<dyn Query>, Se
             let qs = p
                 .values
                 .iter()
-                .map(|v| Ok(exact(term(m, &p.field, v)?)))
+                .map(|v| equality_term(m, &p.field, v))
                 .collect::<Result<Vec<_>, SearchError>>()?;
             match p.operation {
                 Operation::All => and(qs),
@@ -216,6 +297,74 @@ pub(crate) fn native(index: &Index, m: &Mapping, ast: &Ast) -> Result<Box<dyn Qu
                     .find(|d| d.native_value == name || d.native_exact == name)
                     .ok_or_else(|| SearchError::Native(format!("undeclared field {name}")))?;
                 match &**leaf {
+                    Leaf::Literal(l)
+                        if d.field_type == FieldType::Text
+                            && name == d.native_value
+                            && l.prefix =>
+                    {
+                        use tantivy::tokenizer::TokenStream;
+                        let mut analyzer = index
+                            .tokenizers()
+                            .get("locus_hybrid_v1")
+                            .ok_or_else(|| SearchError::Invalid("analyzer".into()))?;
+                        let mut tokens = Vec::new();
+                        analyzer.token_stream(&l.phrase).process(&mut |t| {
+                            let mut term = Term::from_field_json_path(m.text, &d.id, false);
+                            term.append_type_and_str(&t.text);
+                            tokens.push((t.position, term));
+                        });
+                        if tokens.is_empty() {
+                            return Err(SearchError::Native(
+                                "Prefix must analyze to at least one term".into(),
+                            ));
+                        }
+                        return Ok(Box::new(
+                            tantivy::query::PhrasePrefixQuery::new_with_offset(tokens),
+                        ));
+                    }
+                    Leaf::Regex { pattern, .. }
+                        if matches!(d.field_type, FieldType::Text | FieldType::Identifier) =>
+                    {
+                        let analyzed = d.field_type == FieldType::Text && name == d.native_value;
+                        let native = regex_query(m, &d.id, analyzed, pattern)?;
+                        return Ok(if analyzed {
+                            native
+                        } else {
+                            Box::new(ConstScoreQuery::new(
+                                with_original(
+                                    m,
+                                    &d.id,
+                                    crate::original::Match::Regex(std::sync::Arc::new(
+                                        tantivy_fst::Regex::new(pattern)
+                                            .map_err(|e| SearchError::Native(e.to_string()))?,
+                                    )),
+                                    native,
+                                ),
+                                1.0,
+                            ))
+                        });
+                    }
+                    Leaf::Literal(l)
+                        if name == d.native_exact
+                            && l.prefix
+                            && matches!(d.field_type, FieldType::Text | FieldType::Identifier) =>
+                    {
+                        let native = regex_query(
+                            m,
+                            &d.id,
+                            false,
+                            &format!("{}(?s:.*)", regex_escape(&l.phrase)),
+                        )?;
+                        return Ok(Box::new(ConstScoreQuery::new(
+                            with_original(
+                                m,
+                                &d.id,
+                                crate::original::Match::Prefix(l.phrase.clone()),
+                                native,
+                            ),
+                            1.0,
+                        )));
+                    }
                     Leaf::Regex { .. }
                         if !matches!(d.field_type, FieldType::Text | FieldType::Identifier) =>
                     {
@@ -224,12 +373,29 @@ pub(crate) fn native(index: &Index, m: &Mapping, ast: &Ast) -> Result<Box<dyn Qu
                         ));
                     }
                     Leaf::Set { elements, .. } => {
-                        return Ok(Box::new(TermSetQuery::new(
+                        let native = Box::new(TermSetQuery::new(
                             elements
                                 .iter()
                                 .map(|s| boundary_term(index, m, d, name, s))
                                 .collect::<Result<Vec<_>, _>>()?,
-                        )));
+                        ));
+                        return Ok(
+                            if name == d.native_exact
+                                && matches!(d.field_type, FieldType::Text | FieldType::Identifier)
+                            {
+                                Box::new(ConstScoreQuery::new(
+                                    with_original(
+                                        m,
+                                        &d.id,
+                                        crate::original::Match::Set(elements.clone()),
+                                        native,
+                                    ),
+                                    1.0,
+                                ))
+                            } else {
+                                native
+                            },
+                        );
                     }
                     Leaf::Range { lower, upper, .. } => {
                         let bound=|b:&tantivy::query_grammar::UserInputBound|->Result<Bound<Term>,SearchError>{use tantivy::query_grammar::UserInputBound as B;Ok(match b{B::Unbounded=>Bound::Unbounded,B::Inclusive(s)=>Bound::Included(boundary_term(index,m,d,name,s)?),B::Exclusive(s)=>Bound::Excluded(boundary_term(index,m,d,name,s)?)})};
@@ -240,7 +406,35 @@ pub(crate) fn native(index: &Index, m: &Mapping, ast: &Ast) -> Result<Box<dyn Qu
                                 "Unbounded ranges are not presence; use field:*".into(),
                             ));
                         }
-                        return Ok(Box::new(RangeQuery::new(bound(lower)?, bound(upper)?)));
+                        let native = Box::new(RangeQuery::new(bound(lower)?, bound(upper)?));
+                        return Ok(
+                            if name == d.native_exact
+                                && matches!(d.field_type, FieldType::Text | FieldType::Identifier)
+                            {
+                                let raw = |b: &tantivy::query_grammar::UserInputBound| match b {
+                                    tantivy::query_grammar::UserInputBound::Unbounded => {
+                                        Bound::Unbounded
+                                    }
+                                    tantivy::query_grammar::UserInputBound::Inclusive(s) => {
+                                        Bound::Included(s.clone())
+                                    }
+                                    tantivy::query_grammar::UserInputBound::Exclusive(s) => {
+                                        Bound::Excluded(s.clone())
+                                    }
+                                };
+                                Box::new(ConstScoreQuery::new(
+                                    with_original(
+                                        m,
+                                        &d.id,
+                                        crate::original::Match::Range(raw(lower), raw(upper)),
+                                        native,
+                                    ),
+                                    1.0,
+                                ))
+                            } else {
+                                native
+                            },
+                        );
                     }
                     Leaf::Literal(l)
                         if matches!(
@@ -249,6 +443,24 @@ pub(crate) fn native(index: &Index, m: &Mapping, ast: &Ast) -> Result<Box<dyn Qu
                         ) =>
                     {
                         return Ok(exact(boundary_term(index, m, d, name, &l.phrase)?));
+                    }
+                    Leaf::Literal(l) if name == d.native_exact && !l.prefix => {
+                        // A declared string remains a string even when its spelling
+                        // resembles a JSON number/date/bool. Preserve native BM25.
+                        let value = if d.field_type == FieldType::Text {
+                            Value::Text(l.phrase.clone())
+                        } else {
+                            Value::Identifier(l.phrase.clone())
+                        };
+                        let native = Box::new(TermQuery::new(
+                            term(m, &d.id, &value)?,
+                            IndexRecordOption::WithFreqs,
+                        ));
+                        return Ok(if l.phrase.len() > crate::original::MAX_TERM_BYTES {
+                            long_equality(m, &d.id, &l.phrase, true)
+                        } else {
+                            native
+                        });
                     }
                     _ => (),
                 }
@@ -260,7 +472,7 @@ pub(crate) fn native(index: &Index, m: &Mapping, ast: &Ast) -> Result<Box<dyn Qu
                     field
                 }
                 _ => {
-                    return QueryParser::for_index(index, m.defaults.clone())
+                    return parser(index, m)
                         .build_query_from_user_input_ast(Ast::Leaf(leaf))
                         .map_err(|e| SearchError::Native(e.to_string()));
                 }
@@ -268,13 +480,13 @@ pub(crate) fn native(index: &Index, m: &Mapping, ast: &Ast) -> Result<Box<dyn Qu
             if let Some(name) = field {
                 *name = m.reference(name)?;
             }
-            QueryParser::for_index(index, m.defaults.clone())
+            let native = parser(index, m)
                 .build_query_from_user_input_ast(Ast::Leaf(leaf))
-                .map_err(|e| SearchError::Native(e.to_string()))
+                .map_err(|e| SearchError::Native(e.to_string()))?;
+            Ok(native)
         }
     }
 }
-
 fn boundary_term(
     index: &Index,
     m: &Mapping,

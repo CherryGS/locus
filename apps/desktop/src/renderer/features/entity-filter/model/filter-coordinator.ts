@@ -3,8 +3,9 @@ import { EntityReadError } from "@locus/client"
 import type { IdentitySequence } from "@/entities/entity"
 import { ApiFailure, errorText, type BackendApi, type Wire } from "@/shared/api"
 import { emptyDraft, type FilterDraft } from "./draft"
+import { FilterAssistance, type AssistanceApi } from "./assistance"
 
-type FilterApi = Pick<
+type FilterApi = AssistanceApi & Pick<
   BackendApi,
   | "identities"
   | "search"
@@ -26,6 +27,7 @@ type Established = {
   expiresAt?: number
 }
 export class FilterCoordinator {
+  readonly assistance: FilterAssistance
   draft = emptyDraft()
   saved?: Wire<"FilterPreset">
   established?: Established
@@ -33,6 +35,7 @@ export class FilterCoordinator {
   open = false
   pending?: "apply" | "refresh"
   saving = false
+  preparing = false
   loading = false
   guard?: { destination: string | null }
   private uncertainRecords = new Map<
@@ -99,7 +102,23 @@ export class FilterCoordinator {
   constructor(
     private readonly api: FilterApi,
     private readonly replaced: () => void = () => {},
-  ) {}
+  ) {
+    this.assistance = new FilterAssistance(api, () => this.draft.source,
+      (text) => this.setDraft({ ...this.draft, source: { ...this.draft.source, text } }, true),
+      () => {
+        if (this.assistance.active) {
+          this.analysisIntent++
+          this.analysis = undefined
+          this.analysisPending = false
+          this.analysisError = undefined
+          clearTimeout(this.analysisTimer)
+        } else if (this.open) {
+          clearTimeout(this.analysisTimer)
+          this.analysisTimer = setTimeout(() => void this.analyze(), 350)
+        }
+        this.changed()
+      }, () => !this.busy)
+  }
   get sequence() {
     return this.established?.sequence
   }
@@ -107,7 +126,7 @@ export class FilterCoordinator {
     return !!this.established?.criteria
   }
   get busy() {
-    return this.saving || this.loading || this.pending === "apply"
+    return this.preparing || this.saving || this.loading || this.pending === "apply"
   }
   get dirty() {
     return this.saved
@@ -123,6 +142,11 @@ export class FilterCoordinator {
   }
   edit(draft: FilterDraft) {
     if (this.busy) return
+    this.assistance.exit()
+    this.setDraft(draft)
+  }
+  private setDraft(draft: FilterDraft, helperOwned = false) {
+    if (this.busy && !helperOwned) return
     this.draft = draft
     this.error = undefined
     this.analysis = undefined
@@ -146,11 +170,13 @@ export class FilterCoordinator {
     void this.analyze()
   }
   close() {
+    this.assistance.exit()
     this.visit++
     this.action++
     this.open = false
     this.guard = undefined
     this.saving = false
+    this.preparing = false
     this.loading = false
     if (this.pending === "apply") {
       this.intent++
@@ -212,6 +238,14 @@ export class FilterCoordinator {
     this.changed()
   }
   async analyze() {
+    if (this.assistance.active) {
+      this.analysisIntent++
+      this.analysis = undefined
+      this.analysisError = undefined
+      this.analysisPending = false
+      this.changed()
+      return
+    }
     const source = structuredClone(this.draft.source),
       ticket = ++this.analysisIntent
     this.analysisPending = true
@@ -231,6 +265,7 @@ export class FilterCoordinator {
   }
   requestSwitch(destination: string | null) {
     if (this.busy) return
+    this.assistance.exit()
     if (this.dirty) {
       this.guard = { destination }
       this.changed()
@@ -278,10 +313,11 @@ export class FilterCoordinator {
   }
   async save(asName?: string, switching?: { destination: string | null }) {
     if (this.busy || this.disposed || !this.open) return false
+    const visit = this.visit, action = ++this.action
+    if (this.assistance.active && !await this.finishHelper(visit, action)) return false
+    if (visit !== this.visit || action !== this.action || this.disposed || this.busy || !this.open) return false
     const draft = structuredClone(this.draft),
-      saved = this.saved,
-      visit = this.visit,
-      action = ++this.action
+      saved = this.saved
     const name = asName ?? draft.name
     if (!name.trim()) {
       this.error = "Enter a preset name before saving."
@@ -444,8 +480,25 @@ export class FilterCoordinator {
   }
   async apply() {
     if (this.busy || this.disposed || this.hostClosing) return false
+    const visit = this.visit, action = ++this.action
+    if (this.assistance.active && !await this.finishHelper(visit, action)) return false
+    if (visit !== this.visit || action !== this.action || this.disposed || this.busy || this.hostClosing) return false
     this.submitted = structuredClone(this.draft)
-    return this.applySource(this.submitted.source, ++this.intent, this.visit, false, undefined)
+    return this.applySource(this.submitted.source, ++this.intent, visit, false, undefined)
+  }
+  async prepareHelperAction() {
+    if (this.busy || this.disposed || !this.open) return false
+    const visit = this.visit, action = ++this.action
+    if (this.assistance.active && !await this.finishHelper(visit, action)) return false
+    return visit === this.visit && action === this.action && !this.disposed && !this.busy && this.open
+  }
+  private async finishHelper(visit: number, action: number) {
+    this.preparing = true
+    this.changed()
+    try { return await this.assistance.complete() }
+    finally {
+      if (visit === this.visit && action === this.action) { this.preparing = false; this.changed() }
+    }
   }
   private async applySource(
     source: Wire<"FilterSource">,
@@ -584,7 +637,10 @@ export class FilterCoordinator {
     this.changed()
     try {
       const value = await this.api.searchCatalogue()
-      if (!this.disposed) this.catalogue = value
+      if (!this.disposed) {
+        this.catalogue = value
+        this.assistance.fields = value.fields
+      }
     } catch (error) {
       if (!this.disposed) this.catalogueError = errorText(error)
     } finally {
@@ -670,6 +726,7 @@ export class FilterCoordinator {
   }
   dispose() {
     if (this.disposed) return
+    this.assistance.exit()
     this.disposed = true
     this.intent++
     this.evidenceIntent++

@@ -73,6 +73,47 @@ async fn catalogue(
 async fn status(State(state): State<Arc<Shared>>) -> Result<Json<SearchStatusBody>, ApiError> {
     Ok(Json(SearchStatusBody(service(&state)?.status())))
 }
+#[utoipa::path(post,path="/api/v1/search/observation",operation_id="search_observation",tag="search",responses((status=200,body=ObservationBody)))]
+async fn observation(State(state): State<Arc<Shared>>) -> Result<Json<ObservationBody>, ApiError> {
+    let service = service(&state)?;
+    Ok(Json(ObservationBody(
+        state.search_observation(service).await?.map_err(failure)?,
+    )))
+}
+#[utoipa::path(post,path="/api/v1/search/strings",operation_id="search_strings",tag="search",request_body=StringPageRequestBody,responses((status=200,body=StringPageBody)))]
+async fn strings(
+    State(state): State<Arc<Shared>>,
+    input: Result<Json<StringPageRequestBody>, JsonRejection>,
+) -> Result<Json<StringPageBody>, ApiError> {
+    let service = service(&state)?;
+    Ok(Json(StringPageBody(
+        state
+            .search_strings(service, body(input)?.0)
+            .await?
+            .map_err(failure)?,
+    )))
+}
+#[utoipa::path(post,path="/api/v1/search/bounds",operation_id="search_bounds",tag="search",request_body=BoundsRequestBody,responses((status=200,body=BoundsBody)))]
+async fn bounds(
+    State(state): State<Arc<Shared>>,
+    input: Result<Json<BoundsRequestBody>, JsonRejection>,
+) -> Result<Json<BoundsBody>, ApiError> {
+    let service = service(&state)?;
+    Ok(Json(BoundsBody(
+        state
+            .search_bounds(service, body(input)?.0)
+            .await?
+            .map_err(failure)?,
+    )))
+}
+#[utoipa::path(post,path="/api/v1/search/observation/release",operation_id="search_observation_release",tag="search",request_body=ReleaseContext,responses((status=204,description="Discovery observation released")))]
+async fn release_observation(
+    State(state): State<Arc<Shared>>,
+    input: Result<Json<ReleaseContext>, JsonRejection>,
+) -> Result<axum::http::StatusCode, ApiError> {
+    service(&state)?.release_observation(&body(input)?.context);
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
 #[utoipa::path(post,path="/api/v1/search/query",operation_id="search_query",tag="search",request_body=SearchQueryBody,responses((status=200,description="Complete ordered packed RFC UUIDv7 identities; 16 bytes per Entity. Context expires after the advertised lifetime.",body=Vec<u8>,content_type="application/octet-stream",headers(("Content-Length"=String),("X-Locus-Search-No-Filter"=String,description="true for ordinary enumeration; no search context/generation headers are supplied"),("X-Locus-Search-Context"=String),("X-Locus-Search-Generation"=String),("X-Locus-Search-Sequence"=String),("X-Locus-Search-Expires"=String)))))]
 async fn query(
     State(state): State<Arc<Shared>>,
@@ -168,6 +209,10 @@ pub(crate) fn router() -> utoipa_axum::router::OpenApiRouter<Arc<Shared>> {
     OpenApiRouter::new()
         .routes(routes!(catalogue))
         .routes(routes!(status))
+        .routes(routes!(observation))
+        .routes(routes!(strings))
+        .routes(routes!(bounds))
+        .routes(routes!(release_observation))
         .routes(routes!(query))
         .routes(routes!(evidence))
         .routes(routes!(release))
