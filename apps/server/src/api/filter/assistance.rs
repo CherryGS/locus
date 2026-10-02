@@ -98,10 +98,60 @@ async fn editing(
         locus_filter::api::editing_context(catalogue(&state)?, body(input)?.0).map_err(failure)?,
     )))
 }
+#[derive(Deserialize, ToSchema)]
+struct ReferenceChoicesInput {
+    format: String,
+    version: u32,
+    reference: String,
+}
+#[derive(Serialize, ToSchema)]
+struct ReferenceChoice {
+    identity: String,
+    name: String,
+}
+#[utoipa::path(post,path="/api/v1/filter/reference-choices",operation_id="filter_reference_choices",tag="filter",request_body=ReferenceChoicesInput,responses((status=200,body=Vec<ReferenceChoice>)))]
+async fn reference_choices(
+    State(state): State<Arc<Shared>>,
+    input: Result<Json<ReferenceChoicesInput>, JsonRejection>,
+) -> Result<Json<Vec<ReferenceChoice>>, ApiError> {
+    let input = body(input)?;
+    locus_filter::api::field_help(
+        catalogue(&state)?,
+        locus_filter::api::FieldHelpRequest {
+            format: input.format,
+            version: input.version,
+            field: Some(input.reference.clone()),
+        },
+    )
+    .map_err(failure)?;
+    catalogue(&state)?
+        .reference(&input.reference)
+        .map_err(|e| ApiError::invalid(e.to_string()))?;
+    let search = state
+        .search
+        .as_ref()
+        .map_err(|e| ApiError::new(ErrorCode::LaunchRejected, e))?;
+    // Profile and declared input are already validated. Provider failures here
+    // are failed primary observations, not invalid authored query text.
+    let choices = state
+        .search_reference_choices(search.clone(), input.reference)
+        .await?
+        .map_err(|e| ApiError::new(ErrorCode::OperationFailed, e.to_string()))?;
+    Ok(Json(
+        choices
+            .into_iter()
+            .map(|c| ReferenceChoice {
+                identity: c.identity,
+                name: c.name,
+            })
+            .collect(),
+    ))
+}
 pub(crate) fn router() -> utoipa_axum::router::OpenApiRouter<Arc<Shared>> {
     use utoipa_axum::{router::OpenApiRouter, routes};
     OpenApiRouter::new()
         .routes(routes!(literal))
+        .routes(routes!(reference_choices))
         .routes(routes!(help))
         .routes(routes!(editing))
 }

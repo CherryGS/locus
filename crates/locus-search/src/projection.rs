@@ -25,16 +25,62 @@ impl Providers {
             ),
         ];
         let mut owners = BTreeMap::new();
+        let mut references = Vec::new();
         for provider in providers {
-            definitions.extend(provider.definitions());
+            let declared = provider.definitions();
+            for reference in provider.references() {
+                if !declared.iter().any(|f| f.id == reference.target_field) {
+                    return Err(SearchError::Invalid(
+                        "reference target must belong to its provider".into(),
+                    ));
+                }
+                references.push(reference);
+            }
+            definitions.extend(declared);
             if owners.insert(provider.kind(), provider).is_some() {
                 return Err(SearchError::Invalid("duplicate provider kind".into()));
             }
         }
         Ok(Self {
-            catalogue: Catalogue::new(definitions)?,
+            catalogue: Catalogue::with_references(definitions, references)?,
             owners,
         })
+    }
+    pub async fn resolve(
+        &self,
+        c: &mut Context,
+        roots: Vec<locus_query::api::ReferenceOperand>,
+    ) -> Result<crate::reference::Bindings, SearchError> {
+        let mut bindings = crate::reference::Bindings::new();
+        for root in roots {
+            root.validate(&self.catalogue)?;
+            let provider = self.reference_owner(&root.reference)?;
+            let identities = provider.resolve_reference(c, &root).await?;
+            if identities.is_empty() {
+                return Err(SearchError::Invalid(
+                    "required reference resolved to no identities".into(),
+                ));
+            }
+            bindings.insert(root, identities);
+        }
+        Ok(bindings)
+    }
+    fn reference_owner(&self, reference: &str) -> Result<&Arc<dyn Provider>, SearchError> {
+        self.catalogue.reference(reference)?;
+        self.owners
+            .values()
+            .find(|p| p.references().iter().any(|r| r.id == reference))
+            .ok_or_else(|| SearchError::Invalid("reference owner unavailable".into()))
+    }
+    pub async fn choices(
+        &self,
+        c: &mut Context,
+        reference: &str,
+    ) -> Result<Vec<locus_query::api::ReferenceChoice>, SearchError> {
+        Ok(self
+            .reference_owner(reference)?
+            .reference_choices(c, reference)
+            .await?)
     }
     pub async fn project(
         &self,

@@ -120,7 +120,7 @@ pub(crate) fn presence(m: &Mapping, field: &str) -> Box<dyn Query> {
         1.0,
     ))
 }
-fn term(m: &Mapping, field: &str, value: &Value) -> Result<Term, SearchError> {
+pub(crate) fn term(m: &Mapping, field: &str, value: &Value) -> Result<Term, SearchError> {
     let mut term = Term::from_field_json_path(m.values, field, false);
     match value {
         Value::Identifier(v) | Value::Text(v) => term.append_type_and_str(v),
@@ -190,20 +190,26 @@ pub(crate) fn predicate(p: &Predicate, m: &Mapping) -> Result<Box<dyn Query>, Se
         }
     })
 }
-pub(crate) fn condition(c: &Condition, m: &Mapping) -> Result<Box<dyn Query>, SearchError> {
+pub(crate) fn condition_bound(
+    c: &Condition,
+    m: &Mapping,
+    bindings: Option<&crate::reference::Bindings>,
+) -> Result<Box<dyn Query>, SearchError> {
     Ok(match c {
         Condition::And(cs) => and(cs
             .iter()
-            .map(|c| condition(c, m))
+            .map(|c| condition_bound(c, m, bindings))
             .collect::<Result<_, _>>()?),
         Condition::Or(cs) => or(cs
             .iter()
-            .map(|c| condition(c, m))
+            .map(|c| condition_bound(c, m, bindings))
             .collect::<Result<_, _>>()?),
-        Condition::Not(c) => not(condition(c, m)?),
+        Condition::Not(c) => not(condition_bound(c, m, bindings)?),
         Condition::Predicate(p) => predicate(p, m)?,
+        Condition::Reference(operand) => crate::reference::query(operand, m, bindings)?,
     })
 }
+#[cfg(test)]
 pub(crate) fn compile(
     index: &Index,
     m: &Mapping,
@@ -211,16 +217,33 @@ pub(crate) fn compile(
     text: &str,
     filter: Option<&Condition>,
 ) -> Result<Box<dyn Query>, SearchError> {
+    compile_bound(
+        index,
+        m,
+        catalogue,
+        text,
+        filter,
+        &crate::reference::Bindings::new(),
+    )
+}
+pub(crate) fn compile_bound(
+    index: &Index,
+    m: &Mapping,
+    catalogue: &Catalogue,
+    text: &str,
+    filter: Option<&Condition>,
+    bindings: &crate::reference::Bindings,
+) -> Result<Box<dyn Query>, SearchError> {
     let native = if text.trim().is_empty() {
         Box::new(ConstScoreQuery::new(Box::new(AllQuery), 0.0)) as Box<dyn Query>
     } else {
-        native(index, m, &parse(text)?)?
+        native_bound(index, m, &parse(text)?, Some(bindings))?
     };
     if let Some(c) = filter {
         c.validate(catalogue)?;
         Ok(and(vec![
             native,
-            Box::new(BoostQuery::new(condition(c, m)?, 0.0)),
+            Box::new(BoostQuery::new(condition_bound(c, m, Some(bindings))?, 0.0)),
         ]))
     } else {
         Ok(native)
@@ -229,20 +252,34 @@ pub(crate) fn compile(
 pub(crate) fn parse(text: &str) -> Result<Ast, SearchError> {
     tantivy::query_grammar::parse_query(text).map_err(|e| SearchError::Native(format!("{e:?}")))
 }
+#[cfg(test)]
 pub(crate) fn program(
     index: &Index,
     m: &Mapping,
     p: &Program,
 ) -> Result<Box<dyn Query>, SearchError> {
+    program_bound(index, m, p, Some(&crate::reference::Bindings::new()))
+}
+pub(crate) fn program_bound(
+    index: &Index,
+    m: &Mapping,
+    p: &Program,
+    bindings: Option<&crate::reference::Bindings>,
+) -> Result<Box<dyn Query>, SearchError> {
     if p.source.text.trim().is_empty() {
         return Ok(Box::new(AllQuery));
     }
-    native(index, m, &parse(&p.source.text)?)
+    native_bound(index, m, &parse(&p.source.text)?, bindings)
 }
-pub(crate) fn native(index: &Index, m: &Mapping, ast: &Ast) -> Result<Box<dyn Query>, SearchError> {
+fn native_bound(
+    index: &Index,
+    m: &Mapping,
+    ast: &Ast,
+    bindings: Option<&crate::reference::Bindings>,
+) -> Result<Box<dyn Query>, SearchError> {
     match ast {
         Ast::Boost(child, boost) => Ok(Box::new(BoostQuery::new(
-            native(index, m, child)?,
+            native_bound(index, m, child, bindings)?,
             boost.into_inner() as f32,
         ))),
         Ast::Clause(children) => {
@@ -258,7 +295,7 @@ pub(crate) fn native(index: &Index, m: &Mapping, ast: &Ast) -> Result<Box<dyn Qu
                     _ => Occur::Should,
                 };
                 positive |= occur != Occur::MustNot;
-                qs.push((occur, native(index, m, child)?));
+                qs.push((occur, native_bound(index, m, child, bindings)?));
             }
             if !positive {
                 qs.push((
@@ -273,6 +310,9 @@ pub(crate) fn native(index: &Index, m: &Mapping, ast: &Ast) -> Result<Box<dyn Qu
             Ok(Box::new(BooleanQuery::new(qs)))
         }
         Ast::Leaf(leaf) => {
+            if let Some(operand) = crate::reference::leaf(leaf, &m.catalogue)? {
+                return crate::reference::query(&operand, m, bindings);
+            }
             if let Leaf::Exists { field } = &**leaf {
                 let d = m
                     .catalogue

@@ -97,6 +97,32 @@ pub type ProjectionFuture<'a> =
 pub trait Provider: Send + Sync {
     fn kind(&self) -> KindId;
     fn definitions(&self) -> Vec<FieldDefinition>;
+    fn references(&self) -> Vec<crate::reference::ReferenceDefinition> {
+        Vec::new()
+    }
+    fn resolve_reference<'a>(
+        &'a self,
+        _context: &'a mut Context,
+        operand: &'a crate::reference::ReferenceOperand,
+    ) -> crate::reference::ReferenceFuture<'a> {
+        Box::pin(async move {
+            Err(QueryError::Invalid(format!(
+                "unsupported query reference {}",
+                operand.reference
+            )))
+        })
+    }
+    fn reference_choices<'a>(
+        &'a self,
+        _context: &'a mut Context,
+        reference: &'a str,
+    ) -> crate::reference::ReferenceChoicesFuture<'a> {
+        Box::pin(async move {
+            Err(QueryError::Invalid(format!(
+                "unsupported query reference {reference}"
+            )))
+        })
+    }
     fn project<'a>(
         &'a self,
         context: &'a mut Context,

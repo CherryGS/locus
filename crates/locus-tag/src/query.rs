@@ -4,6 +4,56 @@ use locus_query::api::*;
 use locus_store::api::Context;
 pub struct TagQueryProvider;
 impl Provider for TagQueryProvider {
+    fn references(&self) -> Vec<ReferenceDefinition> {
+        vec![ReferenceDefinition {
+            id: "tag_subtree".into(),
+            owner: "tag".into(),
+            target_field: "tag_ids".into(),
+            meaning: ReferenceMeaning::InclusiveSubtree,
+        }]
+    }
+    fn resolve_reference<'a>(
+        &'a self,
+        c: &'a mut Context,
+        operand: &'a ReferenceOperand,
+    ) -> ReferenceFuture<'a> {
+        Box::pin(async move {
+            if operand.reference != "tag_subtree" {
+                return Err(QueryError::Invalid("unknown Tag reference".into()));
+            }
+            let id = uuid::Uuid::parse_str(&operand.identity)
+                .map_err(|e| QueryError::Invalid(e.to_string()))?;
+            let id = crate::identity::TagId::from_bytes(id.as_bytes())
+                .map_err(|e| QueryError::Invalid(e.to_string()))?;
+            TagService::subtree_in(c, id)
+                .await
+                .map(|ids| ids.into_iter().map(|id| id.to_string()).collect())
+                .map_err(|e| QueryError::Invalid(format!("tag_subtree {}: {e}", operand.identity)))
+        })
+    }
+    fn reference_choices<'a>(
+        &'a self,
+        c: &'a mut Context,
+        reference: &'a str,
+    ) -> ReferenceChoicesFuture<'a> {
+        Box::pin(async move {
+            if reference != "tag_subtree" {
+                return Err(QueryError::Invalid("unknown Tag reference".into()));
+            }
+            TagService::list_in(c)
+                .await
+                .map(|records| {
+                    records
+                        .into_iter()
+                        .map(|r| ReferenceChoice {
+                            identity: r.id.to_string(),
+                            name: r.name,
+                        })
+                        .collect()
+                })
+                .map_err(|e| QueryError::Invalid(e.to_string()))
+        })
+    }
     fn kind(&self) -> KindId {
         TAG_SET_KIND
     }

@@ -15,4 +15,5 @@ pub(crate) const STEPS: &[Step] = &[
     super::s012_search::STEP,
     super::s013_filter::STEP,
     super::s014_tag::STEP,
+    super::s015_tag::STEP,
 ];

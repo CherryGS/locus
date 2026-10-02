@@ -72,6 +72,7 @@ export function FieldReference({ coordinator: c }: { coordinator: FilterCoordina
               </AlertDescription>
             </Alert>
           )}
+          {(c.catalogue?.references ?? []).filter((r) => `${r.owner} ${r.id}`.toLocaleLowerCase().includes(query)).map((r) => <section key={r.id} className="flex flex-col"><h4 className="mb-1 text-xs font-medium text-muted-foreground">{r.owner} · query reference</h4><FieldReferenceRow label={`${r.id} query reference`} value={r.id} type="UUID" description="Inclusive subtree membership; one required root identity, zero relevance" /></section>)}
           {[...groups].map(([owner, fields]) => (
             <section key={owner} className="flex flex-col">
               <h4 className="mb-1 text-xs font-medium text-muted-foreground">{owner}</h4>

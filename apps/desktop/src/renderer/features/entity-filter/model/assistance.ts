@@ -3,9 +3,11 @@ import { bytePosition, byteToRaw, displaySource, rawPosition } from "./raw-input
 
 export type AssistanceApi = Pick<BackendApi,
   "filterEditing" | "filterLiteral" | "filterHelp" | "searchObservation" |
-  "searchStrings" | "searchBounds" | "releaseSearchObservation">
+  "searchStrings" | "searchBounds" | "releaseSearchObservation" | "filterReferenceChoices">
 type Field = Wire<"Search_FieldDefinition">
-type Candidate = { value: string; declared: boolean; observed: boolean }
+type RootReference = { id: string; owner: string; native_exact: string; native_value: string; assistance: "roots"; field_type: "identifier"; shape: "reference"; unit: null; choices: null }
+type HelperField = Field | RootReference
+type Candidate = { value: string; label?: string; primary?: boolean; declared: boolean; observed: boolean }
 type Session = { id: number; marker: number; end: number; confirmed: boolean; lookupRequested: boolean }
 
 // Event provenance and one marker belong to the consumer. All native spans,
@@ -15,6 +17,8 @@ export class FilterAssistance {
   context?: Wire<"FilterEditingData">
   help?: Wire<"FilterFieldHelpData">
   fields: Field[] = []
+  references: Wire<"Search_ReferenceDefinition">[] = []
+  roots: Wire<"ReferenceChoice">[] = []
   observed: string[] = []
   bounds?: Wire<"SearchBoundsData">
   continuation?: string | null
@@ -52,7 +56,7 @@ export class FilterAssistance {
   get active() { return !!this.session }
   get locked() { return !this.canEdit() }
   get lookupAvailable() {
-    return this.context?.kind === "field" || this.context?.kind === "value" && this.field?.assistance === "strings"
+    return this.context?.kind === "field" || this.context?.kind === "value" && (this.field?.assistance === "strings" || this.field?.assistance === "roots")
   }
   get lookupError() {
     try { new RegExp(this.lookupText, "iu") }
@@ -71,7 +75,8 @@ export class FilterAssistance {
     this.updateHelp(); this.changed()
     if (!this.lookupError && this.context?.kind === "value") void this.readDiscovery()
   }
-  get field() { return this.fields.find((f) => f.id === this.context?.field) }
+  private get referenceFields(): RootReference[] { return this.references.map((r) => ({ id: r.id, owner: r.owner, native_exact: r.id, native_value: r.id, assistance: "roots", field_type: "identifier", shape: "reference", unit: null, choices: null })) }
+  get field(): HelperField | undefined { return this.fields.find((f) => f.id === this.context?.field) ?? this.referenceFields.find((r) => r.id === this.context?.field) }
   private get helpReference() {
     return this.context?.kind === "field" ? this.fieldCandidates[this.highlight]?.native_exact :
       this.context?.field ? this.context.reference || undefined : undefined
@@ -79,12 +84,13 @@ export class FilterAssistance {
   get fieldCandidates() {
     if (this.lookupError) return []
     const pattern = new RegExp(this.lookupText, "iu")
-    return this.fields.filter((f) => [f.id, f.owner, f.native_exact, f.native_value]
+    return [...this.fields, ...this.referenceFields].filter((f) => [f.id, f.owner, f.native_exact, f.native_value]
       .some((s) => pattern.test(s)))
   }
   get candidates(): Candidate[] {
     if (this.lookupError || this.context?.kind !== "value" || !this.context.value_range) return []
     const pattern = new RegExp(this.lookupText, "iu")
+    if (this.field?.assistance === "roots") return this.roots.filter((r) => pattern.test(r.name)).map((r) => ({ value: r.identity, label: r.name, primary: true, declared: false, observed: false }))
     const values = new Map<string, Candidate>()
     // Declared choices remain separately available during a discovery outage.
     // Search owns observed matching; never label a choice absent based on a page.
@@ -147,7 +153,7 @@ export class FilterAssistance {
     // not selectable until the current spans and observations have arrived.
     // Clearing it on every input/selection event made the popup collapse and
     // flip sides several times for a single keystroke.
-    this.error = this.observationFailure
+    this.error = this.field?.assistance === "roots" ? undefined : this.observationFailure
     this.editing = true
     this.loading = false
     this.discovery++
@@ -175,18 +181,19 @@ export class FilterAssistance {
       const previous = this.context
       if (!previous || previous.field !== context.field || previous.reference !== context.reference || previous.kind !== context.kind) {
         this.lookupText = ""; this.lookupReplyError = undefined
-        this.observed = []; this.bounds = undefined; this.continuation = undefined; this.noValues = false
+        this.roots = []; this.observed = []; this.bounds = undefined; this.continuation = undefined; this.noValues = false
       }
       this.context = context
+      this.error = this.field?.assistance === "roots" ? undefined : this.observationFailure
       this.editing = false
       this.updateHelp()
-      if (this.field?.assistance === "bounds" || this.field?.assistance === "strings" && context.kind === "value")
+      if (this.field?.assistance === "bounds" || (this.field?.assistance === "strings" || this.field?.assistance === "roots") && context.kind === "value")
         void this.readDiscovery()
       this.changed()
     } catch (error) {
       if (current()) {
         this.editing = false
-        this.context = undefined; this.observed = []; this.bounds = undefined; this.continuation = undefined
+        this.context = undefined; this.roots = []; this.observed = []; this.bounds = undefined; this.continuation = undefined
         this.help = undefined; this.helpError = undefined; this.helpKey = undefined; this.helpSerial++
         this.error = `Editing assistance unavailable: ${errorText(error)}`
         this.changed()
@@ -230,10 +237,14 @@ export class FilterAssistance {
       this.observation = value
       this.expiry = setTimeout(() => {
         this.observation = undefined
-        this.discovery++
-        this.observed = []; this.bounds = undefined; this.continuation = undefined; this.loading = false
-        this.error = "Library observation expired. Refresh to try again."
-        this.observationFailure = this.error
+        this.observed = []; this.bounds = undefined; this.continuation = undefined
+        this.observationFailure = "Library observation expired. Refresh to try again."
+        // An aligned Entity-value observation owns neither primary vocabulary nor
+        // its current request. Remember expiry for a later return to indexed values.
+        if (this.field?.assistance !== "roots") {
+          this.discovery++; this.loading = false
+          this.error = this.observationFailure
+        }
         this.release(value.context); this.changed()
       }, value.expires_after_seconds * 1000)
       return value
@@ -243,14 +254,20 @@ export class FilterAssistance {
     const session = this.session, context = this.context, field = this.field
     if (!session || !field || !context || this.editing || field.assistance === "manual") return
     if (this.lookupError) return
-    if (this.observationFailure) return
-    if (field.assistance === "strings" && (context.kind !== "value" || !context.value_range)) return
+    if (this.observationFailure && field.assistance !== "roots") return
+    if ((field.assistance === "strings" || field.assistance === "roots") && (context.kind !== "value" || !context.value_range)) return
     const ticket = ++this.discovery, editing = this.edit, pattern = this.lookupText
     this.loading = true; this.error = undefined
     if (!more) this.noValues = false
     this.changed()
     const current = () => this.session === session && ticket === this.discovery && editing === this.edit
     try {
+      if (field.assistance === "roots") {
+        const source = this.source()
+        const roots = await this.api.filterReferenceChoices({ format: source.format, version: source.version, reference: field.id })
+        if (current()) { this.roots = roots; this.noValues = roots.length === 0 }
+        return
+      }
       const observation = await this.capture()
       if (!current()) return
       if (field.assistance === "bounds") {
@@ -266,6 +283,11 @@ export class FilterAssistance {
       }
     } catch (error) {
       if (current()) {
+        if (field.assistance === "roots") {
+          this.roots = []
+          this.error = `Reference vocabulary unavailable: ${errorText(error)}. Refresh to try again.`
+          return
+        }
         if (error instanceof ApiFailure && error.detail.code === "invalid_request") {
           this.lookupReplyError = errorText(error)
           this.observed = []; this.continuation = undefined
@@ -279,6 +301,11 @@ export class FilterAssistance {
     } finally { if (current()) { this.loading = false; this.changed() } }
   }
   refresh() {
+    if (this.field?.assistance === "roots") {
+      this.roots = []
+      void this.readDiscovery()
+      return
+    }
     this.observationFailure = undefined
     this.serial++
     this.release(this.observation?.context); this.observation = undefined
@@ -315,10 +342,10 @@ export class FilterAssistance {
     this.selection = { revision: this.edit + 1, position }
     this.recontext(position)
   }
-  acceptField(field: Field) {
+  acceptField(field: HelperField) {
     if (!this.canEdit() || this.editing || this.lookupError) return
     const context = this.context
-    if (!context?.field_range || context.kind !== "field" || !this.fieldCandidates.includes(field)) return
+    if (!context?.field_range || context.kind !== "field" || !this.fieldCandidates.some((f) => f.id === field.id)) return
     try { this.replace(context.field_range, field.native_exact + (context.separator_range ? "" : ":"), context.separator_range ? 1 : 0) }
     catch (error) { this.error = errorText(error); this.changed() }
   }
@@ -337,7 +364,7 @@ export class FilterAssistance {
       const literal = await this.api.filterLiteral({ format: source.format, version: source.version,
         field: context.reference, value: { type: this.field?.field_type === "identifier" ? "identifier" : "text", value } })
       if (acceptance !== this.acceptanceIntent || this.session !== session || this.edit !== ticket || pattern !== this.lookupText || JSON.stringify(source) !== JSON.stringify(this.source())) return false
-      if (candidate.observed && !candidate.declared && discovery !== this.discovery) {
+      if ((candidate.primary || candidate.observed && !candidate.declared) && discovery !== this.discovery) {
         this.error = "The candidate observation changed. Select a current value to try again."; this.changed(); return false
       }
       this.replace(context.value_range, literal.literal)
@@ -386,7 +413,7 @@ export class FilterAssistance {
     this.accepting = undefined; this.locating = undefined; this.selection = undefined
     this.locationKey = undefined
     this.acceptanceIntent++
-    this.observed = []; this.bounds = undefined; this.continuation = undefined; this.noValues = false
+    this.roots = []; this.observed = []; this.bounds = undefined; this.continuation = undefined; this.noValues = false
     this.error = undefined; this.helpError = undefined; this.loading = false; this.editing = false; this.observationFailure = undefined
     this.edit++; this.discovery++; this.helpSerial++; this.serial++
     this.release(this.observation?.context); this.observation = undefined; this.capturing = undefined

@@ -228,7 +228,10 @@ pub fn editing_context(
         .iter()
         .find(|f| f.native_value == reference || f.native_exact == reference);
     let mut result = EditingContext::empty(EditingKind::Field);
-    result.field = field.map(|f| f.id.clone());
+    let query_reference = catalogue.references.iter().find(|r| r.id == reference);
+    result.field = field
+        .map(|f| f.id.clone())
+        .or_else(|| query_reference.map(|r| r.id.clone()));
     result.reference = Some(reference.into());
     result.field_range = Some(SourceRange {
         start,
@@ -276,7 +279,7 @@ pub fn editing_context(
     let value_start = colon + 1 + text[colon + 1..token.end].len()
         - text[colon + 1..token.end].trim_start().len();
     let value = &text[value_start..token.end];
-    if field.is_none()
+    if (field.is_none() && query_reference.is_none())
         || value.starts_with(['[', '{', '/', '<', '>', '*', '('])
         || value == "IN"
         || (!value.starts_with(['\"', '\'']) && value.ends_with('*'))

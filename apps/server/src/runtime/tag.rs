@@ -102,8 +102,14 @@ impl Shared {
                     s.transaction(move |c| {
                         Box::pin(async move {
                             Ok::<_, TagError>(match change {
-                                TagChange::Create { name } => MutationOutcome::TagSaved {
-                                    tag: TagService::create_in(c, &name).await?.into(),
+                                TagChange::Create { name, parent } => MutationOutcome::TagSaved {
+                                    tag: TagService::create_under_in(
+                                        c,
+                                        &name,
+                                        parent.as_deref().map(tag).transpose()?,
+                                    )
+                                    .await?
+                                    .into(),
                                 },
                                 TagChange::Rename { id, revision, name } => {
                                     MutationOutcome::TagSaved {
@@ -112,6 +118,20 @@ impl Shared {
                                             .into(),
                                     }
                                 }
+                                TagChange::Move {
+                                    id,
+                                    revision,
+                                    parent,
+                                } => MutationOutcome::TagSaved {
+                                    tag: TagService::move_in(
+                                        c,
+                                        tag(&id)?,
+                                        &revision,
+                                        parent.as_deref().map(tag).transpose()?,
+                                    )
+                                    .await?
+                                    .into(),
+                                },
                                 TagChange::Delete { id, revision } => {
                                     TagService::delete_in(c, tag(&id)?, &revision).await?;
                                     MutationOutcome::TagDeleted { id }
@@ -155,6 +175,7 @@ impl Shared {
                         TagError::BlankName => "blank_name",
                         TagError::DuplicateName => "duplicate_name",
                         TagError::Conflict => "conflict",
+                        TagError::InvalidParent => "invalid_parent",
                         TagError::MissingTag => "missing_tag",
                         TagError::Core(locus_core::api::CoreError::MissingEntity(_)) => {
                             "missing_entity"

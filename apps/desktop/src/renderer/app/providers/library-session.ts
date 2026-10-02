@@ -53,8 +53,6 @@ export class LibrarySession extends DesktopSession {
   readonly reader: EntityReader
   readonly tags: TagCoordinator
   readonly tagBrowsing: TagBrowsing
-  tagDestination?: import("@/pages/entity").EntityDestination
-  tagBrowsingState: import("@/pages/entity").EntityBrowsingState = {}
   readonly filter: FilterCoordinator
   mainDestination: import("@/pages/entity").EntityDestination = { mode: "grid", collectionId: "library" }
   readonly imports: ImportCoordinator
@@ -71,7 +69,7 @@ export class LibrarySession extends DesktopSession {
       this.reader.tagEffects(ids),
     )
     this.tags.host(initial.close.phase !== "idle")
-    this.tagBrowsing = new TagBrowsing(this.api, this.tags, () => this.reader.resultReplaced())
+    this.tagBrowsing = new TagBrowsing(this.api, this.tags)
     this.filter = new FilterCoordinator(this.api, () => this.reader.resultReplaced())
     this.civitai = new CivitaiCoordinator(this.api, (ids) => this.reader.knownEffects(ids))
     this.civitai.host(initial)

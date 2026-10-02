@@ -33,6 +33,100 @@ async fn count(c: &mut Context, table: &str) -> i64 {
         .n
 }
 #[tokio::test(flavor = "multi_thread")]
+async fn forest_moves_promotion_direct_annotations_and_failed_delete_participant() {
+    use diesel_async::SimpleAsyncConnection;
+    let (_d, mut s, k) = setup().await;
+    s.transaction(move |c| Box::pin(async move {
+        let root = TagService::create_in(c, "root").await?;
+        let middle = TagService::create_under_in(c, "middle", Some(root.id)).await?;
+        let leaf = TagService::create_under_in(c, "leaf", Some(middle.id)).await?;
+        let other = TagService::create_in(c, "other").await?;
+        assert_eq!(TagService::subtree_in(c, root.id).await?.len(), 3);
+        assert!(matches!(TagService::create_under_in(c, "leaf", Some(other.id)).await, Err(TagError::DuplicateName)));
+        assert!(matches!(TagService::create_under_in(c, "missing", Some(TagId::new())).await, Err(TagError::MissingTag)));
+        assert!(matches!(TagService::move_in(c, root.id, &root.revision, Some(leaf.id)).await, Err(TagError::InvalidParent)));
+        assert!(matches!(TagService::move_in(c, root.id, &root.revision, Some(root.id)).await, Err(TagError::InvalidParent)));
+        assert!(matches!(TagService::move_in(c, root.id, &root.revision, Some(TagId::new())).await, Err(TagError::MissingTag)));
+        let entity = k.create_entity_in(c).await?;
+        TagService::add_in(&k, c, entity, leaf.id).await?;
+        let journal = count(c, "locus_search_comm_invalidation").await;
+        let moved = TagService::move_in(c, middle.id, &middle.revision, Some(other.id)).await?;
+        assert_ne!(moved.revision, middle.revision);
+        assert_eq!(TagService::move_in(c, middle.id, &moved.revision, Some(other.id)).await?, moved);
+        assert_eq!(count(c, "locus_search_comm_invalidation").await, journal);
+        assert_eq!(TagService::subtree_in(c, root.id).await?, vec![root.id]);
+        assert_eq!(TagService::entity_in(&k, c, entity).await?.unwrap().tags.iter().map(|t| t.id).collect::<Vec<_>>(), vec![leaf.id]);
+        assert!(matches!(TagService::move_in(c, middle.id, &middle.revision, None).await, Err(TagError::Conflict)));
+        // Force failure after promotion. Catching it must not commit the child revision or parent.
+        c.connection().batch_execute("CREATE TRIGGER fixture_delete_failure BEFORE DELETE ON locus_tag_comm_tag BEGIN SELECT RAISE(ABORT,'fixture failure'); END").await?;
+        assert!(TagService::delete_in(c, middle.id, &moved.revision).await.is_err());
+        assert_eq!(TagService::read_in(c, leaf.id).await?, leaf);
+        c.connection().batch_execute("DROP TRIGGER fixture_delete_failure").await?;
+        TagService::delete_in(c, middle.id, &moved.revision).await?;
+        let promoted = TagService::read_in(c, leaf.id).await?;
+        assert_eq!(promoted.parent, Some(other.id));
+        assert_ne!(promoted.revision, leaf.revision);
+        assert!(matches!(TagService::rename_in(c, leaf.id, &leaf.revision, "obsolete").await, Err(TagError::Conflict)));
+        TagService::delete_in(c, other.id, &other.revision).await?;
+        assert_eq!(TagService::read_in(c, leaf.id).await?.parent, None);
+        assert_eq!(TagService::entity_in(&k, c, entity).await?.unwrap().tags[0].id, leaf.id);
+        assert!(matches!(TagService::subtree_in(c, other.id).await, Err(TagError::MissingTag)));
+        Ok::<_, TagError>(())
+    })).await.unwrap();
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn malformed_cycle_is_an_error_for_forest_record_and_resolution() {
+    let (_d, mut s, _) = setup().await;
+    s.transaction(|c| {
+        Box::pin(async move {
+            let root = TagService::create_in(c, "root").await?;
+            let child = TagService::create_under_in(c, "child", Some(root.id)).await?;
+            sql_query("UPDATE locus_tag_comm_tag SET parent=? WHERE id=?")
+                .bind::<diesel::sql_types::Binary, _>(child.id.as_bytes().as_slice())
+                .bind::<diesel::sql_types::Binary, _>(root.id.as_bytes().as_slice())
+                .execute(c.connection())
+                .await?;
+            assert!(matches!(
+                TagService::list_in(c).await,
+                Err(TagError::Corrupt(_))
+            ));
+            assert!(matches!(
+                TagService::read_in(c, root.id).await,
+                Err(TagError::Corrupt(_))
+            ));
+            assert!(matches!(
+                TagService::subtree_in(c, root.id).await,
+                Err(TagError::Corrupt(_))
+            ));
+            Ok::<_, TagError>(())
+        })
+    })
+    .await
+    .unwrap();
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn deep_forest_traversal_is_iterative_and_measured() {
+    use diesel_async::SimpleAsyncConnection;
+    let (_d, mut s, _) = setup().await;
+    s.transaction(|c| Box::pin(async move {
+        let ids: Vec<_> = (0..2000).map(|_| TagId::new()).collect();
+        let hex = |id: TagId| id.as_bytes().iter().map(|b| format!("{b:02x}")).collect::<String>();
+        let revision = uuid::Uuid::now_v7().to_string();
+        let mut statements = String::new();
+        for (i, id) in ids.iter().enumerate() {
+            let parent = if i == 0 { "NULL".into() } else { format!("X'{}'", hex(ids[i-1])) };
+            statements.push_str(&format!("INSERT INTO locus_tag_comm_tag(id,name,revision,parent) VALUES(X'{}','node-{i}','{revision}',{parent});", hex(*id)));
+        }
+        c.connection().batch_execute(&statements).await?;
+        let start = std::time::Instant::now();
+        let all = TagService::subtree_in(c, ids[0]).await?;
+        assert_eq!(all.len(), ids.len());
+        eprintln!("Tag traversal: {} records, depth {}, coherent validation plus indexed SQL closure {:?}", all.len(), ids.len(), start.elapsed());
+        assert_eq!(TagService::subtree_in(c, ids[1999]).await?, vec![ids[1999]]);
+        Ok::<_, TagError>(())
+    })).await.unwrap();
+}
+#[tokio::test(flavor = "multi_thread")]
 async fn vocabulary_guards_deltas_retention_and_global_cleanup() {
     let (_d, mut s, k) = setup().await;
     s.transaction(move |c| {

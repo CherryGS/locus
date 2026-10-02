@@ -598,3 +598,34 @@ test("guarded Save outcomes retain preset attribution after New", async () => {
     c.dispose()
   }
 })
+
+test("generated Tag drafts use dirty guard, clear saved association and wait Apply", async () => {
+  const { c } = fixture()
+  c.show(); await delay(0)
+  c.edit(draft("old", "Old preset"));
+  const old = c.draft
+  assert(c.generatedDraftReceiver()(source('tag_subtree:"root"')))
+  assert.equal(c.draft, old); assert(c.guard)
+  await c.resolveGuard("cancel"); assert.equal(c.draft, old)
+  assert(c.generatedDraftReceiver()(source('tag_ids:"root"')))
+  await c.resolveGuard("discard")
+  assert.equal(c.saved, undefined); assert.equal(c.draft.name, ""); assert.equal(c.draft.source.text, 'tag_ids:"root"')
+  assert.equal(c.established, undefined)
+  const stale = c.generatedDraftReceiver(); c.edit(draft("newer")); assert.equal(stale(source("late")), false)
+  c.saving = true; assert.equal(c.generatedDraftReceiver(), undefined);c.saving = false;c.dispose()
+})
+
+test("Tag handoff guard Save applies old source then adopts fresh unsaved source; stale Save cannot adopt", async () => {
+ const { c } = fixture(); c.show(); await delay(0)
+ c.edit(draft("old content", "Old preset"))
+ assert(c.generatedDraftReceiver()(source('tag_subtree:"root"')))
+ await c.resolveGuard("save")
+ assert.equal(c.open,true);assert.equal(c.saved,undefined);assert.equal(c.draft.name,"")
+ assert.equal(c.draft.source.text,'tag_subtree:"root"');assert.equal(c.established.criteria.text,"old content")
+ c.dispose()
+ const pending=deferred(), f=fixture({filterWrite:()=>pending.promise});f.c.show();await delay(0)
+ f.c.edit(draft("old", "Save old"));assert(f.c.generatedDraftReceiver()(source("late root")))
+ const saving=f.c.resolveGuard("save");await delay(0);f.c.close();f.c.show()
+ pending.resolve({status:"filter_saved",preset:{id:"saved",revision:"one",name:"Save old",source:source("old")}})
+ await saving;assert.equal(f.c.draft.source.text,"old");f.c.dispose()
+})

@@ -11,6 +11,8 @@ pub enum TagError {
     MissingSet,
     #[error("Tag changed since the displayed observation; reread before editing")]
     Conflict,
+    #[error("A Tag cannot be moved under itself or its descendant")]
+    InvalidParent,
     #[error("Invalid Tag data: {0}")]
     Corrupt(String),
     #[error(transparent)]

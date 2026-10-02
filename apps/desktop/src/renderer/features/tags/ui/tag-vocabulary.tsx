@@ -1,27 +1,22 @@
-import { useId, useState, useSyncExternalStore } from "react"
+import { useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
 import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CornerDownRightIcon,
+  FolderTreeIcon,
   PlusIcon,
-  SearchIcon,
-  TagsIcon,
   PencilIcon,
   Trash2Icon,
   RefreshCwIcon,
+  SearchIcon,
 } from "lucide-react"
 import type { Wire } from "@/shared/api"
+import type { FilterCoordinator } from "@/features/entity-filter"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/shared/ui/input-group"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-group"
 import { Input } from "@/shared/ui/input"
-import {
-  Field,
-  FieldLabel,
-  FieldDescription,
-  FieldGroup,
-} from "@/shared/ui/field"
+import { Field, FieldLabel, FieldDescription, FieldGroup } from "@/shared/ui/field"
 import {
   Dialog,
   DialogContent,
@@ -30,209 +25,441 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/shared/ui/dialog"
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from "@/shared/ui/empty"
 import {
-  Empty,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
-} from "@/shared/ui/empty"
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/shared/ui/card"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { ScrollArea } from "@/shared/ui/scroll-area"
-import { Separator } from "@/shared/ui/separator"
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+} from "@/shared/ui/select"
 import { Spinner } from "@/shared/ui/spinner"
 import type { TagCoordinator } from "../model/tag-coordinator"
+import type { TagBrowsing } from "../model/tag-browsing"
+import { forestView, descendants } from "../model/forest"
 import { TagFeedback } from "./tag-feedback"
 
+type Editor = {
+  operation: "create" | "rename" | "move" | "delete"
+  record?: Wire<"TagRecord">
+  name: string
+  parent: string
+}
 export function TagVocabulary({
   coordinator: c,
-  selectedId,
+  browsing: b,
+  filter,
   onSelect,
+  onContent,
 }: {
   coordinator: TagCoordinator
-  selectedId?: string
+  browsing: TagBrowsing
+  filter: FilterCoordinator
   onSelect: (id: string) => void
+  onContent: () => void
 }) {
   useSyncExternalStore(c.subscribe, c.snapshot)
-  const prefix = useId()
-  const [find, setFind] = useState("")
-  const [creating, setCreating] = useState(false)
-  const [name, setName] = useState("")
-  const [formError, setFormError] = useState<string>()
-  const [editing, setEditing] = useState<{
-    tag: Wire<"TagRecord">
-    name: string
-  }>()
-  const [deleting, setDeleting] = useState<Wire<"TagRecord">>()
-  const globalAttempts = c.attempts.filter((a) => !("entity_id" in a.change))
-  const choices = c.vocabulary?.filter((tag) =>
-    tag.name.toLocaleLowerCase().includes(find.toLocaleLowerCase()),
-  )
-  const blocked = c.hostClosing || c.pending
-  const submit = async () => {
+  useSyncExternalStore(b.subscribe, b.snapshot)
+  const prefix = useId(),
+    viewport = useRef<HTMLDivElement>(null)
+  const [editor, setEditor] = useState<Editor>(),
+    [formError, setFormError] = useState<string>()
+  const records = c.vocabulary ?? [],
+    byId = new Map(records.map((t) => [t.id, t]))
+  const selected = b.tagId ? byId.get(b.tagId) : undefined
+  const children = records.filter((t) => t.parent === selected?.id)
+  const rows = forestView(records, b.expanded, b.lookup)
+  const selectionVisible = rows.some((r) => r.tag.id === b.tagId)
+  const blocked = c.hostClosing || c.pending,
+    retained = !!c.readError
+  const excluded =
+    editor?.operation === "move" && editor.record
+      ? descendants(records, editor.record.id)
+      : new Set<string>()
+  const parents = [
+    { label: "Root · no parent", value: "" },
+    ...records.filter((t) => !excluded.has(t.id)).map((t) => ({ label: t.name, value: t.id })),
+  ]
+  const start = (operation: Editor["operation"], record?: Wire<"TagRecord">) => {
     setFormError(undefined)
-    const result = await c.write(
-      { operation: "create", name },
-      `Create ${name}`,
-    )
+    setEditor({
+      operation,
+      record,
+      name: operation === "rename" ? (record?.name ?? "") : "",
+      parent: operation === "create" ? (record?.id ?? "") : (record?.parent ?? ""),
+    })
+  }
+  useLayoutEffect(() => {
+    if (viewport.current && c.vocabulary) viewport.current.scrollTop = b.scrollTop
+  }, [b, c.vocabulary])
+  const focus = (id?: string) => {
+    if (id) viewport.current?.querySelector<HTMLElement>(`[data-tree-tag="${id}"]`)?.focus()
+  }
+  const submit = async () => {
+    const captured = editor
+    if (!captured) return
+    setFormError(undefined)
+    const record = captured.record
+    const change: Wire<"TagChange"> =
+      captured.operation === "create"
+        ? { operation: "create", name: captured.name, parent: captured.parent || null }
+        : captured.operation === "rename" && record
+          ? { operation: "rename", id: record.id, revision: record.revision, name: captured.name }
+          : captured.operation === "move" && record
+            ? {
+                operation: "move",
+                id: record.id,
+                revision: record.revision,
+                parent: captured.parent || null,
+              }
+            : { operation: "delete", id: record!.id, revision: record!.revision }
+    const result = await c.write(change, `${captured.operation} ${record?.name ?? captured.name}`)
     if (result?.state === "confirmed") {
-      setName("")
-      setCreating(false)
-    } else if (result?.state === "failed") setFormError(result.message)
+      if (captured.operation === "create" && captured.parent) b.expanded.add(captured.parent)
+      setEditor((current) => (current === captured ? undefined : current))
+    } else if (result) setFormError(result.message)
   }
   return (
-    <aside
-      aria-label="Tag vocabulary"
-      className="flex min-h-0 w-64 shrink-0 flex-col border-r bg-sidebar max-md:h-52 max-md:w-full max-md:border-r-0 max-md:border-b"
-    >
-      <header className="flex h-14 shrink-0 items-center gap-2 px-4">
-        <TagsIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-        <h1 className="flex-1 text-base font-semibold">Tags</h1>
-        {c.vocabulary && (
-          <Badge variant="secondary">{c.vocabulary.length}</Badge>
-        )}
+    <section aria-label="Tags" className="flex h-full min-h-0 min-w-0 flex-col">
+      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b px-6 py-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <h1 className="text-lg font-semibold">Tags</h1>
+          <p className="text-sm text-muted-foreground">Organize your personal vocabulary.</p>
+        </div>
         <Button
-          size="icon-sm"
-          variant="ghost"
-          aria-label="Refresh vocabulary"
-          title="Refresh vocabulary"
+          variant="outline"
           disabled={c.loading || c.hostClosing}
           onClick={() => void c.read()}
         >
-          {c.loading ? <Spinner /> : <RefreshCwIcon data-icon="inline-start" />}
+          <RefreshCwIcon data-icon="inline-start" />
+          Refresh vocabulary
+        </Button>
+        <Button disabled={blocked} onClick={() => start("create")}>
+          <PlusIcon data-icon="inline-start" />
+          New root tag
         </Button>
       </header>
-      <div className="flex shrink-0 flex-col gap-3 px-3 pb-3 max-md:flex-row max-md:items-center">
-        <FieldGroup className="min-w-0 flex-1">
-          <Field>
-            <FieldLabel className="sr-only" htmlFor={`${prefix}-find`}>
-              Find tags
-            </FieldLabel>
-            <InputGroup>
-              <InputGroupInput
-                id={`${prefix}-find`}
-                value={find}
-                placeholder="Find a tag…"
-                onChange={(e) => setFind(e.target.value)}
-              />
-              <InputGroupAddon>
-                <SearchIcon aria-hidden="true" />
-              </InputGroupAddon>
-            </InputGroup>
-          </Field>
-        </FieldGroup>
-        <Button
-          variant="outline"
-          className="justify-start"
-          disabled={blocked}
-          onClick={() => {
-            setFormError(undefined)
-            setCreating(true)
-          }}
-        >
-          <PlusIcon data-icon="inline-start" />
-          New tag
-        </Button>
-      </div>
-      <Separator />
       {c.readError && (
         <Alert variant="destructive">
           <AlertDescription>
             Vocabulary read failed: {c.readError}.{" "}
-            {c.vocabulary && "Showing previous vocabulary."}
+            {c.vocabulary
+              ? "Showing the previous forest; refresh before editing."
+              : "Retry to read your tags."}
           </AlertDescription>
         </Alert>
       )}
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-1 p-2">
-          {choices?.map((tag) => (
-            <div
-              key={tag.id}
-              data-tag-id={tag.id}
-              className="group flex items-center gap-0.5"
-            >
-              <Button
-                variant={selectedId === tag.id ? "secondary" : "ghost"}
-                className="min-w-0 flex-1 justify-start"
-                aria-label={`Browse ${tag.name}`}
-                aria-current={selectedId === tag.id ? "page" : undefined}
-                title={tag.name}
-                disabled={c.hostClosing}
-                onClick={() => onSelect(tag.id)}
-              >
-                <span className="truncate">{tag.name}</span>
-              </Button>
-              <Button
-                size="icon-xs"
-                variant="ghost"
-                title={`Rename ${tag.name}`}
-                aria-label={`Rename ${tag.name}`}
-                disabled={blocked || !!c.readError}
-                onClick={() => setEditing({ tag, name: tag.name })}
-              >
-                <PencilIcon data-icon="inline-start" />
-              </Button>
-              <Button
-                size="icon-xs"
-                variant="ghost"
-                title={`Delete ${tag.name} globally`}
-                aria-label={`Delete ${tag.name} globally`}
-                disabled={blocked || !!c.readError}
-                onClick={() => setDeleting(tag)}
-              >
-                <Trash2Icon data-icon="inline-start" />
-              </Button>
+      <div className="flex min-h-0 flex-1 max-md:flex-col">
+        <aside
+          aria-label="Tag vocabulary"
+          className="flex w-80 min-w-0 shrink-0 flex-col border-r max-md:h-64 max-md:w-full max-md:border-r-0 max-md:border-b"
+        >
+          <FieldGroup className="shrink-0 p-4">
+            <Field>
+              <FieldLabel htmlFor={`${prefix}-find`}>Find tags</FieldLabel>
+              <InputGroup>
+                <InputGroupAddon>
+                  <SearchIcon />
+                </InputGroupAddon>
+                <InputGroupInput
+                  id={`${prefix}-find`}
+                  placeholder="Search names…"
+                  value={b.lookup}
+                  onChange={(e) => b.find(e.target.value)}
+                />
+              </InputGroup>
+            </Field>
+          </FieldGroup>
+          <ScrollArea
+            className="min-h-0 flex-1"
+            viewportProps={{
+              ref: viewport,
+              "aria-label": "Tag tree navigation",
+              onScroll: (e) => {
+                if (c.vocabulary) b.scrollTop = e.currentTarget.scrollTop
+              },
+            }}
+          >
+            <div role="tree" aria-label="Tag forest" className="flex min-w-0 flex-col gap-1 p-2">
+              {rows.map(({ tag, depth, hasChildren, expanded }, index) => (
+                <div
+                  key={tag.id}
+                  role="none"
+                  className="flex min-w-0 items-center gap-1"
+                  style={{ paddingLeft: Math.min(depth, 12) * 14 }}
+                >
+                  {hasChildren ? (
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label={`${expanded ? "Collapse" : "Expand"} ${tag.name}`}
+                      tabIndex={-1}
+                      disabled={!!b.lookup}
+                      onClick={() => b.toggle(tag.id)}
+                    >
+                      {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                    </Button>
+                  ) : (
+                    <span className="size-6 shrink-0" />
+                  )}
+                  <div
+                    role="treeitem"
+                    data-tree-tag={tag.id}
+                    aria-level={depth + 1}
+                    aria-expanded={hasChildren ? expanded : undefined}
+                    aria-selected={b.tagId === tag.id}
+                    aria-label={`Select ${tag.name}`}
+                    className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    tabIndex={b.tagId === tag.id || (!selectionVisible && index === 0) ? 0 : -1}
+                    onClick={() => onSelect(tag.id)}
+                    onKeyDown={(event) => {
+                      const key = event.key
+                      if (key === "Enter" || key === " ") {
+                        event.preventDefault()
+                        onSelect(tag.id)
+                      }
+                      if (
+                        ["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End"].includes(
+                          key,
+                        )
+                      )
+                        event.preventDefault()
+                      if (key === "ArrowDown") focus(rows[index + 1]?.tag.id)
+                      if (key === "ArrowUp") focus(rows[index - 1]?.tag.id)
+                      if (key === "Home") focus(rows[0]?.tag.id)
+                      if (key === "End") focus(rows.at(-1)?.tag.id)
+                      if (key === "ArrowRight" && hasChildren) {
+                        if (!expanded) b.toggle(tag.id)
+                        else focus(rows[index + 1]?.tag.id)
+                      }
+                      if (key === "ArrowLeft") {
+                        if (hasChildren && expanded && !b.lookup) b.toggle(tag.id)
+                        else focus(tag.parent ?? undefined)
+                      }
+                    }}
+                  >
+                    <Button
+                      tabIndex={-1}
+                      variant={b.tagId === tag.id ? "secondary" : "ghost"}
+                      className="w-full min-w-0 justify-start"
+                    >
+                      <span className="truncate">{tag.name}</span>
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-          {c.vocabulary?.length === 0 && !c.readError && (
-            <Empty className="px-2 py-8">
-              <EmptyHeader>
-                <EmptyTitle>No tags yet</EmptyTitle>
-                <EmptyDescription>
-                  Create a tag to start organizing your library.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          )}
-          {!!c.vocabulary?.length && choices?.length === 0 && (
-            <Empty className="px-2 py-8">
-              <EmptyHeader>
-                <EmptyTitle>No tags found</EmptyTitle>
-                <EmptyDescription>Try another name.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          )}
-          {!c.vocabulary && c.loading && (
-            <p className="flex items-center gap-2 px-2 py-4 text-xs text-muted-foreground">
-              <Spinner />
-              Reading tags…
-            </p>
-          )}
-        </div>
-      </ScrollArea>
-      {globalAttempts.length > 0 || c.unresolved.length > 0 ? (
-        <div className="max-h-48 shrink-0 overflow-auto border-t p-3">
-          <TagFeedback
-            coordinator={c}
-            attempts={c.attempts.filter(
-              (a) =>
-                !("entity_id" in a.change) ||
-                a.state === "pending" ||
-                a.state === "unconfirmed",
+            {!records.length && !c.readError && (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    {c.loading ? <Spinner /> : <FolderTreeIcon />}
+                  </EmptyMedia>
+                  <EmptyTitle>{c.loading ? "Reading tags…" : "No tags yet"}</EmptyTitle>
+                  <EmptyDescription>
+                    Create a root tag, then add children to organize it.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
             )}
-          />
-        </div>
-      ) : (
-        <p className="shrink-0 px-4 py-3 text-xs text-muted-foreground max-md:hidden">
-          Personal tags · shared across your library
-        </p>
-      )}
-      <Dialog open={creating} onOpenChange={setCreating}>
+            {!!records.length && !rows.length && (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>No matching tags</EmptyTitle>
+                  <EmptyDescription>
+                    Try another name. Your selection stays available.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
+          </ScrollArea>
+          <p className="shrink-0 px-4 py-3 text-xs text-muted-foreground">
+            {records.length} tags · names are unique across the library
+          </p>
+        </aside>
+        <ScrollArea className="min-h-0 min-w-0 flex-1">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
+            {selected ? (
+              <>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{selected.parent ? "Child tag" : "Root tag"}</Badge>
+                    {retained && <Badge variant="outline">Previous observation</Badge>}
+                  </div>
+                  <h2 className="break-words text-2xl font-semibold">{selected.name}</h2>
+                  <p className="break-words text-sm text-muted-foreground">
+                    {selected.parent
+                      ? `Under ${byId.get(selected.parent)?.name ?? "Unavailable parent"}`
+                      : "Top level of your vocabulary"}
+                  </p>
+                  <code className="break-all text-xs text-muted-foreground">{selected.id}</code>
+                </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Manage tag</CardTitle>
+                    <CardDescription>
+                      Names are globally unique and case-sensitive. Moving a tag keeps its children
+                      together.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={blocked || retained}
+                      onClick={() => start("create", selected)}
+                    >
+                      <PlusIcon data-icon="inline-start" />
+                      New child
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={blocked || retained}
+                      onClick={() => start("rename", selected)}
+                    >
+                      <PencilIcon data-icon="inline-start" />
+                      Rename
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={blocked || retained}
+                      onClick={() => start("move", selected)}
+                    >
+                      <CornerDownRightIcon data-icon="inline-start" />
+                      Move branch
+                    </Button>
+                  </CardContent>
+                  <CardFooter className="flex-wrap justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">
+                      {children.length} direct {children.length === 1 ? "child" : "children"}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      disabled={blocked || retained}
+                      onClick={() => start("delete", selected)}
+                    >
+                      <Trash2Icon data-icon="inline-start" />
+                      Delete tag
+                    </Button>
+                  </CardFooter>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Find content</CardTitle>
+                    <CardDescription>
+                      Open a Filter draft for this tag. Review the condition and choose Apply to
+                      update content.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={blocked || b.pending || retained}
+                      onClick={() => void b.content(false, filter, onContent)}
+                    >
+                      Exactly this tag
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={blocked || b.pending || retained}
+                      onClick={() => void b.content(true, filter, onContent)}
+                    >
+                      Include descendants
+                    </Button>
+                    {b.pending && <Spinner />}
+                  </CardContent>
+                  <CardFooter>
+                    <p className="text-sm text-muted-foreground">
+                      Items keep only tags you explicitly assign. Parents are never added
+                      automatically.
+                    </p>
+                  </CardFooter>
+                </Card>
+                {b.error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{b.error}</AlertDescription>
+                  </Alert>
+                )}
+                {!!children.length && (
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-sm font-medium">Direct children</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {children.map((tag) => (
+                        <Button
+                          key={tag.id}
+                          variant="outline"
+                          onClick={() => {
+                            b.expanded.add(selected.id)
+                            onSelect(tag.id)
+                          }}
+                        >
+                          {tag.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Empty className="min-h-64">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <FolderTreeIcon />
+                  </EmptyMedia>
+                  <EmptyTitle>
+                    {b.tagId && c.vocabulary && !c.readError ? "Tag unavailable" : "Choose a tag"}
+                  </EmptyTitle>
+                  <EmptyDescription>
+                    {b.tagId && c.vocabulary && !c.readError
+                      ? "This selected tag is absent from the current forest. Select another tag or refresh."
+                      : "Select a tag to manage its name and place in the tree, or create a new root."}
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
+            <TagFeedback
+              coordinator={c}
+              attempts={c.attempts.filter(
+                (a) =>
+                  !("entity_id" in a.change) || a.state === "pending" || a.state === "unconfirmed",
+              )}
+            />
+          </div>
+        </ScrollArea>
+      </div>
+      <Dialog
+        open={!!editor}
+        onOpenChange={(open) => {
+          if (!open) setEditor(undefined)
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create a tag</DialogTitle>
+            <DialogTitle>
+              {editor?.operation === "create"
+                ? "Create a tag"
+                : editor?.operation === "rename"
+                  ? "Rename tag everywhere"
+                  : editor?.operation === "move"
+                    ? "Move branch"
+                    : "Delete tag globally?"}
+            </DialogTitle>
             <DialogDescription>
-              Create a reusable personal tag, then assign it from an item's
-              details.
+              {editor?.operation === "delete"
+                ? `Delete “${editor.record?.name}” and all its direct assignments. Its immediate children move to ${editor.record?.parent ? (byId.get(editor.record.parent)?.name ?? "its parent") : "the root level"}; descendants and their annotations remain.`
+                : editor?.operation === "move"
+                  ? `Move “${editor.record?.name}” from ${editor.record?.parent ? (byId.get(editor.record.parent)?.name ?? "its current parent") : "the root level"}. Tag identity and direct annotations stay stable.`
+                  : "Tag identity and existing direct annotations stay stable."}
             </DialogDescription>
           </DialogHeader>
           <form
@@ -243,194 +470,100 @@ export function TagVocabulary({
             className="flex flex-col gap-4"
           >
             <FieldGroup>
-              <Field data-invalid={!!formError}>
-                <FieldLabel htmlFor={`${prefix}-name`}>New tag name</FieldLabel>
-                <Input
-                  id={`${prefix}-name`}
-                  value={name}
-                  autoFocus
-                  aria-invalid={!!formError}
-                  disabled={blocked}
-                  onChange={(e) => {
-                    setName(e.target.value)
-                    setFormError(undefined)
-                  }}
-                />
-                <FieldDescription>
-                  Names are trimmed and case-sensitive. cat and Cat are
-                  different.
-                </FieldDescription>
-                {formError && (
-                  <p role="alert" className="text-sm text-destructive">
-                    {formError}
-                  </p>
-                )}
-              </Field>
-            </FieldGroup>
-            <TagFeedback
-              coordinator={c}
-              attempts={globalAttempts.filter(
-                (a) =>
-                  a.change.operation === "create" &&
-                  (a.state === "pending" || a.state === "unconfirmed"),
+              {(editor?.operation === "create" || editor?.operation === "rename") && (
+                <Field data-invalid={!!formError}>
+                  <FieldLabel htmlFor={`${prefix}-name`}>Tag name</FieldLabel>
+                  <Input
+                    id={`${prefix}-name`}
+                    autoFocus
+                    value={editor.name}
+                    aria-invalid={!!formError}
+                    disabled={blocked}
+                    onChange={(e) => setEditor({ ...editor, name: e.target.value })}
+                  />
+                  <FieldDescription>
+                    Trimmed, nonblank and unique everywhere. cat and Cat are different.
+                  </FieldDescription>
+                </Field>
               )}
-            />
+              {(editor?.operation === "create" || editor?.operation === "move") && (
+                <Field>
+                  <FieldLabel htmlFor={`${prefix}-parent`}>Parent</FieldLabel>
+                  <Select
+                    items={parents}
+                    value={editor.parent}
+                    disabled={blocked || retained}
+                    onValueChange={(value) => {
+                      if (value !== null) setEditor({ ...editor, parent: value })
+                    }}
+                  >
+                    <SelectTrigger id={`${prefix}-parent`} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {parents.map((parent) => (
+                          <SelectItem key={parent.value} value={parent.value}>
+                            {parent.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    {editor.operation === "move"
+                      ? "The whole branch moves. Descendant links remain unchanged."
+                      : "Choose an existing parent or create a root."}
+                  </FieldDescription>
+                </Field>
+              )}
+            </FieldGroup>
+            {formError && (
+              <Alert variant="destructive">
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            )}
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCreating(false)}
-              >
+              {editor?.record && editor.operation !== "delete" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={c.loading || blocked}
+                  onClick={() =>
+                    void c.read().then(() =>
+                      setEditor((current) => {
+                        const latest = c.vocabulary?.find((t) => t.id === current?.record?.id)
+                        return current && latest && !c.readError
+                          ? { ...current, record: latest }
+                          : current
+                      }),
+                    )
+                  }
+                >
+                  Use latest observation
+                </Button>
+              )}
+              <Button type="button" variant="outline" onClick={() => setEditor(undefined)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={blocked}>
-                {c.pending && <Spinner />}Create tag
+              <Button
+                type="submit"
+                variant={editor?.operation === "delete" ? "destructive" : "default"}
+                disabled={blocked || retained}
+              >
+                {c.pending && <Spinner />}
+                {editor?.operation === "create"
+                  ? "Create tag"
+                  : editor?.operation === "rename"
+                    ? "Save name"
+                    : editor?.operation === "move"
+                      ? "Move branch"
+                      : "Delete tag globally"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={!!editing}
-        onOpenChange={(open) => {
-          if (!open) setEditing(undefined)
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rename tag everywhere</DialogTitle>
-            <DialogDescription>
-              The shared name changes on every annotated item. Its identity
-              stays the same.
-            </DialogDescription>
-          </DialogHeader>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor={`${prefix}-rename`}>Tag name</FieldLabel>
-              <Input
-                id={`${prefix}-rename`}
-                value={editing?.name ?? ""}
-                disabled={blocked}
-                autoFocus
-                onChange={(e) =>
-                  setEditing((current) =>
-                    current ? { ...current, name: e.target.value } : current,
-                  )
-                }
-              />
-            </Field>
-          </FieldGroup>
-          <TagFeedback
-            coordinator={c}
-            attempts={globalAttempts.filter(
-              (a) =>
-                a.change.operation === "rename" &&
-                a.change.id === editing?.tag.id,
-            )}
-          />
-          <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={c.loading || blocked}
-              onClick={() =>
-                void c.read().then(() =>
-                  setEditing((current) => {
-                    const latest = c.vocabulary?.find(
-                      (tag) => tag.id === current?.tag.id,
-                    )
-                    return current && latest && !c.readError
-                      ? { ...current, tag: latest }
-                      : current
-                  }),
-                )
-              }
-            >
-              Use latest observation
-            </Button>
-            <Button variant="outline" onClick={() => setEditing(undefined)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={blocked}
-              onClick={() => {
-                const captured = editing
-                if (!captured) return
-                void c
-                  .write(
-                    {
-                      operation: "rename",
-                      id: captured.tag.id,
-                      revision: captured.tag.revision,
-                      name: captured.name,
-                    },
-                    `Rename ${captured.tag.name}`,
-                  )
-                  .then((a) => {
-                    if (a?.state === "confirmed")
-                      setEditing((current) =>
-                        current === captured ? undefined : current,
-                      )
-                  })
-              }}
-            >
-              Save name
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={!!deleting}
-        onOpenChange={(open) => {
-          if (!open) setDeleting(undefined)
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete tag globally?</DialogTitle>
-            <DialogDescription>
-              Delete “{deleting?.name}” and remove its assignments from all
-              content. Content and other tags remain.
-            </DialogDescription>
-          </DialogHeader>
-          <TagFeedback
-            coordinator={c}
-            attempts={globalAttempts.filter(
-              (a) =>
-                a.change.operation === "delete" && a.change.id === deleting?.id,
-            )}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleting(undefined)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={blocked}
-              onClick={() => {
-                const captured = deleting
-                if (!captured) return
-                void c
-                  .write(
-                    {
-                      operation: "delete",
-                      id: captured.id,
-                      revision: captured.revision,
-                    },
-                    `Delete ${captured.name} globally`,
-                  )
-                  .then((a) => {
-                    if (a?.state === "confirmed")
-                      setDeleting((current) =>
-                        current === captured ? undefined : current,
-                      )
-                  })
-              }}
-            >
-              Delete tag globally
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </aside>
+    </section>
   )
 }

@@ -53,6 +53,7 @@ pub(crate) struct QueryContext {
     pub publication: Publication,
     pub request: SearchRequest,
     pub program: Option<Program>,
+    pub bindings: crate::reference::Bindings,
     pub expires: Instant,
 }
 struct Shared {
@@ -73,6 +74,7 @@ pub struct SearchService {
     pub(crate) mapping: Arc<Mapping>,
     pub(crate) catalogue: Catalogue,
     shared: Arc<Shared>,
+    references: crate::reference::ReferenceReader,
     control: Arc<Control>,
 }
 struct Control {
@@ -184,6 +186,12 @@ impl SearchService {
         let (commands, receiver) = mpsc::unbounded_channel();
         let stopping = Arc::new(AtomicBool::new(false));
         let (done, done_rx) = tokio::sync::watch::channel(false);
+        let references = crate::reference::ReferenceReader {
+            providers: providers.clone(),
+            queue: queue.clone(),
+            database: database.clone(),
+            lifetime: lifetime.clone(),
+        };
         let worker = Worker {
             stopping: stopping.clone(),
             done,
@@ -201,6 +209,7 @@ impl SearchService {
             mapping,
             catalogue: providers.catalogue,
             shared,
+            references,
             control: Arc::new(Control {
                 commands,
                 stopping,
@@ -322,7 +331,7 @@ impl SearchService {
             .unwrap_or_else(|e| e.into_inner())
             .clone()
             .ok_or_else(|| SearchError::Unavailable(self.status().state))?;
-        crate::compiler::program(&publication.index, &self.mapping, program)?;
+        crate::compiler::program_bound(&publication.index, &self.mapping, program, None)?;
         Ok(())
     }
     /// Explicit typed predicates use the same aligned observation as source programs.
@@ -341,6 +350,12 @@ impl SearchService {
             .map_err(|_| SearchError::Unavailable("worker stopped".into()))?;
         rx.await
             .map_err(|_| SearchError::Unavailable("worker stopped".into()))?
+    }
+    pub async fn reference_choices(
+        &self,
+        reference: String,
+    ) -> Result<Vec<locus_query::api::ReferenceChoice>, SearchError> {
+        self.references.choices(reference).await
     }
     pub async fn observation(&self) -> Result<crate::discovery::Observation, SearchError> {
         let (tx, rx) = oneshot::channel();
@@ -514,7 +529,7 @@ impl Worker {
         self.done.send_replace(true);
     }
     async fn observe(&self) -> Result<crate::discovery::Observation, SearchError> {
-        let (searcher, publication) = self.capture().await?;
+        let (searcher, publication, _) = self.capture(Vec::new()).await?;
         let context = uuid::Uuid::now_v7().to_string();
         let result = crate::discovery::Observation {
             context: context.clone(),
@@ -540,7 +555,10 @@ impl Worker {
             );
         Ok(result)
     }
-    async fn capture(&self) -> Result<(Searcher, Publication), SearchError> {
+    async fn capture(
+        &self,
+        roots: Vec<locus_query::api::ReferenceOperand>,
+    ) -> Result<(Searcher, Publication, crate::reference::Bindings), SearchError> {
         let worker = self.clone();
         self.queue
             .submit(
@@ -622,10 +640,16 @@ impl Worker {
                     });
                     worker.publish(publication.clone());
                     let searcher = publication.reader.searcher();
-                    // The aligned Searcher is captured before releasing exclusion.
+                    let providers = worker.providers.clone();
+                    let bindings = session
+                        .transaction(move |c| {
+                            Box::pin(async move { providers.resolve(c, roots).await })
+                        })
+                        .await?;
+                    // Both reference closure and aligned Searcher are captured under actual DB exclusion.
                     drop(session);
                     drop(protected);
-                    Ok((searcher, publication))
+                    Ok((searcher, publication, bindings))
                 },
             )?
             .result()
@@ -639,17 +663,42 @@ impl Worker {
         let worker = self.clone();
         self.queue
             .submit("Align Filter query", move |_task| async move {
-                let (searcher, publication) = worker.capture().await?;
+                let mut roots = std::collections::BTreeSet::new();
+                let text = typed
+                    .as_ref()
+                    .map_or(program.source.text.as_str(), |r| r.text.as_str());
+                if !text.trim().is_empty() {
+                    crate::reference::collect_native(
+                        &crate::compiler::parse(text)?,
+                        &worker.providers.catalogue,
+                        &mut roots,
+                    )?;
+                }
+                if let Some(condition) = typed.as_ref().and_then(|r| r.filter.as_ref()) {
+                    crate::reference::collect_typed(
+                        condition,
+                        &worker.providers.catalogue,
+                        &mut roots,
+                    )?;
+                }
+                let (searcher, publication, bindings) =
+                    worker.capture(roots.into_iter().collect()).await?;
                 let query = if let Some(request) = &typed {
-                    crate::compiler::compile(
+                    crate::compiler::compile_bound(
                         &publication.index,
                         &worker.mapping,
                         &worker.providers.catalogue,
                         &request.text,
                         request.filter.as_ref(),
+                        &bindings,
                     )?
                 } else {
-                    crate::compiler::program(&publication.index, &worker.mapping, &program)?
+                    crate::compiler::program_bound(
+                        &publication.index,
+                        &worker.mapping,
+                        &program,
+                        Some(&bindings),
+                    )?
                 };
                 let mut hits =
                     searcher.search(&*query, &crate::collector::Complete { scoring: true })?;
@@ -678,6 +727,7 @@ impl Worker {
                     Arc::new(QueryContext {
                         searcher,
                         publication,
+                        bindings,
                         program: if typed.is_none() { Some(program) } else { None },
                         request: typed.unwrap_or(SearchRequest {
                             text: String::new(),

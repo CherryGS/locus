@@ -52,7 +52,7 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
   const field = a.field, fields = a.context?.kind === "field", values = a.candidates
   const highlightedField = fields ? a.fieldCandidates[a.highlight] : undefined
   const showList = fields || values.length > 0 || a.loading || a.error || a.bounds || a.continuation || a.helpError ||
-    field?.assistance === "strings" && a.context?.kind === "value"
+    (field?.assistance === "strings" || field?.assistance === "roots") && a.context?.kind === "value"
   const examples = field?.assistance === "bounds" ? a.help?.examples : a.help?.examples.slice(0, 1)
   const showGuidance = !a.lookupAvailable || field?.field_type === "text" && a.context?.reference === field.native_value
   return (
@@ -138,10 +138,13 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
                 <ChevronRightIcon data-icon="inline-end" />
               </Button>) : values.map((candidate, i) => <Button key={candidate.value} size="sm"
                 variant={a.highlight === i ? "secondary" : "ghost"} aria-current={a.highlight === i}
-                className="filter-assistance-candidate h-auto justify-start gap-3 whitespace-normal px-2.5 py-2 text-left" aria-label={`Use value ${candidate.value || "(empty)"}`}
+                className="filter-assistance-candidate h-auto justify-start gap-3 whitespace-normal px-2.5 py-2 text-left" aria-label={`Use value ${candidate.label ?? (candidate.value || "(empty)")}`}
                 disabled={a.locked} aria-disabled={a.editing || a.loading || undefined} onClick={() => void a.acceptValue(candidate.value)}>
-                <span className="min-w-0 flex-1 break-all whitespace-pre-wrap">{candidate.value || '"" (empty)'}</span>
-                <Badge variant="ghost" className="filter-assistance-provenance">{candidate.declared && candidate.observed ? "Declared · observed" : candidate.declared ? "Declared" : "Observed"}</Badge>
+                <span className="min-w-0 flex-1 break-all whitespace-pre-wrap">
+                  {candidate.label ?? (candidate.value || '"" (empty)')}
+                  {candidate.primary && <code className="block text-xs text-muted-foreground">{candidate.value}</code>}
+                </span>
+                <Badge variant="ghost" className="filter-assistance-provenance">{candidate.primary ? "Vocabulary" : candidate.declared && candidate.observed ? "Declared · observed" : candidate.declared ? "Declared" : "Observed"}</Badge>
               </Button>)}
             </div>}
             {a.loading && field?.assistance !== "strings" && !a.bounds && <p role="status" className="px-1 text-xs text-muted-foreground">Reading whole-library values…</p>}
@@ -150,8 +153,8 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
             {a.error && <Alert variant="destructive"><AlertDescription>{a.error}
               <Button size="sm" variant="outline" onClick={() => a.retry()}>Retry assistance</Button>
             </AlertDescription></Alert>}
-            {!a.error && !a.lookupError && field?.assistance === "strings" && a.context?.kind === "value" && !a.observed.length &&
-              <Empty className="p-2"><EmptyHeader><EmptyTitle>{a.editing || a.loading ? "Finding values…" : a.noValues ? "No observed values" : "No matching values"}</EmptyTitle></EmptyHeader></Empty>}
+            {!a.error && !a.lookupError && (field?.assistance === "strings" || field?.assistance === "roots") && a.context?.kind === "value" && !values.length &&
+              <Empty className="p-2"><EmptyHeader><EmptyTitle>{a.editing || a.loading ? "Finding values…" : a.noValues ? field?.assistance === "roots" ? "No tags" : "No observed values" : "No matching values"}</EmptyTitle></EmptyHeader></Empty>}
             {a.bounds && <p className="px-1 text-xs text-muted-foreground">
               {a.bounds.minimum && a.bounds.maximum ? <>Observed library range: <span className="select-text">{a.bounds.minimum.value} – {a.bounds.maximum.value}</span>{field?.unit && ` ${field.unit}`}</> : "No observed values"}
             </p>}

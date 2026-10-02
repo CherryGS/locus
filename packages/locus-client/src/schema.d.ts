@@ -405,6 +405,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/filter/reference-choices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["filter_reference_choices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/import-batches": {
         parameters: {
             query?: never;
@@ -2391,6 +2407,16 @@ export interface components {
             request_id: string;
             upload_id: string;
         };
+        ReferenceChoice: {
+            identity: string;
+            name: string;
+        };
+        ReferenceChoicesInput: {
+            format: string;
+            reference: string;
+            /** Format: int32 */
+            version: number;
+        };
         RegisteredImportItem: {
             bilibili?: null | components["schemas"]["BilibiliSnapshot"];
             cover_file_id?: string | null;
@@ -2436,6 +2462,7 @@ export interface components {
         /** Catalogue */
         SearchCatalogueData: {
             fields: components["schemas"]["Search_FieldDefinition"][];
+            references: components["schemas"]["Search_ReferenceDefinition"][];
         };
         SearchEvidenceBody: components["schemas"]["SearchEvidenceData"];
         /** Array_of_Evidence */
@@ -2553,6 +2580,17 @@ export interface components {
             /** @description None in the native grammar is kept distinct from explicit OR. */
             occurrence: string;
         };
+        Search_ReferenceDefinition: {
+            id: string;
+            meaning: components["schemas"]["Search_ReferenceMeaning"];
+            owner: string;
+            target_field: string;
+        };
+        /**
+         * @description Query parameters have no per-Entity projection or indexed presence semantics.
+         * @enum {string}
+         */
+        Search_ReferenceMeaning: "inclusive_subtree";
         /** @enum {string} */
         Search_Shape: "scalar" | "collection";
         /**
@@ -2711,11 +2749,18 @@ export interface components {
             name: string;
             /** @enum {string} */
             operation: "create";
+            parent?: string | null;
         } | {
             id: string;
             name: string;
             /** @enum {string} */
             operation: "rename";
+            revision: string;
+        } | {
+            id: string;
+            /** @enum {string} */
+            operation: "move";
+            parent?: string | null;
             revision: string;
         } | {
             id: string;
@@ -2736,6 +2781,7 @@ export interface components {
         TagRecord: {
             id: string;
             name: string;
+            parent?: string | null;
             revision: string;
         };
         TagSetRecord: {
@@ -5648,6 +5694,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FilterPreset"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    filter_reference_choices: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferenceChoicesInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceChoice"][];
                 };
             };
             /** @description Invalid request */

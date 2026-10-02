@@ -5,6 +5,7 @@ pub struct TagRecord {
     pub id: TagId,
     pub name: String,
     pub revision: String,
+    pub parent: Option<TagId>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TagSetRecord {

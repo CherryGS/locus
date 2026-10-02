@@ -2,6 +2,20 @@ use super::Shared;
 use crate::api::error::{ApiError, ErrorCode};
 use std::sync::Arc;
 impl Shared {
+    pub async fn search_reference_choices(
+        self: &Arc<Self>,
+        service: locus_search::api::SearchService,
+        reference: String,
+    ) -> Result<
+        Result<Vec<locus_query::api::ReferenceChoice>, locus_search::api::SearchError>,
+        ApiError,
+    > {
+        self.query(
+            "Read primary query reference choices",
+            move |_task| async move { Ok(service.reference_choices(reference).await) },
+        )
+        .await
+    }
     pub async fn search_observation(
         self: &Arc<Self>,
         service: locus_search::api::SearchService,

@@ -90,6 +90,9 @@ export class BackendApi {
   async filterEditing(body: Wire<"FilterEditingRequestData">) {
     return result(await this.client.POST("/api/v1/filter/editing", { body }))
   }
+  async filterReferenceChoices(body: Wire<"ReferenceChoicesInput">) {
+    return result(await this.client.POST("/api/v1/filter/reference-choices", { body }))
+  }
   async filterLiteral(body: Wire<"FilterLiteralRequestData">) {
     return result(await this.client.POST("/api/v1/filter/literal", { body }))
   }

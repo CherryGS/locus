@@ -133,7 +133,7 @@ export function LeftNavigation() {
         ))}
         <Link
           to="/tags"
-          search={{ mode: "grid", collectionId: "library" }}
+          search={{}}
           activeOptions={{ exact: true }}
           activeProps={{ className: cn(buttonVariants({ variant: "secondary" }), linkLayout) }}
           inactiveProps={{ className: cn(buttonVariants({ variant: "ghost" }), linkLayout) }}

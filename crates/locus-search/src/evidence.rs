@@ -45,14 +45,20 @@ impl SearchService {
         }
         let context = self.context(id)?;
         let original = if let Some(program) = &context.program {
-            compiler::program(&context.publication.index, &self.mapping, program)?
+            compiler::program_bound(
+                &context.publication.index,
+                &self.mapping,
+                program,
+                Some(&context.bindings),
+            )?
         } else {
-            compiler::compile(
+            compiler::compile_bound(
                 &context.publication.index,
                 &self.mapping,
                 &self.catalogue,
                 &context.request.text,
                 context.request.filter.as_ref(),
+                &context.bindings,
             )?
         };
         let mut result = Vec::new();
@@ -112,7 +118,7 @@ impl SearchService {
     ) -> Result<(), SearchError> {
         use locus_query::api::Condition;
         if !matches(
-            &*compiler::condition(condition, &self.mapping)?,
+            &*compiler::condition_bound(condition, &self.mapping, Some(&context.bindings))?,
             &context.searcher,
             address,
         )? {
@@ -134,21 +140,23 @@ impl SearchService {
                     )?;
                 }
             }
-            Condition::Not(_) | Condition::Predicate(_) => out.push(MatchEvidence {
-                field: if let Condition::Predicate(p) = condition {
-                    Some(p.field.clone())
-                } else {
-                    None
-                },
-                component: None,
-                condition: Some(serde_json::to_string(condition)?),
-                role: if matches!(condition, Condition::Not(_)) {
-                    "complement".into()
-                } else {
-                    role.into()
-                },
-                range: None,
-            }),
+            Condition::Not(_) | Condition::Predicate(_) | Condition::Reference(_) => {
+                out.push(MatchEvidence {
+                    field: if let Condition::Predicate(p) = condition {
+                        Some(p.field.clone())
+                    } else {
+                        None
+                    },
+                    component: None,
+                    condition: Some(serde_json::to_string(condition)?),
+                    role: if matches!(condition, Condition::Not(_)) {
+                        "complement".into()
+                    } else {
+                        role.into()
+                    },
+                    range: None,
+                })
+            }
         }
         Ok(())
     }

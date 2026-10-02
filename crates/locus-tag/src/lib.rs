@@ -1,5 +1,6 @@
 pub mod api;
 mod error;
+mod hierarchy;
 mod identity;
 mod owner;
 mod persistence;

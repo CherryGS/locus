@@ -14,6 +14,7 @@ mod evidence;
 mod journal;
 mod original;
 mod projection;
+mod reference;
 mod schema;
 mod service;
 #[cfg(test)]
@@ -21,3 +22,6 @@ mod tests;
 
 #[cfg(test)]
 mod native_tests;
+
+#[cfg(test)]
+mod reference_tests;

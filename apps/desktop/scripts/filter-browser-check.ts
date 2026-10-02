@@ -418,8 +418,10 @@ try {
   await page.setViewportSize({ width: 720, height: 480 })
   await open()
   await dialog.getByText(/Index status unknown/).waitFor()
-  await page.unroute("**/api/v1/search/status")
+  // Exercise retry while failure remains stable; regular status polling may
+  // remove this control immediately once the route is restored.
   await dialog.getByRole("button", { name: "Check index status", exact: true }).click()
+  await page.unroute("**/api/v1/search/status")
   await dialog.getByText(/Index status unknown/).waitFor({ state: "hidden" })
   await dialog.getByRole("button", { name: "Filter options", exact: true }).click()
   await page.getByText("Search index", { exact: true }).click()

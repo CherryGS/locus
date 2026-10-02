@@ -93,6 +93,9 @@ export class TagCoordinator {
       state: "pending",
       message: "Saving…",
     }
+    // Reads begun before this write intent cannot supersede its later observation.
+    this.generation++
+    this.loading = false
     this.attempts.push(attempt)
     this.changed()
     try {
@@ -117,7 +120,7 @@ export class TagCoordinator {
     const matches =
       outcome.status === "tag_saved"
         ? change.operation === "create" ||
-          (change.operation === "rename" && outcome.tag.id === change.id)
+          ((change.operation === "rename" || change.operation === "move") && outcome.tag.id === change.id)
         : outcome.status === "tag_deleted"
           ? change.operation === "delete" && outcome.id === change.id
           : outcome.status === "tag_assignment"

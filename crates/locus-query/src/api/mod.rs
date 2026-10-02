@@ -5,3 +5,7 @@ pub use crate::definition::{
 pub use crate::error::QueryError;
 pub use crate::program::{Diagnostic, Program, Source, SourceRange};
 pub use crate::projection::{FieldValue, ProjectionFuture, Provider, ValueState};
+pub use crate::reference::{
+    ReferenceChoice, ReferenceChoicesFuture, ReferenceDefinition, ReferenceFuture,
+    ReferenceMeaning, ReferenceOperand,
+};

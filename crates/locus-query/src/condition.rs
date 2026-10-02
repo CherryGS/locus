@@ -48,10 +48,12 @@ pub enum Condition {
     Or(Vec<Condition>),
     Not(Box<Condition>),
     Predicate(Predicate),
+    Reference(crate::reference::ReferenceOperand),
 }
 impl Condition {
     pub fn validate(&self, catalogue: &Catalogue) -> Result<(), QueryError> {
         match self {
+            Self::Reference(operand) => operand.validate(catalogue)?,
             Self::And(children) | Self::Or(children) => {
                 if children.is_empty() {
                     return Err(QueryError::Invalid("empty Boolean group".into()));

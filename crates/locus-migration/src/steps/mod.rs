@@ -33,3 +33,5 @@ mod s013_filter;
 
 #[path = "000000000014_locus_tag_personal_tags.rs"]
 mod s014_tag;
+#[path = "000000000015_locus_tag_forest.rs"]
+mod s015_tag;

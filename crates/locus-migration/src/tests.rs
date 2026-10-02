@@ -622,3 +622,32 @@ async fn failed_first_step_leaves_retryable_empty_ledger() {
     );
     execute(&mut s, GOOD).await.unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn tag_forest_upgrade_preserves_flat_records_assignments_and_history_prefix() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut session = Session::open(dir.path().join("metadata.sqlite"))
+        .await
+        .unwrap();
+    execute(&mut session, &STEPS[..14]).await.unwrap();
+    sql(&mut session, "CREATE TABLE fixture_history AS SELECT * FROM locus_migration_comm_history; INSERT INTO locus_tag_comm_tag VALUES(X'01992853c12370008000000000000001','flat','01992853-c123-7000-8000-000000000002'); INSERT INTO locus_tag_comp_set VALUES(X'01992853c12370008000000000000003'); INSERT INTO locus_tag_rela_assignment VALUES(X'01992853c12370008000000000000003',X'01992853c12370008000000000000001')").await;
+    execute(&mut session, STEPS).await.unwrap();
+    assert_eq!(count(&mut session, "SELECT count(*) AS count FROM locus_tag_comm_tag WHERE name='flat' AND parent IS NULL AND revision='01992853-c123-7000-8000-000000000002'").await, 1);
+    assert_eq!(
+        count(
+            &mut session,
+            "SELECT count(*) AS count FROM locus_tag_rela_assignment"
+        )
+        .await,
+        1
+    );
+    assert_eq!(count(&mut session, "SELECT count(*) AS count FROM (SELECT * FROM fixture_history EXCEPT SELECT * FROM locus_migration_comm_history)").await, 0);
+    assert_eq!(
+        count(
+            &mut session,
+            "SELECT count(*) AS count FROM locus_migration_comm_history"
+        )
+        .await,
+        15
+    );
+}

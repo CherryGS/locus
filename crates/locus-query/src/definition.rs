@@ -108,6 +108,7 @@ impl FieldDefinition {
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct Catalogue {
     pub fields: Vec<FieldDefinition>,
+    pub references: Vec<crate::reference::ReferenceDefinition>,
 }
 impl Catalogue {
     pub fn new(fields: Vec<FieldDefinition>) -> Result<Self, QueryError> {
@@ -167,7 +168,41 @@ impl Catalogue {
                 return Err(QueryError::Invalid(format!("default text type {}", f.id)));
             }
         }
-        Ok(Self { fields })
+        Ok(Self {
+            fields,
+            references: Vec::new(),
+        })
+    }
+    pub fn with_references(
+        fields: Vec<FieldDefinition>,
+        references: Vec<crate::reference::ReferenceDefinition>,
+    ) -> Result<Self, QueryError> {
+        let mut catalogue = Self::new(fields)?;
+        let mut names: std::collections::BTreeSet<_> = catalogue
+            .fields
+            .iter()
+            .flat_map(|f| [f.native_value.clone(), f.native_exact.clone()])
+            .collect();
+        for reference in &references {
+            reference.validate(&catalogue)?;
+            if !names.insert(reference.id.clone()) {
+                return Err(QueryError::Invalid(format!(
+                    "query reference collision {}",
+                    reference.id
+                )));
+            }
+        }
+        catalogue.references = references;
+        Ok(catalogue)
+    }
+    pub fn reference(
+        &self,
+        id: &str,
+    ) -> Result<&crate::reference::ReferenceDefinition, QueryError> {
+        self.references
+            .iter()
+            .find(|r| r.id == id)
+            .ok_or_else(|| QueryError::Invalid(format!("unknown query reference {id}")))
     }
     pub fn field(&self, id: &str) -> Result<&FieldDefinition, QueryError> {
         self.fields

@@ -17,7 +17,15 @@ async fn write(s: &Server, c: TagChange) -> MutationOutcome {
         .unwrap()
 }
 async fn create(s: &Server, name: &str) -> TagRecord {
-    match write(s, TagChange::Create { name: name.into() }).await {
+    match write(
+        s,
+        TagChange::Create {
+            parent: None,
+            name: name.into(),
+        },
+    )
+    .await
+    {
         MutationOutcome::TagSaved { tag } => tag,
         o => panic!("{o:?}"),
     }
@@ -207,6 +215,7 @@ async fn tag_delivery_auth_run_binding_and_recovery() {
     rx.await.unwrap();
     let id = uuid::Uuid::now_v7().to_string();
     let change = TagChange::Create {
+        parent: None,
         name: "recover me".into(),
     };
     let state = s.state.clone();
@@ -234,6 +243,7 @@ async fn tag_delivery_auth_run_binding_and_recovery() {
             .tag_write(
                 id,
                 TagChange::Create {
+                    parent: None,
                     name: "different".into()
                 }
             )
@@ -241,6 +251,138 @@ async fn tag_delivery_auth_run_binding_and_recovery() {
             .is_err()
     );
     assert_eq!(s.state.tags().await.unwrap().len(), 1);
+    s.close_admission();
+    s.state.wait_drained().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn hierarchical_tags_source_choices_move_promotion_and_required_roots() {
+    let root = tempfile::tempdir().unwrap();
+    let s = app(root.path()).await;
+    let category = create(&s, "Unused category").await;
+    let child = match write(
+        &s,
+        TagChange::Create {
+            name: "child".into(),
+            parent: Some(category.id.clone()),
+        },
+    )
+    .await
+    {
+        MutationOutcome::TagSaved { tag } => tag,
+        other => panic!("{other:?}"),
+    };
+    let other = create(&s, "Other root").await;
+    let MutationOutcome::EntityCreated { entity_id } = s
+        .state
+        .create_entity(uuid::Uuid::now_v7().to_string())
+        .await
+        .unwrap()
+    else {
+        panic!()
+    };
+    write(
+        &s,
+        TagChange::Add {
+            entity_id: entity_id.clone(),
+            tag_id: child.id.clone(),
+        },
+    )
+    .await;
+    let search = s.state.search.as_ref().unwrap();
+    assert!(
+        search
+            .catalogue()
+            .references
+            .iter()
+            .any(|r| r.id == "tag_subtree")
+    );
+    assert_eq!(
+        search
+            .reference_choices("tag_subtree".into())
+            .await
+            .unwrap()
+            .len(),
+        3
+    );
+    let literal = locus_filter::api::literal(
+        search.catalogue(),
+        locus_filter::api::LiteralRequest {
+            format: locus_filter::api::native_source("").format,
+            version: locus_filter::api::native_source("").version,
+            field: "tag_subtree".into(),
+            value: locus_query::api::Value::Identifier(category.id.clone()),
+        },
+    )
+    .unwrap();
+    expected(&s, &literal.condition, std::slice::from_ref(&entity_id)).await;
+    expected(&s, &format!("tag_ids:\"{}\"", category.id), &[]).await;
+    let captured = search
+        .query_program(compile(native_source(&literal.condition)).unwrap())
+        .await
+        .unwrap();
+    let moved = match write(
+        &s,
+        TagChange::Move {
+            id: child.id.clone(),
+            revision: child.revision.clone(),
+            parent: Some(other.id.clone()),
+        },
+    )
+    .await
+    {
+        MutationOutcome::TagSaved { tag } => tag,
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(moved.parent, Some(other.id.clone()));
+    assert_ne!(moved.revision, child.revision);
+    expected(&s, &literal.condition, &[]).await;
+    let entity = locus_core::api::EntityId::from_bytes(
+        uuid::Uuid::parse_str(&entity_id).unwrap().as_bytes(),
+    )
+    .unwrap();
+    assert!(search.evidence(&captured.context, &[entity]).is_ok());
+    write(
+        &s,
+        TagChange::Delete {
+            id: other.id.clone(),
+            revision: other.revision,
+        },
+    )
+    .await;
+    let promoted = s
+        .state
+        .tags()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|r| r.id == child.id)
+        .unwrap();
+    assert_eq!(promoted.parent, None);
+    assert_ne!(promoted.revision, moved.revision);
+    assert_eq!(
+        s.state
+            .entity_tags(entity)
+            .await
+            .unwrap()
+            .tag_set
+            .unwrap()
+            .tags[0]
+            .id,
+        child.id
+    );
+    assert!(
+        search
+            .query_program(
+                compile(native_source(format!(
+                    "entity_id:* OR tag_subtree:\"{}\"",
+                    other.id
+                )))
+                .unwrap()
+            )
+            .await
+            .is_err()
+    );
     s.close_admission();
     s.state.wait_drained().await;
 }

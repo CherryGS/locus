@@ -1,7 +1,7 @@
 use crate::{error::TagError, identity::TagId, record::TagRecord};
 use diesel::{
     OptionalExtension, QueryableByName, sql_query,
-    sql_types::{Binary, Text},
+    sql_types::{Binary, Nullable, Text},
 };
 use diesel_async::RunQueryDsl;
 use locus_core::api::ComponentId;
@@ -14,6 +14,8 @@ struct Row {
     name: String,
     #[diesel(sql_type=Text)]
     revision: String,
+    #[diesel(sql_type=Nullable<Binary>)]
+    parent: Option<Vec<u8>>,
 }
 impl Row {
     fn record(self) -> Result<TagRecord, TagError> {
@@ -27,19 +29,42 @@ impl Row {
             id: TagId::from_bytes(&self.id)?,
             name: self.name,
             revision: self.revision,
+            parent: self.parent.as_deref().map(TagId::from_bytes).transpose()?,
         })
     }
 }
 pub(crate) async fn list(c: &mut Context) -> Result<Vec<TagRecord>, TagError> {
-    sql_query("SELECT id,name,revision FROM locus_tag_comm_tag ORDER BY name COLLATE BINARY,id")
-        .load::<Row>(c.connection())
-        .await?
-        .into_iter()
-        .map(Row::record)
-        .collect()
+    let records = sql_query(
+        "SELECT id,name,revision,parent FROM locus_tag_comm_tag ORDER BY name COLLATE BINARY,id",
+    )
+    .load::<Row>(c.connection())
+    .await?
+    .into_iter()
+    .map(Row::record)
+    .collect::<Result<Vec<_>, _>>()?;
+    crate::hierarchy::validate(&records)?;
+    Ok(records)
 }
 pub(crate) async fn read(c: &mut Context, id: TagId) -> Result<TagRecord, TagError> {
-    sql_query("SELECT id,name,revision FROM locus_tag_comm_tag WHERE id=?")
+    let record = read_unchecked(c, id).await?;
+    let mut seen = std::collections::HashSet::from([id]);
+    let mut parent = record.parent;
+    while let Some(id) = parent {
+        if !seen.insert(id) {
+            return Err(TagError::Corrupt("cyclic Tag hierarchy".into()));
+        }
+        parent = read_unchecked(c, id)
+            .await
+            .map_err(|e| match e {
+                TagError::MissingTag => TagError::Corrupt("dangling Tag parent".into()),
+                other => other,
+            })?
+            .parent;
+    }
+    Ok(record)
+}
+async fn read_unchecked(c: &mut Context, id: TagId) -> Result<TagRecord, TagError> {
+    sql_query("SELECT id,name,revision,parent FROM locus_tag_comm_tag WHERE id=?")
         .bind::<Binary, _>(id.as_bytes().as_slice())
         .get_result::<Row>(c.connection())
         .await
@@ -52,12 +77,13 @@ pub(crate) async fn available(
     name: &str,
     except: Option<TagId>,
 ) -> Result<(), TagError> {
-    let row =
-        sql_query("SELECT id,name,revision FROM locus_tag_comm_tag WHERE name=? COLLATE BINARY")
-            .bind::<Text, _>(name)
-            .get_result::<Row>(c.connection())
-            .await
-            .optional()?;
+    let row = sql_query(
+        "SELECT id,name,revision,parent FROM locus_tag_comm_tag WHERE name=? COLLATE BINARY",
+    )
+    .bind::<Text, _>(name)
+    .get_result::<Row>(c.connection())
+    .await
+    .optional()?;
     if let Some(row) = row
         && Some(row.record()?.id) != except
     {

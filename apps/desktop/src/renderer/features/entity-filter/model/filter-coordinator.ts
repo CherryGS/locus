@@ -20,6 +20,7 @@ type FilterApi = AssistanceApi & Pick<
   | "filterWrite"
   | "submission"
 >
+type DraftSwitch = { destination: string | null; source?: Wire<"FilterSource"> }
 type Established = {
   sequence: IdentitySequence
   criteria?: Wire<"FilterSource">
@@ -37,7 +38,7 @@ export class FilterCoordinator {
   saving = false
   preparing = false
   loading = false
-  guard?: { destination: string | null }
+  guard?: DraftSwitch
   private uncertainRecords = new Map<
     string,
     { request: string; draft: FilterDraft; change?: Wire<"FilterChange"> }
@@ -263,6 +264,19 @@ export class FilterCoordinator {
       }
     }
   }
+  /** Capture the editor intent before an external source request. No late replacement. */
+  generatedDraftReceiver() {
+    if (this.busy || this.disposed || this.hostClosing) return undefined
+    const draft = this.draft, action = this.action, visit = this.visit
+    return (source: Wire<"FilterSource">) => {
+      if (this.busy || this.disposed || this.hostClosing || draft !== this.draft || action !== this.action || visit !== this.visit) return false
+      this.assistance.exit()
+      this.show()
+      if (this.dirty) { this.guard = { destination: null, source: structuredClone(source) }; this.changed() }
+      else void this.switchTo(null, source)
+      return true
+    }
+  }
   requestSwitch(destination: string | null) {
     if (this.busy) return
     this.assistance.exit()
@@ -277,9 +291,9 @@ export class FilterCoordinator {
     this.changed()
     if (!guard || choice === "cancel") return
     if (choice === "save") await this.save(undefined, guard)
-    else await this.switchTo(guard.destination)
+    else await this.switchTo(guard.destination, guard.source)
   }
-  private async switchTo(destination: string | null) {
+  private async switchTo(destination: string | null, source?: Wire<"FilterSource">) {
     const visit = this.visit,
       action = ++this.action
     this.loading = true
@@ -288,7 +302,7 @@ export class FilterCoordinator {
       const value = destination ? await this.api.filterPreset(destination) : undefined
       if (visit !== this.visit || action !== this.action || this.disposed) return
       this.saved = value
-      this.draft = value
+      this.draft = source ? { name: "", source: structuredClone(source) } : value
         ? { name: value.name, source: structuredClone(value.source) }
         : {
             ...emptyDraft(),
@@ -311,7 +325,7 @@ export class FilterCoordinator {
       }
     }
   }
-  async save(asName?: string, switching?: { destination: string | null }) {
+  async save(asName?: string, switching?: DraftSwitch) {
     if (this.busy || this.disposed || !this.open) return false
     const visit = this.visit, action = ++this.action
     if (this.assistance.active && !await this.finishHelper(visit, action)) return false
@@ -371,7 +385,7 @@ export class FilterCoordinator {
       else this.notice = `Saved “${outcome.preset.name}”, not applied: a newer result request took priority.`
       if (switching && visit === this.visit && action === this.action) {
         this.saving = false
-        await this.switchTo(switching.destination)
+        await this.switchTo(switching.destination, switching.source)
       }
       return true
     } catch (e) {
@@ -640,6 +654,7 @@ export class FilterCoordinator {
       if (!this.disposed) {
         this.catalogue = value
         this.assistance.fields = value.fields
+        this.assistance.references = value.references ?? []
         this.assistance.updateHelp()
       }
     } catch (error) {

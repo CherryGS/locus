@@ -55,7 +55,22 @@ async fn write_tag(
     let input = body(input)?;
     canonical_id(&input.request_id)?;
     match &input.change {
-        TagChange::Create { .. } => (),
+        TagChange::Create { parent, .. } => {
+            if let Some(id) = parent {
+                tag(id)?;
+            }
+        }
+        TagChange::Move {
+            id,
+            revision,
+            parent,
+        } => {
+            tag(id)?;
+            canonical_id(revision)?;
+            if let Some(id) = parent {
+                tag(id)?;
+            }
+        }
         TagChange::Rename { id, revision, .. } | TagChange::Delete { id, revision } => {
             tag(id)?;
             canonical_id(revision)?;

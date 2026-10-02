@@ -3344,6 +3344,120 @@
         }
       }
     },
+    "/api/v1/filter/reference-choices": {
+      "post": {
+        "tags": [
+          "filter"
+        ],
+        "operationId": "filter_reference_choices",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferenceChoicesInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReferenceChoice"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/import-batches": {
       "get": {
         "tags": [
@@ -14537,6 +14651,42 @@
         },
         "additionalProperties": false
       },
+      "ReferenceChoice": {
+        "type": "object",
+        "required": [
+          "identity",
+          "name"
+        ],
+        "properties": {
+          "identity": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "ReferenceChoicesInput": {
+        "type": "object",
+        "required": [
+          "format",
+          "version",
+          "reference"
+        ],
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
       "RegisteredImportItem": {
         "type": "object",
         "properties": {
@@ -14719,13 +14869,20 @@
         "type": "object",
         "title": "Catalogue",
         "required": [
-          "fields"
+          "fields",
+          "references"
         ],
         "properties": {
           "fields": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Search_FieldDefinition"
+            }
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Search_ReferenceDefinition"
             }
           }
         }
@@ -15171,6 +15328,36 @@
             "description": "None in the native grammar is kept distinct from explicit OR."
           }
         }
+      },
+      "Search_ReferenceDefinition": {
+        "type": "object",
+        "required": [
+          "id",
+          "owner",
+          "target_field",
+          "meaning"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "meaning": {
+            "$ref": "#/components/schemas/Search_ReferenceMeaning"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "target_field": {
+            "type": "string"
+          }
+        }
+      },
+      "Search_ReferenceMeaning": {
+        "type": "string",
+        "description": "Query parameters have no per-Entity projection or indexed presence semantics.",
+        "enum": [
+          "inclusive_subtree"
+        ]
       },
       "Search_Shape": {
         "type": "string",
@@ -15812,6 +15999,12 @@
                 "enum": [
                   "create"
                 ]
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             }
           },
@@ -15834,6 +16027,34 @@
                 "type": "string",
                 "enum": [
                   "rename"
+                ]
+              },
+              "revision": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "revision",
+              "operation"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "move"
+                ]
+              },
+              "parent": {
+                "type": [
+                  "string",
+                  "null"
                 ]
               },
               "revision": {
@@ -15922,6 +16143,12 @@
           },
           "name": {
             "type": "string"
+          },
+          "parent": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "revision": {
             "type": "string"

@@ -57,6 +57,24 @@ pub(crate) fn quote(value: &str) -> String {
 }
 pub fn literal(catalogue: &Catalogue, request: LiteralRequest) -> Result<Literal, Diagnostic> {
     profile(&request.format, request.version)?;
+    if catalogue.references.iter().any(|r| r.id == request.field) {
+        let Value::Identifier(identity) = request.value else {
+            return Err(diagnostic("Query references require an identity value"));
+        };
+        let operand = locus_query::api::ReferenceOperand {
+            reference: request.field.clone(),
+            identity,
+        };
+        operand
+            .validate(catalogue)
+            .map_err(|e| diagnostic(e.to_string()))?;
+        let literal = quote(&operand.identity);
+        return Ok(Literal {
+            reference: request.field.clone(),
+            condition: format!("{}:{literal}", request.field),
+            literal,
+        });
+    }
     let field = catalogue
         .fields
         .iter()
@@ -104,6 +122,14 @@ pub fn field_help(
             offset_encoding: "utf-8-bytes".into(),
         });
     };
+    if catalogue.references.iter().any(|r| r.id == reference) {
+        return Ok(FieldHelp {
+            examples: vec![format!("{reference}:\"01900000-0000-7000-8000-000000000001\"")],
+            reference,
+            guidance: "Select one stable Tag identity from the complete vocabulary, including unused categories. Matches direct annotations on that Tag or any descendant, with zero relevance. A missing root fails execution in every Boolean branch. Only a single UUID literal is accepted; use AND, OR and NOT to compose references.".into(),
+            offset_encoding: "utf-8-bytes".into(),
+        });
+    }
     let field = catalogue
         .fields
         .iter()

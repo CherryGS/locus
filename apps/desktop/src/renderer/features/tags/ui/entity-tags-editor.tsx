@@ -47,7 +47,7 @@ export function EntityTagsEditor({
     >
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-medium">Personal tags</h3>
-        <Link to="/tags" search={{ mode: "grid", collectionId: "library" }} className={buttonVariants({ size: "sm", variant: "ghost" })}>
+        <Link to="/tags" search={{}} className={buttonVariants({ size: "sm", variant: "ghost" })}>
           Manage tags
         </Link>
       </div>

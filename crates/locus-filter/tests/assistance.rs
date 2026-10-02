@@ -258,3 +258,60 @@ fn source_owned_safe_spans_partial_quotes_and_indeterminate_complex_syntax() {
         EditingKind::Value
     );
 }
+
+#[test]
+fn query_reference_help_literal_and_editing_use_identity_without_rewriting_source() {
+    use locus_query::api::*;
+    let catalogue = Catalogue::with_references(
+        vec![FieldDefinition::new(
+            "tag_ids",
+            "tag",
+            FieldType::Identifier,
+            Shape::Collection,
+        )],
+        vec![ReferenceDefinition {
+            id: "tag_subtree".into(),
+            owner: "tag".into(),
+            target_field: "tag_ids".into(),
+            meaning: ReferenceMeaning::InclusiveSubtree,
+        }],
+    )
+    .unwrap();
+    let source = locus_filter::api::native_source("tag_subtree:");
+    let identity = "01992853C12370008000000000000001";
+    let literal = locus_filter::api::literal(
+        &catalogue,
+        locus_filter::api::LiteralRequest {
+            format: source.format.clone(),
+            version: source.version,
+            field: "tag_subtree".into(),
+            value: Value::Identifier(identity.into()),
+        },
+    )
+    .unwrap();
+    assert_eq!(literal.condition, format!("tag_subtree:\"{identity}\""));
+    assert!(
+        locus_filter::api::compile(locus_filter::api::native_source(&literal.condition)).is_ok()
+    );
+    let help = locus_filter::api::field_help(
+        &catalogue,
+        locus_filter::api::FieldHelpRequest {
+            format: source.format.clone(),
+            version: source.version,
+            field: Some("tag_subtree".into()),
+        },
+    )
+    .unwrap();
+    assert!(help.guidance.contains("zero relevance"));
+    let context = locus_filter::api::editing_context(
+        &catalogue,
+        locus_filter::api::EditingRequest {
+            offset: source.text.len(),
+            source,
+            marker: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(context.field.as_deref(), Some("tag_subtree"));
+    assert!(context.value_range.is_some());
+}

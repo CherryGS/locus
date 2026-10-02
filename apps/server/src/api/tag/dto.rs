@@ -5,6 +5,7 @@ pub struct TagRecord {
     pub id: String,
     pub name: String,
     pub revision: String,
+    pub parent: Option<String>,
 }
 impl From<locus_tag::api::TagRecord> for TagRecord {
     fn from(t: locus_tag::api::TagRecord) -> Self {
@@ -12,6 +13,7 @@ impl From<locus_tag::api::TagRecord> for TagRecord {
             id: t.id.to_string(),
             name: t.name,
             revision: t.revision,
+            parent: t.parent.map(|id| id.to_string()),
         }
     }
 }
@@ -38,11 +40,18 @@ pub struct EntityTags {
 pub enum TagChange {
     Create {
         name: String,
+        #[serde(default)]
+        parent: Option<String>,
     },
     Rename {
         id: String,
         revision: String,
         name: String,
+    },
+    Move {
+        id: String,
+        revision: String,
+        parent: Option<String>,
     },
     Delete {
         id: String,
