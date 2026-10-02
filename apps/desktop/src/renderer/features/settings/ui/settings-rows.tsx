@@ -1,109 +1,134 @@
 import type { ReactNode, ComponentProps } from "react"
+import { CircleHelpIcon } from "lucide-react"
+import { Button } from "@/shared/ui/button"
 import { Field, FieldContent, FieldLabel, FieldError } from "@/shared/ui/field"
 import { Input } from "@/shared/ui/input"
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardAction,
-  CardContent,
-  CardFooter,
-} from "@/shared/ui/card"
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/shared/ui/popover"
 
 export function SettingsGroup({
   name,
-  description,
+  help,
+  status,
   action,
-  footer,
   children,
 }: {
   name: string
-  description?: string
+  help?: { label: string; content: ReactNode }
+  status?: ReactNode
   action?: ReactNode
-  footer?: ReactNode
   children: ReactNode
 }) {
   return (
-    <Card role="region" aria-label={name} className="shrink-0 gap-0 pb-0">
-      <CardHeader className="pb-3">
-        <CardTitle>
-          <h2>{name}</h2>
-        </CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
-        {action && <CardAction>{action}</CardAction>}
-      </CardHeader>
-      <CardContent className="px-0">{children}</CardContent>
-      {footer && <CardFooter className="flex-wrap justify-between gap-3">{footer}</CardFooter>}
-    </Card>
-  )
-}
-export function IconTile({ children }: { children: ReactNode }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex size-7 shrink-0 items-center justify-center rounded bg-muted/60 text-muted-foreground [&>svg]:size-3.5"
+    <section
+      role="region"
+      aria-label={name}
+      className="@container/settings flex min-w-0 flex-col gap-2"
     >
-      {children}
-    </span>
+      <header className="flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex items-center gap-1">
+            <h2 className="text-sm font-medium">{name}</h2>
+            {help && (
+              <Popover>
+                <PopoverTrigger
+                  render={<Button type="button" variant="ghost" size="icon-sm" />}
+                  aria-label={help.label}
+                >
+                  <CircleHelpIcon aria-hidden="true" />
+                </PopoverTrigger>
+                <PopoverContent align="start" className="gap-3">
+                  <PopoverTitle>{name}</PopoverTitle>
+                  {help.content}
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+          {status && <div className="flex flex-wrap items-center gap-2">{status}</div>}
+        </div>
+        {action && <div className="flex items-center gap-1">{action}</div>}
+      </header>
+      <div className="rounded-xl border border-border/60 bg-muted/20">{children}</div>
+    </section>
   )
 }
+
+// Read-only facts and editable fields share the same columns and responsive break.
+const rowClassName =
+  "grid min-h-16 grid-cols-1 items-start gap-x-6 gap-y-2 px-4 py-4 @min-[28rem]/settings:grid-cols-[10rem_minmax(0,1fr)]"
+const labelClassName = "text-sm font-normal @min-[28rem]/settings:pt-1.5"
+
 export function SettingsRow({
-  icon,
   label,
-  hint,
+  htmlFor,
   children,
 }: {
-  icon: ReactNode
   label: string
-  hint?: string
+  htmlFor?: string
   children: ReactNode
 }) {
   return (
-    <div className="flex min-h-16 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <IconTile>{icon}</IconTile>
-        <div className="flex flex-col gap-0.5">
-          <p className="text-sm">{label}</p>
-          {hint && <p className="text-xs leading-relaxed text-muted-foreground">{hint}</p>}
-        </div>
-      </div>
-      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">{children}</div>
+    <div className={rowClassName}>
+      {htmlFor ? (
+        <FieldLabel htmlFor={htmlFor} className={labelClassName}>
+          {label}
+        </FieldLabel>
+      ) : (
+        <p className={labelClassName}>{label}</p>
+      )}
+      <div className="flex min-w-0 flex-col gap-2 text-sm">{children}</div>
     </div>
   )
 }
+
 export function SettingsEditRow({
-  icon,
   label,
-  hint,
   error,
+  children,
   ...input
-}: ComponentProps<typeof Input> & { icon: ReactNode; label: string; hint: string; error?: string }) {
+}: ComponentProps<typeof Input> & {
+  id: string
+  label: string
+  error?: string
+  children?: ReactNode
+}) {
+  const describedBy =
+    [input["aria-describedby"], error && `${input.id}-error`].filter(Boolean).join(" ") || undefined
   return (
-    <Field
-      orientation="responsive"
-      data-invalid={!!error}
-      data-disabled={input.disabled}
-      className="min-h-16 items-center gap-4 px-4 py-3"
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <IconTile>{icon}</IconTile>
-        <FieldContent>
-          <FieldLabel htmlFor={input.id}>{label}</FieldLabel>
-          <p id={`${input.id}-help`} className="text-xs leading-relaxed text-muted-foreground">
-            {hint}
-          </p>
-          {error && <FieldError>{error}</FieldError>}
-        </FieldContent>
-      </div>
-      <Input
-        {...input}
-        aria-invalid={!!error}
-        aria-describedby={`${input.id}-help`}
-        className="max-w-full @md/field-group:w-56 @md/field-group:shrink-0"
-        spellCheck={false}
-        autoComplete="off"
-      />
+    <Field data-invalid={!!error} data-disabled={input.disabled} className={rowClassName}>
+      <FieldLabel htmlFor={input.id} className={labelClassName}>
+        {label}
+      </FieldLabel>
+      <FieldContent className="min-w-0 gap-2">
+        <Input
+          {...input}
+          aria-invalid={!!error}
+          aria-describedby={describedBy}
+          spellCheck={false}
+          autoComplete="off"
+        />
+        {error && <FieldError id={`${input.id}-error`}>{error}</FieldError>}
+        {children}
+      </FieldContent>
     </Field>
+  )
+}
+
+export function SettingsActions({
+  notice,
+  status,
+  children,
+}: {
+  notice?: string
+  status?: ReactNode
+  children?: ReactNode
+}) {
+  return (
+    <div className="flex min-h-8 flex-wrap items-center justify-end gap-2 pt-3">
+      <div className="mr-auto flex flex-wrap items-center gap-2">
+        {notice && <span className="text-xs text-muted-foreground">{notice}</span>}
+        {status}
+      </div>
+      {children}
+    </div>
   )
 }

@@ -34,7 +34,10 @@ export function SettingsPanel({
     if (!restricted) void externalToken.read()
   }, [settings, externalSettings, externalToken, restricted])
   return (
-    <section className="h-full overflow-auto bg-background" aria-label="Settings workspace">
+    <section
+      className="h-full overflow-auto bg-background [scrollbar-color:var(--border)_transparent] [scrollbar-gutter:stable] [scrollbar-width:thin]"
+      aria-label="Settings workspace"
+    >
       <div className="mx-auto flex max-w-[800px] flex-col gap-5 px-6 py-6 sm:px-8">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
@@ -47,11 +50,9 @@ export function SettingsPanel({
                     ? "Library"
                     : "Media tools"}
             </h1>
-            {(restricted || category === "external") && (
+            {restricted && (
               <p className="text-xs text-muted-foreground">
-                {restricted
-                  ? "Repair configuration to start this library."
-                  : "Use the connection address and token below in your extension."}
+                Repair configuration to start this library.
               </p>
             )}
           </div>
@@ -72,7 +73,9 @@ export function SettingsPanel({
         {restricted && (
           <Alert variant="destructive">
             <AlertTitle>Library needs attention</AlertTitle>
-            <AlertDescription>{restricted} Saving alone does not start library services.</AlertDescription>
+            <AlertDescription>
+              {restricted} Saving alone does not start library services.
+            </AlertDescription>
           </Alert>
         )}
         {hostError && (
@@ -81,7 +84,11 @@ export function SettingsPanel({
           </Alert>
         )}
         {(restricted || category === "external") && (
-          <ExternalAccessPanel settings={externalSettings} token={externalToken} restricted={restricted} />
+          <ExternalAccessPanel
+            settings={externalSettings}
+            token={externalToken}
+            restricted={restricted}
+          />
         )}
         {(category === "library" || (restricted && switchLibrary)) && (
           <LibrarySettingsPanel library={library} switchLibrary={switchLibrary} />

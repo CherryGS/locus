@@ -105,7 +105,11 @@ their unfinished behavior must not be presented as an already available feature.
   consumers. The user rejected the Media-only treatment because it diverged from
   neighboring settings pages. Judge shared headings, groups, rows and actions
   across representative pages together; no individual revision establishes its
-  own visual system. Reference research remains a proposal until selected.
+  own visual system. Raycast is selected as the primary reference for the shared
+  settings groups and rows: quiet grouped surfaces, aligned labels and controls,
+  consistent help and action placement across Library, External connection and
+  Media tools. This scoped selection does not establish the whole application's
+  final visual identity or change existing save/restart behavior.
 
 ## Evidence on Hand
 

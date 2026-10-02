@@ -1,6 +1,8 @@
 # Settings reference research
 
-Date: 2026-10-03. Status: references reviewed; primary direction not yet selected.
+Date: 2026-10-03. Status: Raycast selected by the user for the shared settings
+component family. This is a scoped reference, not approval of the full app's
+visual identity or the rendered implementation.
 
 The independent review and full reference comparison are retained through
 Impeccable critique storage for the SettingsPanel target. Assessment A and B in
