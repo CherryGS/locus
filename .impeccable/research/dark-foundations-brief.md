@@ -3,6 +3,10 @@
 Status: confirmed scope and rejection, with a proposed visual response.
 Mode: Operate. This is working material, not an approved DESIGN.md.
 
+The second hand is withdrawn as an implementation reference: the user flagged
+substantial differences in UI logic. The neutral dark response below remains a
+proposal, not a selected visual design.
+
 ## Confirmed
 
 - Establish the global dark visual system before advancing individual screens.
@@ -48,16 +52,19 @@ Inspected its official overall UI and Inspector images in the
 are compact chrome, direct image/caption groups and closely associated property
 actions. Its blur, duplicated preview and disclosure behavior are not adopted.
 
-Demonstrate the shared shell, media card and Inspector together in a dark-only
-sample. Compare
-surface hierarchy, density and control weight, rather than tinting the same
-layout multiple colours. Exact palette, font, radii and accent are still open.
+Use the actual renderer as the baseline for the next bounded sample. Inspect
+the real information, controls and states before revising appearance. Compare
+the same screen and content before and after changes to surface hierarchy,
+typography, spacing, boundaries and control styling. Information architecture,
+layout and interaction proposals must be identified and discussed separately.
+Existing functional behavior is evidence; existing shadcn styling is still not
+approved visual authority. Exact palette, font, radii and accent remain open.
 
 The revised direction hand is recorded in `dark-direction-r1.md` and
 `entity-decision-75117ec9-r1.json`. It uses the original seed/session with re-roll
 1; all previously presented directions are eliminated, and the conventional
-alternative is dark too. Each declared slot receives a fresh native-generated
-image after the page update.
+alternative is dark too. These generated samples are now archived exploration
+and must not govern feature meaning, interaction or implementation structure.
 
 No production files changed in this feedback checkpoint, and none of the first
 hand's image sidecars gains approval. A later implementation should be verified

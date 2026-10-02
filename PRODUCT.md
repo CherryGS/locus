@@ -93,6 +93,10 @@ their unfinished behavior must not be presented as an already available feature.
 - The replacement palette, typeface, component treatment and decorative
   identity remain open. Preserve confirmed product behavior while exploring
   the dark visual system in small, connected pieces.
+- Visual exploration must stay grounded in the actual interface and its
+  interaction contracts. The user flagged substantial UI-logic drift in the
+  generated dark samples. Those samples are not implementation references;
+  proposed layout, information or interaction changes need separate discussion.
 
 ## Evidence on Hand
 

@@ -1,7 +1,24 @@
 # Entity foundations direction session
 
-Status: first hand rejected; revised dark-only hand ready for user feedback.
-No visual identity is approved.
+Status: direction selection suspended because the generated samples do not
+faithfully represent the existing UI logic. No visual identity is approved.
+
+## Fidelity correction, 2026-10-03
+
+The user asked what the new sample was intended to reference and pointed out
+that its UI logic differs substantially from the existing application. The
+intended comparison was palette, typography, boundaries and control weight, but
+the generated samples also invented or rearranged information and affordances.
+The main agent withdraws them as implementation references. This is not a user
+rejection of every visual property in the second hand and is not a choice of
+another direction.
+
+Resume from the actual renderer and its governing interaction contracts. Present
+appearance changes on the same real screen and content so the change is legible.
+Discuss any proposed information architecture, layout or interaction changes
+separately; do not smuggle them in as visual styling. Do not request selection
+from the current generated hand or treat its decision-page buttons as the next
+implementation step. The existing page is an archived exploration only.
 
 ## User feedback, 2026-10-03
 
@@ -20,7 +37,7 @@ No visual identity is approved.
   seeking other references. Do not treat it as an approved design or import its
   behavior. Do not repeat the dominant-workflow question.
 
-## Current hand
+## Archived dark-only hand
 
 - Original seed `75117ec9`, re-roll 1, assigned grounded candidate 5.
 - Candidate reasoning: `dark-direction-r1.md`.
@@ -29,7 +46,7 @@ No visual identity is approved.
 - Comps: `.impeccable/mocks/decision/75117ec9-r1/` (assigned, model-pick, canon).
 - All cards are dark; changes explore typography, density and control weight.
 - Image producers use `gpt-6.1-sol` with `high` reasoning per the user's new default.
-- Approval remains pending. Do not mark sidecars approved until the user chooses.
+- Selection is suspended on UI-fidelity grounds. All sidecars remain unapproved.
 - All three native comps are complete, each with one bounded correction pass,
   prompt provenance and `approved: false`. The actual output is 1586 by 992.
 - Main-agent visual inspection confirms dark UI and text/file preview surfaces,
