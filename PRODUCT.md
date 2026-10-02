@@ -24,9 +24,11 @@ Bring local files, viewable media, model information, source observations and
 organization into one personal CMS. Preserve useful context around content so
 that browsing, inspecting and organizing it can be connected activities.
 
-The user has not selected one dominant linear workflow or a measured usage
-frequency. Design exploration should use the existing capabilities to discuss
-concrete interactions without inventing a mandatory wizard or acquisition funnel.
+The user explicitly describes the central purpose as connecting previously
+fragmented workflows and does not want to designate one highest-priority main
+flow. Explore concrete parts step by step while retaining their connections;
+do not make a dominant linear sequence, wizard or acquisition funnel a
+prerequisite for design work. Usage frequency is not specified.
 
 ## Positioning
 
@@ -50,8 +52,8 @@ their unfinished behavior must not be presented as an already available feature.
 - Existing workflows include browsing/searching Entities, viewing content and
   component details, navigating source/model information, applying personal tags
   and notes, observing tasks and managing library settings.
-- The exact external applications the user switches between, the most frequent
-  repeated operation and typical session length remain unspecified.
+- The exact external applications the user switches between and typical session
+  length remain unspecified. There is no required ranking of the connected flows.
 
 ## Capabilities and Constraints
 
@@ -109,7 +111,7 @@ their unfinished behavior must not be presented as an already available feature.
 
 ## Open Product Questions
 
-Specific daily workflow priorities and the external switching costs the user
-most wants to remove remain open. Use concrete examples from the current product
-to clarify them when a design choice depends on the answer; do not block unrelated
-visual exploration on a hypothetical complete workflow description.
+Details of individual tasks can be clarified when a concrete design choice needs
+them. Do not repeatedly ask the user to choose a dominant workflow: the confirmed
+purpose is to connect multiple activities, and the user selected incremental
+exploration of the existing product.
