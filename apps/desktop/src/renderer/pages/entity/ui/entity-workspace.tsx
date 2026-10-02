@@ -181,14 +181,10 @@ export function EntityWorkspace({
                         <Separator />
                         <DetailSection
                           key={activePanel.identity.value}
-                          title="Identifiers"
+                          title={activePanel.identity.label}
                           collapsible
-                          summary={activePanel.identity.label}
                         >
-                          <div className="flex min-w-0 flex-col gap-1">
-                            <p className="text-xs text-muted-foreground">{activePanel.identity.label}</p>
-                            <CopyIdentityButton {...activePanel.identity} />
-                          </div>
+                          <CopyIdentityButton {...activePanel.identity} />
                         </DetailSection>
                       </>
                     )}

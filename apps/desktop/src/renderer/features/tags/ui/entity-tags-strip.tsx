@@ -20,26 +20,51 @@ export function EntityTagsStrip({ entity, coordinator: c, onShowAll }: {
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
   const viewport = useRef<HTMLDivElement>(null)
-  const [capacity, setCapacity] = useState(1)
+  const measurements = useRef<HTMLDivElement>(null)
+  const [capacity, setCapacity] = useState(0)
+  const candidates = tags.slice(0, 4)
+  const names = JSON.stringify(candidates.map((tag) => tag.name))
   useLayoutEffect(() => {
     const element = viewport.current
-    if (!element) return
-    const measure = () => setCapacity(Math.max(0, Math.min(4, Math.floor(element.clientWidth / 150))))
+    const row = measurements.current
+    if (!element || !row) return
+    // Measure capped chip widths, including the flex gap, instead of estimating
+    // from name length. The actual row reserves room for +N and action buttons.
+    const measure = () => {
+      const gap = parseFloat(getComputedStyle(element).columnGap) || 0
+      let used = 0
+      let count = 0
+      for (const chip of row.children) {
+        used += chip.getBoundingClientRect().width + (count ? gap : 0)
+        if (used > element.clientWidth) break
+        count++
+      }
+      setCapacity(count)
+    }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(element)
+    observer.observe(row)
     return () => observer.disconnect()
-  }, [])
-  const visible = tags.slice(0, capacity)
+  }, [names])
+  const visible = failed ? [] : candidates.slice(0, capacity)
   const remaining = tags.length - visible.length
   return (
     <section aria-label="Personal tag summary" data-entity-id={entity.id}
-      className="flex h-9 min-w-0 shrink-0 items-center gap-2 border-b px-3">
-      <Button size="icon-xs" variant="ghost" aria-label="Show personal tags" title="Show personal tags" onClick={onShowAll}>
+      className="@container/tag-strip relative flex h-9 min-w-0 shrink-0 items-center gap-1.5 border-b px-2">
+      <div aria-hidden="true" className="pointer-events-none invisible absolute size-0 overflow-hidden">
+        <div ref={measurements} className="flex w-max gap-1.5">
+          {candidates.map((tag) => <Badge key={tag.id} variant="secondary" className="max-w-36 min-w-0">
+            <span className="truncate">{tag.name}</span>
+          </Badge>)}
+        </div>
+      </div>
+      <Button size="icon-xs" variant="ghost" className="@max-[14rem]/tag-strip:hidden"
+        aria-label="Show personal tags" title="Show personal tags" onClick={onShowAll}>
         <TagsIcon />
       </Button>
+      {waiting && <Spinner aria-label="Reading personal tags" className="shrink-0" />}
       <div ref={viewport} className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
-        {waiting && <Spinner aria-label="Reading personal tags" />}
         {failed && <Button size="xs" variant="ghost" className="min-w-0 shrink truncate"
           onClick={onShowAll}>Tags unavailable{tags.length ? " · previous assignments" : ""}</Button>}
         {visible.map((tag) => <Badge key={tag.id} variant="secondary" className="max-w-36 min-w-0"

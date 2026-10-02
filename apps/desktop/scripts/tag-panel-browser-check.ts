@@ -30,6 +30,8 @@ try {
   const delayed = await create("Captured subject", other.id)
   const longName = "星空与城市 — café / " + "非常长的个人标签".repeat(20)
   const long = await create(longName, root.id)
+  const longTags = []
+  for (let i = 0; i < 4; i++) longTags.push(await create(`A${i} · ${longName}`, root.id))
   for (let i = 0; i < 1000; i++) await create(`Candidate ${String(i).padStart(4, "0")}`, root.id)
   const entityId = data.images[0].entityId
   const secondId = data.images[1].entityId
@@ -142,7 +144,7 @@ try {
   await modal.getByRole("button", { name: `${longName} is already assigned`, exact: true }).waitFor()
   await page.keyboard.press("Escape")
   await modal.waitFor({ state: "hidden" })
-  for (const id of [root.id, child.id, leaf.id, other.id, bad.id]) {
+  for (const id of [root.id, child.id, leaf.id, other.id, bad.id, ...longTags.map((tag) => tag.id)]) {
     const added = await backend.client.POST("/api/v1/tags", { body: { request_id: crypto.randomUUID(),
       change: { operation: "add", entity_id: entityId, tag_id: id } } })
     assert.equal(added.data?.status, "tag_assignment")
@@ -154,10 +156,37 @@ try {
   await more.waitFor()
   await more.click()
   assert.equal(await panel.getByRole("link").count(), total + 1)
-  assert.equal(await page.getByRole("region", { name: "Personal tag summary", exact: true }).evaluate((element) => element.getBoundingClientRect().height), 36)
+  await panel.getByRole("button", { name: "Component ID", exact: true }).click()
+  assert.equal(await panel.getByText("Component ID", { exact: true }).count(), 1, "Identity label must appear only once, even when expanded")
+  await panel.getByRole("button", { name: "Copy component id", exact: true }).waitFor()
+  assert.equal(await panel.getByRole("list", { name: "Assigned tags", exact: true }).getByRole("listitem").count(), total)
+  const strip = page.getByRole("region", { name: "Personal tag summary", exact: true })
+  const checkStrip = async () => {
+    await page.waitForFunction(() => {
+      const strip = document.querySelector('[aria-label="Personal tag summary"]')!
+      return [...strip.querySelectorAll("a")].every((chip) => {
+        const bounds = chip.getBoundingClientRect()
+        const viewport = chip.parentElement!.getBoundingClientRect()
+        return bounds.width > 0 && bounds.right <= viewport.right + 1 && bounds.left >= viewport.left - 1
+      })
+    })
+    assert.equal(await strip.evaluate((element) => element.getBoundingClientRect().height), 36)
+    assert(await strip.evaluate((element) => element.scrollWidth <= element.clientWidth))
+    const visible = await strip.getByRole("link").count()
+    assert.equal(await more.innerText(), `+${total - visible}`, "Every hidden tag must be included in +N")
+    assert(await page.getByRole("button", { name: "Add personal tags", exact: true }).isVisible())
+  }
+  await checkStrip()
+  await page.screenshot({ path: join(output, "tag-panel.png"), animations: "disabled" })
   await page.setViewportSize({ width: 360, height: 800 })
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+  await checkStrip()
   await page.getByRole("button", { name: "Close details panel", exact: true }).click()
+  for (const width of [1200, 900, 720, 560, 360]) {
+    await page.setViewportSize({ width, height: 800 })
+    await checkStrip()
+  }
+  await page.screenshot({ path: join(output, "tag-strip-narrow.png"), animations: "disabled" })
   await page.getByRole("button", { name: "Add personal tags", exact: true }).click()
   await search.fill("Candidate")
   assert(await modal.evaluate((element) => element.scrollWidth <= element.clientWidth))
@@ -171,7 +200,8 @@ try {
   await writeFile(join(output, "result.json"), JSON.stringify({ status: "PASS", candidates: 1000,
     checks: ["no Tag-set/empty/assigned", "search and hierarchy are read-only", "immediate add/remove",
       "failed A remains after successful B", "pending pair cannot duplicate", "late completion belongs to original Entity",
-      "modal Escape and focus restore", "long tags and narrow modal", "many assigned tags stay one line with panel expansion",
+      "modal Escape and focus restore", "long tags and narrow modal", "one identity label when expanded",
+      "long chips fit at 360–1200px and +N accounts for every hidden tag", "many assigned tags stay one line with panel expansion",
       "panel and presentation share observed assignments"], errors }, null, 2))
   console.log("PASS Tag panel and assignment modal. " + output)
 } catch (error) {
