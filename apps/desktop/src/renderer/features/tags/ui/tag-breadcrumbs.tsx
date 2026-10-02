@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 import type { Wire } from "@/shared/api"
 import { Button } from "@/shared/ui/button"
@@ -71,7 +71,8 @@ function HiddenPath({
   tags: Wire<"TagRecord">[]
   onSelect: (id: string) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false),
+    located = useRef<string | undefined>(undefined)
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
@@ -81,7 +82,17 @@ function HiddenPath({
       >
         <MoreHorizontalIcon />
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-64">
+      <PopoverContent
+        align="start"
+        className="w-64"
+        finalFocus={() => {
+          const id = located.current
+          located.current = undefined
+          return id
+            ? (document.querySelector<HTMLElement>(`[data-tree-tag="${id}"]`) ?? false)
+            : true
+        }}
+      >
         <PopoverTitle className="sr-only">Hidden path tags</PopoverTitle>
         <ScrollArea className="max-h-72" viewportProps={{ className: "max-h-72" }}>
           <div className="flex flex-col gap-1">
@@ -94,6 +105,7 @@ function HiddenPath({
                 title={tag.name}
                 aria-label={`Locate ${tag.name}`}
                 onClick={() => {
+                  located.current = tag.id
                   setOpen(false)
                   onSelect(tag.id)
                 }}

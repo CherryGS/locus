@@ -66,6 +66,17 @@ export function TagColumns({
     if (target) target.focus()
     else pendingFocus.current = id
   }
+  const moveColumn = (depth: number, direction: -1 | 1, from?: string) => {
+    const next = columns[depth + direction],
+      id = next
+        ? (path[depth + direction]?.id ?? next.tags[0]?.id)
+        : direction === 1 && from
+          ? forest.children.get(from)?.[0]?.id
+          : undefined
+    if (!id) return
+    onSelect(id)
+    focus(id)
+  }
   useLayoutEffect(() => {
     const node = viewport.current
     if (!node) return
@@ -85,6 +96,11 @@ export function TagColumns({
     }
     previous.current = signature
     b.scrollLeft = node.scrollLeft
+    if (b.revealSelection) {
+      node
+        .querySelector<HTMLElement>(`[data-tree-tag="${b.tagId}"]`)
+        ?.focus({ preventScroll: true })
+    }
     b.revealSelection = false
     if (pendingFocus.current) {
       const id = pendingFocus.current
@@ -102,6 +118,23 @@ export function TagColumns({
         onScroll: (event) => {
           b.scrollLeft = event.currentTarget.scrollLeft
         },
+        onKeyDown: (event) => {
+          if (
+            event.target !== event.currentTarget ||
+            !["ArrowLeft", "ArrowRight"].includes(event.key)
+          )
+            return
+          event.preventDefault()
+          const depth = columns.findIndex((column) => column.tags.some((tag) => tag.id === b.tagId))
+          if (depth >= 0) moveColumn(depth, event.key === "ArrowLeft" ? -1 : 1, b.tagId)
+          else if (event.key === "ArrowRight") {
+            const first = columns[0].tags[0]?.id
+            if (first) {
+              onSelect(first)
+              focus(first)
+            }
+          }
+        },
       }}
     >
       <div role="tree" aria-label="Tag forest" className="flex h-full w-max min-w-full pb-3">
@@ -115,12 +148,12 @@ export function TagColumns({
             forest={forest}
             browsing={b}
             activeId={path[depth]?.id}
-            nextId={path[depth + 1]?.id}
             blocked={blocked}
             onCreate={() => onCreate(parent ?? undefined)}
             onSelect={onSelect}
             onEdit={onEdit}
             focus={focus}
+            onMove={(direction, id) => moveColumn(depth, direction, id)}
             active={active}
           />
         ))}
@@ -137,12 +170,12 @@ function TagColumn({
   forest,
   browsing: b,
   activeId,
-  nextId,
   blocked,
   onCreate,
   onSelect,
   onEdit,
   focus,
+  onMove,
   active,
 }: {
   parent: Wire<"TagRecord"> | null
@@ -152,12 +185,12 @@ function TagColumn({
   forest: TagForest
   browsing: TagBrowsing
   activeId?: string
-  nextId?: string
   blocked: boolean
   onCreate: () => void
   onSelect: (id: string) => void
   onEdit: (action: TagEditAction, tag: Wire<"TagRecord">) => void
   focus: (id?: string) => void
+  onMove: (direction: -1 | 1, id?: string) => void
   active: Set<string>
 }) {
   const viewport = useRef<HTMLDivElement>(null),
@@ -243,6 +276,16 @@ function TagColumn({
           onScroll: (event) => {
             b.columnScroll.set(key, event.currentTarget.scrollTop)
           },
+          onKeyDown: (event) => {
+            if (
+              event.target !== event.currentTarget ||
+              !["ArrowLeft", "ArrowRight"].includes(event.key)
+            )
+              return
+            event.preventDefault()
+            const id = tags.find((tag) => tag.id === b.tagId)?.id ?? activeId ?? tags[0]?.id
+            onMove(event.key === "ArrowLeft" ? -1 : 1, id)
+          },
         }}
       >
         <div role="group" id={`${prefix}-${key}`} className="flex flex-col gap-1 px-2 pb-2">
@@ -283,15 +326,8 @@ function TagColumn({
                     if (key === "ArrowDown") focus(tags[index + 1]?.id)
                     if (key === "Home") focus(tags[0]?.id)
                     if (key === "End") focus(tags.at(-1)?.id)
-                    if (key === "ArrowLeft" && parent) {
-                      onSelect(parent.id)
-                      focus(parent.id)
-                    }
-                    if (key === "ArrowRight" && children.length) {
-                      const id = onPath ? (nextId ?? children[0].id) : children[0].id
-                      onSelect(id)
-                      focus(id)
-                    }
+                    if (key === "ArrowLeft") onMove(-1, tag.id)
+                    if (key === "ArrowRight") onMove(1, tag.id)
                   }}
                 >
                   <span className="min-w-0 flex-1 truncate text-left" title={tag.name}>

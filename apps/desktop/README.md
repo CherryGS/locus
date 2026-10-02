@@ -150,8 +150,10 @@ and selecting a sibling replaces that branch. Each row shows direct child and
 total descendant counts (excluding itself). Deep paths scroll horizontally;
 each column scrolls vertically.
 Selecting an ancestor with arrow keys or the clickable breadcrumb only locates
-that node; the rest of the open branch remains. Right arrow follows the current
-path's child. Tag selections replace the current URL so Back crosses workflows.
+that node; the rest of the open branch remains. Left/right arrows move between
+open columns, preferring each column's path node even if the focused row is a
+leaf outside that path. Breadcrumb selection returns focus to the list so arrow
+navigation can continue. Tag selections replace the URL so Back crosses workflows.
 Long paths collapse intermediate nodes into clickable `…` popovers, retaining
 the root, current selection and branch tip. Right-click a row (including search
 results), or press Shift+F10, to create a child, rename, move or delete that
