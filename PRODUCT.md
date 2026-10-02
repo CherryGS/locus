@@ -90,17 +90,28 @@ their unfinished behavior must not be presented as an already available feature.
   Its blue-grey broadcast, light collection-label and midnight wayfinding
   treatments are rejected proposals, not visual authority. Recolouring them
   alone does not address that feedback.
-- The replacement palette, typeface, component treatment and decorative
-  identity remain open. Preserve confirmed product behavior while exploring
-  the dark visual system in small, connected pieces.
+- On 2026-10-03, the user confirmed a combined visual direction: a quiet,
+  refined desktop interface globally; media-led presentation in media browsing;
+  and moderately compact presentation for properties, tables and settings.
+  These are compatible dimensions of one system, not competing product flows.
+  They do not rank the connected workflows or extend the settings-only Raycast
+  reference into a whole-application reference.
+- Exact palette values, font families, spacing and radius scales, component
+  treatments and decorative details remain open. Preserve confirmed product
+  behavior while exploring the dark visual system in small, connected pieces.
 - Visual exploration must stay grounded in the actual interface and its
   interaction contracts. The user flagged substantial UI-logic drift in the
   generated dark samples. Those samples are not implementation references;
   proposed layout, information or interaction changes need separate discussion.
 - Iterate one real component or small component composition at a time. The user
   explicitly selected this approach because whole-page UI logic and information
-  density are too complex to judge together. Establish reusable visual rules
-  from those concrete examples rather than redesigning entire pages in advance.
+  density are too complex to judge together. The user subsequently selected
+  parallel development of shared visual foundations and concrete components:
+  establish a usable baseline early, apply it in component exploration, and feed
+  validated choices back into the shared rules. Neither track waits for the
+  other to be complete. An unresolved detail affects only choices that depend
+  on it; it does not block unrelated design work. `DESIGN.md` records the
+  selected direction, working guidance and open details separately.
 - Component-by-component delivery must preserve a shared visual language across
   consumers. The user rejected the Media-only treatment because it diverged from
   neighboring settings pages. Judge shared headings, groups, rows and actions
@@ -119,6 +130,8 @@ their unfinished behavior must not be presented as an already available feature.
   implementation/UI rules under `rules`.
 - The real application in `apps/desktop/src/renderer`, with shared controls,
   Entity browsing, content views, inspectors and independent feature slices.
+- `DESIGN.md` for the incremental visual baseline and its open details; its
+  directional guidance does not claim a completed or verified component system.
 - Isolated real-renderer previews via `just desktop-ui`; retained sample-library
   tooling is documented in `apps/desktop/scripts/SAMPLE-LIBRARY.md`.
 - Fixture content is verification material, not the user's collection or proof
