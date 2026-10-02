@@ -1,0 +1,242 @@
+{
+  "title": "Locus · 卡片与 Inspector 的第一轮方向",
+  "question": "本轮先用图比较卡片与 Inspector 的视觉方向，之后按模块混合推进。图中为示例内容，字段和交互仍以现有能力为准。可选一种继续、写反馈调整，或换一组；不会直接改动生产界面。",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "深蓝字幕层",
+      "kicker": "THE ROLL",
+      "lineage": "广播字幕与内容标识",
+      "thesis": "让内容占据主位，用紧凑的标题与上下文带连接卡片和 Inspector。",
+      "palette": [
+        "#17242C",
+        "#233640",
+        "#304852",
+        "#EEF1F2",
+        "#E5AC52"
+      ],
+      "materials": [
+        "平整的蓝灰表面",
+        "清楚的无衬线字阶",
+        "窄幅标题／上下文带"
+      ],
+      "viewport": "左侧内容网格，右侧紧凑 Inspector；卡片标题与详情标题使用同一条细琥珀标记。",
+      "risk": "深色层次若太接近会显闷，必须用字阶与表面差异保持清晰。",
+      "raised": [
+        {
+          "from": "极致黑白数据栏",
+          "raise": "数值与单位严格对齐。"
+        },
+        {
+          "from": "角色图鉴",
+          "raise": "不同内容类型保持一致的缩略图与标题节奏。"
+        },
+        {
+          "from": "辞典排印",
+          "raise": "标题、属性值、辅助说明形成三个清楚等级。"
+        },
+        {
+          "from": "唱片封套",
+          "raise": "同一内容的识别方式贯穿卡片和 Inspector。"
+        },
+        {
+          "from": "星图注记",
+          "raise": "一个明确的选中重点，其余区域保持安静。"
+        }
+      ],
+      "comp": ".impeccable/mocks/decision/75117ec9/assigned-v2.png"
+    },
+    {
+      "id": "model-pick",
+      "label": "浅色藏品标签",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "当代藏品标签与展陈信息",
+      "thesis": "把内容与说明平静地放在一起，以清晰字阶替代层层卡片。",
+      "palette": [
+        "#F4F6F2",
+        "#FBFCF9",
+        "#DDE5DF",
+        "#17312B",
+        "#217564"
+      ],
+      "materials": [
+        "冷白与浅灰绿表面",
+        "深色无衬线文字",
+        "细窄的对象标记"
+      ],
+      "viewport": "轻量内容网格与纸白 Inspector；属性按行对齐，操作贴着所属字段。",
+      "risk": "容易接近常见内容管理器，需要靠精确排版与一致的对象标记建立识别度。",
+      "comp": ".impeccable/mocks/decision/75117ec9/model-pick-v2.png"
+    },
+    {
+      "id": "challenger-wayfinding",
+      "label": "深色导视标记",
+      "verdict": "competitive",
+      "lineage": "城市导视的信息层级",
+      "thesis": "用稳定的方向标记和明确的状态色，在内容与上下文之间保持定位感。",
+      "palette": [
+        "#07192E",
+        "#112E4B",
+        "#EAF0F5",
+        "#3B80D7",
+        "#D85753",
+        "#D6AE58"
+      ],
+      "materials": [
+        "午夜蓝工作表面",
+        "高可读性无衬线文字",
+        "精确的细线与状态标记"
+      ],
+      "viewport": "深蓝框架内保留正常网格与 Inspector；当前对象使用同一种钴蓝标记，错误与警告另有语义颜色。",
+      "case": "操作定位很清楚，但配色需要约束，避免每类信息都争夺注意力。",
+      "risk": "多种状态色若同时大量出现，会比前两种更忙。",
+      "comp": ".impeccable/mocks/decision/75117ec9/wayfinding-v2.png",
+      "hero": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-midnight-transit-diagram-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-midnight-transit-diagram.webp"
+    },
+    {
+      "id": "challenger-ikeda",
+      "label": "极致黑白数据栏",
+      "lineage": "Ikeda 数据图形",
+      "palette": [
+        "#000000",
+        "#FFFFFF"
+      ],
+      "materials": [
+        "极高对比",
+        "等宽数值",
+        "严格列对齐"
+      ],
+      "thesis": "把库信息压缩为高对比的连续数据节奏。",
+      "viewport": "保留普通网格与属性区，以黑白和等宽字强调精确值。",
+      "case": "相较主要方向，纯黑白和密集等宽字对混合媒体及中文长标签不够从容。",
+      "risk": "容易让普通浏览承担不必要的视觉压力。",
+      "kept": "保留数值对齐的纪律，不采用条码与频谱外观。",
+      "hero": "https://impeccable.style/worlds/cards/ikeda-datamatics-hero.webp",
+      "verdict": "declined"
+    },
+    {
+      "id": "challenger-character",
+      "label": "角色图鉴",
+      "lineage": "角色商品图鉴",
+      "palette": [
+        "#F3E4F0",
+        "#E3EFF2",
+        "#FBFBF8",
+        "#C84F94"
+      ],
+      "materials": [
+        "柔和底色",
+        "圆润字形",
+        "统一图像标牌"
+      ],
+      "thesis": "用亲近的图像标牌组织不同内容。",
+      "viewport": "普通内容网格和 Inspector 采用柔和底色与一致标题牌。",
+      "case": "统一图像节奏有价值，但圆润标牌弱化了文件、模型和来源资料的区别。",
+      "risk": "会把通用媒体工作区推向特定内容偏好。",
+      "kept": "保留不同条目的标题与缩略图节奏一致。",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-character-goods-catalog-hero.webp",
+      "verdict": "declined"
+    },
+    {
+      "id": "challenger-lexicon",
+      "label": "辞典排印",
+      "lineage": "辞典的正文与注释层级",
+      "palette": [
+        "#EEE8DC",
+        "#171B20",
+        "#A84837",
+        "#355F91"
+      ],
+      "materials": [
+        "细密字阶",
+        "正文与注释分层",
+        "受控彩色内容区"
+      ],
+      "thesis": "让资料阅读像查询一个清楚的条目。",
+      "viewport": "正常工作区里使用紧密属性行和清楚的说明等级。",
+      "case": "资料阅读清楚，但原参考的衬线、暖纸与正文节奏对频繁操作不如主方向直接。",
+      "risk": "容易让 Inspector 像文档而不是可操作的属性区。",
+      "kept": "保留标题、属性与辅助说明的明确等级。",
+      "hero": "https://impeccable.style/worlds/cards/rw-lexicon-shoulder-and-plate-hero.webp",
+      "verdict": "declined"
+    },
+    {
+      "id": "challenger-saville",
+      "label": "唱片封套",
+      "lineage": "独立唱片目录身份系统",
+      "palette": [
+        "#15191B",
+        "#E8ECEC",
+        "#3E7683",
+        "#A05F58"
+      ],
+      "materials": [
+        "低反光深色",
+        "稀疏细字",
+        "一致对象识别"
+      ],
+      "thesis": "让异质内容仍然属于同一个可识别的集合。",
+      "viewport": "保留内容网格和 Inspector，以稀疏文字与统一标记连接对象。",
+      "case": "一致身份有价值，但留白与编码感不能代替实际名称、操作和状态。",
+      "risk": "对精确资料可能过于含蓄。",
+      "kept": "保留跨区域一致的对象识别，所有真实标签直接可读。",
+      "hero": "https://impeccable.style/worlds/cards/brand-identity-canon-saville-catalog-sleeve-hero.webp",
+      "verdict": "declined"
+    },
+    {
+      "id": "challenger-atlas",
+      "label": "星图注记",
+      "lineage": "星图的重点与辅助注记",
+      "palette": [
+        "#0F1A2C",
+        "#E9EAE5",
+        "#BE7850"
+      ],
+      "materials": [
+        "暗蓝底",
+        "轻量注记",
+        "单一重点"
+      ],
+      "thesis": "使当前对象成为一眼可见的重点。",
+      "viewport": "普通网格和 Inspector 使用一个突出标记与安静的辅助文字。",
+      "case": "重点明确，但图表式大小层级与漂移感不适合承载等权的文件资料。",
+      "risk": "容易把简单的选中状态做得过于戏剧化。",
+      "kept": "保留单一视觉重点，其余信息保持稳定。",
+      "hero": "https://impeccable.style/worlds/cards/notation-diagram-systems-star-atlas-hero.webp",
+      "verdict": "declined"
+    }
+  ],
+  "reroll": {
+    "registers": [
+      "safer",
+      "bolder"
+    ]
+  },
+  "buildPath": {
+    "value": "comp",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "常规工具界面",
+    "lineage": "成熟桌面内容管理器的通用语法",
+    "thesis": "以熟悉的浅色工具界面为基线，精确处理密度、对齐和状态。",
+    "palette": [
+      "#F5F6F8",
+      "#FFFFFF",
+      "#1E2430",
+      "#637084",
+      "#326DE6"
+    ],
+    "materials": [
+      "中性浅色表面",
+      "标准无衬线文字",
+      "克制的边框"
+    ],
+    "viewport": "熟悉的内容网格与属性侧栏，卡片无独立大操作 footer，常用动作靠近对象。",
+    "risk": "易上手，但视觉识别度较弱。",
+    "comp": ".impeccable/mocks/decision/75117ec9/canon-v2.png"
+  },
+  "steer": true
+}
