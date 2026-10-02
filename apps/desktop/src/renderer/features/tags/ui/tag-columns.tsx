@@ -323,7 +323,7 @@ function TagColumn({
                       ? tag.id : undefined
                   }}
                   onClick={(event) => {
-                    const activate = event.detail > 0 && pointerFocused.current === tag.id
+                    const activate = event.detail > 0 && pointerFocused.current === tag.id && b.tagId === tag.id
                     pointerFocused.current = undefined
                     if (activate) onActivate(tag.id)
                     else onSelect(tag.id)
@@ -332,7 +332,11 @@ function TagColumn({
                     const key = event.key
                     if (key === "Enter") {
                       event.preventDefault()
-                      onActivate(tag.id)
+                      // Up/Down can focus a candidate without selecting its branch.
+                      if (!event.repeat) {
+                        if (b.tagId === tag.id) onActivate(tag.id)
+                        else onSelect(tag.id)
+                      }
                       return
                     }
                     if (
@@ -437,10 +441,18 @@ export function TagLookup({
                       pointerFocused.current = event.button === 0 && document.activeElement === event.currentTarget ? tag.id : undefined
                     }}
                     onKeyDown={(event) => {
-                      if (event.key === "Enter") { event.preventDefault(); onActivate(tag.id) }
+                      if (event.key !== "Enter") return
+                      event.preventDefault()
+                      if (event.repeat) return
+                      if (b.tagId === tag.id) onActivate(tag.id)
+                      else {
+                        b.revealSelection = true
+                        b.find("")
+                        onSelect(tag.id)
+                      }
                     }}
                     onClick={(event) => {
-                      const activate = event.detail > 0 && pointerFocused.current === tag.id
+                      const activate = event.detail > 0 && pointerFocused.current === tag.id && b.tagId === tag.id
                       pointerFocused.current = undefined
                       if (activate) { onActivate(tag.id); return }
                       b.revealSelection = true

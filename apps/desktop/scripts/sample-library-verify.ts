@@ -10,6 +10,7 @@ import { startServer, workspace } from "./fixture.ts"
 import { browserPreview } from "./browser-preview.ts"
 import { generateSampleLibrary } from "./sample-library-generate.ts"
 import type { Manifest } from "./sample-library-session.ts"
+import { verifySampleTags } from "./sample-library-tags.ts"
 
 export async function verifySampleLibrary(root: string) {
   const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8")) as Manifest
@@ -289,6 +290,7 @@ export async function verifySampleLibrary(root: string) {
     const preview = await browserPreview(server)
     try {
       await verifyRenderer(manifest, preview.origin, output)
+      await verifySampleTags(client, manifest, preview.origin, output)
     } finally {
       await preview.close()
     }
@@ -301,6 +303,7 @@ export async function verifySampleLibrary(root: string) {
       {
         status: "PASS",
         cases: manifest.cases.length,
+        tagsVerified: true,
         reopened: true,
         overwriteRefusedWithoutMutation: true,
         ownedProcessesStopped: true,

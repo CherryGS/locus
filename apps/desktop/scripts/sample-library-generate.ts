@@ -3,6 +3,7 @@ import { createHash } from "node:crypto"
 import { cp, mkdir, readdir, readFile, writeFile } from "node:fs/promises"
 import { isAbsolute, join, relative, resolve } from "node:path"
 import { createAssets, type ProviderConfig, type ProviderModel } from "./sample-library-assets.ts"
+import { seedSampleTags } from "./sample-library-tags.ts"
 import {
   sampleSession,
   type Manifest,
@@ -90,6 +91,7 @@ export async function generateSampleLibrary(root: string, realInputs?: string): 
       "Identical weights remain independent Files. Civitai example reuse is contributor-qualified; Bilibili covers are independent even when their bytes match.",
       "File-only cards use their ordinary identity fallback. Case names here are documentation, not new stored display fields.",
       "Provider and task results below record generation-time evidence; tasks are run-local. Reopen checks read retained domain facts.",
+      "Personal Tags cover mixed direct/inclusive content, Markdown, empty/Unicode records, and wide/deep branches. sample:verify includes Tag renderer checks.",
     ],
   }
   const session = await sampleSession(manifest.library, configPath)
@@ -277,6 +279,7 @@ export async function generateSampleLibrary(root: string, realInputs?: string): 
       },
     )
     if (realInputs) await addRetained(real, config, configPath, add)
+    await seedSampleTags(session.server.client, manifest)
   } finally {
     await session.server.stop()
   }
