@@ -1,8 +1,9 @@
 import { useEffect, useId, useState, useSyncExternalStore } from "react"
+import { Link } from "@tanstack/react-router"
 import { entityLabel, type EntityItem } from "@/entities/entity"
 import { Field, FieldLabel, FieldGroup } from "@/shared/ui/field"
 import { Input } from "@/shared/ui/input"
-import { Button } from "@/shared/ui/button"
+import { Button, buttonVariants } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
 import { Spinner } from "@/shared/ui/spinner"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
@@ -46,9 +47,9 @@ export function EntityTagsEditor({
     >
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-medium">Personal tags</h3>
-        <Button size="sm" variant="ghost" onClick={() => c.show()}>
+        <Link to="/tags" search={{ mode: "grid", collectionId: "library" }} className={buttonVariants({ size: "sm", variant: "ghost" })}>
           Manage tags
-        </Button>
+        </Link>
       </div>
       {waiting && (
         <p className="flex items-center gap-2 text-xs text-muted-foreground">

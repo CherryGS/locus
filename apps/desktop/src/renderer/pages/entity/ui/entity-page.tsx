@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "@tanstack/react-router"
 import { CheckIcon, LayoutGridIcon, RefreshCwIcon } from "lucide-react"
 import {
@@ -9,6 +9,7 @@ import {
   type EntitySource,
   type EntityReader,
   type ReadProblem,
+  type IdentitySequence,
 } from "@/entities/entity"
 import {
   FilterModal,
@@ -64,6 +65,7 @@ export function EntityPage({
   browsing,
   navigate,
   live,
+  context,
 }: {
   source: EntitySource
   collections: readonly RelatedCollection[]
@@ -71,6 +73,14 @@ export function EntityPage({
   visitKey: string
   browsing?: EntityBrowsingState
   navigate: (destination: EntityDestination, replace?: boolean) => void
+  context?: {
+    id: string
+    title: ReactNode
+    sequence?: IdentitySequence
+    pending: boolean
+    error?: string
+    refresh: () => Promise<unknown>
+  }
   live?: {
     reader: EntityReader
     filter: FilterCoordinator
@@ -100,9 +110,14 @@ export function EntityPage({
     [visitKey],
   )
   const collection = collections.find((item) => item.id === destination.collectionId)
+  const activeContext = context?.id === destination.collectionId ? context : undefined
+  const refreshLabel = activeContext ? "Refresh tag content"
+    : destination.collectionId === "library" ? "Refresh library" : "Reread current Entity"
+  const refreshPending = activeContext ? activeContext.pending
+    : destination.collectionId === "library" && !!live?.filter.pending
   const sequence = useMemo(
-    () => contextSequence(destination, library.sequence, collections, suppliedSequence),
-    [destination.collectionId, destination.direct, destination.entityId, library.sequence, collections],
+    () => contextSequence(destination, library.sequence, collections, suppliedSequence, context),
+    [destination.collectionId, destination.direct, destination.entityId, library.sequence, collections, context?.id, context?.sequence],
   )
   const source = { ...library, sequence: sequence ?? suppliedSequence([]) }
   const selectedIndex = useMemo(
@@ -205,6 +220,18 @@ export function EntityPage({
       navigate({ mode: "grid", collectionId: "library" }, true)
     }
   }, [live?.filter.sequence, destination, sequence, navigate])
+  const previousContextResult = useRef(context?.sequence)
+  useEffect(() => {
+    const previous = previousContextResult.current
+    previousContextResult.current = context?.sequence
+    if (context && previous && previous !== context.sequence && context.sequence &&
+      destination.collectionId === context.id && destination.entityId &&
+      previous.indexOf(destination.entityId) >= 0 && context.sequence.indexOf(destination.entityId) < 0) {
+      setOverride(null)
+      setExplanation("The Entity is no longer in the refreshed Tag result. Selection was cleared.")
+      navigate({ mode: "grid", collectionId: context.id }, true)
+    }
+  }, [context?.id, context?.sequence, destination, navigate])
   const preference = selected && live ? live.preferences.get(selected.id) : undefined
   const preferred =
     override?.entityId === selected?.id
@@ -288,13 +315,14 @@ export function EntityPage({
       collections,
       suppliedSequence,
       !live || !!live.filter.sequence,
+      context,
     )
     const next = result.destination
     const sourceView = destination.source?.viewId
     setOverride(next.entityId && sourceView ? { entityId: next.entityId, viewId: sourceView } : null)
     setExplanation(result.explanation)
     navigate(next)
-  }, [destination, navigate, library.sequence, collections, live?.filter.sequence])
+  }, [destination, navigate, library.sequence, collections, live?.filter.sequence, context?.id, context?.sequence])
   useSourceReturn(viewing ? exit : undefined)
   useEffect(() => {
     if (!viewing) return
@@ -332,6 +360,7 @@ export function EntityPage({
   }
   async function refresh() {
     if (!live) return
+    if (context && destination.collectionId === context.id) { await context.refresh(); return }
     if (destination.collectionId !== "library") {
       if (destination.entityId) void live.reader.reread(destination.entityId)
       setRelationshipRetry((value) => value + 1)
@@ -481,7 +510,9 @@ export function EntityPage({
     <Empty className="h-full">
       <EmptyHeader>
         <EmptyTitle>
-          {!sequence
+          {context && destination.collectionId === context.id && !sequence
+            ? context.pending ? "Finding tagged content…" : "Tag context unavailable"
+            : !sequence
             ? "Collection unavailable"
             : live && destination.collectionId === "library" && !live.filter.sequence
               ? live.filter.resultError || !live.filter.pending
@@ -490,7 +521,7 @@ export function EntityPage({
               : "Entity unavailable in this list"}
         </EmptyTitle>
         <EmptyDescription>
-          {(destination.collectionId === "library" ? live?.filter.resultError : undefined) ??
+          {(context && destination.collectionId === context.id ? context.error : destination.collectionId === "library" ? live?.filter.resultError : undefined) ??
             "This history visit still refers to its requested Entity and context. Continue through history or return to the source."}
           <span className="block break-all">
             Requested Entity: {destination.entityId ?? "none"} · Context: {destination.collectionId}
@@ -568,7 +599,11 @@ export function EntityPage({
   ) : (
     unavailable
   )
-  const gridFeedback = !sequence ? (
+  const gridFeedback = context && destination.collectionId === context.id && sequence?.length === 0 ? (
+    <Empty className="h-full"><EmptyHeader><EmptyTitle>No tagged content</EmptyTitle>
+      <EmptyDescription>This tag has no matching items in the complete result. Assign it from an item's details, then refresh this list.</EmptyDescription>
+    </EmptyHeader></Empty>
+  ) : !sequence ? (
     unavailable
   ) : live && destination.collectionId === "library" && !live.filter.sequence ? (
     <Empty className="h-full">
@@ -621,9 +656,9 @@ export function EntityPage({
             onNavigate={adjacent}
           />
         ) : (
-          <h1 className="flex h-14 flex-1 items-center gap-2 text-lg font-semibold tracking-tight">
-            <LayoutGridIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-            Entity{" "}
+          <h1 className="flex h-14 min-w-0 flex-1 items-center gap-2 text-lg font-semibold tracking-tight">
+            <LayoutGridIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="truncate">{activeContext ? activeContext.title : "Entity"}</span>
             {sequence && (destination.collectionId !== "library" || !live || live.filter.sequence) ? (
               <Badge variant="secondary">{source.sequence.length.toLocaleString()}</Badge>
             ) : (
@@ -639,12 +674,12 @@ export function EntityPage({
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={destination.collectionId === "library" ? "Refresh library" : "Reread current Entity"}
-            title={destination.collectionId === "library" ? "Refresh library" : "Reread current Entity"}
-            disabled={destination.collectionId === "library" && !!live.filter.pending}
+            aria-label={refreshLabel}
+            title={refreshLabel}
+            disabled={refreshPending}
             onClick={() => void refresh()}
           >
-            {destination.collectionId === "library" && live.filter.pending ? (
+            {refreshPending ? (
               <Spinner />
             ) : (
               <RefreshCwIcon data-icon="inline-start" />

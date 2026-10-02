@@ -1,3 +1,4 @@
 export { TagCoordinator } from "./model/tag-coordinator"
-export { TagManager } from "./ui/tag-manager"
+export { TagBrowsing } from "./model/tag-browsing"
+export { TagVocabulary } from "./ui/tag-vocabulary"
 export { EntityTagsEditor } from "./ui/entity-tags-editor"

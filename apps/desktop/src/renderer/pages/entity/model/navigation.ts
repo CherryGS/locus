@@ -29,6 +29,7 @@ export type RelatedCollection = {
   viewId: string
   entityIds: readonly string[]
 }
+export type BrowsingContext = { id: string; sequence?: IdentitySequence }
 
 export function entitySearch(search: Record<string, unknown>): EntityDestination {
   return {
@@ -138,8 +139,10 @@ export function contextSequence(
   library: IdentitySequence,
   collections: readonly RelatedCollection[],
   supplied: (ids: readonly string[]) => IdentitySequence,
+  context?: BrowsingContext,
 ) {
   if (destination.direct) return supplied(destination.entityId ? [destination.entityId] : [])
+  if (context && destination.collectionId === context.id) return context.sequence
   return destination.collectionId === "library"
     ? library
     : (() => {
@@ -153,13 +156,17 @@ export function resolveReturn(
   collections: readonly RelatedCollection[],
   supplied: (ids: readonly string[]) => IdentitySequence,
   libraryEstablished = true,
+  context?: BrowsingContext,
 ) {
   const next = exitDestination(current)
   // A not-yet-established library is not an observed empty list. Preserve the
   // requested selection while its destination presents actual loading/failure.
   if (next.collectionId === "library" && !libraryEstablished)
     return { destination: next, explanation: undefined }
-  const sequence = contextSequence(next, library, collections, supplied)
+  // A Tag page is still a usable return destination when its result is unavailable.
+  if (context && next.collectionId === context.id && next.mode === "grid" && !context.sequence)
+    return { destination: { ...next, entityId: undefined }, explanation: undefined }
+  const sequence = contextSequence(next, library, collections, supplied, context)
   if (!sequence || (next.mode === "inspect" && (!next.entityId || sequence.indexOf(next.entityId) < 0))) {
     return {
       destination: { mode: "grid", collectionId: "library" } as EntityDestination,

@@ -20,26 +20,29 @@ try {
     if (new URL(r.url()).pathname === "/api/v1/entities") enumerations++
   })
   await page.goto(`${preview.origin}/#/`)
-  const manager = page.getByRole("dialog", { name: "Personal tags", exact: true })
+  const manager = page.getByRole("complementary", { name: "Tag vocabulary", exact: true })
   const open = async () => {
     await page!
-      .getByRole("button", { name: /^Manage tags/ })
+      .getByRole("link", { name: /^Tags/ })
       .first()
       .click()
     await manager.waitFor()
   }
   await open()
   await manager.getByText("No tags yet", { exact: true }).waitFor()
-  const create = async (name: string) => {
-    await manager.getByLabel("New tag name", { exact: true }).fill(name)
-    await manager.getByRole("button", { name: "Create tag", exact: true }).click()
+  const createDialog = page.getByRole("dialog", { name: "Create a tag", exact: true })
+  const create = async (name: string, successful = true) => {
+    if (!(await createDialog.isVisible())) await manager.getByRole("button", { name: "New tag", exact: true }).click()
+    await createDialog.getByLabel("New tag name", { exact: true }).fill(name)
+    await createDialog.getByRole("button", { name: "Create tag", exact: true }).click()
+    if (successful) await createDialog.waitFor({ state: "hidden" })
   }
   await create("  cat  ")
   await manager.getByRole("button", { name: "Rename cat", exact: true }).waitFor()
   assert.equal((await readEntityIds(backend.client)).length, 4)
-  await create("cat")
+  await create("cat", false)
   await manager.getByText(/Not saved: A Tag already/).waitFor()
-  assert.equal(await manager.getByLabel("New tag name", { exact: true }).inputValue(), "cat")
+  assert.equal(await createDialog.getByLabel("New tag name", { exact: true }).inputValue(), "cat")
   await create("Cat")
   await manager.getByRole("button", { name: "Rename Cat", exact: true }).waitFor()
   await manager.getByText(/Not saved: A Tag already/).waitFor({ state: "hidden" })
@@ -47,7 +50,7 @@ try {
   const cat = vocabulary.find((t) => t.name === "cat")!,
     upper = vocabulary.find((t) => t.name === "Cat")!
   await page.screenshot({ path: join(output, "vocabulary.png") })
-  await manager.getByRole("button", { name: "Done", exact: true }).click()
+  await page.getByRole("link", { name: "Entity", exact: true }).click()
   await page.getByRole("link", { name: "Entity", exact: true }).click()
   await page.getByRole("gridcell").first().dblclick()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
@@ -93,6 +96,70 @@ try {
   await filterDialog.waitFor({ state: "hidden" })
   const before = enumerations
   await open()
+  // Tag results and return navigation have their own context, independent of the main Filter.
+  await manager.getByRole("button", { name: "Browse cat", exact: true }).click()
+  await page.getByRole("gridcell").nth(1).waitFor()
+  assert.equal(await page.getByRole("gridcell").count(), 2)
+  await page.getByRole("gridcell").first().dblclick()
+  await page.getByRole("button", { name: "Overview", exact: true }).click()
+  await editor.getByRole("button", { name: "Remove cat from this Entity", exact: true }).waitFor()
+  const taggedFirst = (await editor.getAttribute("data-entity-id"))!
+  await page.getByRole("button", { name: "Next entity", exact: true }).click()
+  const taggedSecond = (await editor.getAttribute("data-entity-id"))!
+  assert.deepEqual(new Set([taggedFirst, taggedSecond]), new Set([first, second]))
+  await editor.getByRole("button", { name: "Remove cat from this Entity", exact: true }).click()
+  await editor.getByRole("button", { name: "Add cat", exact: true }).waitFor()
+  await page.getByText(/Tag assignments changed. This is the previous complete result/).waitFor()
+  // Removal updates metadata but does not replace the current sequence or neighboring navigation.
+  assert(await page.getByRole("button", { name: "Next entity", exact: true }).isEnabled())
+  await page.locator("header.title-bar").getByRole("button", { name: "Return to source", exact: true }).click()
+  assert.equal(await page.getByRole("gridcell").count(), 2)
+  await page.getByRole("link", { name: "Home", exact: true }).click()
+  await open()
+  await page.getByRole("gridcell").nth(1).waitFor()
+  assert(new URL(page.url()).hash.includes(cat.id))
+  await page.getByRole("button", { name: "Refresh tag content", exact: true }).first().click()
+  await page.getByRole("gridcell").nth(1).waitFor({ state: "hidden" })
+  assert.equal(await page.getByRole("gridcell").count(), 1)
+  assert.equal(await page.getByRole("gridcell", { selected: true }).count(), 0)
+  await backend.client.POST("/api/v1/tags", { body: { request_id: crypto.randomUUID(), change: { operation: "add", entity_id: taggedSecond, tag_id: cat.id } } })
+  await page.getByRole("button", { name: "Refresh tag content", exact: true }).click()
+  await page.getByRole("gridcell").nth(1).waitFor()
+  await page.route("**/api/v1/search/query", route => route.fulfill({ status: 500, json: { code: "operation_failed", message: "Isolated Tag search failure" } }))
+  await page.getByRole("button", { name: "Refresh tag content", exact: true }).click()
+  await page.getByText(/Tag content refresh failed: Isolated Tag search failure/).waitFor()
+  assert.equal(await page.getByRole("gridcell").count(), 2)
+  await page.unroute("**/api/v1/search/query")
+  await page.getByRole("button", { name: "Refresh tag content", exact: true }).click()
+  await page.getByText(/Tag content refresh failed:/).waitFor({ state: "hidden" })
+  await create("unused")
+  await manager.getByRole("button", { name: "Browse unused", exact: true }).click()
+  await page.getByText("No tagged content", { exact: true }).waitFor()
+  await manager.getByRole("button", { name: "Browse cat", exact: true }).click()
+  await page.getByRole("gridcell").nth(1).waitFor()
+  await page.screenshot({ path: join(output, "tag-content.png") })
+  // A delayed complete result for one Tag cannot overwrite the newly selected Tag.
+  await manager.getByRole("button", { name: "Browse unused", exact: true }).click()
+  await page.getByText("No tagged content", { exact: true }).waitFor()
+  let releaseTag!: () => void, seenTag!: () => void, deliveredTag!: () => void
+  const heldTag = new Promise<void>(resolve => { releaseTag = resolve }), tagSeen = new Promise<void>(resolve => { seenTag = resolve })
+  const tagDelivered = new Promise<void>(resolve => { deliveredTag = resolve })
+  await page.route("**/api/v1/search/query", async route => {
+    if (route.request().postDataJSON().text.includes(cat.id)) {
+      const response = await route.fetch(); seenTag(); await heldTag; await route.fulfill({ response }); deliveredTag()
+    } else await route.continue()
+  })
+  await manager.getByRole("button", { name: "Browse cat", exact: true }).click()
+  await tagSeen
+  await manager.getByRole("button", { name: "Browse Cat", exact: true }).click()
+  await page.getByRole("gridcell").first().waitFor()
+  releaseTag()
+  await tagDelivered
+  await page.unroute("**/api/v1/search/query")
+  await page.getByRole("heading", { name: /^Cat/ }).waitFor()
+  assert.equal(await page.getByRole("gridcell").count(), 1)
+  await manager.getByRole("button", { name: "Browse cat", exact: true }).click()
+  await page.getByRole("gridcell").nth(1).waitFor()
   await manager.getByRole("button", { name: "Rename cat", exact: true }).click()
   const rename = page.getByRole("dialog", { name: "Rename tag everywhere", exact: true })
   await rename.getByLabel("Tag name", { exact: true }).fill("kitten")
@@ -119,7 +186,7 @@ try {
   await manager.getByRole("button", { name: "Rename kitten", exact: true }).waitFor()
   assert.equal((await query(`${ids.native_value}:"${cat.id}"`)).length, 2)
   assert.equal((await query(`${names.native_exact}:"cat"`)).length, 0)
-  await manager.getByRole("button", { name: "Done", exact: true }).click()
+  await page.getByRole("link", { name: "Entity", exact: true }).click()
   await filter.click()
   assert.equal(await filterDialog.getByLabel("Filter source", { exact: true }).inputValue(), raw)
   await page.keyboard.press("Escape")
@@ -134,6 +201,7 @@ try {
   await deletion.getByRole("button", { name: "Delete tag globally", exact: true }).click()
   await deletion.waitFor({ state: "hidden" })
   await manager.getByRole("button", { name: "Rename kitten", exact: true }).waitFor({ state: "hidden" })
+  await page.getByText("Tag unavailable", { exact: true }).waitFor()
   assert.equal((await query(`${ids.native_value}:"${cat.id}"`)).length, 0)
   assert.equal((await readEntityIds(backend.client)).length, 4)
   for (const entity of [first, second])
@@ -163,9 +231,11 @@ try {
       await route.abort("failed")
     } else await route.continue()
   })
-  await create("lost")
+  await create("lost", false)
+  await createDialog.getByRole("button", { name: "Recover original request", exact: true }).waitFor()
+  await createDialog.getByRole("button", { name: "Cancel", exact: true }).click()
   await manager.getByRole("button", { name: "Recover original request", exact: true }).waitFor()
-  await manager.getByRole("button", { name: "Done", exact: true }).click()
+  await page.getByRole("link", { name: "Entity", exact: true }).click()
   await page.unroute("**/api/v1/tags")
   await open()
   await manager.getByRole("button", { name: "Recover original request", exact: true }).click()
@@ -174,11 +244,12 @@ try {
     .waitFor({ state: "hidden" })
   vocabulary = (await backend.client.GET("/api/v1/tags")).data!
   assert.equal(vocabulary.filter((t) => t.name === "lost").length, 1)
-  await create("   ")
+  await create("   ", false)
   await manager.getByText(/Not saved: Tag name must not be blank/).waitFor()
+  await createDialog.getByRole("button", { name: "Cancel", exact: true }).click()
   await page.setViewportSize({ width: 640, height: 600 })
   await manager.evaluate(async el => { await Promise.allSettled(el.getAnimations().map(animation => animation.finished)) })
-  await manager.getByRole("heading", { name: "Personal tags", exact: true }).scrollIntoViewIfNeeded()
+  await manager.getByRole("heading", { name: "Tags", exact: true }).scrollIntoViewIfNeeded()
   await writeFile(
     join(output, "small-layout.json"),
     JSON.stringify(
@@ -206,7 +277,7 @@ try {
   )
   await page.screenshot({ path: join(output, "small-vocabulary.png") })
   await page.setViewportSize({ width: 1200, height: 800 })
-  await manager.getByRole("button", { name: "Done", exact: true }).click()
+  await page.getByRole("link", { name: "Entity", exact: true }).click()
   // Go to an unfiltered collection explicitly, then navigate during a delayed assignment response.
   await filter.click()
   await filterDialog.getByLabel("Filter source", { exact: true }).fill("entity_id:*")
@@ -275,6 +346,13 @@ try {
           "lost committed response original recovery",
           "blank name correction",
           "pending-write navigation",
+          "Tag-scoped detail neighbors and source return",
+          "same-session Tag result restoration",
+          "fixed membership after assignment removal and explicit refresh",
+          "failed Tag refresh retains complete result",
+          "unused Tag has a valid empty result",
+          "superseded Tag query cannot overwrite newer selection",
+          "deleting the active Tag keeps the page usable",
           "normal and small viewports",
         ],
         cat: cat.id,

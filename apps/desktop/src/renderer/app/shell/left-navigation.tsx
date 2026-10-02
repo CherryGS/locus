@@ -106,6 +106,7 @@ export function LeftNavigation() {
           <Link
             key={to}
             to={to}
+            search={to === "/entity" ? { ...session?.mainDestination, mode: "grid", collectionId: "library", restoreMain: true } : undefined}
             onClick={() => {
               cancelTimers()
               setRevealed(false)
@@ -130,20 +131,21 @@ export function LeftNavigation() {
             </motion.span>
           </Link>
         ))}
-        <Button
-          variant="ghost"
-          disabled={!session}
-          className={linkLayout}
+        <Link
+          to="/tags"
+          search={{ mode: "grid", collectionId: "library" }}
+          activeOptions={{ exact: true }}
+          activeProps={{ className: cn(buttonVariants({ variant: "secondary" }), linkLayout) }}
+          inactiveProps={{ className: cn(buttonVariants({ variant: "ghost" }), linkLayout) }}
           aria-label={
             session?.tags.unresolved.length
-              ? `Manage tags · ${session.tags.unresolved.length} unresolved`
-              : "Manage tags"
+              ? `Tags · ${session.tags.unresolved.length} unresolved`
+              : "Tags"
           }
-          title="Manage tags"
+          title="Tags"
           onClick={() => {
             cancelTimers()
             setRevealed(false)
-            session?.tags.show()
           }}
         >
           <span className="flex size-8 shrink-0 items-center justify-center">
@@ -153,7 +155,7 @@ export function LeftNavigation() {
             Tags
             {session?.tags.unresolved.length ? ` · ${session.tags.unresolved.length} unresolved` : ""}
           </span>
-        </Button>
+        </Link>
         <Button
           id="settings-trigger"
           variant={session?.settingsNavigation.opened ? "secondary" : "ghost"}

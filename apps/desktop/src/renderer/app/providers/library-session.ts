@@ -6,7 +6,7 @@ import {
 } from "@/features/settings"
 import { SettingsNavigation } from "./settings-navigation"
 import { PlaybackCoordinator } from "@/features/video-playback"
-import { TagCoordinator } from "@/features/tags"
+import { TagCoordinator, TagBrowsing } from "@/features/tags"
 import { FilterCoordinator } from "@/features/entity-filter"
 import { BackendApi } from "@/shared/api"
 import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
@@ -52,6 +52,9 @@ export class LibrarySession extends DesktopSession {
   readonly playback = new PlaybackCoordinator()
   readonly reader: EntityReader
   readonly tags: TagCoordinator
+  readonly tagBrowsing: TagBrowsing
+  tagDestination?: import("@/pages/entity").EntityDestination
+  tagBrowsingState: import("@/pages/entity").EntityBrowsingState = {}
   readonly filter: FilterCoordinator
   mainDestination: import("@/pages/entity").EntityDestination = { mode: "grid", collectionId: "library" }
   readonly imports: ImportCoordinator
@@ -68,6 +71,7 @@ export class LibrarySession extends DesktopSession {
       this.reader.tagEffects(ids),
     )
     this.tags.host(initial.close.phase !== "idle")
+    this.tagBrowsing = new TagBrowsing(this.api, this.tags, () => this.reader.resultReplaced())
     this.filter = new FilterCoordinator(this.api, () => this.reader.resultReplaced())
     this.civitai = new CivitaiCoordinator(this.api, (ids) => this.reader.knownEffects(ids))
     this.civitai.host(initial)
@@ -93,6 +97,7 @@ export class LibrarySession extends DesktopSession {
       if (state.connection.status !== "ready" || state.connection.runId !== this.api.context.runId) {
         this.filter.dispose()
         this.tags.dispose()
+        this.tagBrowsing.dispose()
         this.tasks.dispose()
       }
     })
@@ -111,6 +116,7 @@ export class LibrarySession extends DesktopSession {
     this.tasks.dispose()
     this.filter.dispose()
     this.tags.dispose()
+    this.tagBrowsing.dispose()
     this.imports.dispose()
     this.unobserveImports()
     this.civitai.dispose()

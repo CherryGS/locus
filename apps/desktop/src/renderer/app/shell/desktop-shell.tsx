@@ -1,5 +1,3 @@
-import { TagManager } from "@/features/tags"
-import { useLibrarySession } from "../providers/library-provider"
 import { Outlet } from "@tanstack/react-router"
 import { BrowsingHistoryBinding } from "./settings-navigation"
 import { useState } from "react"
@@ -12,7 +10,6 @@ import { SettingsDialog } from "./settings-dialog"
 import { TaskWorkspace } from "./task-workspace"
 
 export function DesktopShell() {
-  const session = useLibrarySession()
   const [action, setAction] = useState<(() => void) | undefined>()
 
   return (
@@ -38,7 +35,6 @@ export function DesktopShell() {
           </main>
         </TaskWorkspace>
         <SettingsDialog />
-        {session && <TagManager coordinator={session.tags} />}
       </div>
     </SourceReturnContext.Provider>
   )
