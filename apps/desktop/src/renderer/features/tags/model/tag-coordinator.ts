@@ -71,11 +71,13 @@ export class TagCoordinator {
     if (this.disposed) return
     const ticket = ++this.generation
     this.loading = true
-    this.readError = undefined
     this.changed()
     try {
       const tags = await this.api.tags()
-      if (!this.disposed && ticket === this.generation) this.vocabulary = tags
+      if (!this.disposed && ticket === this.generation) {
+        this.vocabulary = tags
+        this.readError = undefined
+      }
     } catch (e) {
       if (!this.disposed && ticket === this.generation) this.readError = errorText(e)
     } finally {

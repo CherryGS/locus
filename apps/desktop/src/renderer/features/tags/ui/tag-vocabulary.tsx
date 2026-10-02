@@ -2,13 +2,13 @@ import { useId, useMemo, useState, useSyncExternalStore } from "react"
 import {
   FolderTreeIcon,
   PlusIcon,
-  RefreshCwIcon,
   SearchIcon,
   XIcon,
   ListFilterIcon,
 } from "lucide-react"
 import type { Wire } from "@/shared/api"
 import { Button } from "@/shared/ui/button"
+import { RefreshButton } from "@/shared/ui/refresh-button"
 import {
   InputGroup,
   InputGroupAddon,
@@ -95,6 +95,7 @@ export function TagVocabulary({
     path = tagPath(forest, b.branchId ?? b.tagId)
   const blocked = c.hostClosing || c.pending,
     retained = !!c.readError
+  const initialLoading = c.loading && c.vocabulary === undefined
   const attempts = c.attempts.filter(
     (a) => !("entity_id" in a.change) || a.state === "pending" || a.state === "unconfirmed",
   )
@@ -203,16 +204,13 @@ export function TagVocabulary({
             )}
           </InputGroup>
         </Field>
-        <Button
-          size="icon-sm"
-          variant="ghost"
+        <RefreshButton
           aria-label="Refresh vocabulary"
           title="Refresh vocabulary"
-          disabled={c.loading || c.hostClosing}
+          pending={c.loading}
+          disabled={c.hostClosing}
           onClick={() => void c.read()}
-        >
-          {c.loading ? <Spinner aria-label="Reading tags" /> : <RefreshCwIcon />}
-        </Button>
+        />
         {selected && (
           <Popover>
             <PopoverTrigger
@@ -288,9 +286,9 @@ export function TagVocabulary({
       ) : (
         <Empty>
           <EmptyHeader>
-            <EmptyMedia variant="icon">{c.loading ? <Spinner /> : <FolderTreeIcon />}</EmptyMedia>
+            <EmptyMedia variant="icon">{initialLoading ? <Spinner /> : <FolderTreeIcon />}</EmptyMedia>
             <EmptyTitle>
-              {c.loading ? "Reading tags…" : c.readError ? "Tags unavailable" : "No tags yet"}
+              {initialLoading ? "Reading tags…" : c.readError ? "Tags unavailable" : "No tags yet"}
             </EmptyTitle>
             <EmptyDescription>
               {c.readError
@@ -299,7 +297,7 @@ export function TagVocabulary({
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button disabled={blocked || retained || c.loading} onClick={() => start("create")}>
+            <Button disabled={blocked || retained || initialLoading} onClick={() => start("create")}>
               <PlusIcon data-icon="inline-start" />
               New root tag
             </Button>

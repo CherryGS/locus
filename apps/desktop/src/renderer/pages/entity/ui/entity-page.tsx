@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "@tanstack/react-router"
-import { CheckIcon, RefreshCwIcon } from "lucide-react"
+import { CheckIcon } from "lucide-react"
 import {
   componentAppearance,
   entityLabel,
@@ -56,6 +56,7 @@ import { EntityContent } from "./entity-content"
 import { EntityFilmstrip } from "./entity-filmstrip"
 import type { EntityBrowsingState } from "../model/browsing-state"
 import { EntityWorkspace } from "./entity-workspace"
+import { RefreshButton } from "@/shared/ui/refresh-button"
 import { EntityProblems } from "./entity-problems"
 
 export function EntityPage({
@@ -676,20 +677,12 @@ export function EntityPage({
           <FilterModal coordinator={live.filter} />
         )}
         {live && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
+          <RefreshButton
             aria-label={refreshLabel}
             title={refreshLabel}
-            disabled={refreshPending}
+            pending={!!refreshPending}
             onClick={() => void refresh()}
-          >
-            {refreshPending ? (
-              <Spinner />
-            ) : (
-              <RefreshCwIcon data-icon="inline-start" />
-            )}
-          </Button>
+          />
         )}
       </header>
       {destination.direct && (

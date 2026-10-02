@@ -129,6 +129,12 @@ surface adaptations of that system.
 - **Shared controls:** compare default, hover, focus, active/selected, disabled,
   pending and error states where applicable. Apply shared choices through the
   existing primitives and semantic tokens, preserving behavior.
+- **Refresh continuity:** retain established content and empty states while
+  rereading. Keep refresh controls and their icon nodes stable, preserve keyboard
+  focus while blocking duplicate requests, and show visual activity only when a
+  read lasts long enough to warrant it. Retained previews remain qualified by
+  their actual input and observed bytes; a changed or removed input updates the
+  presentation, and a failed refresh remains visibly attributable.
 
 **Open details:** the actual component variants, numerical tokens and motion
 treatments. No component is considered visually accepted solely because this

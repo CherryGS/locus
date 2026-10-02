@@ -8,6 +8,7 @@ import { Skeleton } from "@/shared/ui/skeleton"
 import { Badge } from "@/shared/ui/badge"
 import { Spinner } from "@/shared/ui/spinner"
 import { componentAppearance } from "./component-appearance"
+import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
 
 export function EntityCard({
   entity,
@@ -21,6 +22,8 @@ export function EntityCard({
   const display = entityCardDisplay(entity)
   const title = display.title ?? entityLabel(entity)
   const component = componentKind ? componentAppearance[componentKind] : undefined
+  const pending = useDelayedPending(!!entity.loading)
+  const initialLoading = entity.loading && !entity.refreshing
 
   return (
     <Card size="sm" className="h-full gap-0 py-0">
@@ -30,9 +33,9 @@ export function EntityCard({
           hasFile={entity.components.some((component) => component.kind === "file")}
           hasVideo={entity.components.some((component) => component.kind === "video")}
           hasTwitter={entity.components.some((component) => component.kind === "twitter")}
-          fallbackLabel={entity.loading ? undefined : "No preview"}
+          fallbackLabel={initialLoading ? undefined : "No preview"}
         />
-        {entity.loading && (
+        {pending && (
           <Badge variant="secondary" className="absolute top-2 left-2 size-6 p-0" aria-hidden="true">
             <Spinner />
           </Badge>
@@ -63,7 +66,7 @@ export function EntityCard({
           {title}
         </CardTitle>
         <CardDescription className="h-5 truncate">
-          {display.summary ?? (entity.loading ? <Skeleton className="mt-1 h-3 w-20" /> : "—")}
+          {display.summary ?? (initialLoading ? <Skeleton className="mt-1 h-3 w-20" /> : "—")}
         </CardDescription>
       </CardHeader>
     </Card>

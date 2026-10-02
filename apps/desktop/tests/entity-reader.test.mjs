@@ -81,6 +81,122 @@ function fixture(overrides = {}, capacity = 256) {
   }
   return { api, reader: new EntityReader(api, capacity) }
 }
+const settled = async (reader, id = "a") => {
+  const deadline = Date.now() + 2000
+  while (reader.get(id).loading) {
+    assert(Date.now() < deadline, "Entity observation did not settle")
+    await tick()
+  }
+}
+test("refresh retains a qualified thumbnail while reading and keeps its URL when bytes agree", async () => {
+  let bytesReads = 0
+  const { api, reader } = fixture({
+    savedPreview: async () => ({ locator: "preview", kind: "image", file_id: "file-a", edge: 512 }),
+    previewBytes: async () => { bytesReads++; return new Blob(["same"]) },
+  })
+  reader.demand(["a"])
+  await tick(); await settled(reader)
+  const thumbnail = reader.get("a").components[0].thumbnail
+  assert(thumbnail)
+  const membership = deferred(), bytes = deferred()
+  const original = api.memberships
+  api.memberships = async (ids) => { await membership.promise; return original(ids) }
+  api.previewBytes = async () => { bytesReads++; return bytes.promise }
+  const refreshing = reader.reread("a")
+  assert.equal(reader.get("a").refreshing, true)
+  assert.equal(reader.get("a").components[0].thumbnail, thumbnail)
+  membership.resolve(); await refreshing; await tick()
+  assert.equal(reader.get("a").components[0].thumbnail, thumbnail)
+  bytes.resolve(new Blob(["same"]))
+  await settled(reader)
+  assert.equal(reader.get("a").components[0].thumbnail, thumbnail)
+  assert.equal(reader.get("a").refreshing, false)
+  assert.equal(bytesReads, 2, "A locator does not exempt refresh from observing current cache bytes")
+})
+test("changed preview bytes replace the display URL even when the locator and input stay the same", async () => {
+  let payload = "old"
+  const { reader } = fixture({
+    savedPreview: async () => ({ locator: "preview", kind: "image", file_id: "file-a", edge: 512 }),
+    previewBytes: async () => new Blob([payload]),
+  })
+  reader.demand(["a"]); await tick(); await settled(reader)
+  const previous = reader.get("a").components[0].thumbnail
+  payload = "new"
+  await reader.reread("a"); await settled(reader)
+  const current = reader.get("a").components[0].thumbnail
+  assert.notEqual(current, previous)
+  assert.equal(await (await fetch(current)).text(), "new")
+})
+test("a failed preview reread retains the last qualified URL with previous-observation feedback", async () => {
+  const { api, reader } = fixture({
+    savedPreview: async () => ({ locator: "preview", kind: "image", file_id: "file-a", edge: 512 }),
+    previewBytes: async () => new Blob(["old"]),
+  })
+  reader.demand(["a"]); await tick(); await settled(reader)
+  const thumbnail = reader.get("a").components[0].thumbnail
+  api.previewBytes = async () => { throw Error("preview unavailable") }
+  await reader.reread("a"); await settled(reader)
+  assert.equal(reader.get("a").components[0].thumbnail, thumbnail)
+  const problem = reader.get("a").problems.find(p => p.key === "a:preview")
+  assert.equal(problem.previous, true)
+  assert.match(problem.message, /preview unavailable/)
+  const held = deferred()
+  api.previewBytes = () => held.promise
+  await reader.reread("a"); await tick()
+  assert(reader.get("a").problems.some(p => p.key === "a:preview"),
+    "An unrelated successful metadata read must not clear the pending preview failure")
+  held.reject(Error("still unavailable")); await settled(reader)
+  assert.equal(reader.get("a").components[0].thumbnail, thumbnail)
+  assert.match(reader.get("a").problems.find(p => p.key === "a:preview").message, /still unavailable/)
+})
+test("a newly observed Media input drops the old thumbnail before its new bytes arrive", async () => {
+  let input = "first"
+  const { api, reader } = fixture({
+    media: async () => image("a", input),
+    savedPreview: async () => ({ locator: "preview", kind: "image", file_id: input, edge: 512 }),
+    previewBytes: async () => new Blob([input]),
+  })
+  reader.demand(["a"]); await tick(); await settled(reader)
+  const bytes = deferred()
+  api.previewBytes = () => bytes.promise
+  input = "second"
+  await reader.reread("a"); await tick()
+  assert.equal(reader.get("a").components[0].thumbnail, undefined)
+  bytes.resolve(new Blob([input])); await settled(reader)
+  assert.equal(await (await fetch(reader.get("a").components[0].thumbnail)).text(), "second")
+})
+test("an obsolete byte comparison cannot replace or revoke a newer preview", async () => {
+  const { api, reader } = fixture({
+    savedPreview: async () => ({ locator: "preview", kind: "image", file_id: "file-a", edge: 512 }),
+    previewBytes: async () => new Blob(["old"]),
+  })
+  reader.demand(["a"]); await tick(); await settled(reader)
+  const held = deferred(), entered = deferred()
+  const obsolete = new Blob(["old"])
+  obsolete.arrayBuffer = () => { entered.resolve(); return held.promise }
+  api.previewBytes = async () => obsolete
+  await reader.reread("a"); await entered.promise
+  api.previewBytes = async () => new Blob(["new"])
+  await reader.reread("a"); await settled(reader)
+  const current = reader.get("a").components[0].thumbnail
+  held.resolve(await new Blob(["old"]).arrayBuffer()); await tick()
+  assert.equal(reader.get("a").components[0].thumbnail, current)
+  assert.equal(await (await fetch(current)).text(), "new")
+})
+test("a failed list refresh stays qualified during retry until a new result succeeds", async () => {
+  let read = async () => suppliedSequence(["a"])
+  const c = new FilterCoordinator({ identities: () => read() })
+  await c.refresh()
+  read = async () => { throw Error("read failed") }
+  await c.refresh()
+  const held = deferred()
+  read = () => held.promise
+  const retry = c.refresh()
+  assert.match(c.resultError, /read failed/)
+  assert.equal(c.sequence.at(0), "a")
+  held.resolve(suppliedSequence(["a"])); await retry
+  assert.equal(c.resultError, undefined)
+})
 test("all attached metadata is read progressively and unsupported membership stays attributed", async () => {
   const held = deferred()
   const { reader } = fixture({
@@ -484,6 +600,18 @@ test("Bilibili cover qualifies Source independently from changed main and never 
   assert.equal(cover.thumbnail, undefined)
   assert.equal(fileReads, 0)
   assert(reader.get("a").problems.some((p) => p.message.includes("replacement bytes are not adopted")))
+})
+test("Bilibili cover remains mounted through requalification and reuses equal bytes", async () => {
+  const { api, reader } = biliFixture()
+  reader.demand(["a"]); await tick(); await settled(reader)
+  const thumbnail = reader.get("a").components[0].cover.thumbnail
+  assert(thumbnail)
+  const held = deferred(), entered = deferred()
+  api.previewBytes = async () => { entered.resolve(); return held.promise }
+  await reader.reread("a"); await entered.promise
+  assert.equal(reader.get("a").components[0].cover.thumbnail, thumbnail)
+  held.resolve(new Blob(["png"])); await settled(reader)
+  assert.equal(reader.get("a").components[0].cover.thumbnail, thumbnail)
 })
 test("Bilibili failed cover bytes remain through metadata reread; explicit retry preserves playback revision", async () => {
   let bytes = 0,

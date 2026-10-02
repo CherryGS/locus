@@ -571,7 +571,6 @@ export class FilterCoordinator {
     const intent = ticket ?? ++this.intent
     this.pending = operation
     if (operation === "apply") this.error = undefined
-    else this.resultError = undefined
     this.changed()
     let observation: SearchObservation | undefined
     try {

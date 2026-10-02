@@ -284,3 +284,7 @@ desktop-tag-browser: server-fixture-build desktop-build
 
 desktop-tag-panels: server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:tag-panels
+
+# Frame-by-frame refresh continuity over a disposable real library.
+desktop-refresh-browser: server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:refresh

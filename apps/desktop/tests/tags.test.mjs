@@ -9,6 +9,23 @@ const deferred = () => {
   })
   return { promise, resolve, reject }
 }
+test("vocabulary refresh retains its established forest and read failure until success", async () => {
+  const vocabulary = [{ id: "tag", name: "Work", parent: null, revision: "one" }]
+  let read = async () => vocabulary
+  const c = new TagCoordinator({ tags: () => read() }, "run", () => {})
+  await c.read()
+  read = async () => { throw Error("read failed") }
+  await c.read()
+  const held = deferred()
+  read = () => held.promise
+  const retry = c.read()
+  assert.equal(c.vocabulary, vocabulary)
+  assert.match(c.readError, /read failed/)
+  assert.equal(c.loading, true)
+  held.resolve([...vocabulary]); await retry
+  assert.equal(c.readError, undefined)
+  assert.equal(c.loading, false)
+})
 test("assignment observation stays local and keeps only its pair busy until the refresh completes", async () => {
   const { tagPairBusy } = await import("../src/renderer/features/tags/model/entity-tag-observation.ts")
   const held = deferred()

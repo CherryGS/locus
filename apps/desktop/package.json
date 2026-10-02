@@ -30,6 +30,7 @@
     "verify:tag-browser": "tsx scripts/tag-browser-check.ts",
     "verify:tag-panels": "tsx scripts/tag-panel-browser-check.ts",
     "verify:tag-stability": "tsx scripts/tag-stability-browser-check.ts",
+    "verify:refresh": "tsx scripts/refresh-browser-check.ts",
     "verify:overview": "tsx scripts/overview-browser-check.ts",
     "verify:filter-browser": "tsx scripts/filter-browser-check.ts",
     "verify:electron": "tsx scripts/electron-smoke.ts && tsx scripts/electron-close-check.ts",

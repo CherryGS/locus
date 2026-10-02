@@ -109,6 +109,7 @@ export type EntityItem = {
   components: readonly EntityComponent[]
   live?: boolean
   loading?: boolean
+  refreshing?: boolean
   membershipsStatus?: "unread" | "loading" | "present" | "missing" | "failed"
   problems?: readonly ReadProblem[]
 }
