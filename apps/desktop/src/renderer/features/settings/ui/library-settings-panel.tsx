@@ -48,12 +48,6 @@ export function LibrarySettingsPanel({ library, switchLibrary }: LibrarySettings
           </Badge>
         )
       }
-      footer={
-        <Button disabled={pending} onClick={() => void choose()}>
-          <FolderOpenIcon data-icon="inline-start" />
-          {pending ? "Choosing library…" : "Choose library and restart"}
-        </Button>
-      }
     >
       <div className="flex flex-col gap-3 px-4 pb-4">
         <p className="break-all font-mono text-sm">
@@ -76,6 +70,16 @@ export function LibrarySettingsPanel({ library, switchLibrary }: LibrarySettings
             {message}
           </p>
         )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-start"
+          disabled={pending}
+          onClick={() => void choose()}
+        >
+          <FolderOpenIcon data-icon="inline-start" />
+          {pending ? "Choosing library…" : "Choose library and restart"}
+        </Button>
       </div>
     </SettingsGroup>
   )

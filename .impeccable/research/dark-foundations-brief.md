@@ -44,6 +44,12 @@ proposal, not a selected visual design.
 
 ## Next bounded sample
 
+The user now explicitly selects component-by-component iteration because the
+page's UI logic and information density are complex. Work on one actual component
+in context, verify its existing content and states, then discuss the next piece.
+Do not reopen a whole-page direction tournament. Start with the previously named
+large card footer/button issue; initial real example: Settings > Current library.
+
 The user tentatively named Eagle, noted they cannot currently open it because
 their trial expired, and explicitly asked work to continue while they seek more
 references. This does not pin Eagle's design or authorize importing its features.

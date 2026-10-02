@@ -97,6 +97,10 @@ their unfinished behavior must not be presented as an already available feature.
   interaction contracts. The user flagged substantial UI-logic drift in the
   generated dark samples. Those samples are not implementation references;
   proposed layout, information or interaction changes need separate discussion.
+- Iterate one real component or small component composition at a time. The user
+  explicitly selected this approach because whole-page UI logic and information
+  density are too complex to judge together. Establish reusable visual rules
+  from those concrete examples rather than redesigning entire pages in advance.
 
 ## Evidence on Hand
 
