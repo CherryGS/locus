@@ -7,15 +7,18 @@ export function TagFeedback({
   coordinator: c,
   attempts,
   retainAssignmentFailures = false,
+  showConfirmed = true,
 }: {
   coordinator: TagCoordinator
   attempts: TagAttempt[]
   retainAssignmentFailures?: boolean
+  showConfirmed?: boolean
 }) {
   const unresolved = attempts.filter((a) => a.state === "pending" || a.state === "unconfirmed")
   const latest = attempts.filter((a) => a.state === "failed" || a.state === "confirmed").at(-1)
   const failures = retainAssignmentFailures ? latestAssignmentAttempts(attempts).filter((attempt) => attempt.state === "failed") : []
-  const shown = [...unresolved, ...failures, ...(latest && !failures.includes(latest) ? [latest] : [])]
+  const shown = [...unresolved, ...failures, ...(latest && !failures.includes(latest) && (showConfirmed || latest.state !== "confirmed") ? [latest] : [])]
+  if (!shown.length) return null
   return (
     <div className="flex flex-col gap-2" aria-live="polite">
       {shown.map((a) =>

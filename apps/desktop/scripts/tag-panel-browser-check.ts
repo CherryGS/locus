@@ -41,7 +41,7 @@ try {
     await page.getByRole("region", { name: "Personal tag summary", exact: true }).waitFor()
   }
   const panel = page.getByRole("complementary", { name: "Overview", exact: true })
-  const modal = page.getByRole("dialog", { name: "Add tags", exact: true })
+  const modal = page.getByRole("dialog", { name: "Tags", exact: true })
   const search = modal.getByLabel("Find an existing tag", { exact: true })
   const assignments = async (id = entityId) => {
     const read = await backend.client.GET("/api/v1/entities/{id}/tags", { params: { path: { id } } })
@@ -61,9 +61,19 @@ try {
   assert.equal(await page.getByRole("region", { name: "Personal tag summary", exact: true }).getByText("No personal tags", { exact: true }).count(), 1)
   await panel.getByRole("button", { name: "Add tags", exact: true }).click()
   await modal.waitFor()
-  await modal.getByRole("button", { name: "Browse children of Work", exact: true }).click()
+  assert.equal(await modal.getByRole("button", { name: "Done", exact: true }).count(), 0)
+  assert.equal(await modal.locator('[data-slot="dialog-footer"]').count(), 0)
+  const branch = modal.getByRole("button", { name: "Expand Work", exact: true })
+  const branchBounds = (await branch.boundingBox())!
+  const rowBounds = (await modal.locator(`[data-add-tag-id="${root.id}"]`).boundingBox())!
+  assert(branchBounds.width > rowBounds.width * 0.8, "Expansion must use the broad label area")
+  await branch.click({ position: { x: branchBounds.width - 20, y: branchBounds.height / 2 } })
   await modal.locator(`[data-add-tag-id="${child.id}"]`).waitFor()
-  await modal.getByRole("button", { name: "Browse children of Images", exact: true }).click()
+  await modal.getByRole("button", { name: "Expand Images", exact: true }).click()
+  await modal.locator(`[data-add-tag-id="${leaf.id}"]`).waitFor()
+  await modal.getByRole("button", { name: "Collapse Images", exact: true }).press("Enter")
+  await modal.locator(`[data-add-tag-id="${leaf.id}"]`).waitFor({ state: "hidden" })
+  await modal.getByRole("button", { name: "Expand Images", exact: true }).press("Space")
   await modal.locator(`[data-add-tag-id="${leaf.id}"]`).waitFor()
   await search.fill("Work / Images")
   await modal.locator(`[data-add-tag-id="${leaf.id}"]`).waitFor()
@@ -74,9 +84,27 @@ try {
   assert.equal(writes.length, 0, "Searching and browsing must not mutate tags")
   await search.fill("Portrait")
   await modal.getByRole("button", { name: "Add Portrait", exact: true }).click()
-  await modal.getByRole("button", { name: "Portrait is already assigned", exact: true }).waitFor()
+  await modal.getByRole("button", { name: "Remove Portrait", exact: true }).waitFor()
   assert.deepEqual(await assignments(), [leaf.id])
   assert.equal(writes.length, 1)
+  assert.equal(await modal.getByRole("button", { name: "Remove Portrait", exact: true }).getAttribute("aria-pressed"), "true")
+  await modal.getByRole("button", { name: "Remove Portrait", exact: true }).click()
+  await modal.getByRole("button", { name: "Add Portrait", exact: true }).waitFor()
+  assert.deepEqual(await assignments(), [])
+  assert.equal(await modal.getByRole("button", { name: "Add Portrait", exact: true }).getAttribute("aria-pressed"), "false")
+  await modal.getByRole("button", { name: "Add Portrait", exact: true }).press("Space")
+  await modal.getByRole("button", { name: "Remove Portrait", exact: true }).waitFor()
+  assert.deepEqual(await assignments(), [leaf.id])
+  assert.equal(writes.length, 3, "Every toggle saves immediately without closing the chooser")
+  assert.equal(await modal.getByText("Confirmed · saved", { exact: true }).count(), 0)
+  await search.fill("")
+  await modal.getByRole("button", { name: "Add Images", exact: true }).click()
+  await modal.getByRole("button", { name: "Remove Images", exact: true }).waitFor()
+  assert.deepEqual(new Set(await assignments()), new Set([child.id, leaf.id]))
+  assert(await modal.getByRole("button", { name: "Collapse Images", exact: true }).isVisible())
+  await modal.getByRole("button", { name: "Remove Images", exact: true }).click()
+  await modal.getByRole("button", { name: "Add Images", exact: true }).waitFor()
+  assert.deepEqual(await assignments(), [leaf.id], "Toggling a parent must preserve its child's independent assignment")
   await page.keyboard.press("Escape")
   await modal.waitFor({ state: "hidden" })
   assert(await panel.getByRole("button", { name: "Add tags", exact: true }).evaluate((element) => element === document.activeElement))
@@ -99,9 +127,28 @@ try {
   await modal.getByText(/fixture failed assignment/).waitFor()
   await search.fill("Quick success")
   await modal.getByRole("button", { name: "Add Quick success", exact: true }).click()
-  await modal.getByRole("button", { name: "Quick success is already assigned", exact: true }).waitFor()
+  await modal.getByRole("button", { name: "Remove Quick success", exact: true }).waitFor()
   await modal.getByText(/fixture failed assignment/).waitFor()
-  await modal.getByRole("button", { name: "Done", exact: true }).click()
+  const failRemoval = async (route: import("playwright").Route) => {
+    const request = route.request()
+    if (request.method() === "POST" && request.postDataJSON().change.tag_id === good.id &&
+      request.postDataJSON().change.operation === "remove")
+      await route.fulfill({ status: 400, json: { code: "invalid_request", message: "fixture failed removal" } })
+    else await route.fallback()
+  }
+  await page.route("**/api/v1/tags", failRemoval)
+  await modal.getByRole("button", { name: "Remove Quick success", exact: true }).click()
+  await modal.getByText(/fixture failed removal/).waitFor()
+  assert.equal(await modal.getByRole("button", { name: "Remove Quick success", exact: true }).getAttribute("aria-pressed"), "true")
+  assert((await assignments()).includes(good.id), "Failed removal must not pretend the assignment is gone")
+  await page.unroute("**/api/v1/tags", failRemoval)
+  await modal.getByRole("button", { name: "Remove Quick success", exact: true }).click()
+  await modal.getByRole("button", { name: "Add Quick success", exact: true }).waitFor()
+  assert(!(await assignments()).includes(good.id))
+  await modal.getByRole("button", { name: "Add Quick success", exact: true }).click()
+  await modal.getByRole("button", { name: "Remove Quick success", exact: true }).waitFor()
+  await modal.getByText(/fixture failed assignment/).waitFor()
+  await modal.getByRole("button", { name: "Close", exact: true }).click()
   await modal.waitFor({ state: "hidden" })
   await panel.getByText(/fixture failed assignment/).waitFor()
   await page.getByRole("button", { name: "Tag changes need attention", exact: true }).waitFor()
@@ -142,7 +189,7 @@ try {
   await panel.getByRole("button", { name: "Add tags", exact: true }).click()
   await search.fill(longName)
   await modal.getByRole("button", { name: `Add ${longName}`, exact: true }).click()
-  await modal.getByRole("button", { name: `${longName} is already assigned`, exact: true }).waitFor()
+  await modal.getByRole("button", { name: `Remove ${longName}`, exact: true }).waitFor()
   await page.keyboard.press("Escape")
   await modal.waitFor({ state: "hidden" })
   for (const id of [root.id, child.id, leaf.id, other.id, bad.id, ...longTags.map((tag) => tag.id)]) {
@@ -172,8 +219,12 @@ try {
     })
     assert.equal(await strip.evaluate((element) => element.getBoundingClientRect().height), 36)
     assert(await strip.evaluate((element) => element.scrollWidth <= element.clientWidth))
-    const visible = await strip.getByRole("link").count()
-    assert.equal(await more.innerText(), `+${total - visible}`, "Every hidden tag must be included in +N")
+    // Read both values in one DOM snapshot while ResizeObserver updates capacity.
+    const visible = await strip.evaluate((element) => ({
+      count: element.querySelectorAll("a").length,
+      more: element.querySelector('button[aria-label^="Show all "]')?.textContent,
+    }))
+    assert.equal(visible.more, `+${total - visible.count}`, "Every hidden tag must be included in +N")
     assert(await page.getByRole("button", { name: "Add personal tags", exact: true }).isVisible())
   }
   await checkStrip()
@@ -188,6 +239,11 @@ try {
   }
   await page.screenshot({ path: join(output, "tag-strip-narrow.png"), animations: "disabled" })
   await page.getByRole("button", { name: "Add personal tags", exact: true }).click()
+  await search.fill("")
+  await modal.getByRole("button", { name: "Expand Other", exact: true }).click()
+  await page.setViewportSize({ width: 1200, height: 800 })
+  await page.screenshot({ path: join(output, "tag-picker-tree.png"), animations: "disabled" })
+  await page.setViewportSize({ width: 360, height: 800 })
   await search.fill("Candidate")
   assert(await modal.evaluate((element) => element.scrollWidth <= element.clientWidth))
   await page.screenshot({ path: join(output, "tag-modal-narrow.png"), animations: "disabled" })
@@ -198,7 +254,8 @@ try {
   await page.screenshot({ path: join(output, "tag-panel.png"), animations: "disabled" })
   assert.deepEqual(errors, [])
   await writeFile(join(output, "result.json"), JSON.stringify({ status: "PASS", candidates: 1000,
-    checks: ["no Tag-set/empty/assigned", "search and hierarchy are read-only", "immediate add/remove",
+    checks: ["no Tag-set/empty/assigned", "search and hierarchy are read-only", "immediate add/remove toggles without confirmation",
+      "broad expansion target and keyboard collapse/expand", "selected button stays interactive", "no redundant success copy or footer",
       "failed A remains after successful B", "pending pair cannot duplicate", "late completion belongs to original Entity",
       "modal Escape and focus restore", "long tags and narrow modal", "one identity label when expanded",
       "long chips fit at 360–1200px and +N accounts for every hidden tag", "many assigned tags stay one line with panel expansion",

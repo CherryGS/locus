@@ -56,7 +56,7 @@ export function EntityTagsEditor({ entity, coordinator: c, reread }: {
       <Button ref={trigger} size="sm" variant="outline" className="w-full justify-start border-dashed" disabled={blocked} onClick={() => setOpen(true)}>
         <PlusIcon data-icon="inline-start" />Add tags
       </Button>
-      <TagFeedback coordinator={c} attempts={attempts} retainAssignmentFailures />
+      <TagFeedback coordinator={c} attempts={attempts} retainAssignmentFailures showConfirmed={false} />
       <AddTagDialog entity={entity} coordinator={c} assigned={tags} blocked={blocked}
         open={open} onOpenChange={setOpen} returnFocus={trigger} />
     </section>

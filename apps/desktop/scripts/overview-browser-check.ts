@@ -31,11 +31,15 @@ const read = async (id = entity) => {
 }
 const saveResponse = () => page.waitForResponse((response) => response.request().method() === "PUT" && new URL(response.url()).pathname === path)
 try {
+  let inspiration: string | undefined
   for (const name of ["Inspiration", "Composition", "Warm light", "待整理", "Photography"]) {
-    const tag = await backend.client.POST("/api/v1/tags", { body: { request_id: crypto.randomUUID(), change: { operation: "create", name } } })
+    const parent = ["Composition", "Warm light"].includes(name) ? inspiration : undefined
+    const tag = await backend.client.POST("/api/v1/tags", { body: { request_id: crypto.randomUUID(), change: { operation: "create", name, parent } } })
     assert(tag.data?.status === "tag_saved")
+    if (name === "Inspiration") inspiration = tag.data.tag.id
     await backend.client.POST("/api/v1/tags", { body: { request_id: crypto.randomUUID(), change: { operation: "add", tag_id: tag.data.tag.id, entity_id: entity } } })
   }
+  await backend.client.POST("/api/v1/tags", { body: { request_id: crypto.randomUUID(), change: { operation: "create", name: "Color studies", parent: inspiration } } })
   await open()
   assert.equal(await notes.inputValue(), "")
   assert.equal(await page.getByRole("button", { name: "Tags", exact: true }).count(), 0)
@@ -108,7 +112,8 @@ try {
   await page.screenshot({ path: join(output, "overview-narrow.png"), animations: "disabled" })
   await page.setViewportSize({ width: 1200, height: 820 })
   await overview.getByRole("button", { name: "Add tags", exact: true }).click()
-  await page.getByRole("dialog", { name: "Add tags" }).waitFor()
+  await page.getByRole("dialog", { name: "Tags", exact: true }).waitFor()
+  await page.getByRole("button", { name: "Expand Inspiration", exact: true }).click()
   await page.screenshot({ path: join(output, "tag-picker.png"), animations: "disabled" })
   assert.deepEqual(errors, [])
   console.log(`PASS Overview: tags, notes autosave/clear/reload/restart, captured Entity, failed draft/retry, narrow layout. ${output}`)
