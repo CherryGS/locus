@@ -3,7 +3,7 @@ import { test } from "node:test"
 import { authorizedHeaders } from "../src/main/authorization.ts"
 import { CloseGate } from "../src/main/close-gate.ts"
 import { isPreparation, isCloseAction, isCloseCommit } from "../src/shared/desktop-bridge.ts"
-import { scrollMapping } from "../src/renderer/pages/entity/model/scroll-mapping.ts"
+import { scrollMapping } from "../src/renderer/entities/entity/model/scroll-mapping.ts"
 import { suppliedSequence } from "../src/renderer/entities/entity/model/identity-sequence.ts"
 import { adjacentId, nearbyIds, resolveReturn } from "../src/renderer/pages/entity/model/navigation.ts"
 

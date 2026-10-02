@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { restoreGridPosition } from "../src/renderer/pages/entity/model/browsing-state.ts"
+import { restoreGridPosition } from "../src/renderer/entities/entity/model/grid-position.ts"
 
 test("grid restoration follows identity through changed order and columns without choosing a replacement", () => {
   const ids = ["a", "b", "c", "d", "e", "f"]

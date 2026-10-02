@@ -1,2 +1,2 @@
 export { TagDetailPage } from "./ui/tag-detail-page"
-export { TagGallery } from "./ui/tag-gallery"
+export { TagEntityGrid } from "./ui/tag-entity-grid"

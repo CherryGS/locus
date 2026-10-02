@@ -1,3 +1,4 @@
+/** Shared card geometry for library and scoped Entity grids. */
 export const entityGridLayout = {
   cardWidth: 240,
   maximumCardWidth: 320,

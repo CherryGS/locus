@@ -97,7 +97,7 @@ export function TagDetailPage({
             </ScrollArea>
           </div>
         </ResizablePanel>
-        <ResizableHandle withHandle aria-label="Resize description and gallery" />
+        <ResizableHandle withHandle aria-label="Resize description and grid" />
         <ResizablePanel defaultSize="64%" minSize="180px">
           {entities}
         </ResizablePanel>

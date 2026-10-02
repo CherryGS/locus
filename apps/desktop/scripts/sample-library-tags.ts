@@ -65,7 +65,7 @@ export async function seedSampleTags(client: LocusClient, manifest: Manifest) {
       "## Browse the collection", "", "- Images and video covers", "- Twitter, Bilibili, and Civitai snapshots", "",
       "| Scope | Content |", "| --- | --- |", "| This tag | One directly assigned image |",
       "| Include descendants | All sample cases, without duplicates |", "",
-      "> Descriptions and gallery selections belong to this tag.", "",
+      "> Descriptions and content selections belong to this tag.", "",
       "```text", "sample-library", "```", "",
     ].join("\n")
     const saved = await client.POST("/api/v1/tags", {
@@ -122,37 +122,27 @@ export async function verifySampleTags(client: LocusClient, manifest: Manifest, 
     await page.keyboard.press("Escape")
     await page.waitForURL(/#\/tags/)
   }
-  const figure = page.locator("[data-gallery-entity]")
-  const gallery = page.getByRole("region", { name: "Associated content", exact: true })
-  const position = gallery.getByRole("status", { name: "Gallery position", exact: true })
-  const expectGallery = async (ids: Set<string>) => {
-    await figure.waitFor()
-    await position.getByText(new RegExp(` / ${ids.size}$`)).waitFor()
-    // Scope changes retain a valid current Entity, which need not be the first result.
-    const initialPosition = Number((await position.innerText()).split(" / ")[0])
-    for (let i = initialPosition; i > 1; i--)
-      await gallery.getByRole("button", { name: "Previous entity", exact: true }).click()
-    await page.getByRole("button", { name: "Edit description", exact: true }).focus()
+  const grid = page.getByRole("grid", { name: "Entities", exact: true })
+  const selectedCell = page.getByRole("gridcell", { selected: true })
+  const expectGrid = async (ids: Set<string>) => {
+    await grid.waitFor()
+    await grid.locator(`[data-entity-count="${ids.size}"]`).waitFor()
+    await grid.press("ControlOrMeta+Home")
     const seen = new Set<string>()
     for (let i = 0; i < ids.size; i++) {
-      const id = (await figure.getAttribute("data-gallery-entity"))!
-      assert(ids.has(id), "Unexpected gallery Entity: " + id)
-      assert(!seen.has(id), "Duplicate gallery Entity: " + id)
+      const id = (await selectedCell.getAttribute("data-entity-id"))!
+      assert(ids.has(id), "Unexpected grid Entity: " + id)
+      assert(!seen.has(id), "Duplicate grid Entity: " + id)
       seen.add(id)
-      await page.waitForFunction(() => !document.querySelector('[aria-label="Reading entity"]'))
-      await page.waitForFunction(() => [...document.querySelectorAll<HTMLImageElement>('[data-gallery-entity] img')]
+      await page.waitForFunction(() => document.querySelector('[role="gridcell"][aria-selected="true"]')?.getAttribute("aria-busy") === "false")
+      await page.waitForFunction(() => [...document.querySelectorAll<HTMLImageElement>('[role="gridcell"][aria-selected="true"] img')]
         .every((image) => image.complete && image.naturalWidth > 0))
       if (id === manifest.cases.find((entry) => entry.name === "image/landscape")!.entityId)
-        assert.equal(await figure.locator("img").count(), 1, "Managed image must render a decoded preview")
+        assert.equal(await selectedCell.locator("img").count(), 1, "Managed image must render a decoded preview")
       assert.equal(await page.locator('[data-slot="entity-inspection"]').count(), 0)
-      if (i + 1 < ids.size) {
-        await page.keyboard.press("ArrowRight")
-        await position.getByText(`${i + 2} / ${ids.size}`, { exact: true }).waitFor()
-      }
+      if (i + 1 < ids.size) await grid.press("ArrowRight")
     }
     assert.deepEqual(seen, ids)
-    assert(await gallery.getByRole("button", { name: "Next entity", exact: true }).isDisabled())
-    for (let i = 1; i < ids.size; i++) await page.keyboard.press("ArrowLeft")
   }
   try {
     await page.goto(origin + "/#/tags")
@@ -196,22 +186,43 @@ export async function verifySampleTags(client: LocusClient, manifest: Manifest, 
     assertions.push("Deep horizontal scroll, wide vertical scroll, counts, and noncollapsing breadcrumb/arrow location")
     await enter(sample.root)
     await page.getByRole("region", { name: "Tag document", exact: true }).getByRole("table").waitFor()
-    await expectGallery(new Set(await idsFor(sample.root.id)))
+    await expectGrid(new Set(await idsFor(sample.root.id)))
     const historyLength = await page.evaluate(() => history.length)
     await page.getByRole("button", { name: "Include descendants", exact: true }).click()
-    await expectGallery(all)
+    await expectGrid(all)
     assert.equal(await page.evaluate(() => history.length), historyLength)
     await page.screenshot({ path: join(output, "tags-all-content.png"), animations: "disabled" })
-    assertions.push(`Direct versus inclusive gallery visits all ${all.size} retained sample cases once, without Entity inspection or history visits`)
+    const selectedBeforeInspect = (await selectedCell.getAttribute("data-entity-id"))!
+    const scrollBeforeInspect = await grid.evaluate((element) => element.scrollTop)
+    await selectedCell.dblclick()
+    const inspection = page.locator('[data-slot="entity-inspection"]')
+    await page.locator(`[data-slot="entity-inspection"][data-entity-id="${selectedBeforeInspect}"]`).waitFor()
+    await page.getByRole("button", { name: "Next entity", exact: true }).click()
+    await page.waitForFunction((previous) => document.querySelector('[data-slot="entity-inspection"]')?.getAttribute("data-entity-id") !== previous, selectedBeforeInspect)
+    assert(all.has((await inspection.getAttribute("data-entity-id"))!))
+    await page.getByRole("button", { name: "Previous entity", exact: true }).click()
+    await page.locator(`[data-slot="entity-inspection"][data-entity-id="${selectedBeforeInspect}"]`).waitFor()
+    await page.keyboard.press("Escape")
+    await grid.waitFor()
+    await page.waitForFunction((top) => Math.abs(document.querySelector('[role="grid"]')!.scrollTop - top) < 2, scrollBeforeInspect)
+    assert.equal(await selectedCell.getAttribute("data-entity-id"), selectedBeforeInspect)
+    assertions.push("Double-click inspection uses only Tag result neighbors; Esc restores grid selection and scroll")
+    assertions.push(`Direct versus inclusive grid selects all ${all.size} retained sample cases once; single selection stays in the grid without history visits`)
     await page.getByRole("button", { name: "Edit description", exact: true }).click()
     const editor = page.locator('.tag-markdown .ProseMirror[contenteditable="true"]')
     await editor.waitFor()
-    const retainedId = await figure.getAttribute("data-gallery-entity")
+    const retainedId = await selectedCell.getAttribute("data-entity-id")
     await editor.focus()
     await editor.press("ControlOrMeta+End")
     await page.keyboard.insertText("临时草稿 — discard this sample edit")
     await page.keyboard.press("ArrowRight")
-    assert.equal(await figure.getAttribute("data-gallery-entity"), retainedId)
+    assert.equal(await selectedCell.getAttribute("data-entity-id"), retainedId)
+    await selectedCell.dblclick()
+    const inspectionLeave = page.getByRole("dialog", { name: "Unsaved description", exact: true })
+    await inspectionLeave.waitFor()
+    assert.equal(await inspection.count(), 0)
+    await inspectionLeave.getByRole("button", { name: "Cancel", exact: true }).click()
+    await inspectionLeave.waitFor({ state: "hidden" })
     await page.keyboard.press("Escape")
     const leave = page.getByRole("dialog", { name: "Unsaved description", exact: true })
     await leave.waitFor()
@@ -222,7 +233,7 @@ export async function verifySampleTags(client: LocusClient, manifest: Manifest, 
     assert.equal(await page.getByText("临时草稿 — discard this sample edit", { exact: true }).count(), 0)
     const frame = page.locator("[data-description-frame]")
     const before = (await frame.boundingBox())!
-    const splitter = (await page.getByRole("separator", { name: "Resize description and gallery", exact: true }).boundingBox())!
+    const splitter = (await page.getByRole("separator", { name: "Resize description and grid", exact: true }).boundingBox())!
     await page.mouse.move(splitter.x + splitter.width / 2, splitter.y)
     await page.mouse.down()
     await page.mouse.move(splitter.x + splitter.width / 2, splitter.y + 60, { steps: 8 })
@@ -240,15 +251,38 @@ export async function verifySampleTags(client: LocusClient, manifest: Manifest, 
     await page.getByText("No description yet", { exact: true }).waitFor()
     await back()
     await page.setViewportSize({ width: 1200, height: 800 })
+    const displayCases: Record<string, string> = { Files: "file/document.txt", Images: "image/landscape",
+      Videos: "video/landscape", Models: "model/local-unmatched", Twitter: "twitter/image-one",
+      Bilibili: "bilibili/part-1", Civitai: "civitai/A" }
     for (const [name, group] of sample.groups) {
       await enter(group.tag)
-      await expectGallery(group.ids)
+      await expectGrid(group.ids)
       await page.screenshot({ path: join(output, `tags-${name.toLowerCase()}.png`), animations: "disabled" })
+      await grid.press("ControlOrMeta+Home")
+      const entry = manifest.cases.find((entry) => entry.name === displayCases[name])!
+      await grid.locator(`[role="gridcell"][data-entity-id="${entry.entityId}"]`).dblclick()
+      await page.locator(`[data-slot="entity-inspection"][data-entity-id="${entry.entityId}"][data-view-id="${entry.view}"]`).waitFor()
+      if (name === "Images") await page.waitForFunction(() =>
+        [...document.querySelectorAll<HTMLImageElement>('[data-slot="entity-inspection"] img')]
+          .some((image) => image.complete && image.naturalWidth >= 960))
+      if (name === "Videos" || name === "Bilibili")
+        await page.locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
+      if (name === "Files") await inspection.getByRole("heading", { name: `File ${entry.fileId}`, exact: true }).waitFor()
+      if (name === "Models") {
+        await inspection.getByRole("button", { name: /Read declarations/ }).click()
+        await inspection.getByText("Local unmatched sample", { exact: true }).waitFor()
+      }
+      if (name === "Twitter") await inspection.getByText(
+        "Offline field notes · three independently captured media items from the same post", { exact: true }).waitFor()
+      if (name === "Civitai") await inspection.getByText("A independent model description", { exact: true }).waitFor()
+      await page.screenshot({ path: join(output, `tags-${name.toLowerCase()}-inspect.png`), animations: "disabled" })
+      await page.keyboard.press("Escape")
+      await grid.waitFor()
       await back()
     }
-    assertions.push("All seven content groups, empty state, Markdown draft guard, editor arrow isolation, splitter, and narrow layout")
+    assertions.push("All seven grid groups and their saved content views, empty state, guarded inspection, Markdown draft guard, editor arrow isolation, splitter, and narrow layout")
     assert.deepEqual(errors, [])
-    assert.deepEqual(remote, [], "Tag gallery must use managed local content")
+    assert.deepEqual(remote, [], "Tag grid and inspection must use managed local content")
     await writeFile(join(output, "tags.json"), JSON.stringify({ assertions, sampleCaseCount: all.size,
       root: sample.root.id, directCount: 1, inclusiveCount: inclusive.length,
       groups: Object.fromEntries([...sample.groups].map(([name, group]) => [name, group.ids.size])),

@@ -3,6 +3,7 @@ import { test } from "node:test"
 import { TagDetails } from "../src/renderer/features/tags/model/tag-detail.ts"
 import { TagCoordinator } from "../src/renderer/features/tags/model/tag-coordinator.ts"
 import { SettingsPreparationCoordinator } from "../src/renderer/features/settings/model/settings-preparation.ts"
+import { suppliedSequence } from "../src/renderer/entities/entity/model/identity-sequence.ts"
 
 const deferred = () => {
   let resolve, reject
@@ -41,6 +42,27 @@ function fixture(overrides = {}) {
     s = c.state("tag")
   return { api, tags, c, s, sent, released }
 }
+test("Tag grid refresh preserves valid selection and viewport; a removed selection falls back within its result", async () => {
+  let ids = ["00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"]
+  const f = fixture({ search: async () => ({ entities: suppliedSequence(ids), release: async () => {} }) })
+  await f.c.query(f.s)
+  f.c.selectEntity(f.s, ids[1])
+  f.s.grid = { anchor: ids[0], offset: 12, logical: 12 }
+  const position = f.s.grid
+  const selected = ids[1]
+  await f.c.query(f.s, true)
+  assert.equal(f.s.entityId, selected)
+  assert.equal(f.s.grid, position)
+  f.c.selectEntity(f.s, "00000000-0000-0000-0000-000000000003")
+  assert.equal(f.s.entityId, selected)
+  ids = [ids[0]]
+  await f.c.query(f.s)
+  assert.equal(f.s.entityId, ids[0])
+  assert.equal(f.s.grid, position)
+  ids = []
+  await f.c.query(f.s)
+  assert.equal(f.s.entityId, undefined)
+})
 test("opening normalized Markdown never writes; immediate Save reads live editor text", async () => {
   const f = fixture()
   await f.c.read(f.s)

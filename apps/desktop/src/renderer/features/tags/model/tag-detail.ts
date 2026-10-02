@@ -1,5 +1,5 @@
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
-import type { IdentitySequence } from "@/entities/entity"
+import type { IdentitySequence, GridPosition } from "@/entities/entity"
 import type { TagAttempt, TagCoordinator } from "./tag-coordinator"
 
 type Api = Pick<BackendApi, "tagDocument" | "filterLanguage" | "filterLiteral" | "search">
@@ -19,7 +19,8 @@ export type TagDetailState = {
   scope: boolean
   requestedScope: boolean
   sequence?: IdentitySequence
-  galleryId?: string
+  entityId?: string
+  grid?: GridPosition
   queryPending: boolean
   queryError?: string
   documentTicket: number
@@ -215,8 +216,8 @@ export class TagDetails {
       void observation.release().catch(() => {})
       if (!this.live || ticket !== state.queryTicket) return
       state.sequence = observation.entities
-      if (!state.galleryId || state.sequence.indexOf(state.galleryId) < 0)
-        state.galleryId = state.sequence.at(0)
+      if (!state.entityId || state.sequence.indexOf(state.entityId) < 0)
+        state.entityId = state.sequence.at(0)
       state.scope = inclusive
     } catch (error) {
       if (this.live && ticket === state.queryTicket) state.queryError = errorText(error)
@@ -233,8 +234,8 @@ export class TagDetails {
     this.changed()
   }
   selectEntity(state: TagDetailState, id: string) {
-    if (!state.sequence || state.sequence.indexOf(id) < 0 || state.galleryId === id) return
-    state.galleryId = id
+    if (!state.sequence || state.sequence.indexOf(id) < 0 || state.entityId === id) return
+    state.entityId = id
     this.changed()
   }
   async prepare() {

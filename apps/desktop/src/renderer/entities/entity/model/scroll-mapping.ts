@@ -1,4 +1,4 @@
-// Chromium clamps very large CSS surfaces. Keep the physical surface comfortably
+// Chromium clamps large CSS surfaces. Keep the physical surface comfortably
 // below that measured clamp and translate it to the complete logical sequence.
 export function scrollMapping(logicalHeight: number, viewportHeight: number, maximum = 8_000_000) {
   const height = Math.max(viewportHeight, Math.min(logicalHeight, maximum))

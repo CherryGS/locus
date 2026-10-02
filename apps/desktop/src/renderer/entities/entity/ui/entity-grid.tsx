@@ -1,8 +1,10 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
-import { EntityCard, type EntityItem, type EntitySource } from "@/entities/entity"
+import { EntityCard } from "./entity-card"
+import type { EntityItem } from "../model/entity-item"
+import type { EntitySource } from "../model/identity-sequence"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { entityGridLayout } from "./entity-grid-layout"
-import { restoreGridPosition, type GridPosition } from "../model/browsing-state"
+import { restoreGridPosition, type GridPosition } from "../model/grid-position"
 import { scrollMapping } from "../model/scroll-mapping"
 
 const {
@@ -254,6 +256,7 @@ export function EntityGrid({
                   key={id}
                   id={cellId(id)}
                   role="gridcell"
+                  data-entity-id={entity.id}
                   aria-colindex={column + 1}
                   aria-labelledby={`${cellId(id)}-title`}
                   aria-selected={id === selectedId}

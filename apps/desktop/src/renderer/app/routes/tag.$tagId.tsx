@@ -1,7 +1,8 @@
-import { createFileRoute, useBlocker } from "@tanstack/react-router"
-import { useCallback, useEffect, useSyncExternalStore } from "react"
+import { createFileRoute, useBlocker, useRouterState } from "@tanstack/react-router"
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react"
 import { emptySequence } from "@/entities/entity"
-import { TagDetailPage, TagGallery } from "@/pages/tag-detail"
+import { TagDetailPage, TagEntityGrid } from "@/pages/tag-detail"
+import { EntityPage, entitySearch, type EntityDestination, type EntityBrowsingState } from "@/pages/entity"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 import { Button } from "@/shared/ui/button"
 import {
@@ -15,7 +16,13 @@ import {
 import { useLibrarySession } from "../providers/library-provider"
 
 export const Route = createFileRoute("/tag/$tagId")({
-  validateSearch: () => ({}),
+  validateSearch: (search): Partial<EntityDestination> => {
+    if (search.mode !== "inspect") return {}
+    return entitySearch({
+      ...search,
+      collectionId: typeof search.collectionId === "string" ? search.collectionId : "tag",
+    })
+  },
   component: TagRoute,
 })
 const noSubscribe = () => () => {},
@@ -23,13 +30,28 @@ const noSubscribe = () => () => {},
 function TagRoute() {
   const session = useLibrarySession(),
     { tagId } = Route.useParams(),
+    search = Route.useSearch(),
     navigate = Route.useNavigate()
+  const contextId = `tag:${tagId}`
+  const destination: EntityDestination = {
+    ...search,
+    mode: search.mode ?? "grid",
+    collectionId: !search.collectionId || search.collectionId === "tag" ? contextId : search.collectionId,
+  }
+  const visitKey = useRouterState({ select: (state) => state.location.state.__TSR_key ?? "initial" })
+  const browsing = useMemo(() => {
+    const state: EntityBrowsingState = session?.browsing.get(visitKey) ?? {}
+    session?.browsing.set(visitKey, state)
+    return state
+  }, [session, visitKey])
   const c = session?.tagDetails,
     s = c?.state(tagId)
   useSyncExternalStore(c?.subscribe ?? noSubscribe, c?.snapshot ?? zero)
   useSyncExternalStore(session?.reader.subscribe ?? noSubscribe, session?.reader.snapshot ?? zero)
+  useSyncExternalStore(session?.preferences.subscribe ?? noSubscribe, session?.preferences.snapshot ?? zero)
+  useSyncExternalStore(session?.civitai.subscribe ?? noSubscribe, session?.civitai.snapshot ?? zero)
   const get = useCallback((id: string) => session!.reader.get(id), [session])
-  const demand = useCallback((ids: string[]) => session?.reader.demand(ids), [session])
+  const demand = useCallback((ids: string[]) => session?.demand(ids), [session])
   useEffect(() => {
     if (!c || !s) return
     session?.tagBrowsing.select(tagId)
@@ -45,10 +67,23 @@ function TagRoute() {
   const blocker = useBlocker({
     withResolver: true,
     enableBeforeUnload: () => !!(c && s && (c.dirty(s) || c.unresolved(s))),
-    shouldBlockFn: ({ current, next }) =>
-      !!(c && s && next.pathname !== current.pathname && (c.dirty(s) || c.unresolved(s))),
+    shouldBlockFn: ({ current, next }) => {
+      const currentMode = "mode" in current.search ? current.search.mode : "grid"
+      const nextMode = "mode" in next.search ? next.search.mode : "grid"
+      return !!(c && s && (next.pathname !== current.pathname || nextMode !== currentMode) &&
+        (c.dirty(s) || c.unresolved(s)))
+    },
   })
   if (!session || !c || !s) return null
+  const source = { sequence: s.sequence ?? emptySequence, get, demand }
+  const move = (next: EntityDestination, replace?: boolean) => {
+    if (next.collectionId === "library") {
+      void navigate({ to: "/entity", search: next, replace })
+      return
+    }
+    if (next.collectionId === contextId && next.entityId) c.selectEntity(s, next.entityId)
+    void navigate({ search: next.mode === "grid" && next.collectionId === contextId ? {} : next, replace })
+  }
   const controls = (
     <ToggleGroup
       aria-label="Tag entity scope"
@@ -66,7 +101,22 @@ function TagRoute() {
   )
   return (
     <>
-      <TagDetailPage
+      {destination.mode === "inspect" ? (
+        <EntityPage
+          source={source}
+          collections={[]}
+          destination={destination}
+          visitKey={visitKey}
+          browsing={browsing}
+          navigate={move}
+          context={{ id: contextId, title: s.document?.tag.name ?? "Tag", sequence: s.sequence,
+            pending: s.queryPending, error: s.queryError, refresh: () => c.query(s) }}
+          live={{ reader: session.reader, filter: session.filter, tags: session.tags,
+            mainDestination: session.mainDestination, preferences: session.preferences, api: session.api,
+            playback: session.playback, civitai: session.civitai, relatedCollections: session.relatedCollections,
+            civitaiExcursions: session.civitaiExcursions }}
+        />
+      ) : <TagDetailPage
         coordinator={c}
         state={s}
         controls={controls}
@@ -76,10 +126,18 @@ function TagRoute() {
         }}
         onReturn={returning}
         entities={
-          <TagGallery
-            source={{ sequence: s.sequence ?? emptySequence, get, demand }}
-            selectedId={s.galleryId}
-            onSelect={(id) => c.selectEntity(s, id)}
+          <TagEntityGrid
+            source={source}
+            selectedId={s.entityId}
+            position={s.grid}
+            onPosition={(position) => { s.grid = position }}
+            onSelect={(entity) => c.selectEntity(s, entity.id)}
+            onOpen={(entity) => {
+              // Capture even an unscrolled grid so returning restores keyboard focus.
+              s.grid ??= { anchor: source.sequence.at(0), offset: 0, logical: 0 }
+              move({ mode: "inspect", collectionId: contextId, entityId: entity.id,
+                source: { mode: "grid", collectionId: contextId } })
+            }}
             pending={s.queryPending}
             established={!!s.sequence}
             error={s.queryError}
@@ -88,11 +146,9 @@ function TagRoute() {
                 ? `Showing the previous ${s.scope ? "inclusive" : "direct"} result.`
                 : undefined
             }
-            reread={(id) => void session.reader.reread(id)}
-            originalUrl={(id) => session.api.originalUrl(id)}
           />
         }
-      />
+      />}
       <Dialog
         open={blocker.status === "blocked"}
         onOpenChange={(open) => {
