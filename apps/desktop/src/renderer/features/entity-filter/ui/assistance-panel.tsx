@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from "react"
-import { BracesIcon, ChevronRightIcon, QuoteIcon, RefreshCwIcon } from "lucide-react"
+import { BracesIcon, ChevronRightIcon, RefreshCwIcon, SearchIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
@@ -8,7 +8,7 @@ import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTitle } from "@/shared/ui/popover"
 import { Separator } from "@/shared/ui/separator"
 import { Spinner } from "@/shared/ui/spinner"
-import { Input } from "@/shared/ui/input"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-group"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field"
 import type { FilterCoordinator } from "../model/filter-coordinator"
 import { diagnosticPosition } from "../model/raw-input"
@@ -50,6 +50,9 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
   }, [a.highlight, a.context?.kind, a.active])
   if (!a.active) return null
   const field = a.field, fields = a.context?.kind === "field", values = a.candidates
+  const highlightedField = fields ? a.fieldCandidates[a.highlight] : undefined
+  const showList = fields || values.length > 0 || a.loading || a.error || a.bounds || a.continuation || a.helpError ||
+    field?.assistance === "strings" && a.context?.kind === "value"
   const examples = field?.assistance === "bounds" ? a.help?.examples : a.help?.examples.slice(0, 1)
   return (
     <Popover open={!!anchor && !!(a.context || a.error)} modal={false} onOpenChange={(_open, details) => {
@@ -63,7 +66,7 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
         align="start" sideOffset={6} initialFocus={false} finalFocus={false}
         positionerProps={{ anchor, positionMethod: "fixed", collisionPadding: 12,
           collisionAvoidance: { side: "flip", align: "shift" } }}
-        className="w-96 max-w-[calc(100dvw-1.5rem)] max-h-(--available-height) gap-2 overflow-hidden"
+        className="filter-assistance-popup w-96 max-w-[calc(100dvw-1.5rem)] max-h-(--available-height) gap-0 overflow-hidden p-0"
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.keyCode === 229) return
           if (event.key === "Escape") {
@@ -80,12 +83,10 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
           if (!a.locked && !(event.relatedTarget as Element | null)?.closest('[data-filter-helper-interaction], #filter-source')) a.exit()
         }}
         onPointerDown={(event) => { if (!(event.target as Element).closest("input")) event.preventDefault() }}>
-        <div className="flex shrink-0 items-center gap-2 px-1">
-          <Badge variant={fields ? "secondary" : "outline"}>{fields ? "Field" : "Value"}</Badge>
-          {a.lookupAvailable && <Badge variant="outline">Regex</Badge>}
+        <div className="flex shrink-0 items-center gap-2 px-3 pt-2.5 pb-1">
           <div className="min-w-0 flex-1">
-            <PopoverTitle className="truncate">{fields ? "Choose a field" : a.context?.reference || "Native query"}</PopoverTitle>
-            {field && !fields && <p className="text-xs text-muted-foreground">{field.owner} · {field.field_type} · {field.shape}{field.unit && ` · ${field.unit}`}</p>}
+            <PopoverTitle className="filter-assistance-title truncate">{fields ? "Choose a field" : a.lookupAvailable ? "Choose a value" : a.context?.reference || "Query help"}</PopoverTitle>
+            {!fields && a.lookupAvailable && a.context?.reference && <code className="filter-assistance-context block truncate">{a.context.reference}</code>}
           </div>
           <div className="flex size-6 shrink-0 items-center justify-center">
             {a.editing || a.loading ? <Spinner aria-label="Updating suggestions" /> :
@@ -94,51 +95,49 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
                 onClick={() => a.refresh()}><RefreshCwIcon /></Button>}
           </div>
         </div>
-        {a.lookupAvailable && <FieldGroup className="shrink-0 px-1">
-          <Field data-invalid={!!a.lookupError}>
+        {a.lookupAvailable && <FieldGroup className="shrink-0">
+          <Field data-invalid={!!a.lookupError} className="gap-0">
             <FieldLabel htmlFor="filter-assistance-search" className="sr-only">{fields ? "Find fields with regex" : "Find values with regex"}</FieldLabel>
-            <Input id="filter-assistance-search" ref={lookup} value={a.lookupText} disabled={a.locked}
+            <InputGroup className="filter-assistance-lookup h-10 px-1">
+              <InputGroupAddon><SearchIcon /></InputGroupAddon>
+              <InputGroupInput id="filter-assistance-search" ref={lookup} value={a.lookupText} disabled={a.locked}
               aria-invalid={!!a.lookupError} aria-describedby={a.lookupError ? "filter-assistance-regex-error" : "filter-assistance-hint"}
-              placeholder={fields ? "bilibili.*id" : "Search original values with regex…"}
+              placeholder={fields ? "Find a field… e.g. bilibili.*id" : "Find a value…"}
               spellCheck={false} autoComplete="off" onFocus={() => { a.lookupFocused = true }}
               onBlur={() => { a.lookupFocused = false }} onChange={(event) => a.setLookup(event.target.value)} />
-            {a.lookupError && <FieldError id="filter-assistance-regex-error">{a.lookupError}</FieldError>}
+              <InputGroupAddon align="inline-end"><Badge variant="ghost">Regex</Badge></InputGroupAddon>
+            </InputGroup>
+            {a.lookupError && <FieldError id="filter-assistance-regex-error" className="px-3 pb-2">{a.lookupError}</FieldError>}
           </Field>
         </FieldGroup>}
-        <ScrollArea className="min-h-0 min-w-0 overflow-clip"
-          viewportProps={{ ref: viewport, className: "max-h-[min(16rem,calc(var(--available-height)-6rem))] overscroll-contain",
+        <Separator />
+        {showList && <ScrollArea className="min-h-0 min-w-0 overflow-clip"
+          viewportProps={{ ref: viewport, className: "max-h-[min(15rem,calc(var(--available-height)-11rem))] overscroll-contain",
             "aria-label": fields ? "Assisted fields" : "Assisted values" }}>
-          <div className="flex flex-col gap-2 pr-2">
-            {!fields && a.help && <section aria-label="Value syntax" className="flex flex-col gap-1 px-1 pb-1 text-xs">
-              <p className="text-muted-foreground">{a.help.guidance.split(/(?<=\.)\s/)[0]}</p>
-              {examples?.map((example) => <code key={example} className="break-all whitespace-pre-wrap">{example}</code>)}
-            </section>}
+          <div className="flex flex-col gap-2 p-1.5">
             {fields && c.cataloguePending && <p role="status">Reading fields…</p>}
             {fields && c.catalogueError && <Alert variant="destructive"><AlertDescription>
               Fields unavailable: {c.catalogueError}<Button size="sm" variant="outline" onClick={() => void c.readCatalogue()}>Retry fields</Button>
             </AlertDescription></Alert>}
-            {(fields || values.length > 0) && <div className="flex flex-col gap-1">
+            {(fields || values.length > 0) && <div className="flex flex-col gap-0.5">
               {fields ? a.fieldCandidates.map((f, i) => <Button key={f.id} size="sm"
                 variant={a.highlight === i ? "secondary" : "ghost"} aria-current={a.highlight === i}
-                className="h-auto items-start justify-start gap-2 whitespace-normal py-1.5 text-left" aria-label={`Use field ${f.id}`}
-                aria-describedby={a.highlight === i ? `filter-field-example-${i}` : undefined}
+                className="filter-assistance-candidate h-auto items-center justify-start gap-3 whitespace-normal px-2.5 py-2 text-left" aria-label={`Use field ${f.id}`}
+                aria-describedby={a.highlight === i ? "filter-field-example" : undefined}
                 disabled={a.locked} aria-disabled={a.editing || undefined} onClick={() => a.acceptField(f)}>
-                <BracesIcon data-icon="inline-start" />
                 <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-                  <span className="break-all">{f.native_exact}:</span><span className="text-xs text-muted-foreground">{f.owner} · {f.field_type} · {f.shape}{f.unit && ` · ${f.unit}`}</span>
-                  {a.highlight === i && <span id={`filter-field-example-${i}`} className="mt-1 flex h-12 w-full flex-col gap-0.5 text-xs text-muted-foreground">
-                    <span>Example</span>
-                    <code className="line-clamp-2 break-all">{a.help?.reference === f.native_exact ? a.help.examples[0] : a.helpError ? "Example unavailable" : "Reading example…"}</code>
-                  </span>}
+                  <code className="filter-assistance-reference break-all">{f.native_exact}</code>
+                  <span className="filter-assistance-meta flex w-full items-center justify-between gap-3">
+                    <span>{f.owner}</span><span>{f.field_type} · {f.shape}{f.unit && ` · ${f.unit}`}</span>
+                  </span>
                 </span>
                 <ChevronRightIcon data-icon="inline-end" />
               </Button>) : values.map((candidate, i) => <Button key={candidate.value} size="sm"
                 variant={a.highlight === i ? "secondary" : "ghost"} aria-current={a.highlight === i}
-                className="h-auto justify-start gap-3 whitespace-normal py-1.5 text-left" aria-label={`Use value ${candidate.value || "(empty)"}`}
+                className="filter-assistance-candidate h-auto justify-start gap-3 whitespace-normal px-2.5 py-2 text-left" aria-label={`Use value ${candidate.value || "(empty)"}`}
                 disabled={a.locked} aria-disabled={a.editing || a.loading || undefined} onClick={() => void a.acceptValue(candidate.value)}>
-                <QuoteIcon data-icon="inline-start" />
                 <span className="min-w-0 flex-1 break-all whitespace-pre-wrap">{candidate.value || '"" (empty)'}</span>
-                <Badge variant="outline">{candidate.declared && candidate.observed ? "Declared · observed" : candidate.declared ? "Declared" : "Observed"}</Badge>
+                <Badge variant="ghost" className="filter-assistance-provenance">{candidate.declared && candidate.observed ? "Declared · observed" : candidate.declared ? "Declared" : "Observed"}</Badge>
               </Button>)}
             </div>}
             {a.loading && field?.assistance !== "strings" && !a.bounds && <p role="status" className="px-1 text-xs text-muted-foreground">Reading whole-library values…</p>}
@@ -157,9 +156,19 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
               <Button size="sm" variant="outline" onClick={() => a.retryHelp()}>Retry writing help</Button>
             </AlertDescription></Alert>}
           </div>
-        </ScrollArea>
-        <Separator />
-        <p id="filter-assistance-hint" className="shrink-0 px-1 text-xs text-muted-foreground">↑ ↓ navigate · Tab selects · Enter finishes · Esc keeps @</p>
+        </ScrollArea>}
+        {showList && <Separator />}
+        {highlightedField && <section id="filter-field-example" className="filter-assistance-preview flex shrink-0 flex-col gap-1 px-3 py-2">
+          <span className="filter-assistance-meta flex items-center gap-1.5"><BracesIcon className="size-3" />Example</span>
+          <code className="line-clamp-2 break-all">{a.help?.reference === highlightedField.native_exact ? a.help.examples[0] : a.helpError ? "Example unavailable" : "Reading example…"}</code>
+        </section>}
+        {!fields && a.help && <section aria-label="Value syntax" className="filter-assistance-preview flex shrink-0 flex-col gap-1 px-3 py-2">
+          <p className="filter-assistance-meta">{a.help.guidance.split(/(?<=\.)\s/)[0]}</p>
+          {examples?.map((example) => <code key={example} className="break-all whitespace-pre-wrap">{example}</code>)}
+        </section>}
+        <p id="filter-assistance-hint" className="filter-assistance-shortcuts flex shrink-0 flex-wrap gap-x-3 gap-y-1 px-3 py-2">
+          <span><kbd>↑↓</kbd> move</span><span><kbd>Tab</kbd> select</span><span><kbd>Enter</kbd> finish</span><span><kbd>Esc</kbd> keep @</span>
+        </p>
       </PopoverContent>
     </Popover>
   )

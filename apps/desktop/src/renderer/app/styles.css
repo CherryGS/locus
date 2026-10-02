@@ -206,3 +206,47 @@ a, button, input, select, textarea {
   .civitai-rich-text > :first-child { @apply mt-0; }
   .civitai-rich-text > :last-child { @apply mb-0; }
 }
+
+/* Feature-level presentation overrides for the composed search menu. */
+.filter-assistance-popup {
+  border-radius: var(--radius-xl);
+}
+.filter-assistance-popup .filter-assistance-title {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+.filter-assistance-popup .filter-assistance-lookup {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.filter-assistance-lookup [data-slot="input-group-control"] {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+.filter-assistance-reference {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.filter-assistance-meta,
+.filter-assistance-context,
+.filter-assistance-popup .filter-assistance-provenance {
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+  font-weight: 400;
+  line-height: 1.4;
+}
+.filter-assistance-preview {
+  font-size: 0.75rem;
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+}
+.filter-assistance-shortcuts {
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+  border-top: 1px solid var(--border);
+}
+.filter-assistance-shortcuts kbd {
+  font-family: inherit;
+  color: var(--foreground);
+}
