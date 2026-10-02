@@ -9,6 +9,7 @@ import {
 import { Button } from "@/shared/ui/button"
 import { Separator } from "@/shared/ui/separator"
 import { ScrollArea } from "@/shared/ui/scroll-area"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/shared/ui/resizable"
 import { Spinner } from "@/shared/ui/spinner"
 import { useSourceReturn } from "@/shared/source-return"
 
@@ -84,12 +85,23 @@ export function TagDetailPage({
         </Button>
       </header>
       <Separator />
-      <ScrollArea className="min-h-0 flex-1" viewportProps={{ "aria-label": "Tag page content" }}>
-        <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-4 py-4">
-          <TagDocument coordinator={coordinator} state={state} />
+      <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
+        <ResizablePanel defaultSize="36%" minSize="140px">
+          <div className="h-full min-h-0 px-3 pt-3 pb-2">
+            <ScrollArea
+              data-description-frame
+              className="h-full rounded-md border border-border"
+              viewportProps={{ "aria-label": "Description area" }}
+            >
+              <TagDocument coordinator={coordinator} state={state} />
+            </ScrollArea>
+          </div>
+        </ResizablePanel>
+        <ResizableHandle withHandle aria-label="Resize description and gallery" />
+        <ResizablePanel defaultSize="64%" minSize="180px">
           {entities}
-        </div>
-      </ScrollArea>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </section>
   )
 }

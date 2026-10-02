@@ -253,9 +253,22 @@ try {
   // First click locates; Enter on the focused row activates.
   await enterDetail()
   assert.equal(await detail.locator("header").count(), 1)
-  assert.equal(await detail.locator("[data-slot=resizable-panel-group]").count(), 0)
+  assert.equal(await detail.locator("[data-slot=resizable-panel-group]").count(), 1)
   const toolbarBounds = await page.locator('[aria-label="Tag page tools"]').boundingBox()
   assert(toolbarBounds && toolbarBounds.height <= 48)
+  const descriptionFrame = detail.locator("[data-description-frame]")
+  assert.equal(await descriptionFrame.evaluate((element) => getComputedStyle(element).borderTopWidth), "1px")
+  const frameBefore = await descriptionFrame.boundingBox()
+  const splitter = detail.getByRole("separator", { name: "Resize description and gallery", exact: true })
+  const splitterBounds = await splitter.boundingBox()
+  assert(frameBefore && splitterBounds)
+  const splitterX = splitterBounds.x + splitterBounds.width / 2
+  const splitterY = splitterBounds.y + splitterBounds.height / 2
+  await page.mouse.move(splitterX, splitterY)
+  await page.mouse.down()
+  await page.mouse.move(splitterX, splitterY + 55, { steps: 8 })
+  await page.mouse.up()
+  await page.waitForFunction((height) => document.querySelector("[data-description-frame]")!.getBoundingClientRect().height > height + 30, frameBefore.height)
   await page.locator(".tag-markdown li").first().waitFor()
   await description.getByRole("table").waitFor()
   await page.locator(".tag-markdown").getByText("cat-code", { exact: true }).waitFor()
@@ -303,7 +316,7 @@ try {
     const image = document.querySelector<HTMLImageElement>("[data-gallery-entity] img")
     return !!image?.complete && image.naturalWidth > 0
   })
-  await page.locator('[aria-label="Tag page content"]').evaluate((element) => { element.scrollTop = 0 })
+  await page.locator('[aria-label="Description area"]').evaluate((element) => { element.scrollTop = 0 })
   const galleryImageBounds = await gallery.locator("[data-gallery-entity] img").boundingBox()
   assert(galleryImageBounds && galleryImageBounds.height >= 120)
   await page.screenshot({ path: join(output, "tag-gallery.png"), animations: "disabled" })

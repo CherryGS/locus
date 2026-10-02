@@ -113,7 +113,7 @@ export function TagGallery({
     <section
       aria-label="Associated content"
       aria-roledescription="carousel"
-      className="flex min-h-88 min-w-0 flex-1 flex-col"
+      className="flex h-full min-h-0 min-w-0 flex-col"
     >
       {(error || retained) && (
         <Alert variant={error ? "destructive" : "default"}>
