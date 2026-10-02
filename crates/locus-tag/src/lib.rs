@@ -9,3 +9,4 @@ mod record;
 mod service;
 #[cfg(test)]
 mod tests;
+mod view;

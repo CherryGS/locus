@@ -1,3 +1,4 @@
+use crate::view::TagDocument;
 use crate::{error::TagError, identity::TagId, record::TagRecord};
 use diesel::{
     OptionalExtension, QueryableByName, sql_query,
@@ -71,6 +72,20 @@ async fn read_unchecked(c: &mut Context, id: TagId) -> Result<TagRecord, TagErro
         .optional()?
         .ok_or(TagError::MissingTag)?
         .record()
+}
+#[derive(QueryableByName)]
+struct DocumentRow {
+    #[diesel(sql_type = Text)]
+    markdown: String,
+}
+pub(crate) async fn document(c: &mut Context, id: TagId) -> Result<TagDocument, TagError> {
+    let tag = read(c, id).await?;
+    let markdown = sql_query("SELECT markdown FROM locus_tag_comm_tag WHERE id=?")
+        .bind::<Binary, _>(id.as_bytes().as_slice())
+        .get_result::<DocumentRow>(c.connection())
+        .await?
+        .markdown;
+    Ok(TagDocument { tag, markdown })
 }
 pub(crate) async fn available(
     c: &mut Context,

@@ -648,6 +648,38 @@ async fn tag_forest_upgrade_preserves_flat_records_assignments_and_history_prefi
             "SELECT count(*) AS count FROM locus_migration_comm_history"
         )
         .await,
-        15
+        STEPS.len() as i64
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn tag_markdown_upgrade_keeps_records_hierarchy_assignments_and_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("metadata.sqlite");
+    let mut session = Session::open(&path).await.unwrap();
+    execute(&mut session, &STEPS[..15]).await.unwrap();
+    sql(&mut session, "CREATE TABLE fixture_history AS SELECT * FROM locus_migration_comm_history; INSERT INTO locus_tag_comm_tag(id,name,revision,parent) VALUES(X'01992853c12370008000000000000001','root','01992853-c123-7000-8000-000000000002',NULL),(X'01992853c12370008000000000000003','child','01992853-c123-7000-8000-000000000004',X'01992853c12370008000000000000001'); INSERT INTO locus_tag_comp_set VALUES(X'01992853c12370008000000000000005'); INSERT INTO locus_tag_rela_assignment VALUES(X'01992853c12370008000000000000005',X'01992853c12370008000000000000003')").await;
+    execute(&mut session, STEPS).await.unwrap();
+    assert_eq!(count(&mut session, "SELECT count(*) AS count FROM locus_tag_comm_tag WHERE markdown='' AND ((name='root' AND parent IS NULL AND revision='01992853-c123-7000-8000-000000000002') OR (name='child' AND parent=X'01992853c12370008000000000000001' AND revision='01992853-c123-7000-8000-000000000004'))").await, 2);
+    assert_eq!(count(&mut session, "SELECT count(*) AS count FROM locus_tag_rela_assignment WHERE tag_set=X'01992853c12370008000000000000005' AND tag=X'01992853c12370008000000000000003'").await, 1);
+    assert_eq!(count(&mut session, "SELECT count(*) AS count FROM (SELECT * FROM fixture_history EXCEPT SELECT * FROM locus_migration_comm_history)").await, 0);
+    assert_eq!(
+        count(
+            &mut session,
+            "SELECT count(*) AS count FROM locus_migration_comm_history WHERE id=16"
+        )
+        .await,
+        1
+    );
+    drop(session);
+    let mut session = Session::open(path).await.unwrap();
+    execute(&mut session, STEPS).await.unwrap();
+    assert_eq!(
+        count(
+            &mut session,
+            "SELECT count(*) AS count FROM locus_tag_comm_tag WHERE markdown=''"
+        )
+        .await,
+        2
     );
 }

@@ -42,6 +42,7 @@ export function TagColumns({
   forest,
   browsing: b,
   onSelect,
+  onActivate,
   onCreate,
   onEdit,
   blocked,
@@ -49,6 +50,7 @@ export function TagColumns({
   forest: TagForest
   browsing: TagBrowsing
   onSelect: (id: string) => void
+  onActivate: (id: string) => void
   onCreate: (parent?: Wire<"TagRecord">) => void
   onEdit: (action: TagEditAction, tag: Wire<"TagRecord">) => void
   blocked: boolean
@@ -151,6 +153,7 @@ export function TagColumns({
             blocked={blocked}
             onCreate={() => onCreate(parent ?? undefined)}
             onSelect={onSelect}
+            onActivate={onActivate}
             onEdit={onEdit}
             focus={focus}
             onMove={(direction, id) => moveColumn(depth, direction, id)}
@@ -173,6 +176,7 @@ function TagColumn({
   blocked,
   onCreate,
   onSelect,
+  onActivate,
   onEdit,
   focus,
   onMove,
@@ -188,12 +192,14 @@ function TagColumn({
   blocked: boolean
   onCreate: () => void
   onSelect: (id: string) => void
+  onActivate: (id: string) => void
   onEdit: (action: TagEditAction, tag: Wire<"TagRecord">) => void
   focus: (id?: string) => void
   onMove: (direction: -1 | 1, id?: string) => void
   active: Set<string>
 }) {
   const viewport = useRef<HTMLDivElement>(null),
+    pointerFocused = useRef<string | undefined>(undefined),
     mounted = useRef(false),
     key = parent?.id ?? "roots"
   useLayoutEffect(() => {
@@ -312,9 +318,23 @@ function TagColumn({
                   variant={b.tagId === tag.id ? "default" : onPath ? "secondary" : "ghost"}
                   size="lg"
                   className="w-full min-w-0 justify-start gap-3"
-                  onClick={() => onSelect(tag.id)}
+                  onPointerDown={(event) => {
+                    pointerFocused.current = event.button === 0 && document.activeElement === event.currentTarget
+                      ? tag.id : undefined
+                  }}
+                  onClick={(event) => {
+                    const activate = event.detail > 0 && pointerFocused.current === tag.id
+                    pointerFocused.current = undefined
+                    if (activate) onActivate(tag.id)
+                    else onSelect(tag.id)
+                  }}
                   onKeyDown={(event) => {
                     const key = event.key
+                    if (key === "Enter") {
+                      event.preventDefault()
+                      onActivate(tag.id)
+                      return
+                    }
                     if (
                       !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(
                         key,
@@ -361,22 +381,29 @@ export function TagLookup({
   forest,
   browsing: b,
   onSelect,
+  onActivate,
   onEdit,
   blocked,
 }: {
   forest: TagForest
   browsing: TagBrowsing
   onSelect: (id: string) => void
+  onActivate: (id: string) => void
   onEdit: (action: TagEditAction, tag: Wire<"TagRecord">) => void
   blocked: boolean
 }) {
   const viewport = useRef<HTMLDivElement>(null),
+    pointerFocused = useRef<string | undefined>(undefined),
     query = b.lookup.trim().toLocaleLowerCase(),
     matches = [...forest.byId.values()].filter((tag) =>
       tag.name.toLocaleLowerCase().includes(query),
     )
   useLayoutEffect(() => {
     if (viewport.current) viewport.current.scrollTop = b.lookupScrollTop
+    if (b.revealSelection) {
+      viewport.current?.querySelector<HTMLElement>(`[data-lookup-tag="${b.tagId}"]`)?.focus({ preventScroll: true })
+      b.revealSelection = false
+    }
   }, [b])
   return (
     <ScrollArea
@@ -405,7 +432,17 @@ export function TagLookup({
                     variant="ghost"
                     className="h-auto w-full min-w-0 justify-start gap-4 py-3"
                     aria-label={`Reveal ${tag.name}`}
-                    onClick={() => {
+                    data-lookup-tag={tag.id}
+                    onPointerDown={(event) => {
+                      pointerFocused.current = event.button === 0 && document.activeElement === event.currentTarget ? tag.id : undefined
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") { event.preventDefault(); onActivate(tag.id) }
+                    }}
+                    onClick={(event) => {
+                      const activate = event.detail > 0 && pointerFocused.current === tag.id
+                      pointerFocused.current = undefined
+                      if (activate) { onActivate(tag.id); return }
                       b.revealSelection = true
                       b.find("")
                       onSelect(tag.id)

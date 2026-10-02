@@ -6,12 +6,14 @@ export function TagsPage({
   filter,
   onSelect,
   onContent,
+  onActivate,
 }: {
   tags: TagCoordinator
   browsing: TagBrowsing
   filter: FilterCoordinator
   onSelect: (id: string) => void
   onContent: () => void
+  onActivate: (id: string) => void
 }) {
   return (
     <TagVocabulary
@@ -20,6 +22,7 @@ export function TagsPage({
       filter={filter}
       onSelect={onSelect}
       onContent={onContent}
+      onActivate={onActivate}
     />
   )
 }

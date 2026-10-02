@@ -31,6 +31,13 @@ async fn read_tag(
 ) -> Result<Json<TagRecord>, ApiError> {
     s.tag_read(tag(&id)?).await.map(Json)
 }
+#[utoipa::path(get,path="/api/v1/tags/{id}/document",tag="tag",params(("id"=String,Path)),responses((status=200,body=TagDocument)))]
+async fn read_tag_document(
+    State(s): State<Arc<Shared>>,
+    Path(id): Path<String>,
+) -> Result<Json<TagDocument>, ApiError> {
+    s.tag_document(tag(&id)?).await.map(Json)
+}
 #[utoipa::path(get,path="/api/v1/entities/{id}/tags",tag="tag",params(("id"=String,Path)),responses((status=200,body=EntityTags)))]
 async fn entity_tags(
     State(s): State<Arc<Shared>>,
@@ -71,7 +78,9 @@ async fn write_tag(
                 tag(id)?;
             }
         }
-        TagChange::Rename { id, revision, .. } | TagChange::Delete { id, revision } => {
+        TagChange::Rename { id, revision, .. }
+        | TagChange::Markdown { id, revision, .. }
+        | TagChange::Delete { id, revision } => {
             tag(id)?;
             canonical_id(revision)?;
         }
@@ -87,6 +96,7 @@ pub(crate) fn router() -> utoipa_axum::router::OpenApiRouter<Arc<Shared>> {
     OpenApiRouter::new()
         .routes(routes!(list_tags, write_tag))
         .routes(routes!(read_tag))
+        .routes(routes!(read_tag_document))
         .routes(routes!(entity_tags))
         .routes(routes!(read_tag_set))
 }

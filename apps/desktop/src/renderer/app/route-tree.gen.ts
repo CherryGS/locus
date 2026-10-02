@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from "./routes/index"
 import { Route as EntityRouteImport } from "./routes/entity"
 import { Route as SettingRouteImport } from "./routes/setting"
 import { Route as TagsRouteImport } from "./routes/tags"
+import { Route as TagTagIdRouteImport } from "./routes/tag.$tagId"
 
 const IndexRoute = IndexRouteImport.update({
   id: "/",
@@ -34,18 +35,25 @@ const TagsRoute = TagsRouteImport.update({
   path: "/tags",
   getParentRoute: () => rootRouteImport,
 } as any)
+const TagTagIdRoute = TagTagIdRouteImport.update({
+  id: "/tag/$tagId",
+  path: "/tag/$tagId",
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute
   "/entity": typeof EntityRoute
   "/setting": typeof SettingRoute
   "/tags": typeof TagsRoute
+  "/tag/$tagId": typeof TagTagIdRoute
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
   "/entity": typeof EntityRoute
   "/setting": typeof SettingRoute
   "/tags": typeof TagsRoute
+  "/tag/$tagId": typeof TagTagIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   "/entity": typeof EntityRoute
   "/setting": typeof SettingRoute
   "/tags": typeof TagsRoute
+  "/tag/$tagId": typeof TagTagIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: "/" | "/entity" | "/setting" | "/tags"
+  fullPaths: "/" | "/entity" | "/setting" | "/tags" | "/tag/$tagId"
   fileRoutesByTo: FileRoutesByTo
-  to: "/" | "/entity" | "/setting" | "/tags"
-  id: "__root__" | "/" | "/entity" | "/setting" | "/tags"
+  to: "/" | "/entity" | "/setting" | "/tags" | "/tag/$tagId"
+  id: "__root__" | "/" | "/entity" | "/setting" | "/tags" | "/tag/$tagId"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +76,7 @@ export interface RootRouteChildren {
   EntityRoute: typeof EntityRoute
   SettingRoute: typeof SettingRoute
   TagsRoute: typeof TagsRoute
+  TagTagIdRoute: typeof TagTagIdRoute
 }
 
 declare module "@tanstack/react-router" {
@@ -99,6 +109,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof TagsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    "/tag/$tagId": {
+      id: "/tag/$tagId"
+      path: "/tag/$tagId"
+      fullPath: "/tag/$tagId"
+      preLoaderRoute: typeof TagTagIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   EntityRoute: EntityRoute,
   SettingRoute: SettingRoute,
   TagsRoute: TagsRoute,
+  TagTagIdRoute: TagTagIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

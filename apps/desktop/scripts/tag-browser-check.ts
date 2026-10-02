@@ -42,7 +42,11 @@ try {
       name: `Select ${name}`,
       exact: true,
     })
-    if (await row.count()) await row.click()
+    if (await row.count()) {
+      // A click on the already focused row now opens detail. This helper locates.
+      await page!.getByLabel("Find tags", { exact: true }).focus()
+      await row.click()
+    }
     else {
       await page!.getByLabel("Find tags", { exact: true }).fill(name)
       await page!.getByRole("button", { name: `Reveal ${name}`, exact: true }).click()
@@ -140,7 +144,7 @@ try {
     exact: true,
   })
   assert(await childItem.evaluate((element) => element === document.activeElement))
-  await childItem.press("Enter")
+  await childItem.press("Space")
   await page.getByRole("heading", { name: "Cat", exact: true }).waitFor()
   assert.equal(await columns.count(), 3)
   await childItem.press("ArrowRight")
@@ -188,6 +192,227 @@ try {
   await page.getByRole("heading", { name: "Kitten", exact: true }).waitFor()
   assert.equal(await columns.count(), 3)
   await page.screenshot({ path: join(output, "forest.png"), animations: "disabled" })
+  // Detail has a complete independent Entity context, without replacing main Filter.
+  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await page.getByRole("button", { name: /^Filter/ }).click()
+  const mainFilter = page.getByRole("dialog", { name: "Filter Entities", exact: true })
+  const retainedMainSource = 'tag_names_exact:"Cat"'
+  await mainFilter.getByLabel("Filter source", { exact: true }).fill(retainedMainSource)
+  await mainFilter.getByRole("button", { name: "Apply", exact: true }).click()
+  await mainFilter.waitFor({ state: "hidden" })
+  await page.getByTestId("entity-grid-panel").getByText("No matches", { exact: true }).waitFor()
+  await open()
+  await select("Animals")
+  const forestColumns = await columns.evaluateAll((nodes) => nodes.map((n) => n.getAttribute("data-tag-column")))
+  const readDocument = async () => {
+    const result = await backend.client.GET("/api/v1/tags/{id}/document", { params: { path: { id: animal.id } } })
+    assert(result.data, JSON.stringify(result.error))
+    return result.data
+  }
+  const initialDocument = await readDocument()
+  assert.equal(initialDocument.markdown, "")
+  const markdown = "# Animals\n\n- Cats\n- Kittens\n\n| Kind | Note |\n| --- | --- |\n| Cat | Small |\n\n```text\ncat-code\n```\n"
+  const seeded = await backend.client.POST("/api/v1/tags", { body: { request_id: crypto.randomUUID(),
+    change: { operation: "markdown", id: animal.id, revision: initialDocument.tag.revision, markdown } } })
+  assert.equal(seeded.data?.status, "tag_saved")
+  const detail = page.getByRole("region", { name: "Tag detail", exact: true })
+  const description = page.getByRole("region", { name: "Tag document", exact: true })
+  const editor = page.locator('.tag-markdown .ProseMirror[contenteditable="true"]')
+  const enterDetail = async () => {
+    await rootItem.focus()
+    await rootItem.press("Enter")
+    await page!.waitForURL(new RegExp(`#/tag/${animal.id}`))
+    await description.getByRole("button", { name: "Edit description", exact: true }).waitFor()
+    await page!.waitForFunction(() => !document.querySelector<HTMLButtonElement>('[aria-label="Tag document"] button')?.disabled)
+  }
+  const beginEdit = async () => {
+    await description.getByRole("button", { name: "Edit description", exact: true }).click()
+    await editor.waitFor()
+    await description.getByRole("button", { name: "Save", exact: true }).waitFor({ state: "visible" })
+    await page!.waitForFunction(() => !Array.from(document.querySelectorAll<HTMLButtonElement>('[aria-label="Tag document"] button')).find((b) => b.textContent === "Save")?.disabled)
+  }
+  const append = async (text: string) => {
+    await editor.focus()
+    await editor.press("ControlOrMeta+End")
+    await page!.keyboard.insertText(text)
+  }
+  const savedView = async () => {
+    await description.getByRole("button", { name: "Edit description", exact: true }).waitFor()
+    await page!.locator('.tag-markdown .ProseMirror[contenteditable="false"]').waitFor()
+  }
+  const returnForest = async () => {
+    await page!.getByRole("button", { name: "Return to tags", exact: true }).click()
+    await page!.waitForURL(/#\/tags/)
+    await rootItem.waitFor()
+    assert.deepEqual(await columns.evaluateAll((nodes) => nodes.map((n) => n.getAttribute("data-tag-column"))), forestColumns)
+    assert(await rootItem.evaluate((node) => node === document.activeElement))
+  }
+  assert.match(page.url(), /#\/tags/)
+  // First click locates; Enter on the focused row activates.
+  await enterDetail()
+  await page.locator(".tag-markdown li").first().waitFor()
+  await description.getByRole("table").waitFor()
+  await page.locator(".tag-markdown").getByText("cat-code", { exact: true }).waitFor()
+  await page.getByText("No tagged content", { exact: true }).waitFor()
+  assert.equal(await page.getByRole("gridcell").count(), 0)
+  await page.getByRole("button", { name: "Include descendants", exact: true }).click()
+  await page.getByRole("gridcell").waitFor()
+  assert.equal(await page.getByRole("gridcell").count(), 1)
+  await page.route("**/api/v1/search/query", (route) => route.fulfill({
+    status: 500, json: { code: "operation_failed", message: "fixture Tag query failure" },
+  }))
+  await page.getByRole("button", { name: "This tag", exact: true }).click()
+  await page.getByText(/fixture Tag query failure/).waitFor()
+  await page.getByText(/Showing the previous inclusive result/).waitFor()
+  assert.equal(await page.getByRole("gridcell").count(), 1)
+  await page.unroute("**/api/v1/search/query")
+  await page.getByRole("button", { name: "Refresh tag content", exact: true }).click()
+  await page.getByText("No tagged content", { exact: true }).waitFor()
+  await page.getByRole("button", { name: "Include descendants", exact: true }).click()
+  await page.getByRole("gridcell").waitFor()
+  const taggedCell = page.getByRole("gridcell")
+  await taggedCell.click()
+  const selectedEntity = new URLSearchParams(page.url().split("?")[1]).get("entityId")
+  assert.equal(selectedEntity, entity)
+  await page.getByRole("grid", { name: "Entities", exact: true }).press("Enter")
+  await page.waitForURL(/mode=inspect/)
+  assert.equal(await description.count(), 0)
+  await page.keyboard.press("Escape")
+  await savedView()
+  assert.equal(new URLSearchParams(page.url().split("?")[1]).get("entityId"), selectedEntity)
+  assert.equal(await page.getByRole("gridcell", { selected: true }).count(), 1)
+  assert.equal(await page.getByRole("button", { name: "Include descendants", exact: true }).getAttribute("aria-pressed"), "true")
+  await beginEdit()
+  await append(" 中文即时保存")
+  // No debounce wait: Save must capture the live editor immediately.
+  await description.getByRole("button", { name: "Save", exact: true }).click()
+  await savedView()
+  const confirmedMarkdown = (await readDocument()).markdown
+  assert(confirmedMarkdown.includes("中文即时保存"))
+  assert.match(confirmedMarkdown, /\|\s*Kind\s*\|\s*Note\s*\|/)
+  assert(confirmedMarkdown.includes("cat-code"))
+  await page.route(`**/api/v1/tags/${animal.id}/document`, (route) => route.fulfill({
+    status: 500, json: { code: "operation_failed", message: "fixture document read failure" },
+  }))
+  await description.getByRole("button", { name: "Reload tag document", exact: true }).click()
+  await description.getByText(/fixture document read failure/).waitFor()
+  await page.locator(".tag-markdown").getByText(/中文即时保存/).waitFor()
+  assert.equal(await page.getByRole("gridcell").count(), 1)
+  await page.unroute(`**/api/v1/tags/${animal.id}/document`)
+  await description.getByRole("button", { name: "Reload tag document", exact: true }).click()
+  await page.locator(".tag-markdown").getByText(/中文即时保存/).waitFor()
+  await beginEdit()
+  await editor.focus()
+  await editor.press("ControlOrMeta+End")
+  await editor.evaluate((element) => {
+    const clipboardData = new DataTransfer()
+    clipboardData.setData("text/plain", " pasted-text")
+    element.dispatchEvent(new ClipboardEvent("paste", { clipboardData, bubbles: true, cancelable: true }))
+  })
+  await editor.getByText(/pasted-text/).waitFor()
+  await editor.press("ControlOrMeta+z")
+  await editor.getByText(/pasted-text/).waitFor({ state: "hidden" })
+  await append(" cancel-this")
+  await page.screenshot({ path: join(output, "tag-detail-edit.png"), animations: "disabled" })
+  await description.getByRole("button", { name: "Cancel", exact: true }).click()
+  await savedView()
+  assert.equal((await readDocument()).markdown, confirmedMarkdown)
+  assert.equal(await page.locator(".tag-markdown").getByText(/cancel-this/).count(), 0)
+  const leaveGuard = page.getByRole("dialog", { name: "Unsaved description", exact: true })
+  await beginEdit()
+  await append(" discard-this")
+  await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
+  await leaveGuard.waitFor()
+  await leaveGuard.getByRole("button", { name: "Cancel", exact: true }).click()
+  await leaveGuard.waitFor({ state: "hidden" })
+  await editor.getByText(/discard-this/).waitFor()
+  await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
+  await leaveGuard.getByRole("button", { name: "Discard", exact: true }).click()
+  await page.waitForURL(/#\/tags/)
+  assert.equal((await readDocument()).markdown, confirmedMarkdown)
+  await enterDetail()
+  await beginEdit()
+  await append(" save-on-leave")
+  await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
+  await leaveGuard.getByRole("button", { name: "Save", exact: true }).click()
+  await page.waitForURL(/#\/tags/)
+  assert((await readDocument()).markdown.includes("save-on-leave"))
+  await enterDetail()
+  await beginEdit()
+  await append(" failed-save-draft")
+  await page.route("**/api/v1/tags", async (route) => {
+    if (route.request().method() === "POST" && route.request().postDataJSON()?.change?.operation === "markdown")
+      await route.fulfill({ status: 400, json: { code: "invalid_request", message: "fixture rejected document" } })
+    else await route.continue()
+  })
+  await description.getByRole("button", { name: "Save", exact: true }).click()
+  await description.getByText(/fixture rejected document/).waitFor()
+  await editor.getByText(/failed-save-draft/).waitFor()
+  await page.unroute("**/api/v1/tags")
+  await description.getByRole("button", { name: "Use latest observation", exact: true }).click()
+  await editor.getByText(/failed-save-draft/).waitFor()
+  await description.getByRole("button", { name: "Save", exact: true }).click()
+  await savedView()
+  assert((await readDocument()).markdown.includes("failed-save-draft"))
+  await beginEdit()
+  await append(" uncertain-save")
+  let markdownSubmissions = 0
+  await page.route("**/api/v1/tags", async (route) => {
+    if (route.request().method() === "POST" && route.request().postDataJSON()?.change?.operation === "markdown") {
+      markdownSubmissions++
+      await route.fetch()
+      await route.abort("failed")
+    } else await route.continue()
+  })
+  await description.getByRole("button", { name: "Save", exact: true }).click()
+  await description.getByText(/Delivery unconfirmed/).waitFor()
+  assert.equal(await description.getByRole("button", { name: "Save", exact: true }).isDisabled(), true)
+  assert.equal(await editor.count(), 0)
+  await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
+  await leaveGuard.waitFor()
+  assert.equal(await leaveGuard.getByRole("button", { name: "Discard", exact: true }).isDisabled(), true)
+  await leaveGuard.getByRole("button", { name: "Cancel", exact: true }).click()
+  await description.getByRole("button", { name: "Recover original request", exact: true }).click()
+  await savedView()
+  assert.equal(markdownSubmissions, 1)
+  assert((await readDocument()).markdown.includes("uncertain-save"))
+  await page.unroute("**/api/v1/tags")
+  await page.screenshot({ path: join(output, "tag-detail.png"), animations: "disabled" })
+  await returnForest()
+  // A repeated click opens a focused row; repeatedly mount/unmount the imperative editor.
+  for (let i = 0; i < 3; i++) {
+    await rootItem.click()
+    await page.waitForURL(new RegExp(`#/tag/${animal.id}`))
+    await savedView()
+    await returnForest()
+  }
+  await page.getByLabel("Find tags", { exact: true }).fill("Animals")
+  const searchMatch = page.getByRole("button", { name: "Reveal Animals", exact: true })
+  await searchMatch.focus()
+  await searchMatch.press("Enter")
+  await page.waitForURL(new RegExp(`#/tag/${animal.id}`))
+  await savedView()
+  await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
+  await page.waitForURL(/#\/tags/)
+  assert.equal(await page.getByLabel("Find tags", { exact: true }).inputValue(), "Animals")
+  assert(await searchMatch.evaluate((node) => node === document.activeElement))
+  await searchMatch.click()
+  await page.waitForURL(new RegExp(`#/tag/${animal.id}`))
+  await savedView()
+  await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
+  await page.waitForURL(/#\/tags/)
+  assert.equal(await page.getByLabel("Find tags", { exact: true }).inputValue(), "Animals")
+  assert(await searchMatch.evaluate((node) => node === document.activeElement))
+  await page.getByLabel("Find tags", { exact: true }).fill("")
+  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await page.getByTestId("entity-grid-panel").getByText("No matches", { exact: true }).waitFor()
+  await page.getByRole("button", { name: /^Filter/ }).click()
+  assert.equal(await mainFilter.getByLabel("Filter source", { exact: true }).inputValue(), retainedMainSource)
+  // Clear the unsaved authoring draft before the following generated-Filter checks.
+  // The applied main result remains unchanged until their explicit Apply.
+  await mainFilter.getByLabel("Filter source", { exact: true }).fill("")
+  await mainFilter.getByRole("button", { name: "Close", exact: true }).click()
+  await open()
   await select("Animals")
   await page.getByRole("button", { name: "Find content", exact: true }).click()
   await page.getByRole("button", { name: "Include descendants", exact: true }).click()
@@ -520,6 +745,14 @@ try {
           "row context menus and keyboard context entry",
           "collapsed clickable breadcrumb without horizontal overflow",
           "narrow layout",
+          "focused Enter and repeated click detail activation with forest restoration",
+          "focused search match Enter and repeated click preserve lookup text and focus on return",
+          "Tag-associated direct/inclusive Entity context and inspection return preserve main Filter",
+          "Markdown list/table/code render, live Chinese save, reload, paste/undo and cancel",
+          "dirty description Save/Discard/Cancel departures",
+          "failed document draft retention and lost-response original-request recovery",
+          "independent document read retry and qualified prior Entity scope after failed query",
+          "imperative editor mount/unmount without page errors",
         ],
       },
       null,

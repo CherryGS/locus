@@ -161,7 +161,7 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
                 ? close.intent === "restart"
                   ? "Locus will restart into a fresh library session after all accepted work finishes."
                   : "Locus will close when the backend has finished all accepted operations."
-                : "Confirming current view choices and Settings writes, including edits on pages you have left."}
+                : "Confirming current view choices and saved edits, including drafts on pages you have left."}
             </DialogDescription>
           </DialogHeader>
           {switchTarget && <p className="break-all text-sm">Switching to: {switchTarget}</p>}
@@ -172,10 +172,10 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
           )}
           {close.phase === "unconfirmed" && (close.settings?.draft || close.settings?.blocked) && (
             <Alert>
-              <AlertTitle>Settings</AlertTitle>
+              <AlertTitle>Unsaved edits</AlertTitle>
               <AlertDescription>
                 {close.settings.blocked ??
-                  "There are unsubmitted edits. Restart can discard this exact draft after your confirmation."}
+                  "There are unsubmitted edits. Return to save them, or explicitly discard this reported draft."}
               </AlertDescription>
             </Alert>
           )}

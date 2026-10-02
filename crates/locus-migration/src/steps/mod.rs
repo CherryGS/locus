@@ -35,3 +35,5 @@ mod s013_filter;
 mod s014_tag;
 #[path = "000000000015_locus_tag_forest.rs"]
 mod s015_tag;
+#[path = "000000000016_locus_tag_markdown.rs"]
+mod s016_tag;

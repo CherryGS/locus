@@ -30,6 +30,189 @@ async fn create(s: &Server, name: &str) -> TagRecord {
         o => panic!("{o:?}"),
     }
 }
+async fn document_http(s: &Server, id: &str) -> (u16, serde_json::Value) {
+    use axum::{
+        body::{Body, to_bytes},
+        http::Request,
+    };
+    use tower::ServiceExt;
+    let response = s
+        .router()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/tags/{id}/document"))
+                .header("x-locus-run", &s.state.run_id)
+                .header("authorization", format!("Bearer {}", s.state.credential))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let status = response.status().as_u16();
+    let value =
+        serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap();
+    (status, value)
+}
+async fn markdown_http(
+    s: &Server,
+    request_id: &str,
+    change: &TagChange,
+) -> (u16, serde_json::Value) {
+    use axum::{
+        body::{Body, to_bytes},
+        http::Request,
+    };
+    use tower::ServiceExt;
+    let response = s
+        .router()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/tags")
+                .header("x-locus-run", &s.state.run_id)
+                .header("authorization", format!("Bearer {}", s.state.credential))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"request_id": request_id, "change": change}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let status = response.status().as_u16();
+    let value =
+        serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap();
+    (status, value)
+}
+#[tokio::test(flavor = "multi_thread")]
+async fn tag_document_http_save_guards_recovery_validation_and_restart() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+    let root = tempfile::tempdir().unwrap();
+    let s = app(root.path()).await;
+    let tag = create(&s, "document").await;
+    for (auth, run, expected) in [(false, true, 401), (true, false, 409)] {
+        let mut request = Request::builder()
+            .uri(format!("/api/v1/tags/{}/document", tag.id))
+            .header(
+                "x-locus-run",
+                if run {
+                    s.state.run_id.as_str()
+                } else {
+                    "wrong"
+                },
+            );
+        if auth {
+            request = request.header("authorization", format!("Bearer {}", s.state.credential));
+        }
+        assert_eq!(
+            s.router()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap()
+                .status()
+                .as_u16(),
+            expected
+        );
+    }
+    let (status, document) = document_http(&s, &tag.id).await;
+    assert_eq!(status, 200);
+    assert_eq!(document, serde_json::json!({"tag": tag, "markdown": ""}));
+    let markdown = "  # 中文\r\n\n- item\n\n```\ncode\n```\n  ";
+    let change = TagChange::Markdown {
+        id: tag.id.clone(),
+        revision: tag.revision.clone(),
+        markdown: markdown.into(),
+    };
+    let request = uuid::Uuid::now_v7().to_string();
+    let (status, outcome) = markdown_http(&s, &request, &change).await;
+    assert_eq!(status, 200);
+    let MutationOutcome::TagSaved { tag: saved } = serde_json::from_value(outcome.clone()).unwrap()
+    else {
+        panic!("{outcome}")
+    };
+    assert_ne!(saved.revision, tag.revision);
+    assert_eq!(
+        markdown_http(&s, &request, &change).await,
+        (200, outcome.clone())
+    );
+    let different = TagChange::Markdown {
+        id: tag.id.clone(),
+        revision: tag.revision.clone(),
+        markdown: "different request body".into(),
+    };
+    assert_eq!(markdown_http(&s, &request, &different).await.0, 409);
+    assert_eq!(
+        s.state.submission(&request).unwrap(),
+        Submission::DirectComplete {
+            outcome: serde_json::from_value(outcome).unwrap()
+        }
+    );
+    assert_eq!(
+        document_http(&s, &tag.id).await.1,
+        serde_json::json!({"tag": saved, "markdown": markdown})
+    );
+    let unchanged = TagChange::Markdown {
+        id: tag.id.clone(),
+        revision: saved.revision.clone(),
+        markdown: markdown.into(),
+    };
+    let (status, unchanged_result) =
+        markdown_http(&s, &uuid::Uuid::now_v7().to_string(), &unchanged).await;
+    assert_eq!(status, 200);
+    assert_eq!(unchanged_result["tag"]["revision"], saved.revision);
+    let (_, stale) = markdown_http(&s, &uuid::Uuid::now_v7().to_string(), &change).await;
+    assert_eq!(stale["reason"], "conflict");
+    assert_eq!(stale["uncertain"], false);
+    let invalid = TagChange::Markdown {
+        id: "invalid".into(),
+        revision: saved.revision.clone(),
+        markdown: markdown.into(),
+    };
+    assert_eq!(
+        markdown_http(&s, &uuid::Uuid::now_v7().to_string(), &invalid)
+            .await
+            .0,
+        400
+    );
+    let invalid_revision = TagChange::Markdown {
+        id: tag.id.clone(),
+        revision: "invalid".into(),
+        markdown: markdown.into(),
+    };
+    assert_eq!(
+        markdown_http(&s, &uuid::Uuid::now_v7().to_string(), &invalid_revision)
+            .await
+            .0,
+        400
+    );
+    assert_eq!(document_http(&s, "invalid").await.0, 400);
+    assert_eq!(
+        document_http(&s, &uuid::Uuid::now_v7().to_string()).await.0,
+        404
+    );
+    s.close_admission();
+    s.state.wait_drained().await;
+    drop(s);
+    let s = app(root.path()).await;
+    assert_eq!(
+        document_http(&s, &tag.id).await.1,
+        serde_json::json!({"tag": saved, "markdown": markdown})
+    );
+    write(
+        &s,
+        TagChange::Delete {
+            id: tag.id.clone(),
+            revision: saved.revision,
+        },
+    )
+    .await;
+    assert_eq!(document_http(&s, &tag.id).await.0, 404);
+    let (_, missing) = markdown_http(&s, &uuid::Uuid::now_v7().to_string(), &unchanged).await;
+    assert_eq!(missing["reason"], "missing_tag");
+    s.close_admission();
+    s.state.wait_drained().await;
+}
 async fn ids(s: &Server, source: &str) -> Vec<u8> {
     s.state
         .search

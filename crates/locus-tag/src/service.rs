@@ -3,6 +3,7 @@ use crate::{
     identity::{TAG_SET_KIND, TagId},
     persistence,
     record::{TagRecord, TagSetRecord},
+    view::TagDocument,
 };
 use diesel::{
     sql_query,
@@ -27,6 +28,32 @@ impl TagService {
     }
     pub async fn read_in(c: &mut Context, id: TagId) -> Result<TagRecord, TagError> {
         persistence::read(c, id).await
+    }
+    pub async fn read_document_in(c: &mut Context, id: TagId) -> Result<TagDocument, TagError> {
+        persistence::document(c, id).await
+    }
+    pub async fn save_markdown_in(
+        c: &mut Context,
+        id: TagId,
+        revision: &str,
+        markdown: &str,
+    ) -> Result<TagRecord, TagError> {
+        let document = persistence::document(c, id).await?;
+        let mut tag = document.tag;
+        if tag.revision != revision {
+            return Err(TagError::Conflict);
+        }
+        if document.markdown == markdown {
+            return Ok(tag);
+        }
+        tag.revision = uuid::Uuid::now_v7().to_string();
+        sql_query("UPDATE locus_tag_comm_tag SET markdown=?,revision=? WHERE id=?")
+            .bind::<Text, _>(markdown)
+            .bind::<Text, _>(&tag.revision)
+            .bind::<Binary, _>(id.as_bytes().as_slice())
+            .execute(c.connection())
+            .await?;
+        Ok(tag)
     }
     pub async fn read_set_in(c: &mut Context, id: ComponentId) -> Result<TagSetRecord, TagError> {
         Ok(TagSetRecord {

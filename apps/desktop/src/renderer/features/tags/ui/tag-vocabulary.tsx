@@ -75,12 +75,14 @@ export function TagVocabulary({
   filter,
   onSelect,
   onContent,
+  onActivate,
 }: {
   coordinator: TagCoordinator
   browsing: TagBrowsing
   filter: FilterCoordinator
   onSelect: (id: string) => void
   onContent: () => void
+  onActivate: (id: string) => void
 }) {
   useSyncExternalStore(c.subscribe, c.snapshot)
   useSyncExternalStore(b.subscribe, b.snapshot)
@@ -269,6 +271,7 @@ export function TagVocabulary({
             forest={forest}
             browsing={b}
             onSelect={onSelect}
+            onActivate={onActivate}
             onEdit={start}
             blocked={blocked || retained}
           />
@@ -277,6 +280,7 @@ export function TagVocabulary({
             forest={forest}
             browsing={b}
             onSelect={onSelect}
+            onActivate={onActivate}
             onCreate={() => start("create")}
             onEdit={start}
             blocked={blocked || retained}

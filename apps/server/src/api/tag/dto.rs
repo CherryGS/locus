@@ -18,6 +18,19 @@ impl From<locus_tag::api::TagRecord> for TagRecord {
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct TagDocument {
+    pub tag: TagRecord,
+    pub markdown: String,
+}
+impl From<locus_tag::api::TagDocument> for TagDocument {
+    fn from(document: locus_tag::api::TagDocument) -> Self {
+        Self {
+            tag: document.tag.into(),
+            markdown: document.markdown,
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct TagSetRecord {
     pub component_id: String,
     pub tags: Vec<TagRecord>,
@@ -56,6 +69,11 @@ pub enum TagChange {
     Delete {
         id: String,
         revision: String,
+    },
+    Markdown {
+        id: String,
+        revision: String,
+        markdown: String,
     },
     Add {
         entity_id: String,

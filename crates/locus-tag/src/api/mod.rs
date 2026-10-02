@@ -4,3 +4,4 @@ pub use crate::owner::TagSetOwner;
 pub use crate::query::TagQueryProvider;
 pub use crate::record::{TagRecord, TagSetRecord};
 pub use crate::service::TagService;
+pub use crate::view::TagDocument;

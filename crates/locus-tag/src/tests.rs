@@ -20,6 +20,115 @@ async fn setup() -> (tempfile::TempDir, Session, Kernel) {
     k.register(Arc::new(TagSetOwner)).unwrap();
     (dir, s, k)
 }
+#[tokio::test(flavor = "multi_thread")]
+async fn markdown_is_verbatim_guarded_retained_and_deleted_with_its_tag() {
+    let (dir, mut s, k) = setup().await;
+    let (parent, child, entity, markdown) = s
+        .transaction(move |c| {
+            Box::pin(async move {
+                let root = TagService::create_in(c, "root").await?;
+                let child = TagService::create_under_in(c, "child", Some(root.id)).await?;
+                assert_eq!(
+                    TagService::read_document_in(c, child.id).await?.markdown,
+                    ""
+                );
+                assert!(matches!(
+                    TagService::read_document_in(c, TagId::new()).await,
+                    Err(TagError::MissingTag)
+                ));
+                let entity = k.create_entity_in(c).await?;
+                TagService::add_in(&k, c, entity, child.id).await?;
+                let before_journal = count(c, "locus_search_comm_invalidation").await;
+                let markdown =
+                    "  # 中文\r\n\r\n| a | b |\n| - | - |\n\n```rust\nlet x = 1;\n```\n\n  "
+                        .to_owned();
+                let saved =
+                    TagService::save_markdown_in(c, child.id, &child.revision, &markdown).await?;
+                assert_ne!(saved.revision, child.revision);
+                assert_eq!(saved.id, child.id);
+                assert_eq!(saved.name, child.name);
+                assert_eq!(saved.parent, child.parent);
+                assert_eq!(
+                    TagService::read_document_in(c, child.id).await?.markdown,
+                    markdown
+                );
+                assert_eq!(
+                    TagService::save_markdown_in(c, child.id, &saved.revision, &markdown).await?,
+                    saved
+                );
+                assert!(matches!(
+                    TagService::save_markdown_in(c, child.id, &child.revision, &markdown).await,
+                    Err(TagError::Conflict)
+                ));
+                assert_eq!(
+                    count(c, "locus_search_comm_invalidation").await,
+                    before_journal
+                );
+                assert_eq!(
+                    TagService::entity_in(&k, c, entity).await?.unwrap().tags[0],
+                    saved
+                );
+                let renamed =
+                    TagService::rename_in(c, child.id, &saved.revision, "renamed").await?;
+                assert!(matches!(
+                    TagService::save_markdown_in(c, child.id, &saved.revision, "obsolete").await,
+                    Err(TagError::Conflict)
+                ));
+                let other = TagService::create_in(c, "other").await?;
+                let moved =
+                    TagService::move_in(c, child.id, &renamed.revision, Some(other.id)).await?;
+                assert!(matches!(
+                    TagService::save_markdown_in(c, child.id, &renamed.revision, "obsolete").await,
+                    Err(TagError::Conflict)
+                ));
+                let parent =
+                    TagService::save_markdown_in(c, other.id, &other.revision, "parent document")
+                        .await?;
+                assert_eq!(
+                    TagService::read_document_in(c, child.id).await?.markdown,
+                    markdown
+                );
+                Ok::<_, TagError>((parent, moved, entity, markdown))
+            })
+        })
+        .await
+        .unwrap();
+    drop(s);
+    let mut s = Session::open(dir.path().join("metadata.sqlite"))
+        .await
+        .unwrap();
+    s.transaction(move |c| {
+        Box::pin(async move {
+            let document = TagService::read_document_in(c, child.id).await?;
+            assert_eq!(document.tag, child);
+            assert_eq!(document.markdown, markdown);
+            TagService::delete_in(c, parent.id, &parent.revision).await?;
+            assert!(matches!(
+                TagService::read_document_in(c, parent.id).await,
+                Err(TagError::MissingTag)
+            ));
+            assert!(matches!(
+                TagService::save_markdown_in(c, parent.id, &parent.revision, "revive").await,
+                Err(TagError::MissingTag)
+            ));
+            let surviving = TagService::read_document_in(c, child.id).await?;
+            assert_eq!(surviving.markdown, markdown);
+            assert_eq!(surviving.tag.parent, None);
+            assert_ne!(surviving.tag.revision, child.revision);
+            let k = Kernel::new();
+            assert!(k.entity_exists_in(c, entity).await?);
+            TagService::delete_in(c, child.id, &surviving.tag.revision).await?;
+            assert!(matches!(
+                TagService::read_document_in(c, child.id).await,
+                Err(TagError::MissingTag)
+            ));
+            assert_eq!(count(c, "locus_tag_rela_assignment").await, 0);
+            Ok::<_, TagError>(())
+        })
+    })
+    .await
+    .unwrap();
+}
 #[derive(QueryableByName)]
 struct Count {
     #[diesel(sql_type=BigInt)]

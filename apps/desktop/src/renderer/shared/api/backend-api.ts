@@ -67,6 +67,9 @@ function diagnosticDetail(value: unknown): string {
 }
 
 export class BackendApi {
+  async tagDocument(id: string) {
+    return result(await this.client.GET("/api/v1/tags/{id}/document", { params: { path: { id } } }))
+  }
   async tags() {
     return result(await this.client.GET("/api/v1/tags"))
   }

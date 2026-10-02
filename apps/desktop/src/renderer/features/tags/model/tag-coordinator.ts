@@ -8,6 +8,7 @@ export type TagAttempt = {
   message: string
   uncertain?: boolean
   recovering?: boolean
+  saved?: Wire<"TagRecord">
 }
 type TagApi = Pick<BackendApi, "tags" | "tagWrite" | "submission">
 /** One run owns frozen attempts independently of any editor's mount lifetime. */
@@ -120,7 +121,7 @@ export class TagCoordinator {
     const matches =
       outcome.status === "tag_saved"
         ? change.operation === "create" ||
-          ((change.operation === "rename" || change.operation === "move") && outcome.tag.id === change.id)
+          ((change.operation === "rename" || change.operation === "move" || change.operation === "markdown") && outcome.tag.id === change.id)
         : outcome.status === "tag_deleted"
           ? change.operation === "delete" && outcome.id === change.id
           : outcome.status === "tag_assignment"
@@ -145,6 +146,7 @@ export class TagCoordinator {
       }
     } else if (["tag_saved", "tag_deleted", "tag_assignment"].includes(outcome.status)) {
       attempt.state = "confirmed"
+      if (outcome.status === "tag_saved") attempt.saved = outcome.tag
       attempt.message =
         outcome.status === "tag_assignment" && !outcome.changed
           ? "Confirmed · already in this state"

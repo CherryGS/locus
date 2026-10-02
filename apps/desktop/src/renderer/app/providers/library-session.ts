@@ -6,7 +6,7 @@ import {
 } from "@/features/settings"
 import { SettingsNavigation } from "./settings-navigation"
 import { PlaybackCoordinator } from "@/features/video-playback"
-import { TagCoordinator, TagBrowsing } from "@/features/tags"
+import { TagCoordinator, TagBrowsing, TagDetails } from "@/features/tags"
 import { FilterCoordinator } from "@/features/entity-filter"
 import { BackendApi } from "@/shared/api"
 import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
@@ -53,6 +53,7 @@ export class LibrarySession extends DesktopSession {
   readonly reader: EntityReader
   readonly tags: TagCoordinator
   readonly tagBrowsing: TagBrowsing
+  readonly tagDetails: TagDetails
   readonly filter: FilterCoordinator
   mainDestination: import("@/pages/entity").EntityDestination = { mode: "grid", collectionId: "library" }
   readonly imports: ImportCoordinator
@@ -70,6 +71,8 @@ export class LibrarySession extends DesktopSession {
     )
     this.tags.host(initial.close.phase !== "idle")
     this.tagBrowsing = new TagBrowsing(this.api, this.tags)
+    this.tagDetails = new TagDetails(this.api, this.tags)
+    this.settingsPreparation.add(this.tagDetails)
     this.filter = new FilterCoordinator(this.api, () => this.reader.resultReplaced())
     this.civitai = new CivitaiCoordinator(this.api, (ids) => this.reader.knownEffects(ids))
     this.civitai.host(initial)
@@ -96,6 +99,7 @@ export class LibrarySession extends DesktopSession {
         this.filter.dispose()
         this.tags.dispose()
         this.tagBrowsing.dispose()
+        this.tagDetails.lost("The backend connection ended. Document text has not been confirmed saved.")
         this.tasks.dispose()
       }
     })
@@ -115,6 +119,7 @@ export class LibrarySession extends DesktopSession {
     this.filter.dispose()
     this.tags.dispose()
     this.tagBrowsing.dispose()
+    this.tagDetails.dispose()
     this.imports.dispose()
     this.unobserveImports()
     this.civitai.dispose()

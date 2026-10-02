@@ -66,6 +66,19 @@ impl Shared {
         })
         .await
     }
+    pub async fn tag_document(self: &Arc<Self>, id: TagId) -> Result<TagDocument, ApiError> {
+        let db = self.business()?.database.clone();
+        self.query("Read Tag document", move |task| async move {
+            let mut s = db.session(&task).await.map_err(|e| failure(e.into()))?;
+            s.transaction(move |c| {
+                Box::pin(async move { TagService::read_document_in(c, id).await })
+            })
+            .await
+            .map(Into::into)
+            .map_err(failure)
+        })
+        .await
+    }
     pub async fn entity_tags(self: &Arc<Self>, id: EntityId) -> Result<EntityTags, ApiError> {
         let d = self.business()?.clone();
         self.query("Read Entity Tags", move |task| async move {
@@ -136,6 +149,20 @@ impl Shared {
                                     TagService::delete_in(c, tag(&id)?, &revision).await?;
                                     MutationOutcome::TagDeleted { id }
                                 }
+                                TagChange::Markdown {
+                                    id,
+                                    revision,
+                                    markdown,
+                                } => MutationOutcome::TagSaved {
+                                    tag: TagService::save_markdown_in(
+                                        c,
+                                        tag(&id)?,
+                                        &revision,
+                                        &markdown,
+                                    )
+                                    .await?
+                                    .into(),
+                                },
                                 TagChange::Add { entity_id, tag_id } => {
                                     let changed = TagService::add_in(
                                         &d.kernel,
