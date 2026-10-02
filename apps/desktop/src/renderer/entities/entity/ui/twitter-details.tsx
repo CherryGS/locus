@@ -112,7 +112,7 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
       {snapshot && (
         <>
           <Separator />
-          <DetailSection title="Capture context" collapsible>
+          <DetailSection title="Capture context">
             <dl>
               <Detail label="Requested URL">
                 <SourceLink url={snapshot.requested_url ?? undefined} />
@@ -125,8 +125,6 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
           <Separator />
           <DetailSection
             title="Occurrence claims"
-            collapsible
-            summary={snapshot.occurrence == null ? "Not captured" : "Saved source-reported occurrence"}
           >
             <dl>
               <Detail label="Platform media ID">
@@ -144,8 +142,6 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
           <Separator />
           <DetailSection
             title="Selected representation"
-            collapsible
-            summary={snapshot.representation == null ? "Not captured" : "Saved source-reported claims"}
           >
             <dl>
               <Detail label="URL">
@@ -157,8 +153,6 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
           <Separator />
           <DetailSection
             title="Remote preview"
-            collapsible
-            summary={snapshot.preview == null ? "Not captured" : "Saved descriptive capture"}
           >
             <dl>
               <Detail label="URL">
@@ -173,7 +167,7 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
         </>
       )}
       <Separator />
-      <DetailSection title="Association identifiers" collapsible>
+      <DetailSection title="Association identifiers">
         <dl>
           <Detail label="Captured File">
             {component.record?.basis ? (
@@ -185,7 +179,7 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
         </dl>
       </DetailSection>
       <Separator />
-      <DetailSection title="Source identifiers" collapsible>
+      <DetailSection title="Source identifiers">
         <dl>
           <Detail label="Post ID">
             {component.postId ? (

@@ -194,7 +194,6 @@ export function EntityWorkspace({
                         <DetailSection
                           key={activePanel.identity.value}
                           title={activePanel.identity.label}
-                          collapsible
                         >
                           <CopyIdentityButton {...activePanel.identity} />
                         </DetailSection>

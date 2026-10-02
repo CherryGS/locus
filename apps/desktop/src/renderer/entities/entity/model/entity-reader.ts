@@ -27,9 +27,11 @@ type Entry = {
   coverRetry?: boolean
   membershipObserved: boolean
   epoch: number
+  tagVersion: number
+  tagsDirty: boolean
 }
 type ReadApi = Pick<BackendApi, "memberships" | "file" | "media" | "twitter" | "model"> &
-  Partial<Pick<BackendApi, "civitai" | "bilibili" | "tagSet">> &
+  Partial<Pick<BackendApi, "civitai" | "bilibili" | "tagSet" | "entityTags">> &
   Partial<Pick<BackendApi, "previewBytes" | "savedPreview">>
 
 export class EntityReader {
@@ -45,6 +47,7 @@ export class EntityReader {
   private active = 0
   private jobs: { id: string; entry: Entry; run: () => Promise<void> }[] = []
   private membershipBusy = false
+  private tagReads = new Map<string, Promise<void>>()
   private nextRead?: {
     ids: string[]
     done: () => void
@@ -160,6 +163,7 @@ export class EntityReader {
             (id) => !this.entries.has(id) || this.entries.get(id)!.epoch !== this.contentEpoch,
           ),
         )
+        for (const id of this.needed) void this.refreshTags(id)
       })
     }
   }
@@ -194,7 +198,75 @@ export class EntityReader {
     if (visible.length) void this.read([...new Set(visible)], true)
   }
   tagEffects(ids?: string[]) {
-    this.knownEffects(ids ?? [...this.entries.keys()])
+    const affected = ids ?? [...this.entries.keys()]
+    if (!this.api.entityTags) {
+      this.knownEffects(affected)
+      return
+    }
+    for (const id of affected) {
+      const entry = this.entries.get(id)
+      if (entry) {
+        entry.tagVersion++
+        entry.tagsDirty = true
+      }
+    }
+    return Promise.all(affected.filter((id) => this.needed.has(id)).map((id) => this.refreshTags(id))).then(() => {})
+  }
+  private async refreshTags(id: string): Promise<void> {
+    if (!this.api.entityTags) return
+    const active = this.tagReads.get(id)
+    if (active) {
+      await active
+      return this.refreshTags(id)
+    }
+    if (!this.needed.has(id) || !this.entries.get(id)?.tagsDirty) return
+    const work = Promise.resolve().then(async () => {
+      for (;;) {
+        const entry = this.entries.get(id)
+        if (!entry?.tagsDirty || !this.needed.has(id)) return
+        // A full observation owns its component list until settled. Never let
+        // its older Tag result overwrite a later acknowledged assignment.
+        if (entry.pending) {
+          await new Promise<void>((resolve) => {
+            const unsubscribe = this.subscribe(() => {
+              if (this.entries.get(id)?.pending && this.needed.has(id)) return
+              unsubscribe()
+              resolve()
+            })
+          })
+          continue
+        }
+        const version = entry.tagVersion
+        const previous = entry.item.components.find((c) => c.kind === "tag")
+        try {
+          const result = await this.api.entityTags!(id)
+          if (this.entries.get(id) !== entry || entry.tagVersion !== version) continue
+          if (result.entity_id !== id) throw new Error("Tag observation belongs to another Entity.")
+          const next = result.tag_set ? tagProjection(result.tag_set) : undefined
+          // Preserve unrelated component objects, loading state and resource
+          // lifetimes. A Tag update must not restart the inspector's other reads.
+          entry.item = {
+            ...entry.item,
+            components: previous
+              ? entry.item.components.flatMap((c) => c.kind === "tag" ? next ? [next] : [] : [c])
+              : [...entry.item.components, ...(next ? [next] : [])],
+          }
+          this.replaceProblems(entry, "tags:read", [])
+          if (previous) this.replaceProblems(entry, `${previous.id}:`, [])
+        } catch (error) {
+          if (this.entries.get(id) !== entry || entry.tagVersion !== version) continue
+          this.replaceProblems(entry, "tags:read", [{
+            key: "tags:read", subject: "Personal tags", message: errorText(error),
+            previous: true, recovery: "entity",
+          }])
+        }
+        entry.tagsDirty = false
+        this.changed()
+        return
+      }
+    })
+    this.tagReads.set(id, work)
+    try { await work } finally { this.tagReads.delete(id) }
   }
   knownEffects(ids: string[]) {
     const changed = new Set(ids)
@@ -272,6 +344,8 @@ export class EntityReader {
         membershipObserved: old?.membershipObserved ?? false,
         coverRetry: old?.coverRetry,
         epoch: this.contentEpoch,
+        tagVersion: old?.tagVersion ?? 0,
+        tagsDirty: old?.tagsDirty ?? false,
       }
       this.entries.set(id, entry)
       return { id, entry }
@@ -684,9 +758,11 @@ export class EntityReader {
     }
   }
   private prune() {
+    let removed = false
     for (const [id, entry] of this.entries) {
       if (!this.needed.has(id) && (entry.pending || this.entries.size > this.capacity)) {
         this.entries.delete(id)
+        removed = true
         for (const [key, url] of this.previewUrls)
           if (key.startsWith(`${id}:`)) {
             URL.revokeObjectURL(url)
@@ -695,5 +771,6 @@ export class EntityReader {
       }
     }
     this.jobs = this.jobs.filter((job) => this.entries.get(job.id) === job.entry)
+    if (removed) this.changed()
   }
 }

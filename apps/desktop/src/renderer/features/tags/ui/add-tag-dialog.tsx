@@ -60,7 +60,7 @@ export function AddTagDialog({
     }
   }
   const pending = new Set([...attempts].filter(([, group]) =>
-    group.some((attempt) => attempt.state === "pending" || attempt.state === "unconfirmed"),
+    group.some((attempt) => attempt.state === "pending" || attempt.state === "unconfirmed" || attempt.observing),
   ).map(([id]) => id))
   const visibleIds = new Set<string>()
   const visible = [...choices]
@@ -175,8 +175,8 @@ function TagChoice({ tag, state: s }: { tag: Tag; state: ChoiceState }) {
             <span className="truncate">{tag.name}</span>
           </div>
         )}
-        <Toggle variant="outline" className="shrink-0" pressed={added} disabled={s.disabled || pending}
-          aria-label={label} title={label} aria-busy={pending}
+        <Toggle variant="outline" className="shrink-0" pressed={added} disabled={s.disabled}
+          aria-label={label} title={label} aria-busy={pending} aria-disabled={s.disabled || pending}
           onPressedChange={(value) => s.toggle(tag, value)}>
           {pending ? <Spinner /> : added ? <CheckIcon /> : <PlusIcon />}
         </Toggle>

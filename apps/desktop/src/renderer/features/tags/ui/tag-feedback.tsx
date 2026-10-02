@@ -8,13 +8,15 @@ export function TagFeedback({
   attempts,
   retainAssignmentFailures = false,
   showConfirmed = true,
+  showPending = true,
 }: {
   coordinator: TagCoordinator
   attempts: TagAttempt[]
   retainAssignmentFailures?: boolean
   showConfirmed?: boolean
+  showPending?: boolean
 }) {
-  const unresolved = attempts.filter((a) => a.state === "pending" || a.state === "unconfirmed")
+  const unresolved = attempts.filter((a) => (showPending && a.state === "pending") || a.state === "unconfirmed")
   const latest = attempts.filter((a) => a.state === "failed" || a.state === "confirmed").at(-1)
   const failures = retainAssignmentFailures ? latestAssignmentAttempts(attempts).filter((attempt) => attempt.state === "failed") : []
   const shown = [...unresolved, ...failures, ...(latest && !failures.includes(latest) && (showConfirmed || latest.state !== "confirmed") ? [latest] : [])]

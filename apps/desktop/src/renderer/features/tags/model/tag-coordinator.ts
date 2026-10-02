@@ -8,6 +8,7 @@ export type TagAttempt = {
   message: string
   uncertain?: boolean
   recovering?: boolean
+  observing?: boolean
   saved?: Wire<"TagRecord">
 }
 type TagApi = Pick<BackendApi, "tags" | "tagWrite" | "submission">
@@ -31,7 +32,7 @@ export class TagCoordinator {
   constructor(
     private readonly api: TagApi,
     readonly run: string,
-    private readonly invalidate: (ids?: string[]) => void,
+    private readonly invalidate: (ids?: string[]) => void | Promise<void>,
   ) {}
   private changed() {
     if (!this.disposed) {
@@ -95,8 +96,10 @@ export class TagCoordinator {
       message: "Saving…",
     }
     // Reads begun before this write intent cannot supersede its later observation.
-    this.generation++
-    this.loading = false
+    if (change.operation !== "add" && change.operation !== "remove") {
+      this.generation++
+      this.loading = false
+    }
     this.attempts.push(attempt)
     this.changed()
     try {
@@ -151,8 +154,15 @@ export class TagCoordinator {
         outcome.status === "tag_assignment" && !outcome.changed
           ? "Confirmed · already in this state"
           : "Confirmed · saved"
-      this.invalidate("entity_id" in attempt.change ? [attempt.change.entity_id] : undefined)
-      void this.read()
+      attempt.observing = true
+      void Promise.resolve(this.invalidate("entity_id" in attempt.change ? [attempt.change.entity_id] : undefined))
+        .finally(() => {
+          attempt.observing = false
+          this.changed()
+        })
+      // Assignments do not change vocabulary. Keep the chooser's current tree
+      // and search results mounted instead of reloading it after every click.
+      if (outcome.status !== "tag_assignment") void this.read()
     } else {
       attempt.state = "unconfirmed"
       attempt.message = "Completion did not supply a Tag outcome. Recover the original request."

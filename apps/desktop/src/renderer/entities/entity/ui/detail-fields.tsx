@@ -1,7 +1,4 @@
 import type { ReactNode } from "react"
-import { ChevronRightIcon } from "lucide-react"
-import { Button } from "@/shared/ui/button"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/ui/collapsible"
 import { CopyIdentityButton } from "@/shared/ui/copy-identity-button"
 import { formatDurationMilliseconds, unixMillisecondsIso } from "../lib/format-metadata"
 
@@ -19,49 +16,16 @@ export function Detail({ label, children }: { label: string; children: ReactNode
 export function DetailSection({
   title,
   children,
-  collapsible = false,
-  summary,
 }: {
   title: string
   children: ReactNode
-  collapsible?: boolean
-  summary?: ReactNode
 }) {
   return (
     <section aria-label={title} className="@container/detail flex min-w-0 flex-col gap-3 px-4 py-4">
-      {collapsible ? (
-        <Collapsible>
-          <h3>
-            <CollapsibleTrigger
-              render={
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-auto w-full justify-start whitespace-normal px-0 py-0 text-left"
-                />
-              }
-              className="group"
-            >
-              <ChevronRightIcon
-                data-icon="inline-start"
-                className="shrink-0 group-data-open:rotate-90"
-              />
-              <span className="min-w-0 flex-1">{title}</span>
-            </CollapsibleTrigger>
-          </h3>
-          {summary && <p className="mt-2 text-xs text-muted-foreground">{summary}</p>}
-          <CollapsibleContent>
-            <div className="flex min-w-0 flex-col gap-3 pt-3">{children}</div>
-          </CollapsibleContent>
-        </Collapsible>
-      ) : (
-        <>
-          <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            {title}
-          </h3>
-          {children}
-        </>
-      )}
+      <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        {title}
+      </h3>
+      {children}
     </section>
   )
 }

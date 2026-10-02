@@ -39,7 +39,7 @@ export function CopyIdentityButton({ label, value }: { label: string; value: str
         onClick={copy}
       >
         <code className="min-w-0 flex-1 break-all text-left font-mono text-muted-foreground">
-          {status === "copied" ? "Copied" : status === "failed" ? "Copy failed" : value}
+          {value}
         </code>
         {status === "copied" ? <CheckIcon data-icon="inline-end" /> : <CopyIcon data-icon="inline-end" />}
       </Button>

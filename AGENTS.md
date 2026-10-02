@@ -1,6 +1,7 @@
 ## Routed rules
 
 - Before changing production code, tests, manifests, dependencies, generated layout, or source ownership, read `rules/implementation.md`.
+- Before changing UI presentation, interaction, or asynchronous UI state, also read `rules/ui.md`.
 
 ## Git conventions
 

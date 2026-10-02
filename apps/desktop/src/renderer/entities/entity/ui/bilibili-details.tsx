@@ -88,7 +88,7 @@ export function BilibiliDetails({
           {component.cover?.message && <Detail label="Cover problem">{component.cover.message}</Detail>}
         </dl>
       </DetailSection>
-      <DetailSection title="Capture details" collapsible>
+      <DetailSection title="Capture details">
         <dl>
           {showIdentity && (
             <Detail label="Component">
@@ -116,7 +116,7 @@ export function BilibiliDetails({
         </dl>
         <p className="text-xs text-muted-foreground">Part claims were reported by the source.</p>
       </DetailSection>
-      <DetailSection title="Association identifiers" collapsible>
+      <DetailSection title="Association identifiers">
         <dl>
           <Detail label="Accepted File">
             {r.basis ? <DetailIdentifier label="Accepted File" value={r.basis} /> : "Unassociated"}
@@ -153,8 +153,6 @@ export function BilibiliDetails({
       </DetailSection>
       <DetailSection
         title="Selected representation"
-        collapsible
-        summary={s.representation == null ? "Not captured" : "Saved source-reported claims"}
       >
         <dl>
           <Detail label="URL">
@@ -168,8 +166,6 @@ export function BilibiliDetails({
       </DetailSection>
       <DetailSection
         title="Remote preview"
-        collapsible
-        summary={s.preview == null ? "Not captured" : "Saved descriptive capture"}
       >
         <dl>
           <Detail label="URL">

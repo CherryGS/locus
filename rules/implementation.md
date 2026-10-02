@@ -42,6 +42,7 @@ Use Just recipes rather than raw Cargo commands. The root `justfile` owns their 
 
 ## General rules
 
+- UI changes also follow `rules/ui.md`, including information visibility and stable updates.
 - For UI appearance and usability polish, iterate directly in the application with proportionate verification. Do not start the design/implementation planning, subagent review, or separate acceptance gates unless the user explicitly requests that workflow.
 - Iterate user-facing UI in the actual application by default, using its real renderer and behavior. Use isolated libraries for verification; create a separate mock UI only when the user explicitly asks for one.
 - Verify renderer UI in an isolated in-app browser or a headless browser by default, using `just desktop-ui`. Avoid taking over the user's desktop pointer or focus for browser-testable behavior. Reserve native desktop automation for concrete Electron/OS integration checks and explain the need before using it.

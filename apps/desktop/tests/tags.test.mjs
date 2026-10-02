@@ -9,6 +9,23 @@ const deferred = () => {
   })
   return { promise, resolve, reject }
 }
+test("assignment observation stays local and keeps only its pair busy until the refresh completes", async () => {
+  const { tagPairBusy } = await import("../src/renderer/features/tags/model/entity-tag-observation.ts")
+  const held = deferred()
+  let vocabularyReads = 0
+  const c = new TagCoordinator({
+    tags: async () => { vocabularyReads++; return [] },
+    tagWrite: async () => ({ status: "tag_assignment", entity_id: "a", tag_id: "tag", changed: true }),
+  }, "run", () => held.promise)
+  await c.write({ operation: "add", entity_id: "a", tag_id: "tag" }, "add")
+  assert.equal(c.attempts[0].state, "confirmed")
+  assert.equal(tagPairBusy(c.attempts, "a", "tag"), true)
+  assert.equal(tagPairBusy(c.attempts, "a", "other"), false)
+  assert.equal(vocabularyReads, 0)
+  held.resolve()
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(tagPairBusy(c.attempts, "a", "tag"), false)
+})
 test("lost delivery retains frozen subject/arguments across close and recovers original request", async () => {
   const lost = deferred(),
     effects = [],

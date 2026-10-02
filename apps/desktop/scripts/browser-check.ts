@@ -97,17 +97,13 @@ try {
   assert.equal(await panel.getAttribute("aria-label"), "Image")
   assert.equal(page.url(), inspectionUrl)
   assert.equal(await page.locator('[data-slot="entity-inspection"]').getAttribute("data-view-id"), mainView)
-  await panel.getByRole("button", { name: "Component ID", exact: true }).click()
+  assert.equal(await panel.getByRole("button", { name: "Component ID", exact: true }).count(), 0)
   assert.equal(await panel.getByRole("button", { name: "Copy component id", exact: true }).isVisible(), true)
-  await panel.getByRole("button", { name: "Observation details", exact: true }).click()
   await panel.getByText("Revision", { exact: true }).waitFor()
   await page.getByRole("button", { name: "File", exact: true }).click()
-  await panel.getByRole("button", { name: "Storage details", exact: true }).click()
   await panel.getByText("Exact size", { exact: true }).waitFor()
   await page.getByRole("button", { name: "Image", exact: true }).click()
-  await panel.getByRole("button", { name: "Observation details", exact: true }).click()
   await panel.getByText("Revision", { exact: true }).waitFor()
-  await panel.getByRole("button", { name: "Component ID", exact: true }).click()
   assert.equal(
     await panel.getByRole("button", { name: "Copy component id", exact: true }).isVisible(),
     true,
@@ -115,6 +111,8 @@ try {
   )
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
   await panel.getByRole("button", { name: "Copy component id", exact: true }).click()
+  assert.equal(await panel.getByRole("button", { name: "Copy component id", exact: true }).locator("code").innerText(),
+    data.images.find((image) => image.entityId === selected)!.componentId, "Copy feedback must keep the ID visible")
   assert.equal(
     await page.evaluate(() => navigator.clipboard.readText()),
     data.images.find((image) => image.entityId === selected)!.componentId,

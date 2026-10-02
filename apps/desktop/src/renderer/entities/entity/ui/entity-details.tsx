@@ -98,7 +98,7 @@ function ComponentDetailsContent({
           </dl>
         </DetailSection>
         <Separator />
-        <DetailSection title="Observation details" collapsible>
+        <DetailSection title="Observation details">
           <dl>
             {showIdentity && (
               <Detail label="Component">
@@ -144,7 +144,7 @@ function ComponentDetailsContent({
           </p>
         </DetailSection>
         <Separator />
-        <DetailSection title="Observation details" collapsible>
+        <DetailSection title="Observation details">
           <dl>
             {showIdentity && (
               <Detail label="Component">
@@ -271,7 +271,7 @@ function ComponentDetailsContent({
       {component.kind === "file" && (component.relativePath || component.bytes !== undefined) && (
         <>
           <Separator />
-          <DetailSection title="Storage details" collapsible>
+          <DetailSection title="Storage details">
             <dl>
               {component.bytes !== undefined && (
                 <Detail label="Exact size">{BigInt(component.bytes).toLocaleString()} bytes</Detail>
@@ -327,7 +327,7 @@ function ComponentDetailsContent({
               <Separator />
             </>
           )}
-          <DetailSection title="Observation details" collapsible>
+          <DetailSection title="Observation details">
             <dl>
               <Detail label="Revision">{record.revision}</Detail>
               <Detail label="Facts basis">
