@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from "react"
-import { BracesIcon, ChevronRightIcon, RefreshCwIcon, SearchIcon } from "lucide-react"
+import { ChevronRightIcon, RefreshCwIcon, SearchIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
@@ -54,6 +54,7 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
   const showList = fields || values.length > 0 || a.loading || a.error || a.bounds || a.continuation || a.helpError ||
     field?.assistance === "strings" && a.context?.kind === "value"
   const examples = field?.assistance === "bounds" ? a.help?.examples : a.help?.examples.slice(0, 1)
+  const showGuidance = !a.lookupAvailable || field?.field_type === "text" && a.context?.reference === field.native_value
   return (
     <Popover open={!!anchor && !!(a.context || a.error)} modal={false} onOpenChange={(_open, details) => {
       // The textarea/coordinator owns literal departure and direct actions.
@@ -83,10 +84,10 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
           if (!a.locked && !(event.relatedTarget as Element | null)?.closest('[data-filter-helper-interaction], #filter-source')) a.exit()
         }}
         onPointerDown={(event) => { if (!(event.target as Element).closest("input")) event.preventDefault() }}>
-        <div className="flex shrink-0 items-center gap-2 px-3 pt-2.5 pb-1">
+        <PopoverTitle className="sr-only">{fields ? "Field assistance" : "Value assistance"}</PopoverTitle>
+        {!fields && a.context?.reference && <div className="flex shrink-0 items-center gap-2 px-3 pt-2 pb-1">
           <div className="min-w-0 flex-1">
-            <PopoverTitle className="filter-assistance-title truncate">{fields ? "Choose a field" : a.lookupAvailable ? "Choose a value" : a.context?.reference || "Query help"}</PopoverTitle>
-            {!fields && a.lookupAvailable && a.context?.reference && <code className="filter-assistance-context block truncate">{a.context.reference}</code>}
+            <code className="filter-assistance-context block truncate">{a.context.reference}</code>
           </div>
           <div className="flex size-6 shrink-0 items-center justify-center">
             {a.editing || a.loading ? <Spinner aria-label="Updating suggestions" /> :
@@ -94,7 +95,7 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
                 aria-label="Refresh values" title="Refresh values" disabled={a.locked}
                 onClick={() => a.refresh()}><RefreshCwIcon /></Button>}
           </div>
-        </div>
+        </div>}
         {a.lookupAvailable && <FieldGroup className="shrink-0">
           <Field data-invalid={!!a.lookupError} className="gap-0">
             <FieldLabel htmlFor="filter-assistance-search" className="sr-only">{fields ? "Find fields with regex" : "Find values with regex"}</FieldLabel>
@@ -102,10 +103,13 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
               <InputGroupAddon><SearchIcon /></InputGroupAddon>
               <InputGroupInput id="filter-assistance-search" ref={lookup} value={a.lookupText} disabled={a.locked}
               aria-invalid={!!a.lookupError} aria-describedby={a.lookupError ? "filter-assistance-regex-error" : "filter-assistance-hint"}
-              placeholder={fields ? "Find a field… e.g. bilibili.*id" : "Find a value…"}
+              placeholder={fields ? "bilibili.*id" : "Value pattern…"}
               spellCheck={false} autoComplete="off" onFocus={() => { a.lookupFocused = true }}
               onBlur={() => { a.lookupFocused = false }} onChange={(event) => a.setLookup(event.target.value)} />
-              <InputGroupAddon align="inline-end"><Badge variant="ghost">Regex</Badge></InputGroupAddon>
+              <InputGroupAddon align="inline-end">
+                {fields && (a.editing || a.loading) && <Spinner aria-label="Updating suggestions" />}
+                <Badge variant="ghost">Regex</Badge>
+              </InputGroupAddon>
             </InputGroup>
             {a.lookupError && <FieldError id="filter-assistance-regex-error" className="px-3 pb-2">{a.lookupError}</FieldError>}
           </Field>
@@ -159,11 +163,11 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
         </ScrollArea>}
         {showList && <Separator />}
         {highlightedField && <section id="filter-field-example" className="filter-assistance-preview flex shrink-0 flex-col gap-1 px-3 py-2">
-          <span className="filter-assistance-meta flex items-center gap-1.5"><BracesIcon className="size-3" />Example</span>
+          <span className="sr-only">Example</span>
           <code className="line-clamp-2 break-all">{a.help?.reference === highlightedField.native_exact ? a.help.examples[0] : a.helpError ? "Example unavailable" : "Reading example…"}</code>
         </section>}
         {!fields && a.help && <section aria-label="Value syntax" className="filter-assistance-preview flex shrink-0 flex-col gap-1 px-3 py-2">
-          <p className="filter-assistance-meta">{a.help.guidance.split(/(?<=\.)\s/)[0]}</p>
+          {showGuidance && <p className="filter-assistance-meta">{a.help.guidance.split(/(?<=\.)\s/)[0]}</p>}
           {examples?.map((example) => <code key={example} className="break-all whitespace-pre-wrap">{example}</code>)}
         </section>}
         <p id="filter-assistance-hint" className="filter-assistance-shortcuts flex shrink-0 flex-wrap gap-x-3 gap-y-1 px-3 py-2">

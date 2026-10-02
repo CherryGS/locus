@@ -211,10 +211,6 @@ a, button, input, select, textarea {
 .filter-assistance-popup {
   border-radius: var(--radius-xl);
 }
-.filter-assistance-popup .filter-assistance-title {
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-}
 .filter-assistance-popup .filter-assistance-lookup {
   border: 0;
   border-radius: 0;
