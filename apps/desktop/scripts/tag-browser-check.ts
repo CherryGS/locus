@@ -421,7 +421,7 @@ try {
   }, kitten.id)
   assert(
     await page
-      .getByRole("heading", { name: "Kitten", exact: true })
+      .getByRole("button", { name: "Locate Kitten", exact: true })
       .evaluate((e) => e.clientWidth >= e.scrollWidth),
   )
   await page.screenshot({ path: join(output, "forest-narrow.png"), animations: "disabled" })

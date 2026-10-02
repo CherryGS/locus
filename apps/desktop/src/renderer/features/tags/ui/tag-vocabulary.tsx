@@ -14,7 +14,6 @@ import {
 import type { Wire } from "@/shared/api"
 import type { FilterCoordinator } from "@/features/entity-filter"
 import { Button } from "@/shared/ui/button"
-import { Badge } from "@/shared/ui/badge"
 import {
   InputGroup,
   InputGroupAddon,
@@ -91,6 +90,9 @@ export function TagVocabulary({
     breadcrumb = path.map((tag) => tag.name).join(" / ")
   const blocked = c.hostClosing || c.pending,
     retained = !!c.readError
+  const attempts = c.attempts.filter(
+    (a) => !("entity_id" in a.change) || a.state === "pending" || a.state === "unconfirmed",
+  )
   const excluded =
     editor?.operation === "move" && editor.record
       ? descendants(records, editor.record.id)
@@ -147,20 +149,9 @@ export function TagVocabulary({
   return (
     <section aria-label="Tags" className="flex h-full min-h-0 min-w-0 flex-col">
       <header className="flex shrink-0 flex-wrap items-center gap-3 px-5 py-4">
-        <div className="flex min-w-44 flex-1 items-center gap-3">
-          <EmptyMedia variant="icon" className="mb-0">
-            <FolderTreeIcon />
-          </EmptyMedia>
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold">Tags</h1>
-              {c.vocabulary && <Badge variant="outline">{records.length}</Badge>}
-              {c.loading && <Spinner aria-label="Reading tags" />}
-            </div>
-            <p className="truncate text-xs text-muted-foreground">
-              Explore and organize your vocabulary.
-            </p>
-          </div>
+        <div className="flex min-w-44 flex-1 items-center gap-2">
+          <h1 className="text-lg font-semibold">Tags</h1>
+          {c.loading && <Spinner aria-label="Reading tags" />}
         </div>
         <Field className="w-64 max-md:order-last max-md:w-full">
           <FieldLabel className="sr-only" htmlFor={`${prefix}-find`}>
@@ -224,17 +215,8 @@ export function TagVocabulary({
       >
         {selected ? (
           <>
-            <div className="flex min-w-48 flex-1 flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <h2
-                  className="truncate text-base font-semibold"
-                  title={`${selected.name} · ${selected.id}`}
-                >
-                  {selected.name}
-                </h2>
-                <Badge variant="secondary">{selected.parent ? "Child tag" : "Root tag"}</Badge>
-                {retained && <Badge variant="outline">Previous observation</Badge>}
-              </div>
+            <div className="min-w-48 flex-1">
+              <h2 className="sr-only">{selected.name}</h2>
               <nav aria-label="Tag path" className="min-w-0 overflow-x-auto" title={breadcrumb}>
                 <ol className="flex w-max items-center gap-1">
                   {path.map((tag, index) => (
@@ -341,11 +323,9 @@ export function TagVocabulary({
             <p className="text-sm font-medium">
               {b.tagId && c.vocabulary && !c.readError ? "Tag unavailable" : "Choose a tag"}
             </p>
-            <p className="text-xs text-muted-foreground">
-              {b.tagId && c.vocabulary && !c.readError
-                ? "Select another tag or refresh the vocabulary."
-                : "Select a tag to explore its children and manage this branch."}
-            </p>
+            {b.tagId && c.vocabulary && !c.readError && (
+              <p className="text-xs text-muted-foreground">Select another tag or refresh.</p>
+            )}
           </div>
         )}
       </div>
@@ -382,22 +362,14 @@ export function TagVocabulary({
           </EmptyHeader>
         </Empty>
       )}
-      <Separator />
-      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-5 py-2.5">
-        <p className="text-xs text-muted-foreground">
-          Child = direct children · Desc. = all descendants, excluding self
-        </p>
-        <p className="text-xs text-muted-foreground">Names are unique across the library</p>
-        <div className="w-full empty:hidden">
-          <TagFeedback
-            coordinator={c}
-            attempts={c.attempts.filter(
-              (a) =>
-                !("entity_id" in a.change) || a.state === "pending" || a.state === "unconfirmed",
-            )}
-          />
-        </div>
-      </footer>
+      {!!attempts.length && (
+        <>
+          <Separator />
+          <div className="shrink-0 px-5 py-2.5">
+            <TagFeedback coordinator={c} attempts={attempts} />
+          </div>
+        </>
+      )}
       <Dialog
         open={!!editor}
         onOpenChange={(open) => {

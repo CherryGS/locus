@@ -2,7 +2,6 @@ import { useId, useLayoutEffect, useRef } from "react"
 import { cn } from "@/shared/lib/utils"
 import { ChevronRightIcon, FolderTreeIcon, PlusIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
-import { Badge } from "@/shared/ui/badge"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Separator } from "@/shared/ui/separator"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
@@ -199,16 +198,10 @@ function TagColumn({
       aria-label={parent ? `Children of ${parent.name}` : "Root tags"}
       className="flex h-full w-72 shrink-0 flex-col border-r"
     >
-      <header className="flex h-16 shrink-0 items-center gap-2 px-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <p className="text-xs text-muted-foreground">
-            {parent ? `Level ${depth + 1}` : "Level 1"}
-          </p>
-          <p className="truncate text-sm font-medium" title={parent?.name}>
-            {parent?.name ?? "Root tags"}
-          </p>
-        </div>
-        <Badge variant="outline">{tags.length}</Badge>
+      <header className="flex h-12 shrink-0 items-center gap-2 px-4">
+        <p className="min-w-0 flex-1 truncate text-sm font-medium" title={parent?.name}>
+          {parent?.name ?? "Root tags"}
+        </p>
         <Button
           size="icon-xs"
           variant="ghost"
@@ -226,7 +219,7 @@ function TagColumn({
         aria-hidden="true"
         className="flex shrink-0 items-center gap-3 px-4 py-2 text-[10px] text-muted-foreground"
       >
-        <span className="flex-1">TAG</span>
+        <span className="flex-1" />
         <span className="w-8 text-right" title="Direct children">
           CHILD
         </span>
@@ -350,13 +343,7 @@ export function TagLookup({
     >
       <div className="mx-auto flex max-w-3xl flex-col gap-4 p-6">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">
-            {matches.length} matching {matches.length === 1 ? "tag" : "tags"} · select to reveal its
-            path
-          </p>
-          <Button variant="ghost" size="sm" onClick={() => b.find("")}>
-            Back to columns
-          </Button>
+          <p className="text-sm text-muted-foreground">{matches.length} results</p>
         </div>
         {matches.length ? (
           <div className="flex flex-col gap-1">
@@ -398,9 +385,7 @@ export function TagLookup({
                 <FolderTreeIcon />
               </EmptyMedia>
               <EmptyTitle>No matching tags</EmptyTitle>
-              <EmptyDescription>
-                Try another name. Your selected tag stays available.
-              </EmptyDescription>
+              <EmptyDescription>Try another name.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         )}
