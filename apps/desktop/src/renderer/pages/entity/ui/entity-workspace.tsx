@@ -28,6 +28,7 @@ export function EntityWorkspace({
   onReread,
   gridFeedback,
   personalTags,
+  notes,
   tagSummary,
 }: {
   componentFor: (entity: EntityItem) => EntityItem["components"][number]["kind"] | undefined
@@ -43,6 +44,7 @@ export function EntityWorkspace({
   onReread?: () => void
   gridFeedback?: ReactNode
   personalTags?: ReactNode
+  notes?: ReactNode
   tagSummary?: (onShowAll: () => void) => ReactNode
 }) {
   const [localBrowsing] = useState<EntityBrowsingState>({})
@@ -54,7 +56,10 @@ export function EntityWorkspace({
     redraw((value) => value + 1)
   }
   const panelTriggers = useRef(new Map<string, HTMLButtonElement>())
+  const panelContent = useRef<HTMLElement>(null)
+  const [revealTags, setRevealTags] = useState(0)
   const panels = entityPanels(selectedEntity, viewSelection, {
+    notes,
     feedback: overviewFeedback,
     onReread,
     onOpenComponent: (component) => {
@@ -66,16 +71,21 @@ export function EntityWorkspace({
   const missingPanel = activePanelId !== null && !panels.some((panel) => panel.id === activePanelId)
   const activePanel =
     activePanelId === null ? null : (panels.find((panel) => panel.id === activePanelId) ?? panels[0])
-  const [panelDefaultWidth, setPanelDefaultWidth] = useState(retained.panelWidth ?? 256)
+  const [panelDefaultWidth, setPanelDefaultWidth] = useState(retained.panelWidth ?? 320)
   // Keep the mounted split pane's default stable during a drag; restore its
   // last live width only when reopening it.
-  const lastPanelWidth = useRef(retained.panelWidth ?? 256)
+  const lastPanelWidth = useRef(retained.panelWidth ?? 320)
   const reduceMotion = useReducedMotion()
   const [civitaiPanelTarget, setCivitaiPanelTarget] = useState<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (missingPanel) setActivePanelId("overview")
   }, [missingPanel])
+
+  useEffect(() => {
+    if (revealTags && activePanel?.id === "overview")
+      panelContent.current?.querySelector('[aria-label="Personal tags"]')?.scrollIntoView({ block: "nearest" })
+  }, [revealTags])
 
   function togglePanel(id: EntityPanelId) {
     if (activePanel === null) setPanelDefaultWidth(lastPanelWidth.current)
@@ -105,7 +115,8 @@ export function EntityWorkspace({
               ? <div className="flex h-full min-h-0 min-w-0 flex-col">
                   {tagSummary?.(() => {
                     if (activePanel === null) setPanelDefaultWidth(lastPanelWidth.current)
-                    setActivePanelId("tag")
+                    setActivePanelId("overview")
+                    setRevealTags((value) => value + 1)
                   })}
                   <div className="flex min-h-0 flex-1 flex-col">{content}</div>
                 </div>
@@ -148,6 +159,7 @@ export function EntityWorkspace({
                 }}
               >
                 <motion.aside
+                  ref={panelContent}
                   id="auxiliary-panel"
                   aria-label={activePanel.label}
                   className="flex h-full min-h-0 flex-col bg-sidebar"

@@ -1,8 +1,9 @@
 import { useRef, useState } from "react"
 import { Link } from "@tanstack/react-router"
-import { PlusIcon, TagIcon, TagsIcon, XIcon } from "lucide-react"
+import { PlusIcon, Settings2Icon, XIcon } from "lucide-react"
 import { entityLabel, type EntityItem } from "@/entities/entity"
 import { Button, buttonVariants } from "@/shared/ui/button"
+import { Badge } from "@/shared/ui/badge"
 import { Spinner } from "@/shared/ui/spinner"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import type { TagCoordinator } from "../model/tag-coordinator"
@@ -21,40 +22,41 @@ export function EntityTagsEditor({ entity, coordinator: c, reread }: {
   const trigger = useRef<HTMLButtonElement>(null)
   const blocked = c.hostClosing || waiting || failed
   return (
-    <section className="flex min-w-0 flex-col gap-3 px-4 py-3" aria-label="Personal tags" data-entity-id={entity.id}>
+    <section className="flex min-w-0 flex-col gap-3 px-4 py-4" aria-label="Personal tags" data-entity-id={entity.id}>
       <div className="flex min-w-0 items-center gap-2">
-        <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-          {!waiting && !failed ? `${tags.length} assigned` : "Assignments"}
-        </p>
-        <Button ref={trigger} size="sm" variant="ghost" disabled={blocked} onClick={() => setOpen(true)}>
-          <PlusIcon data-icon="inline-start" />Add tags
-        </Button>
+        <h3 className="text-sm font-medium">Tags</h3>
+        {!waiting && !failed && <span className="text-xs tabular-nums text-muted-foreground">{tags.length}</span>}
+        <Link to="/tags" search={{}} aria-label="Manage tags" title="Manage tags"
+          className={buttonVariants({ size: "icon-xs", variant: "ghost", className: "ml-auto" })}>
+          <Settings2Icon />
+        </Link>
       </div>
       {waiting && <p className="flex items-center gap-2 text-xs text-muted-foreground"><Spinner />Reading tags…</p>}
       {failed && <Alert><AlertDescription>
         Tag metadata is unavailable{tags.length ? "; showing previous assignments" : ""}.
         <Button size="sm" variant="outline" onClick={reread}>Reread tags</Button>
       </AlertDescription></Alert>}
-      <ul aria-label="Assigned tags" className="flex min-w-0 flex-col gap-1">
+      <ul aria-label="Assigned tags" className="flex min-w-0 flex-wrap gap-1.5">
         {tags.map((tag) => (
-          <li key={tag.id} className="flex min-w-0 items-center gap-2 rounded-lg px-1 hover:bg-muted">
-            <TagIcon className="size-3.5 shrink-0 text-muted-foreground" />
+          <li key={tag.id} className="min-w-0 max-w-full">
+            <Badge variant="secondary" className="h-auto min-h-7 max-w-full gap-0.5 pl-2.5 pr-0.5">
             <Link to="/tag/$tagId" params={{ tagId: tag.id }} search={{}}
-              className="min-w-0 flex-1 truncate py-2 text-sm hover:underline" title={tag.name}>{tag.name}</Link>
+              className="min-w-0 truncate py-1 hover:underline" title={tag.name}>{tag.name}</Link>
             <Button size="icon-xs" variant="ghost" aria-label={`Remove ${tag.name} from this Entity`}
               disabled={blocked || tagPairBusy(attempts, entity.id, tag.id)}
               onClick={() => void c.write({ operation: "remove", entity_id: entity.id, tag_id: tag.id },
                 `Remove ${tag.name} from ${entityLabel(entity)}`)}>
-              <XIcon />
+              {tagPairBusy(attempts, entity.id, tag.id) ? <Spinner /> : <XIcon />}
             </Button>
+            </Badge>
           </li>
         ))}
       </ul>
       {!waiting && !failed && tags.length === 0 && <p className="text-sm text-muted-foreground">No personal tags assigned.</p>}
+      <Button ref={trigger} size="sm" variant="outline" className="w-full justify-start border-dashed" disabled={blocked} onClick={() => setOpen(true)}>
+        <PlusIcon data-icon="inline-start" />Add tags
+      </Button>
       <TagFeedback coordinator={c} attempts={attempts} retainAssignmentFailures />
-      <Link to="/tags" search={{}} className={buttonVariants({ size: "xs", variant: "ghost", className: "self-start" })}>
-        <TagsIcon data-icon="inline-start" />Manage tags
-      </Link>
       <AddTagDialog entity={entity} coordinator={c} assigned={tags} blocked={blocked}
         open={open} onOpenChange={setOpen} returnFocus={trigger} />
     </section>

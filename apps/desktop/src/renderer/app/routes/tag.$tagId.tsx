@@ -111,7 +111,7 @@ function TagRoute() {
           navigate={move}
           context={{ id: contextId, title: s.document?.tag.name ?? "Tag", sequence: s.sequence,
             pending: s.queryPending, error: s.queryError, refresh: () => c.query(s) }}
-          live={{ reader: session.reader, filter: session.filter, tags: session.tags,
+          live={{ reader: session.reader, filter: session.filter, tags: session.tags, notes: session.notes,
             mainDestination: session.mainDestination, preferences: session.preferences, api: session.api,
             playback: session.playback, civitai: session.civitai, relatedCollections: session.relatedCollections,
             civitaiExcursions: session.civitaiExcursions }}

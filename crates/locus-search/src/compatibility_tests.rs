@@ -59,7 +59,7 @@ async fn compatibility_and_missing_corrupt_generation_never_certify_empty_cache(
             Box::pin(async move {
                 c.connection()
                     .batch_execute(&format!(
-                        "INSERT INTO locus_core_comm_entity VALUES(X'{hex}')"
+                        "INSERT INTO locus_core_comm_entity (id) VALUES(X'{hex}')"
                     ))
                     .await?;
                 Ok(())

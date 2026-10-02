@@ -73,6 +73,9 @@ pub enum Submission {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum MutationOutcome {
+    EntityNotesSaved {
+        notes: super::core::dto::EntityNotes,
+    },
     TagSaved {
         tag: super::tag::dto::TagRecord,
     },

@@ -160,7 +160,7 @@ async fn actual_admission_excludes_a_competing_write_and_pins_original_evidence(
             .collect::<String>()
     };
     let sql = format!(
-        "INSERT INTO locus_core_comm_entity VALUES(X'{}'),(X'{}')",
+        "INSERT INTO locus_core_comm_entity (id) VALUES(X'{}'),(X'{}')",
         hex(a),
         hex(b)
     );
@@ -200,7 +200,7 @@ async fn actual_admission_excludes_a_competing_write_and_pins_original_evidence(
     entered.notified().await;
     let (started, waiting) = tokio::sync::oneshot::channel();
     let sql = format!(
-        "DELETE FROM locus_core_comm_entity WHERE id=X'{}'; INSERT INTO locus_core_comm_entity VALUES(X'{}')",
+        "DELETE FROM locus_core_comm_entity WHERE id=X'{}'; INSERT INTO locus_core_comm_entity (id) VALUES(X'{}')",
         hex(a),
         hex(later)
     );

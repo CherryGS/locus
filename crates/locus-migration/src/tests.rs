@@ -23,6 +23,41 @@ struct Value {
     #[diesel(sql_type=Text)]
     value: String,
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn entity_notes_upgrade_defaults_existing_entities_and_survives_reopen() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("notes.sqlite");
+    let mut session = Session::open(&path).await.unwrap();
+    execute(&mut session, &STEPS[..16]).await.unwrap();
+    sql(&mut session, "INSERT INTO locus_core_comm_entity (id) VALUES(X'01992853c12370008000000000000001'); CREATE TABLE fixture_history AS SELECT * FROM locus_migration_comm_history").await;
+    execute(&mut session, STEPS).await.unwrap();
+    assert_eq!(
+        count(
+            &mut session,
+            "SELECT count(*) AS count FROM locus_core_comm_entity WHERE notes=''"
+        )
+        .await,
+        1
+    );
+    assert_eq!(count(&mut session, "SELECT count(*) AS count FROM (SELECT * FROM fixture_history EXCEPT SELECT * FROM locus_migration_comm_history)").await, 0);
+    sql(
+        &mut session,
+        "UPDATE locus_core_comm_entity SET notes='retained notes'",
+    )
+    .await;
+    drop(session);
+    let mut session = Session::open(&path).await.unwrap();
+    execute(&mut session, STEPS).await.unwrap();
+    assert_eq!(
+        count(
+            &mut session,
+            "SELECT count(*) AS count FROM locus_core_comm_entity WHERE notes='retained notes'"
+        )
+        .await,
+        1
+    );
+}
 async fn sql(s: &mut Session, text: &str) {
     let text = text.to_owned();
     s.transaction::<_, MigrationError, _>(move |c| {
@@ -313,7 +348,7 @@ async fn durable_triggers_cover_mutations_and_roll_back_with_savepoints() {
     let second = "01992853c12370008000000000000002";
     let file = "01992853c12370008000000000000003";
     let kind = "9fd73d3dd35d41bc8b73402e12f5c017";
-    sql(&mut s,&format!("INSERT INTO locus_core_comm_entity VALUES(X'{entity}');INSERT INTO locus_core_comm_entity VALUES(X'{second}');INSERT INTO locus_file_comp_file VALUES(X'{file}','object/test',1);INSERT INTO locus_core_comm_component_registry VALUES(X'{file}',X'{kind}');")).await;
+    sql(&mut s,&format!("INSERT INTO locus_core_comm_entity (id) VALUES(X'{entity}');INSERT INTO locus_core_comm_entity (id) VALUES(X'{second}');INSERT INTO locus_file_comp_file VALUES(X'{file}','object/test',1);INSERT INTO locus_core_comm_component_registry VALUES(X'{file}',X'{kind}');")).await;
     assert_eq!(
         count(
             &mut s,

@@ -386,11 +386,17 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
         locus_server::api::openapi().unwrap().to_json().unwrap()
     );
     let schema: Value = serde_json::from_str(&one).unwrap();
-    assert_eq!(schema["paths"].as_object().unwrap().len(), 76);
+    assert_eq!(schema["paths"].as_object().unwrap().len(), 78);
     for (path, methods, tag) in [
         ("/api/v1/filter/reference-choices", &["post"][..], "filter"),
         ("/api/v1/tags", &["get", "post"][..], "tag"),
         ("/api/v1/tags/{id}", &["get"][..], "tag"),
+        ("/api/v1/tags/{id}/document", &["get"][..], "tag"),
+        (
+            "/api/v1/entities/{entity_id}/notes",
+            &["get", "put"][..],
+            "core",
+        ),
         ("/api/v1/tag-sets/{id}", &["get"][..], "tag"),
         ("/api/v1/entities/{id}/tags", &["get"][..], "tag"),
         ("/api/v1/filter/language", &["get"][..], "filter"),

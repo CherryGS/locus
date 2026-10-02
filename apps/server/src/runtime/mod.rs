@@ -5,6 +5,7 @@ mod bootstrap;
 mod bytes;
 pub(crate) mod composition;
 mod core;
+mod entity_notes;
 mod file;
 mod media;
 mod model;

@@ -38,6 +38,10 @@ pub(crate) enum Arguments {
     RecoverImport(crate::api::imports::dto::ImportRecoveryRequest),
     Import(ImportRequest),
     CreateEntity,
+    WriteEntityNotes {
+        entity: locus_core::api::EntityId,
+        notes: String,
+    },
     CreateMedia(MediaKind),
     Attach(Membership),
     Detach(Membership),

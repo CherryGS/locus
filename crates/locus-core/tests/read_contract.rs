@@ -143,7 +143,7 @@ async fn corrupt_identity_or_query_failure_cannot_publish_partial_success() {
     let kernel = fixture(&mut session).await;
     kernel.create_entity(&mut session).await.unwrap();
     session.transaction::<_, CoreError, _>(|context| Box::pin(async move {
-        context.connection().batch_execute("PRAGMA ignore_check_constraints = ON; INSERT INTO locus_core_comm_entity VALUES (zeroblob(16));").await?;
+        context.connection().batch_execute("PRAGMA ignore_check_constraints = ON; INSERT INTO locus_core_comm_entity (id) VALUES (zeroblob(16));").await?;
         Ok(())
     })).await.unwrap();
     assert!(matches!(

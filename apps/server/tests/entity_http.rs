@@ -40,6 +40,103 @@ async fn app() -> (tempfile::TempDir, Server) {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn notes_are_entity_owned_persistent_and_retryable() {
+    let (root, server) = app().await;
+    let mut session = Session::open(root.path().join("library/metadata.sqlite"))
+        .await
+        .unwrap();
+    let kernel = Kernel::new();
+    let entity = kernel.create_entity(&mut session).await.unwrap();
+    let other = kernel.create_entity(&mut session).await.unwrap();
+    let path = format!("/api/v1/entities/{entity}/notes");
+    let read = server
+        .router()
+        .oneshot(request(&server, "GET", &path, Value::Null))
+        .await
+        .unwrap();
+    assert_eq!(
+        json(read).await,
+        json!({"entity_id": entity.to_string(), "notes": ""})
+    );
+    let text = format!(
+        "  灵感 📝\nhttps://example.com\n{}\n",
+        "long note ".repeat(3000)
+    );
+    let body = json!({"request_id": uuid::Uuid::now_v7().to_string(), "notes": text});
+    for _ in 0..2 {
+        let saved = server
+            .router()
+            .oneshot(request(&server, "PUT", &path, body.clone()))
+            .await
+            .unwrap();
+        assert_eq!(saved.status(), StatusCode::OK);
+        let saved = json(saved).await;
+        assert_eq!(saved["status"], "entity_notes_saved");
+        assert_eq!(saved["notes"]["notes"], text);
+    }
+    let mut conflicting = body.clone();
+    conflicting["notes"] = json!("different text");
+    let conflict = server
+        .router()
+        .oneshot(request(&server, "PUT", &path, conflicting))
+        .await
+        .unwrap();
+    assert_eq!(conflict.status(), StatusCode::CONFLICT);
+    drop(session);
+    let mut session = Session::open(root.path().join("library/metadata.sqlite"))
+        .await
+        .unwrap();
+    assert_eq!(
+        kernel
+            .read_entity_notes(&mut session, entity)
+            .await
+            .unwrap(),
+        text
+    );
+    assert_eq!(
+        kernel.read_entity_notes(&mut session, other).await.unwrap(),
+        ""
+    );
+    assert!(
+        kernel
+            .memberships(&mut session, entity)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    let clear = json!({"request_id": uuid::Uuid::now_v7().to_string(), "notes": ""});
+    let saved = server
+        .router()
+        .oneshot(request(&server, "PUT", &path, clear))
+        .await
+        .unwrap();
+    assert_eq!(json(saved).await["status"], "entity_notes_saved");
+    assert_eq!(
+        kernel
+            .read_entity_notes(&mut session, entity)
+            .await
+            .unwrap(),
+        ""
+    );
+    kernel.delete_entity(&mut session, entity).await.unwrap();
+    let missing = server
+        .router()
+        .oneshot(request(&server, "GET", &path, Value::Null))
+        .await
+        .unwrap();
+    assert_ne!(missing.status(), StatusCode::OK);
+    let write =
+        json!({"request_id": uuid::Uuid::now_v7().to_string(), "notes": "cannot resurrect"});
+    let missing = server
+        .router()
+        .oneshot(request(&server, "PUT", &path, write))
+        .await
+        .unwrap();
+    assert_eq!(json(missing).await["status"], "failed");
+    assert!(!kernel.entity_exists(&mut session, entity).await.unwrap());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn binary_empty_complete_refresh_and_large_attributed_batch() {
     let (root, server) = app().await;
     let empty = server
@@ -186,7 +283,7 @@ async fn both_read_routes_authorize_check_run_and_return_json_on_failure() {
         .await
         .unwrap();
     session.transaction::<_, CoreError, _>(|context| Box::pin(async move {
-        context.connection().batch_execute("PRAGMA ignore_check_constraints = ON; INSERT INTO locus_core_comm_entity VALUES (zeroblob(16));").await?;
+        context.connection().batch_execute("PRAGMA ignore_check_constraints = ON; INSERT INTO locus_core_comm_entity (id) VALUES (zeroblob(16));").await?;
         Ok(())
     })).await.unwrap();
     let failed = server

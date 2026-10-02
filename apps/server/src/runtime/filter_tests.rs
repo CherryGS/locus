@@ -105,7 +105,7 @@ async fn aligned_native_and_original_evidence() {
             .collect::<String>()
     };
     let sql = format!(
-        "INSERT INTO locus_core_comm_entity VALUES(X'{}'),(X'{}')",
+        "INSERT INTO locus_core_comm_entity (id) VALUES(X'{}'),(X'{}')",
         hex(a),
         hex(b)
     );

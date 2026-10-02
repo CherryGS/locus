@@ -3,6 +3,18 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub struct EntityNotes {
+    pub entity_id: String,
+    pub notes: String,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct WriteEntityNotes {
+    pub request_id: String,
+    pub notes: String,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct Membership {
     pub entity_id: String,
     pub kind_id: String,

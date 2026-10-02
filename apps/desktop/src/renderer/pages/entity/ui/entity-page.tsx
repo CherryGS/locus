@@ -18,6 +18,7 @@ import {
   type FilterCoordinator,
 } from "@/features/entity-filter"
 import { EntityTagsEditor, EntityTagsStrip, type TagCoordinator } from "@/features/tags"
+import { EntityNotesEditor, type EntityNotesCoordinator } from "@/features/entity-notes"
 import { errorText } from "@/shared/api"
 import type { BackendApi } from "@/shared/api"
 import type { PreferenceCoordinator } from "@/features/entity-view-preferences"
@@ -85,6 +86,7 @@ export function EntityPage({
     reader: EntityReader
     filter: FilterCoordinator
     tags: TagCoordinator
+    notes: EntityNotesCoordinator
     mainDestination: EntityDestination
     preferences: PreferenceCoordinator
     api: BackendApi
@@ -731,6 +733,9 @@ export function EntityPage({
           <EntityTagsEditor key={selected.id} entity={selected} coordinator={live.tags}
             reread={() => void live.reader.reread(selected.id)} />
         ) : undefined}
+        notes={selected && live ? (
+          <EntityNotesEditor key={selected.id} entityId={selected.id} coordinator={live.notes} />
+        ) : undefined}
         tagSummary={selected && live ? (onShowAll) => (
           <EntityTagsStrip key={selected.id} entity={selected} coordinator={live.tags} onShowAll={onShowAll} />
         ) : undefined}
@@ -744,7 +749,10 @@ export function EntityPage({
             )}
           </>
         }
-        onReread={selected && live ? () => void live.reader.reread(selected.id) : undefined}
+        onReread={selected && live ? () => {
+          void live.reader.reread(selected.id)
+          void live.notes.read(live.notes.get(selected.id))
+        } : undefined}
         gridFeedback={gridFeedback}
       />
     </section>

@@ -6,6 +6,7 @@ import {
 } from "@/features/settings"
 import { SettingsNavigation } from "./settings-navigation"
 import { PlaybackCoordinator } from "@/features/video-playback"
+import { EntityNotesCoordinator } from "@/features/entity-notes"
 import { TagCoordinator, TagBrowsing, TagDetails } from "@/features/tags"
 import { FilterCoordinator } from "@/features/entity-filter"
 import { BackendApi } from "@/shared/api"
@@ -54,6 +55,7 @@ export class LibrarySession extends DesktopSession {
   readonly tags: TagCoordinator
   readonly tagBrowsing: TagBrowsing
   readonly tagDetails: TagDetails
+  readonly notes: EntityNotesCoordinator
   readonly filter: FilterCoordinator
   mainDestination: import("@/pages/entity").EntityDestination = { mode: "grid", collectionId: "library" }
   readonly imports: ImportCoordinator
@@ -73,6 +75,9 @@ export class LibrarySession extends DesktopSession {
     this.tagBrowsing = new TagBrowsing(this.api, this.tags)
     this.tagDetails = new TagDetails(this.api, this.tags)
     this.settingsPreparation.add(this.tagDetails)
+    this.notes = new EntityNotesCoordinator(this.api)
+    this.notes.host(initial.close.phase !== "idle")
+    this.settingsPreparation.add(this.notes)
     this.filter = new FilterCoordinator(this.api, () => this.reader.resultReplaced())
     this.civitai = new CivitaiCoordinator(this.api, (ids) => this.reader.knownEffects(ids))
     this.civitai.host(initial)
@@ -92,6 +97,7 @@ export class LibrarySession extends DesktopSession {
     this.unobserve = bridge.observe((state) => {
       this.filter.host(state.close.phase !== "idle")
       this.tags.host(state.close.phase !== "idle")
+      this.notes.host(state.close.phase !== "idle")
       if (state.close.phase !== "idle" || state.connection.status !== "ready") this.playback.pause()
       this.imports.host(state)
       this.civitai.host(state)
@@ -100,6 +106,7 @@ export class LibrarySession extends DesktopSession {
         this.tags.dispose()
         this.tagBrowsing.dispose()
         this.tagDetails.lost("The backend connection ended. Document text has not been confirmed saved.")
+        this.notes.lost()
         this.tasks.dispose()
       }
     })
@@ -120,6 +127,7 @@ export class LibrarySession extends DesktopSession {
     this.tags.dispose()
     this.tagBrowsing.dispose()
     this.tagDetails.dispose()
+    this.notes.dispose()
     this.imports.dispose()
     this.unobserveImports()
     this.civitai.dispose()

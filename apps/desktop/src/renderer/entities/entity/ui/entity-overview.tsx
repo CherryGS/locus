@@ -53,12 +53,16 @@ function componentSummary(component: EntityComponent) {
 export function EntityOverview({
   entity,
   viewSelection,
+  personalTags,
+  notes,
   feedback,
   onReread,
   onOpenComponent,
 }: {
   entity: EntityItem | null
   viewSelection?: ReactNode
+  personalTags?: ReactNode
+  notes?: ReactNode
   feedback?: ReactNode
   onReread?: () => void
   onOpenComponent: (component: EntityComponent) => void
@@ -76,6 +80,7 @@ export function EntityOverview({
       </Empty>
     )
   const structurePending = entity.membershipsStatus === "unread" || entity.membershipsStatus === "loading"
+  const detailComponents = entity.components.filter((component) => component.kind !== "tag")
   return (
     <div className="flex min-w-0 flex-col pb-1">
       <div className="flex items-start gap-3 px-4 py-5">
@@ -109,6 +114,8 @@ export function EntityOverview({
           </Button>
         )}
       </div>
+      {personalTags && <><Separator />{personalTags}</>}
+      {notes && <><Separator />{notes}</>}
       {viewSelection && (
         <>
           <Separator />
@@ -123,9 +130,9 @@ export function EntityOverview({
       )}
       <Separator />
       <DetailSection title="Components">
-        {entity.components.length > 0 ? (
+        {detailComponents.length > 0 ? (
           <div className="-mx-2 flex min-w-0 flex-col gap-1">
-            {entity.components.map((component) => {
+            {detailComponents.map((component) => {
               const { label, icon: Icon } = componentAppearance[component.kind]
               const summary = componentSummary(component)
               return (
@@ -163,7 +170,7 @@ export function EntityOverview({
               ? "Entity unavailable"
               : entity.membershipsStatus === "failed"
                 ? "Components could not be read."
-                : "No components attached."}
+                : "No component details."}
           </p>
         )}
       </DetailSection>

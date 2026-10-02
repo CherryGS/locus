@@ -82,6 +82,28 @@ pub(super) async fn memberships(
 ) -> Result<Json<Vec<Membership>>, ApiError> {
     state.memberships(entity(&path_id(path)?)?).await.map(Json)
 }
+#[utoipa::path(tag="core", get,path="/api/v1/entities/{entity_id}/notes",params(("entity_id"=String,Path)),responses((status=200,body=EntityNotes)))]
+pub(super) async fn notes(
+    State(state): State<Arc<Shared>>,
+    path: Result<Path<String>, PathRejection>,
+) -> Result<Json<EntityNotes>, ApiError> {
+    state.entity_notes(entity(&path_id(path)?)?).await.map(Json)
+}
+
+#[utoipa::path(tag="core", put,path="/api/v1/entities/{entity_id}/notes",params(("entity_id"=String,Path)),request_body=WriteEntityNotes,responses((status=200,body=MutationOutcome)))]
+pub(super) async fn write_notes(
+    State(state): State<Arc<Shared>>,
+    path: Result<Path<String>, PathRejection>,
+    input: Result<Json<WriteEntityNotes>, JsonRejection>,
+) -> Result<Json<MutationOutcome>, ApiError> {
+    let request = body(input)?;
+    canonical_id(&request.request_id)?;
+    state
+        .write_entity_notes(entity(&path_id(path)?)?, request)
+        .await
+        .map(Json)
+}
+
 pub(crate) fn router() -> utoipa_axum::router::OpenApiRouter<Arc<Shared>> {
     use utoipa_axum::{
         router::{OpenApiRouter, UtoipaMethodRouterExt},
@@ -95,4 +117,5 @@ pub(crate) fn router() -> utoipa_axum::router::OpenApiRouter<Arc<Shared>> {
         .routes(routes!(attach))
         .routes(routes!(detach))
         .routes(routes!(memberships))
+        .routes(routes!(notes, write_notes).layer(axum::extract::DefaultBodyLimit::disable()))
 }

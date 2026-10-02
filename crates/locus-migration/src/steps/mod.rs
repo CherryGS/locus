@@ -37,3 +37,5 @@ mod s014_tag;
 mod s015_tag;
 #[path = "000000000016_locus_tag_markdown.rs"]
 mod s016_tag;
+#[path = "000000000017_locus_core_entity_notes.rs"]
+mod s017_core;

@@ -108,9 +108,10 @@ export function AddTagDialog({
         <div className="flex min-w-0 shrink-0 items-center gap-1">
           <Button size="xs" variant="ghost" onClick={() => browse(null)}>All tags</Button>
           {!!path.length && <TagBreadcrumbs path={path} selected={parent ?? undefined} onSelect={browse} />}
+          <span className="ml-auto shrink-0 text-xs text-muted-foreground">{choices.length} tags</span>
         </div>
         <ScrollArea className="min-h-0 min-w-0 flex-1" viewportProps={{ "aria-label": "Available tags" }}>
-          <div className="flex min-w-0 flex-col gap-2 pr-3">
+          <div className="flex min-w-0 flex-col gap-1 pr-3">
             {c.loading && <p className="flex items-center gap-2 text-xs text-muted-foreground"><Spinner />Reading vocabulary…</p>}
             {c.readError && (
               <Alert><AlertDescription>
@@ -128,14 +129,11 @@ export function AddTagDialog({
               const added = assignedIds.has(tag.id)
               const children = forest.children.get(tag.id)?.length ?? 0
               return (
-                <div key={tag.id} data-add-tag-id={tag.id} className="flex min-w-0 flex-col gap-2 rounded-lg border p-3">
+                <div key={tag.id} data-add-tag-id={tag.id} className="flex min-w-0 flex-col gap-1 rounded-lg p-1 hover:bg-muted/50">
                   <div className="flex min-w-0 items-center gap-2">
-                    <div className="min-w-0 flex-1" title={paths.get(tag.id)}>
-                      <p className="truncate">{tag.name}</p>
-                      {tag.parent && <p className="truncate text-xs text-muted-foreground">{paths.get(tag.id)}</p>}
-                    </div>
                     <Button
-                      size="sm" variant={added ? "ghost" : "outline"}
+                      size="sm" variant={added ? "secondary" : "ghost"}
+                      className="h-auto min-h-9 min-w-0 flex-1 justify-start py-2"
                       disabled={disabled || added || unresolved}
                       aria-label={added ? `${tag.name} is already assigned` : `Add ${tag.name}`}
                       onClick={() => void c.write(
@@ -144,7 +142,11 @@ export function AddTagDialog({
                       )}
                     >
                       {added ? <CheckIcon data-icon="inline-start" /> : unresolved ? <Spinner /> : <PlusIcon data-icon="inline-start" />}
-                      {added ? "Added" : unresolved ? "Waiting" : "Add"}
+                      <span className="flex min-w-0 flex-1 flex-col items-start text-left" title={paths.get(tag.id)}>
+                        <span className="w-full truncate">{tag.name}</span>
+                        {tag.parent && <span className="w-full truncate text-xs font-normal text-muted-foreground">{paths.get(tag.id)}</span>}
+                      </span>
+                      {added && <span className="text-xs font-normal text-muted-foreground">Added</span>}
                     </Button>
                     {children > 0 && <Button size="icon-sm" variant="ghost" aria-label={`Browse children of ${tag.name}`} title={`${children} children`} onClick={() => browse(tag.id)}><ChevronRightIcon /></Button>}
                   </div>

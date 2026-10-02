@@ -67,6 +67,12 @@ function diagnosticDetail(value: unknown): string {
 }
 
 export class BackendApi {
+  async entityNotes(entity_id: string) {
+    return result(await this.client.GET("/api/v1/entities/{entity_id}/notes", { params: { path: { entity_id } } }))
+  }
+  async writeEntityNotes(entity_id: string, body: Wire<"WriteEntityNotes">) {
+    return result(await this.client.PUT("/api/v1/entities/{entity_id}/notes", { params: { path: { entity_id } }, body }))
+  }
   async tagDocument(id: string) {
     return result(await this.client.GET("/api/v1/tags/{id}/document", { params: { path: { id } } }))
   }

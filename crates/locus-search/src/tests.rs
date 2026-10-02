@@ -179,12 +179,12 @@ async fn native_structured_complete_evidence_replay_and_failure() {
         ),
         (b, cb, "beta alpha", "'[]'", "NULL"),
     ] {
-        sql(&mut session,format!("INSERT INTO locus_core_comm_entity VALUES(X'{}');INSERT INTO locus_core_comm_component_registry VALUES(X'{}',X'{kind}');INSERT INTO fixture VALUES(X'{}','{title}',{tags},{width});INSERT INTO locus_core_rela_membership VALUES(X'{}',X'{kind}',X'{}');",hex(entity.as_bytes()),hex(component.as_bytes()),hex(component.as_bytes()),hex(entity.as_bytes()),hex(component.as_bytes()))).await;
+        sql(&mut session,format!("INSERT INTO locus_core_comm_entity (id) VALUES(X'{}');INSERT INTO locus_core_comm_component_registry VALUES(X'{}',X'{kind}');INSERT INTO fixture VALUES(X'{}','{title}',{tags},{width});INSERT INTO locus_core_rela_membership VALUES(X'{}',X'{kind}',X'{}');",hex(entity.as_bytes()),hex(component.as_bytes()),hex(component.as_bytes()),hex(entity.as_bytes()),hex(component.as_bytes()))).await;
     }
     sql(
         &mut session,
         format!(
-            "INSERT INTO locus_core_comm_entity VALUES(X'{}')",
+            "INSERT INTO locus_core_comm_entity (id) VALUES(X'{}')",
             hex(empty.as_bytes())
         ),
     )
@@ -469,7 +469,7 @@ async fn native_structured_complete_evidence_replay_and_failure() {
     sql(
         &mut session,
         format!(
-            "INSERT INTO locus_core_comm_entity VALUES(X'{}')",
+            "INSERT INTO locus_core_comm_entity (id) VALUES(X'{}')",
             hex(during.as_bytes())
         ),
     )
@@ -586,7 +586,7 @@ async fn discovery_real_admission_snapshot_refresh_failure_release_expiry_and_re
     let entity = EntityId::new();
     let component = ComponentId::new();
     let long = format!("{}é", "a".repeat(65534));
-    sql(&mut session,format!("INSERT INTO locus_core_comm_entity VALUES(X'{}');INSERT INTO locus_core_comm_component_registry VALUES(X'{}',X'{kind}');INSERT INTO fixture VALUES(X'{}','{long}','[\"Straße\",\"STRASSE\",\"\"]','18446744073709551615');INSERT INTO locus_core_rela_membership VALUES(X'{}',X'{kind}',X'{}');",hex(entity.as_bytes()),hex(component.as_bytes()),hex(component.as_bytes()),hex(entity.as_bytes()),hex(component.as_bytes()))).await;
+    sql(&mut session,format!("INSERT INTO locus_core_comm_entity (id) VALUES(X'{}');INSERT INTO locus_core_comm_component_registry VALUES(X'{}',X'{kind}');INSERT INTO fixture VALUES(X'{}','{long}','[\"Straße\",\"STRASSE\",\"\"]','18446744073709551615');INSERT INTO locus_core_rela_membership VALUES(X'{}',X'{kind}',X'{}');",hex(entity.as_bytes()),hex(component.as_bytes()),hex(component.as_bytes()),hex(entity.as_bytes()),hex(component.as_bytes()))).await;
     let first = search.observation().await.unwrap();
     assert_ne!(first.context, empty.context);
     assert_eq!(first.generation, empty.generation);

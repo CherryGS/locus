@@ -158,7 +158,7 @@ async fn protected_reference_capture_zero_score_all_branches_and_old_evidence() 
     let b = EntityId::new();
     for (entity, tag, title) in [(a, &child, "alpha alpha beta"), (b, &root, "alpha")] {
         let component = ComponentId::new();
-        sql(&mut session,format!("INSERT INTO locus_core_comm_entity VALUES(X'{}');INSERT INTO locus_core_comm_component_registry VALUES(X'{}',X'{kind}');INSERT INTO locus_core_rela_membership VALUES(X'{}',X'{kind}',X'{}');INSERT INTO fixture_direct VALUES(X'{}','{tag}','{title}');",hex(entity.as_bytes()),hex(component.as_bytes()),hex(entity.as_bytes()),hex(component.as_bytes()),hex(component.as_bytes()))).await;
+        sql(&mut session,format!("INSERT INTO locus_core_comm_entity (id) VALUES(X'{}');INSERT INTO locus_core_comm_component_registry VALUES(X'{}',X'{kind}');INSERT INTO locus_core_rela_membership VALUES(X'{}',X'{kind}',X'{}');INSERT INTO fixture_direct VALUES(X'{}','{tag}','{title}');",hex(entity.as_bytes()),hex(component.as_bytes()),hex(entity.as_bytes()),hex(component.as_bytes()),hex(component.as_bytes()))).await;
     }
     let search = SearchService::start(
         dir.path(),

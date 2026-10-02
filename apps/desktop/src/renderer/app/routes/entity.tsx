@@ -63,6 +63,7 @@ function EntityRoute() {
               reader: session.reader,
               filter: session.filter,
               tags: session.tags,
+              notes: session.notes,
               mainDestination: session.mainDestination,
               preferences: session.preferences,
               api: session.api,

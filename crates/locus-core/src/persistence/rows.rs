@@ -1,6 +1,6 @@
 use diesel::{
     QueryableByName,
-    sql_types::{BigInt, Binary, Nullable},
+    sql_types::{BigInt, Binary, Nullable, Text},
 };
 
 #[derive(QueryableByName)]
@@ -12,6 +12,11 @@ pub(crate) struct IdRow {
 pub(crate) struct KindRow {
     #[diesel(sql_type = Binary)]
     pub(crate) kind: Vec<u8>,
+}
+#[derive(QueryableByName)]
+pub(crate) struct NotesRow {
+    #[diesel(sql_type = Text)]
+    pub(crate) notes: String,
 }
 #[derive(QueryableByName)]
 pub(crate) struct CountRow {
