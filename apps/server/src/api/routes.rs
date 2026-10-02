@@ -51,6 +51,16 @@ fn registered() -> OpenApiRouter<Arc<Shared>> {
         .merge(handlers::router())
 }
 
+fn binary_schema() -> RefOr<openapi::Schema> {
+    openapi::ObjectBuilder::new()
+        .schema_type(openapi::Type::String)
+        .format(Some(openapi::SchemaFormat::KnownFormat(
+            openapi::KnownFormat::Binary,
+        )))
+        .build()
+        .into()
+}
+
 pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
     let (_, mut document) = registered().split_for_parts();
     super::search::register(&mut document)?;
@@ -62,15 +72,7 @@ pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
         && let Some(RefOr::T(response)) = operation.responses.responses.get_mut("200")
         && let Some(content) = response.content.get_mut("application/octet-stream")
     {
-        content.schema = Some(
-            openapi::ObjectBuilder::new()
-                .schema_type(openapi::Type::String)
-                .format(Some(openapi::SchemaFormat::KnownFormat(
-                    openapi::KnownFormat::Binary,
-                )))
-                .build()
-                .into(),
-        );
+        content.schema = Some(binary_schema());
     }
     document.merge(super::external::routes::registered().into_openapi());
     if let Some(components) = document.components.as_mut() {
@@ -91,15 +93,7 @@ pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
         && let Some(body) = operation.request_body.as_mut()
         && let Some(content) = body.content.get_mut("application/octet-stream")
     {
-        content.schema = Some(
-            openapi::ObjectBuilder::new()
-                .schema_type(openapi::Type::String)
-                .format(Some(openapi::SchemaFormat::KnownFormat(
-                    openapi::KnownFormat::Binary,
-                )))
-                .build()
-                .into(),
-        );
+        content.schema = Some(binary_schema());
     }
     // OpenAPI's binary string describes bytes, not a JSON array of integers.
     for (path, mime) in [
@@ -115,15 +109,7 @@ pub fn openapi() -> anyhow::Result<openapi::OpenApi> {
             && let Some(RefOr::T(response)) = operation.responses.responses.get_mut("200")
             && let Some(content) = response.content.get_mut(mime)
         {
-            content.schema = Some(
-                openapi::ObjectBuilder::new()
-                    .schema_type(openapi::Type::String)
-                    .format(Some(openapi::SchemaFormat::KnownFormat(
-                        openapi::KnownFormat::Binary,
-                    )))
-                    .build()
-                    .into(),
-            );
+            content.schema = Some(binary_schema());
         }
     }
     for (path, item) in &mut document.paths.paths {

@@ -16,30 +16,26 @@ pub(crate) fn snapshot(v: BilibiliSnapshot) -> Result<source::BilibiliSnapshot, 
         requested_url: v.requested_url,
         title: v.title,
         description: v.description,
-        author: v.author.map(author).transpose()?,
+        author: v.author.map(author),
         published_at_unix_ms: number(v.published_at_unix_ms)?,
         observed_at_unix_ms: number(v.observed_at_unix_ms)?,
         tags: v.tags,
         part: v.part.map(part).transpose()?,
         representation: v.representation.map(representation).transpose()?,
         preview: v.preview.map(preview).transpose()?,
-        issues: v
-            .issues
-            .map(|v| v.into_iter().map(issue).collect())
-            .transpose()?,
+        issues: v.issues.map(|v| v.into_iter().map(issue).collect()),
     };
     result
         .validate()
         .map_err(|e| ApiError::invalid(e.to_string()))?;
     Ok(result)
 }
-pub(crate) fn author(v: BilibiliAuthorObservation) -> Result<source::AuthorObservation, ApiError> {
-    let result = source::AuthorObservation {
+fn author(v: BilibiliAuthorObservation) -> source::AuthorObservation {
+    source::AuthorObservation {
         user_id: v.user_id,
         display_name: v.display_name,
         profile_url: v.profile_url,
-    };
-    Ok(result)
+    }
 }
 pub(crate) fn part(v: BilibiliPartObservation) -> Result<source::PartObservation, ApiError> {
     let result = source::PartObservation {
@@ -78,8 +74,8 @@ pub(crate) fn preview(v: BilibiliRemotePreview) -> Result<source::RemotePreview,
     };
     Ok(result)
 }
-pub(crate) fn issue(v: BilibiliCaptureIssue) -> Result<source::CaptureIssue, ApiError> {
-    let result = source::CaptureIssue {
+fn issue(v: BilibiliCaptureIssue) -> source::CaptureIssue {
+    source::CaptureIssue {
         portion: match v.portion {
             BilibiliCapturePortion::Submission => source::CapturePortion::Submission,
             BilibiliCapturePortion::Author => source::CapturePortion::Author,
@@ -93,6 +89,5 @@ pub(crate) fn issue(v: BilibiliCaptureIssue) -> Result<source::CaptureIssue, Api
         },
         code: v.code,
         message: v.message,
-    };
-    Ok(result)
+    }
 }

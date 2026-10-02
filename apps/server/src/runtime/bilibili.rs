@@ -12,11 +12,11 @@ impl Shared {
     ) -> Result<BilibiliView, ApiError> {
         let domain = self.business()?.clone();
         self.query("Read Bilibili capture", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|e| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: store::diagnostic(&e),
-                })
-            })?;
+            let mut session = domain
+                .database
+                .session(&task)
+                .await
+                .map_err(store::failure)?;
             domain
                 .bilibili
                 .view(&domain.kernel, &mut session, id)

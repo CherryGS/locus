@@ -63,6 +63,7 @@ function ConnectedWorkspace({ session, children }: { session: LibrarySession; ch
       coordinator={c}
       batchId={id}
       pendingRequestId={pendingRequestId}
+      renderCivitaiOutcome={(outcome) => <CivitaiOutcomeDetails outcome={outcome} />}
       view={async (id) => {
         const error = await view(id)
         if (!error) setOpen(false)

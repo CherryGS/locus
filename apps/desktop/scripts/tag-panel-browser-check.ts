@@ -29,7 +29,7 @@ try {
   const bad = await create("Retry me", other.id)
   const delayed = await create("Captured subject", other.id)
   const longName = "星空与城市 — café / " + "非常长的个人标签".repeat(20)
-  const long = await create(longName, root.id)
+  await create(longName, root.id)
   const longTags = []
   for (let i = 0; i < 4; i++) longTags.push(await create(`A${i} · ${longName}`, root.id))
   for (let i = 0; i < 1000; i++) await create(`Candidate ${String(i).padStart(4, "0")}`, root.id)

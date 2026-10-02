@@ -12,11 +12,11 @@ impl Shared {
     ) -> Result<TwitterView, ApiError> {
         let domain = self.business()?.clone();
         self.query("Read Twitter capture", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|e| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: store::diagnostic(&e),
-                })
-            })?;
+            let mut session = domain
+                .database
+                .session(&task)
+                .await
+                .map_err(store::failure)?;
             domain
                 .twitter
                 .view(&domain.kernel, &mut session, id)

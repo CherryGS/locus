@@ -2,7 +2,7 @@ use super::{registry::Shared, submissions::Arguments};
 use crate::api::{
     core::{dto::*, mapping as map},
     dto::MutationOutcome,
-    error::{ApiError, DomainDiagnostic},
+    error::ApiError,
     store,
 };
 use locus_core::api::{EntityId, Membership as CoreMembership};
@@ -11,11 +11,11 @@ impl Shared {
     pub async fn entity_ids(self: &Arc<Self>) -> Result<Vec<u8>, ApiError> {
         let domain = self.business()?.clone();
         self.query("Enumerate Entity identities", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|e| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: store::diagnostic(&e),
-                })
-            })?;
+            let mut session = domain
+                .database
+                .session(&task)
+                .await
+                .map_err(store::failure)?;
             domain
                 .kernel
                 .entity_ids(&mut session)
@@ -32,11 +32,11 @@ impl Shared {
     ) -> Result<Vec<EntityMemberships>, ApiError> {
         let domain = self.business()?.clone();
         self.query("Read membership batch", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|e| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: store::diagnostic(&e),
-                })
-            })?;
+            let mut session = domain
+                .database
+                .session(&task)
+                .await
+                .map_err(store::failure)?;
             domain
                 .kernel
                 .memberships_batch(&mut session, &entities)
@@ -67,11 +67,11 @@ impl Shared {
             "Create entity",
             move |task| async move {
                 let result = async {
-                    let mut session = domain.database.session(&task).await.map_err(|e| {
-                        DomainDiagnostic::Store {
-                            diagnostic: store::diagnostic(&e),
-                        }
-                    })?;
+                    let mut session = domain
+                        .database
+                        .session(&task)
+                        .await
+                        .map_err(store::domain)?;
                     domain
                         .kernel
                         .create_entity(&mut session)
@@ -109,11 +109,11 @@ impl Shared {
             },
             move |task| async move {
                 let result = async {
-                    let mut session = domain.database.session(&task).await.map_err(|e| {
-                        DomainDiagnostic::Store {
-                            diagnostic: store::diagnostic(&e),
-                        }
-                    })?;
+                    let mut session = domain
+                        .database
+                        .session(&task)
+                        .await
+                        .map_err(store::domain)?;
                     if attach {
                         domain
                             .kernel
@@ -149,11 +149,11 @@ impl Shared {
     ) -> Result<Vec<Membership>, ApiError> {
         let domain = self.business()?.clone();
         self.query("Read memberships", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|e| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: store::diagnostic(&e),
-                })
-            })?;
+            let mut session = domain
+                .database
+                .session(&task)
+                .await
+                .map_err(store::failure)?;
             domain
                 .kernel
                 .memberships(&mut session, entity)

@@ -19,7 +19,7 @@ export function TagsPage({
     <TagVocabulary
       coordinator={tags}
       browsing={browsing}
-      filter={filter}
+      generatedDraftReceiver={() => filter.generatedDraftReceiver()}
       onSelect={onSelect}
       onContent={onContent}
       onActivate={onActivate}

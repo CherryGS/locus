@@ -24,13 +24,13 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
       setState(next)
       if (next.connection.status === "lost" || next.connection.status === "failed") {
         session.preferences.lost(next.connection.message)
-        session.settingsPreparation.lost(next.connection.message)
+        session.draftPreparation.lost(next.connection.message)
         session.externalToken.lost(next.connection.message)
       }
       if (next.close.phase === "idle") {
         generation.current++
         session.preferences.returnToApplication()
-        session.settingsPreparation.returnToApplication()
+        session.draftPreparation.returnToApplication()
       }
     }
     const stop = session.bridge.observe((next) => {
@@ -44,7 +44,6 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
     return stop
   }, [session])
   useEffect(() => {
-    const switchTarget = state.library?.switchTarget
     const close = state.close
     if (close.phase !== "preparing" && close.phase !== "unconfirmed" && close.phase !== "sealing") return
     const attemptId = close.attemptId
@@ -53,7 +52,7 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
       const ticket = ++generation.current
       const [result, settings] = await Promise.all([
         session.preferences.prepare(),
-        session.settingsPreparation.prepare(),
+        session.draftPreparation.prepare(),
       ])
       const actual = current.current.close
       if (
@@ -73,9 +72,9 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
       const settingsRevision = close.settings?.revision
       if (
         settingsRevision !== undefined &&
-        session.settingsPreparation.canSeal(settingsRevision, close.continueExit, restart) &&
+        session.draftPreparation.canSeal(settingsRevision, close.continueExit, restart) &&
         session.preferences.seal(close.revision, !restart && close.continueExit) &&
-        session.settingsPreparation.seal(settingsRevision, close.continueExit, restart)
+        session.draftPreparation.seal(settingsRevision, close.continueExit, restart)
       ) {
         void session.bridge
           .commitClose({ attemptId: close.attemptId, revision: close.revision, settingsRevision })
@@ -88,7 +87,7 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
               setState(observed)
               if (observed.close.phase === "idle") {
                 session.preferences.returnToApplication()
-                session.settingsPreparation.returnToApplication()
+                session.draftPreparation.returnToApplication()
               }
             }
           })
@@ -104,11 +103,11 @@ export function ClosePreparation({ session }: { session: DesktopSession }) {
       if (current.current.close.phase !== "sealing") void prepare()
     }
     const stop = session.preferences.subscribe(changed)
-    const stopSettings = session.settingsPreparation.subscribe(changed)
+    const stopDrafts = session.draftPreparation.subscribe(changed)
     return () => {
       disposed = true
       stop()
-      stopSettings()
+      stopDrafts()
     }
   }, [session, state.close])
   const switchTarget = state.library?.switchTarget

@@ -8,7 +8,6 @@ import {
   ListFilterIcon,
 } from "lucide-react"
 import type { Wire } from "@/shared/api"
-import type { FilterCoordinator } from "@/features/entity-filter"
 import { Button } from "@/shared/ui/button"
 import {
   InputGroup,
@@ -54,7 +53,7 @@ import {
 } from "@/shared/ui/select"
 import { Spinner } from "@/shared/ui/spinner"
 import type { TagCoordinator } from "../model/tag-coordinator"
-import type { TagBrowsing } from "../model/tag-browsing"
+import type { TagBrowsing, GeneratedDraftReceiver } from "../model/tag-browsing"
 import { tagForest, tagPath, descendants } from "../model/forest"
 import { TagFeedback } from "./tag-feedback"
 import { TagColumns, TagLookup } from "./tag-columns"
@@ -72,14 +71,14 @@ type Editor = {
 export function TagVocabulary({
   coordinator: c,
   browsing: b,
-  filter,
+  generatedDraftReceiver,
   onSelect,
   onContent,
   onActivate,
 }: {
   coordinator: TagCoordinator
   browsing: TagBrowsing
-  filter: FilterCoordinator
+  generatedDraftReceiver: GeneratedDraftReceiver
   onSelect: (id: string) => void
   onContent: () => void
   onActivate: (id: string) => void
@@ -233,14 +232,14 @@ export function TagVocabulary({
               <Button
                 variant="outline"
                 disabled={blocked || b.pending || retained}
-                onClick={() => void b.content(false, filter, onContent)}
+                onClick={() => void b.content(false, generatedDraftReceiver, onContent)}
               >
                 Exactly this tag
               </Button>
               <Button
                 variant="outline"
                 disabled={blocked || b.pending || retained}
-                onClick={() => void b.content(true, filter, onContent)}
+                onClick={() => void b.content(true, generatedDraftReceiver, onContent)}
               >
                 Include descendants
               </Button>

@@ -2,8 +2,8 @@ import {
   SettingsCoordinator,
   externalAddressSettings,
   ExternalTokenCoordinator,
-  SettingsPreparationCoordinator,
 } from "@/features/settings"
+import { DraftPreparationCoordinator } from "./draft-preparation"
 import { SettingsNavigation } from "./settings-navigation"
 import { PlaybackCoordinator } from "@/features/video-playback"
 import { EntityNotesCoordinator } from "@/features/entity-notes"
@@ -29,7 +29,7 @@ export class DesktopSession {
   readonly settings: SettingsCoordinator
   readonly externalSettings: ReturnType<typeof externalAddressSettings>
   readonly externalToken: ExternalTokenCoordinator
-  readonly settingsPreparation: SettingsPreparationCoordinator
+  readonly draftPreparation: DraftPreparationCoordinator
   constructor(
     readonly bridge: DesktopBridge,
     readonly initial: DesktopState,
@@ -42,7 +42,7 @@ export class DesktopSession {
     this.settings = new SettingsCoordinator(this.api)
     this.externalSettings = externalAddressSettings(this.api)
     this.externalToken = new ExternalTokenCoordinator(this.api)
-    this.settingsPreparation = new SettingsPreparationCoordinator([this.settings, this.externalSettings])
+    this.draftPreparation = new DraftPreparationCoordinator([this.settings, this.externalSettings])
   }
 }
 export class LibrarySession extends DesktopSession {
@@ -74,10 +74,10 @@ export class LibrarySession extends DesktopSession {
     this.tags.host(initial.close.phase !== "idle")
     this.tagBrowsing = new TagBrowsing(this.api, this.tags)
     this.tagDetails = new TagDetails(this.api, this.tags)
-    this.settingsPreparation.add(this.tagDetails)
+    this.draftPreparation.add(this.tagDetails)
     this.notes = new EntityNotesCoordinator(this.api)
     this.notes.host(initial.close.phase !== "idle")
-    this.settingsPreparation.add(this.notes)
+    this.draftPreparation.add(this.notes)
     this.filter = new FilterCoordinator(this.api, () => this.reader.resultReplaced())
     this.civitai = new CivitaiCoordinator(this.api, (ids) => this.reader.knownEffects(ids))
     this.civitai.host(initial)

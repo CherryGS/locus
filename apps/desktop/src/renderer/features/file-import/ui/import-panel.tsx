@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react"
+import { useState, useSyncExternalStore, type ReactNode } from "react"
 import {
   CheckIcon,
   ChevronRightIcon,
@@ -14,7 +14,7 @@ import { Separator } from "@/shared/ui/separator"
 import { Spinner } from "@/shared/ui/spinner"
 import type { Wire } from "@/shared/api"
 import type { ImportCoordinator } from "../model/import-coordinator"
-import { CivitaiOutcomeDetails } from "@/features/civitai"
+type RenderCivitaiOutcome = (outcome: NonNullable<Wire<"ImportResult">["civitai"]>) => ReactNode
 
 const readable = (value: string) => value.replaceAll("_", " ")
 function label(item: Wire<"ImportItem">) {
@@ -26,7 +26,7 @@ function label(item: Wire<"ImportItem">) {
   if (item.current.base.state === "uncertain") return "Admission unconfirmed"
   return "Not admitted"
 }
-function Details({ result }: { result: Wire<"ImportResult"> }) {
+function Details({ result, renderCivitaiOutcome }: { result: Wire<"ImportResult">; renderCivitaiOutcome: RenderCivitaiOutcome }) {
   const rows = [
     ["Copy", result.copy],
     ["File registration", result.registration],
@@ -132,7 +132,7 @@ function Details({ result }: { result: Wire<"ImportResult"> }) {
       {result.civitai && (
         <div className="flex flex-col gap-2">
           <p className="font-medium">Civitai · original weight enrichment</p>
-          <CivitaiOutcomeDetails outcome={result.civitai} />
+          {renderCivitaiOutcome(result.civitai)}
           <p>
             Continue unfinished provider work through this item’s whole-import recovery action. Page refresh
             is a separate operation.
@@ -163,11 +163,13 @@ export function ImportDetails({
   pendingRequestId,
   view,
   tasks = [],
+  renderCivitaiOutcome,
 }: {
   coordinator: ImportCoordinator
   batchId: string
   pendingRequestId?: string
   tasks?: Wire<"PublicTask">[]
+  renderCivitaiOutcome: RenderCivitaiOutcome
   view: (id: string) => Promise<string | undefined>
 }) {
   useSyncExternalStore(c.subscribe, c.snapshot)
@@ -391,7 +393,7 @@ export function ImportDetails({
                     </p>
                     <div className="flex min-w-0 flex-col gap-2">
                       <h4 className="text-xs font-medium">Current processing details</h4>
-                      <Details result={item.current} />
+                      <Details result={item.current} renderCivitaiOutcome={renderCivitaiOutcome} />
                     </div>
                     <details className="group/attempts">
                       <summary className="flex cursor-pointer list-none items-start gap-1 text-xs text-muted-foreground [&::-webkit-details-marker]:hidden">
@@ -409,7 +411,7 @@ export function ImportDetails({
                                 : "active"}{" "}
                               / {attempt.request_id}
                             </p>
-                            <Details result={attempt.result} />
+                            <Details result={attempt.result} renderCivitaiOutcome={renderCivitaiOutcome} />
                           </div>
                         ))}
                       </div>

@@ -1,22 +1,28 @@
-import type { SettingsCoordinator, SettingsPreparation } from "./settings-coordinator"
-type Group = Pick<
-  SettingsCoordinator,
-  "subscribe" | "prepare" | "preparation" | "canSeal" | "seal" | "lost" | "returnToApplication"
->
+import type { SettingsReadiness } from "../../../shared/desktop-bridge"
+
+interface DraftPreparationParticipant {
+  subscribe(listener: () => void): () => void
+  prepare(): Promise<SettingsReadiness>
+  preparation(): SettingsReadiness
+  canSeal(revision: number, discard: boolean, restart: boolean): boolean
+  seal(revision: number, discard: boolean, restart: boolean): boolean
+  lost(message: string): void
+  returnToApplication(): void
+}
 /** Renderer draft consumers share one revision-bound native preparation report. */
-export class SettingsPreparationCoordinator {
+export class DraftPreparationCoordinator {
   private revision = 0
   private listeners = new Set<() => void>()
-  constructor(private groups: Group[]) {
+  constructor(private groups: DraftPreparationParticipant[]) {
     for (const group of groups) this.observe(group)
   }
-  private observe(group: Group) {
+  private observe(group: DraftPreparationParticipant) {
     group.subscribe(() => {
       this.revision++
       for (const listener of this.listeners) listener()
     })
   }
-  add(group: Group) {
+  add(group: DraftPreparationParticipant) {
     this.groups.push(group)
     this.observe(group)
     this.revision++
@@ -27,7 +33,7 @@ export class SettingsPreparationCoordinator {
       this.listeners.delete(listener)
     }
   }
-  async prepare(): Promise<SettingsPreparation> {
+  async prepare(): Promise<SettingsReadiness> {
     await Promise.all(this.groups.map((group) => group.prepare()))
     const states = this.groups.map((group) => group.preparation())
     return {

@@ -160,11 +160,9 @@ test("generation hands off generated stable source and never queries a private E
   browser.select("child")
   await browser.content(
     true,
-    {
-      generatedDraftReceiver: () => (source) => {
-        received = source
-        return true
-      },
+    () => (source) => {
+      received = source
+      return true
     },
     () => navigated++,
   )
@@ -173,11 +171,9 @@ test("generation hands off generated stable source and never queries a private E
   assert.equal(navigated, 1)
   await browser.content(
     false,
-    {
-      generatedDraftReceiver: () => (source) => {
-        received = source
-        return true
-      },
+    () => (source) => {
+      received = source
+      return true
     },
     () => navigated++,
   )
@@ -192,11 +188,9 @@ test("busy, failed, departed, superseded and disposed generation preserve manage
     browser.select("root")
     const work = browser.content(
       true,
-      {
-        generatedDraftReceiver: () => () => {
-          calls++
-          return true
-        },
+      () => () => {
+        calls++
+        return true
       },
       () => calls++,
     )
@@ -212,9 +206,9 @@ test("busy, failed, departed, superseded and disposed generation preserve manage
     },
   })
   browser.select("root")
-  await browser.content(true, { generatedDraftReceiver: () => undefined }, () => assert.fail())
+  await browser.content(true, () => undefined, () => assert.fail())
   assert.match(browser.error, /busy/)
-  await browser.content(true, { generatedDraftReceiver: () => () => true }, () => assert.fail())
+  await browser.content(true, () => () => true, () => assert.fail())
   assert.match(browser.error, /generation failed/)
   assert.equal(browser.tagId, "root")
   browser.dispose()

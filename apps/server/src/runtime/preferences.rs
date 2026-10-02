@@ -2,7 +2,7 @@ use super::{registry::Shared, submissions::Arguments};
 use crate::{
     api::{
         dto::MutationOutcome,
-        error::{ApiError, DomainDiagnostic},
+        error::ApiError,
         preferences::{dto::EntityViewPreference, mapping as map},
         store,
     },
@@ -21,11 +21,11 @@ impl Shared {
     ) -> Result<EntityViewPreference, ApiError> {
         let domain = self.business()?.clone();
         self.query("Read Entity view preference", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|error| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: store::diagnostic(&error),
-                })
-            })?;
+            let mut session = domain
+                .database
+                .session(&task)
+                .await
+                .map_err(store::failure)?;
             domain
                 .preferences
                 .read(&mut session, entity)
@@ -44,11 +44,11 @@ impl Shared {
         self.query(
             "Read Entity view preference batch",
             move |task| async move {
-                let mut session = domain.database.session(&task).await.map_err(|error| {
-                    ApiError::domain(DomainDiagnostic::Store {
-                        diagnostic: store::diagnostic(&error),
-                    })
-                })?;
+                let mut session = domain
+                    .database
+                    .session(&task)
+                    .await
+                    .map_err(store::failure)?;
                 domain
                     .preferences
                     .read_batch(&mut session, entities)
@@ -78,11 +78,11 @@ impl Shared {
             "Save Entity view preference",
             move |task| async move {
                 let result = async {
-                    let mut session = domain.database.session(&task).await.map_err(|error| {
-                        DomainDiagnostic::Store {
-                            diagnostic: store::diagnostic(&error),
-                        }
-                    })?;
+                    let mut session = domain
+                        .database
+                        .session(&task)
+                        .await
+                        .map_err(store::domain)?;
                     domain
                         .preferences
                         .update(&mut session, entity, view, revision)

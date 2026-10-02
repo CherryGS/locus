@@ -5,10 +5,8 @@ import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Button } from "@/shared/ui/button"
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -168,9 +166,6 @@ export function PresetPicker({
             </Empty>
           )}
         </div>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

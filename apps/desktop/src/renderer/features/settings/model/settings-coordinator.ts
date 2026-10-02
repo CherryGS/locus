@@ -1,3 +1,4 @@
+import type { SettingsReadiness } from "../../../../shared/desktop-bridge"
 import { createMediaToolPathsDefaults, MediaToolPathsGroupId, type MediaToolPaths } from "@locus/client"
 import {
   ApiFailure,
@@ -13,7 +14,6 @@ type Api = Pick<
   "settingsDefinitions" | "settingsRead" | "settingsChange" | "mediaRuntime" | "submission"
 >
 type Attempt = { body: Wire<"ChangeSettings">; generation: number }
-export type SettingsPreparation = { revision: number; draft: boolean; blocked?: string }
 function typed(value: unknown): MediaToolPaths {
   if (
     !value ||
@@ -339,11 +339,11 @@ export class SettingsCoordinator<
       }
     })
   }
-  async prepare(): Promise<SettingsPreparation> {
+  async prepare(): Promise<SettingsReadiness> {
     if (this.work) await this.work
     return this.preparation()
   }
-  preparation(): SettingsPreparation {
+  preparation(): SettingsReadiness {
     return {
       revision: this.generation,
       draft: this.dirty,

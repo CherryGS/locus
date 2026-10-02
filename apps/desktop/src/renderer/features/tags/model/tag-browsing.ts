@@ -1,6 +1,7 @@
-import { errorText, type BackendApi } from "@/shared/api"
-import type { FilterCoordinator } from "@/features/entity-filter"
+import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import type { TagCoordinator } from "./tag-coordinator"
+
+export type GeneratedDraftReceiver = () => ((source: Wire<"FilterSource">) => boolean) | undefined
 
 /** Management navigation belongs to this library/run, independently of route mounts. */
 export class TagBrowsing {
@@ -84,9 +85,9 @@ export class TagBrowsing {
     this.lookup = value
     this.changed()
   }
-  async content(inclusive: boolean, filter: FilterCoordinator, navigate: () => void) {
+  async content(inclusive: boolean, generatedDraftReceiver: GeneratedDraftReceiver, navigate: () => void) {
     if (!this.tagId || this.disposed || this.tags.hostClosing) return
-    const receive = filter.generatedDraftReceiver()
+    const receive = generatedDraftReceiver()
     if (!receive) {
       this.error = "Filter is busy. Try again after its current action finishes."
       this.changed()

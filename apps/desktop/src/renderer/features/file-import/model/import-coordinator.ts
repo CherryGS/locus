@@ -16,7 +16,6 @@ export class ImportCoordinator {
   private readonly accepted = new Map<string, Pending>()
   selecting = false
   problem?: string
-  feedback?: string
   available = true
   observing = false
   private admissionOpen = true
@@ -251,13 +250,6 @@ export class ImportCoordinator {
       this.problem = undefined
       if (effects.length) this.changedEffects(effects)
       const active = this.batches.some((b) => !b.original_ended || b.items.some((i) => !!i.active_request_id))
-      // Recovery may finish between two observations; terminal feedback is a
-      // projection of current results, not a transition that requires seeing active.
-      if (!active && this.batches.length > 0) {
-        const items = this.batches.flatMap((b) => b.items)
-        const attention = items.filter((i) => !i.active_request_id && !i.current.complete).length
-        this.feedback = attention ? `Imports: ${attention} need attention` : "Imports complete"
-      }
       if (active) this.timer = setTimeout(() => void this.observe(), 400)
     } catch (error) {
       if (error instanceof ApiFailure && error.detail.code === "wrong_run") this.loseRun()

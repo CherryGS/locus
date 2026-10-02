@@ -138,7 +138,7 @@ try {
   assert.equal(await reading.getByText(/Previous version observation/).count(), 0)
   assert.equal(await civitaiPanel.getByText("B.safetensors · 300", { exact: true }).count(), 0)
   const originSnapshot = civitaiPanel.getByRole("region", { name: "Origin Civitai snapshot" })
-  assert.equal(await originSnapshot.getByText(a.componentId!, { exact: true }).count(), 1)
+  assert.equal(await civitaiPanel.getByText(a.componentId!, { exact: true }).count(), 1)
   const originRead = await backend.client.GET("/api/v1/civitai/{component_id}/view", {
     params: { path: { component_id: a.componentId! } },
   })

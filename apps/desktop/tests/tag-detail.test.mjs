@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { TagDetails } from "../src/renderer/features/tags/model/tag-detail.ts"
 import { TagCoordinator } from "../src/renderer/features/tags/model/tag-coordinator.ts"
-import { SettingsPreparationCoordinator } from "../src/renderer/features/settings/model/settings-preparation.ts"
+import { DraftPreparationCoordinator } from "../src/renderer/app/providers/draft-preparation.ts"
 import { suppliedSequence } from "../src/renderer/entities/entity/model/identity-sequence.ts"
 
 const deferred = () => {
@@ -168,7 +168,7 @@ test("native preparation captures edits before debounce, waits writes, rejects s
   f.c.mounted(f.s, "# Old\n")
   let live = "one"
   f.s.editor = { read: () => live, readonly: () => {} }
-  const prep = new SettingsPreparationCoordinator([])
+  const prep = new DraftPreparationCoordinator([])
   prep.add(f.c)
   const initial = await prep.prepare()
   assert(initial.draft)

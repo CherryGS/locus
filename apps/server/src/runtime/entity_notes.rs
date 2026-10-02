@@ -5,7 +5,7 @@ use crate::api::{
         mapping as map,
     },
     dto::MutationOutcome,
-    error::{ApiError, DomainDiagnostic},
+    error::ApiError,
     store,
 };
 use locus_core::api::EntityId;
@@ -15,11 +15,11 @@ impl Shared {
     pub async fn entity_notes(self: &Arc<Self>, entity: EntityId) -> Result<EntityNotes, ApiError> {
         let domain = self.business()?.clone();
         self.query("Read Entity notes", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|e| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: store::diagnostic(&e),
-                })
-            })?;
+            let mut session = domain
+                .database
+                .session(&task)
+                .await
+                .map_err(store::failure)?;
             domain
                 .kernel
                 .read_entity_notes(&mut session, entity)
@@ -48,11 +48,11 @@ impl Shared {
             "Save Entity notes",
             move |task| async move {
                 let result = async {
-                    let mut session = domain.database.session(&task).await.map_err(|e| {
-                        DomainDiagnostic::Store {
-                            diagnostic: store::diagnostic(&e),
-                        }
-                    })?;
+                    let mut session = domain
+                        .database
+                        .session(&task)
+                        .await
+                        .map_err(store::domain)?;
                     domain
                         .kernel
                         .write_entity_notes(&mut session, entity, request.notes.clone())

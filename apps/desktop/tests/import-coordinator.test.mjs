@@ -177,7 +177,7 @@ test("accepted receipts survive first snapshot failure with original paths and n
   await f.coordinator.observe()
   assert.equal(f.coordinator.submissions.size, 0)
   assert.equal(f.calls.length, 1)
-  assert.equal(f.coordinator.feedback, "Imports complete")
+  assert.equal(f.coordinator.batches[0].items[0].current.complete, true)
   f.coordinator.dispose()
 })
 
@@ -274,7 +274,7 @@ test("gate is checked again when unknown lookup completes after close begins", a
   f.coordinator.dispose()
 })
 
-test("fast recovery ending between snapshots updates old attention feedback", async () => {
+test("fast recovery ending between snapshots replaces incomplete results and reports new effects", async () => {
   const f = fixture()
   const failed = item()
   failed.current.complete = false
@@ -284,13 +284,17 @@ test("fast recovery ending between snapshots updates old attention feedback", as
     batches: [{ access_context: "desktop", original_request_id: "b", batch_id: "b", original_ended: true, items: [failed] }],
   })
   await f.coordinator.observe()
-  assert.equal(f.coordinator.feedback, "Imports: 1 need attention")
+  assert.equal(f.coordinator.batches[0].items[0].current.complete, false)
+  assert.equal(f.effects.length, 1)
   f.api.imports = async () => ({
     run_id: "run",
     admission: "open",
     batches: [{ access_context: "desktop", original_request_id: "b", batch_id: "b", original_ended: true, items: [item("2")] }],
   })
   await f.coordinator.observe()
-  assert.equal(f.coordinator.feedback, "Imports complete")
+  assert.equal(f.coordinator.batches[0].items[0].current.complete, true)
+  assert.equal(f.coordinator.batches[0].items[0].current.effect_revision, "2")
+  assert.equal(f.effects.length, 2)
+  assert.equal(f.effects[1][0].current.effect_revision, "2")
   f.coordinator.dispose()
 })

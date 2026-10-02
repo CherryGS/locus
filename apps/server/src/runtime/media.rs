@@ -5,7 +5,7 @@ use super::{
 };
 use crate::api::{
     dto::*,
-    error::{ApiError, DomainDiagnostic, ErrorCode},
+    error::{ApiError, ErrorCode},
     media::{dto::*, mapping as map},
     store,
 };
@@ -22,11 +22,11 @@ impl Shared {
         self.query(
             "Read already-produced Media rendition",
             move |task| async move {
-                let mut session = domain.database.session(&task).await.map_err(|e| {
-                    ApiError::domain(DomainDiagnostic::Store {
-                        diagnostic: store::diagnostic(&e),
-                    })
-                })?;
+                let mut session = domain
+                    .database
+                    .session(&task)
+                    .await
+                    .map_err(store::failure)?;
                 // These are the two rendition sizes requested by the current import
                 // and provider consumers. Reading probes existing artifacts only.
                 for edge in [320, 512] {
@@ -80,11 +80,11 @@ impl Shared {
             "Create Media",
             move |task| async move {
                 let result = async {
-                    let mut session = domain.database.session(&task).await.map_err(|e| {
-                        DomainDiagnostic::Store {
-                            diagnostic: store::diagnostic(&e),
-                        }
-                    })?;
+                    let mut session = domain
+                        .database
+                        .session(&task)
+                        .await
+                        .map_err(store::domain)?;
                     domain
                         .media
                         .create(&domain.kernel, &mut session, kind)
@@ -104,11 +104,11 @@ impl Shared {
     pub async fn media_read(self: &Arc<Self>, id: MediaId) -> Result<MediaRecord, ApiError> {
         let domain = self.business()?.clone();
         self.query("Read Media", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|e| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: store::diagnostic(&e),
-                })
-            })?;
+            let mut session = domain
+                .database
+                .session(&task)
+                .await
+                .map_err(store::failure)?;
             domain
                 .media
                 .read(&mut session, id)
@@ -121,11 +121,11 @@ impl Shared {
     pub async fn media_view(self: &Arc<Self>, id: MediaId) -> Result<MediaView, ApiError> {
         let domain = self.business()?.clone();
         self.query("View Media", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|e| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: store::diagnostic(&e),
-                })
-            })?;
+            let mut session = domain
+                .database
+                .session(&task)
+                .await
+                .map_err(store::failure)?;
             domain
                 .media
                 .view(&domain.kernel, &mut session, id)
@@ -141,11 +141,11 @@ impl Shared {
     ) -> Result<Vec<MediaEntry>, ApiError> {
         let domain = self.business()?.clone();
         self.query("View entity Media", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|e| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: store::diagnostic(&e),
-                })
-            })?;
+            let mut session = domain
+                .database
+                .session(&task)
+                .await
+                .map_err(store::failure)?;
             domain
                 .media
                 .entity_view(&domain.kernel, &mut session, entity)
@@ -167,11 +167,11 @@ impl Shared {
             "Interpret Media",
             move |task| async move {
                 let result = async {
-                    let mut session = domain.database.session(&task).await.map_err(|e| {
-                        DomainDiagnostic::Store {
-                            diagnostic: store::diagnostic(&e),
-                        }
-                    })?;
+                    let mut session = domain
+                        .database
+                        .session(&task)
+                        .await
+                        .map_err(store::domain)?;
                     domain
                         .media
                         .interpret(&domain.kernel, &domain.files, &mut session, id)
@@ -215,11 +215,11 @@ impl Shared {
             "Generate Media preview",
             move |task| async move {
                 let result = async {
-                    let mut session = domain.database.session(&task).await.map_err(|e| {
-                        DomainDiagnostic::Store {
-                            diagnostic: store::diagnostic(&e),
-                        }
-                    })?;
+                    let mut session = domain
+                        .database
+                        .session(&task)
+                        .await
+                        .map_err(store::domain)?;
                     domain
                         .media
                         .preview(

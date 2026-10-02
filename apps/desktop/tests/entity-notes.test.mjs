@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { EntityNotesCoordinator } from "../src/renderer/features/entity-notes/model/entity-notes.ts"
-import { SettingsPreparationCoordinator } from "../src/renderer/features/settings/model/settings-preparation.ts"
+import { DraftPreparationCoordinator } from "../src/renderer/app/providers/draft-preparation.ts"
 
 const tick = () => new Promise((resolve) => setImmediate(resolve))
 function fixture() {
@@ -66,7 +66,7 @@ test("IME composition waits; close preparation flushes notes and protects failed
   await c.save(s)
   assert.equal(writes.length, 0)
   c.update(s, "拼音输入", false)
-  const prep = new SettingsPreparationCoordinator([c])
+  const prep = new DraftPreparationCoordinator([c])
   c.host(true)
   const clean = await prep.prepare()
   assert.equal(clean.draft, false)

@@ -7,7 +7,7 @@ import {
   externalAddressSettings,
 } from "../src/renderer/features/settings/model/external-access.ts"
 import { SettingsCoordinator } from "../src/renderer/features/settings/model/settings-coordinator.ts"
-import { SettingsPreparationCoordinator } from "../src/renderer/features/settings/model/settings-preparation.ts"
+import { DraftPreparationCoordinator } from "../src/renderer/app/providers/draft-preparation.ts"
 
 function deferred() {
   let resolve, reject
@@ -285,7 +285,7 @@ function groupsFixture() {
   }
   const media = new SettingsCoordinator(api, () => "media-save")
   const external = externalAddressSettings(api)
-  return { api, calls, media, external, preparation: new SettingsPreparationCoordinator([media, external]) }
+  return { api, calls, media, external, preparation: new DraftPreparationCoordinator([media, external]) }
 }
 
 test("both actual Settings groups participate in draft consent, sealing and returning", async () => {

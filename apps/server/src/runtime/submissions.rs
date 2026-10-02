@@ -366,22 +366,6 @@ impl Shared {
             })?;
         }
     }
-
-    pub(super) async fn query<T, F, Fut>(
-        self: &Arc<Self>,
-        label: &str,
-        operation: F,
-    ) -> Result<T, ApiError>
-    where
-        T: Send + 'static,
-        F: FnOnce(TaskContext) -> Fut + Send + 'static,
-        Fut: Future<Output = Result<T, ApiError>> + Send + 'static,
-    {
-        self.direct(label, operation)?
-            .await
-            .map_err(|_| ApiError::new(ErrorCode::OperationFailed, "Operation supervisor lost"))?
-            .map_err(|e| ApiError::new(ErrorCode::OperationFailed, e.to_string()))?
-    }
 }
 pub(super) fn conflict() -> ApiError {
     ApiError::new(

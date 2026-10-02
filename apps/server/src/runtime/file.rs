@@ -4,7 +4,7 @@ use super::{
 };
 use crate::api::{
     dto::*,
-    error::{ApiError, Diagnostic, DomainDiagnostic, ErrorCode, FailureKind},
+    error::{ApiError, Diagnostic, ErrorCode, FailureKind},
     file::{dto::*, mapping as file_mapping},
     mapping, store,
 };
@@ -71,11 +71,11 @@ impl Shared {
     pub async fn original(self: &Arc<Self>, id: FileId) -> Result<OpenedBytes, ApiError> {
         let domain = self.business()?.clone();
         self.query("Open original bytes", move |task| async move {
-            let mut session = domain.database.session(&task).await.map_err(|e| {
-                ApiError::domain(DomainDiagnostic::Store {
-                    diagnostic: store::diagnostic(&e),
-                })
-            })?;
+            let mut session = domain
+                .database
+                .session(&task)
+                .await
+                .map_err(store::failure)?;
             let input = domain
                 .files
                 .local_path(&mut session, id)
