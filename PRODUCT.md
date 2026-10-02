@@ -83,9 +83,16 @@ their unfinished behavior must not be presented as an already available feature.
 - The user explicitly does not accept the current shadcn defaults as a confirmed
   visual identity. Existing visual implementation is functional evidence and an
   input to redesign, not authority for palette, typography, spacing or composition.
-- No replacement palette, typeface, material metaphor, light/dark policy or
-  decorative identity has been selected. Preserve confirmed product behavior
-  while discussing those choices with the user.
+- Establish a global dark visual system first. Light themes are outside the
+  current design round; every candidate, including conventional alternatives,
+  must be dark. This does not establish a requirement to build a theme switcher.
+- The first direction round was rejected as resembling dated WPF desktop UI.
+  Its blue-grey broadcast, light collection-label and midnight wayfinding
+  treatments are rejected proposals, not visual authority. Recolouring them
+  alone does not address that feedback.
+- The replacement palette, typeface, component treatment and decorative
+  identity remain open. Preserve confirmed product behavior while exploring
+  the dark visual system in small, connected pieces.
 
 ## Evidence on Hand
 

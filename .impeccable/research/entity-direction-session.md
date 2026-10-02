@@ -1,6 +1,51 @@
 # Entity foundations direction session
 
-Status: awaiting user direction choice; no visual identity is approved.
+Status: first hand rejected; revised dark-only hand ready for user feedback.
+No visual identity is approved.
+
+## User feedback, 2026-10-03
+
+- Establish the global dark visual system first; light has substantially less
+  applicability for this user. Remove light directions from subsequent rounds.
+- The user described all presented directions as nostalgic, dated WPF styling.
+  Do not treat any card, its colour scheme or its component framing as approved.
+- The working diagnosis is excessive panel framing, heavy toolbar bands,
+  repeated dividers and decorative selection treatments. This is an interpretation
+  to test against the next concrete design, not a new user-approved aesthetic.
+- The application already uses dark renderer tokens, an HTML dark class and
+  Electron's dark native theme. The remaining task is the visual language,
+  not adding a light/dark switch or another preference owner.
+- Revised scope and proposed direction: `dark-foundations-brief.md`.
+- The user tentatively named Eagle and explicitly asked work to continue while
+  seeking other references. Do not treat it as an approved design or import its
+  behavior. Do not repeat the dominant-workflow question.
+
+## Current hand
+
+- Original seed `75117ec9`, re-roll 1, assigned grounded candidate 5.
+- Candidate reasoning: `dark-direction-r1.md`.
+- Payload: `entity-decision-75117ec9-r1.json`.
+- Existing decision URL and key are reused: `http://127.0.0.1:63515/`, `7fb55f3c`.
+- Comps: `.impeccable/mocks/decision/75117ec9-r1/` (assigned, model-pick, canon).
+- All cards are dark; changes explore typography, density and control weight.
+- Image producers use `gpt-6.1-sol` with `high` reasoning per the user's new default.
+- Approval remains pending. Do not mark sidecars approved until the user chooses.
+- All three native comps are complete, each with one bounded correction pass,
+  prompt provenance and `approved: false`. The actual output is 1586 by 992.
+- Main-agent visual inspection confirms dark UI and text/file preview surfaces,
+  larger media presence, no duplicate Inspector preview or metadata accordions,
+  and no large action footers. Natural media keeps its own colours.
+- Remaining illustration drift: the navigation rail, type and Inspector are
+  larger than requested; the alternatives differ less in density than intended;
+  faint vignette/gradients remain despite the flat-surface brief. Some metadata
+  and note-preview text are synthetic. These are not new functional requirements
+  or approved sizing/material decisions. Do not claim an implementation or
+  accessibility pass from generated pixels.
+- Candidate primary/secondary text pairs were checked numerically against their
+  intended Inspector grounds: primary contrast 13.42–15.40, secondary 6.58–7.50.
+  The raster output and later implementation require their own verification.
+
+## Archived first hand
 
 - Scope: Entity cards and Inspector as the first bounded sample of shared
   hierarchy, density and action placement. Existing behavior remains authoritative.
@@ -29,7 +74,7 @@ Status: awaiting user direction choice; no visual identity is approved.
 - All sidecars retain `approved: false`; prompt provenance was embedded and the
   scan found no missing raster provenance. Production interface files are unchanged.
 
-Resume by collecting the existing question's answer with `impeccable serve-question
---wait --key 7fb55f3c`. A selected direction is followed by the shape brief and
-confirmation, not automatic production implementation. If the user requests a
-re-roll, update this same decision session as the skill describes.
+Do not resume waiting for an answer to the rejected hand. If a subsequent visual
+round is requested, reuse the existing decision session as the skill describes,
+with updated constraints and new imagery; do not reopen the rejected proposals
+as candidates. No production implementation follows from the rejected hand.

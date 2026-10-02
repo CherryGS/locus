@@ -1,0 +1,231 @@
+{
+  "title": "Locus · 全局暗黑基础 · 第二轮",
+  "question": "这一轮全部使用暗黑工作面，重点看边框是否退后、图片是否突出、文字与控件是否摆脱老式桌面软件的重量感。Eagle 仅作为暂定参考。图片是示例素材，现有功能与交互约束仍然有效。",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "墨黑 · 字阶与留白",
+      "kicker": "THE ROLL",
+      "lineage": "当代字体样张的信息层级",
+      "thesis": "让标题、正文和次要信息自己建立层级，图片直接落在深色工作面上。",
+      "palette": [
+        "#111214",
+        "#191A1D",
+        "#25272B",
+        "#F0F1F3",
+        "#A4A8B1",
+        "#9CB9EA"
+      ],
+      "materials": [
+        "中性石墨黑",
+        "清楚而克制的字阶",
+        "连续、无框的内容区域"
+      ],
+      "viewport": "轻薄导航与工具区；三列大图、短标题；Inspector 用开阔字阶与属性行组织，几乎不依赖横线。",
+      "risk": "留白更多，单屏资料量比紧凑方案少；必须让可编辑字段仍然容易辨认。",
+      "raised": [
+        {
+          "from": "同人目录",
+          "raise": "卡片标题和次要行保持一致基线。"
+        },
+        {
+          "from": "植物图谱",
+          "raise": "预览尺寸保持稳定，混合内容不跳动。"
+        },
+        {
+          "from": "机场导视",
+          "raise": "键盘焦点足够清楚，不依赖微弱色差。"
+        },
+        {
+          "from": "磁带内页",
+          "raise": "动作紧贴所属字段。"
+        },
+        {
+          "from": "航班时刻表",
+          "raise": "重复行间距遵循统一节奏。"
+        },
+        {
+          "from": "翻页信息牌",
+          "raise": "尺寸和数值保持稳定对齐。"
+        }
+      ],
+      "comp": ".impeccable/mocks/decision/75117ec9-r1/assigned.png"
+    },
+    {
+      "id": "model-pick",
+      "label": "石墨 · 连续工作面",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "当代数字排版的连续网格",
+      "thesis": "压低容器存在感，用紧凑而准确的对齐把浏览和整理连在一起。",
+      "palette": [
+        "#161718",
+        "#1C1D1F",
+        "#292B2F",
+        "#ECEEF1",
+        "#A9ADB5",
+        "#86A7D8"
+      ],
+      "materials": [
+        "平整中性深灰",
+        "细小而清晰的控件",
+        "紧凑但不拥挤的字段节奏"
+      ],
+      "viewport": "图片与说明共享同一工作面；Inspector 比第一版紧凑，用标签和值的对齐组织；仅真实分栏保留边界。",
+      "risk": "接近成熟素材管理器的熟悉语法，辨识度要靠排版和一致的细节建立。",
+      "comp": ".impeccable/mocks/decision/75117ec9-r1/model-pick.png"
+    },
+    {
+      "id": "challenger-doujin",
+      "label": "紧密图像目录",
+      "lineage": "同人活动目录",
+      "verdict": "declined",
+      "palette": [
+        "#161718",
+        "#ECEEF1",
+        "#A9ADB5"
+      ],
+      "materials": [
+        "已按暗黑与现代界面约束评估"
+      ],
+      "thesis": "小图密排在暗色下仍可快速扫读，但会压缩混合媒体辨认所需的面积。",
+      "viewport": "保留 Locus 的内容网格与 Inspector，参考只影响文字、密度和状态识别。",
+      "case": "小图密排在暗色下仍可快速扫读，但会压缩混合媒体辨认所需的面积。",
+      "risk": "微缩标签增加阅读负担。",
+      "kept": "保留标题基线一致，避免邮票格与手绘标记。",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-doujin-event-catalog-hero.webp"
+    },
+    {
+      "id": "challenger-botanical",
+      "label": "等比例序列",
+      "lineage": "植物生长图谱",
+      "verdict": "declined",
+      "palette": [
+        "#161718",
+        "#ECEEF1",
+        "#A9ADB5"
+      ],
+      "materials": [
+        "已按暗黑与现代界面约束评估"
+      ],
+      "thesis": "统一尺度有价值，但阶段式顺序不适合一般内容库，复古排印也偏离本轮目标。",
+      "viewport": "保留 Locus 的内容网格与 Inspector，参考只影响文字、密度和状态识别。",
+      "case": "统一尺度有价值，但阶段式顺序不适合一般内容库，复古排印也偏离本轮目标。",
+      "risk": "容易带回图谱和纸张的年代感。",
+      "kept": "保留稳定预览比例，不引入时间阶段。",
+      "hero": "https://impeccable.style/worlds/cards/editorial-sequence-montage-botanical-folio-season-hero.webp"
+    },
+    {
+      "id": "challenger-airport",
+      "label": "高对比导视",
+      "lineage": "机场指示系统",
+      "verdict": "declined",
+      "palette": [
+        "#161718",
+        "#ECEEF1",
+        "#A9ADB5"
+      ],
+      "materials": [
+        "已按暗黑与现代界面约束评估"
+      ],
+      "thesis": "明确重点有价值，但醒目的色带会重新压过图片。",
+      "viewport": "保留 Locus 的内容网格与 Inspector，参考只影响文字、密度和状态识别。",
+      "case": "明确重点有价值，但醒目的色带会重新压过图片。",
+      "risk": "再次形成厚重工具栏。",
+      "kept": "保留焦点可见性，不采用大黄色分区。",
+      "hero": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-terminal-yellow-wayfinding-hero.webp"
+    },
+    {
+      "id": "challenger-cassette",
+      "label": "紧贴对象的注记",
+      "lineage": "磁带内页排印",
+      "verdict": "declined",
+      "palette": [
+        "#161718",
+        "#ECEEF1",
+        "#A9ADB5"
+      ],
+      "materials": [
+        "已按暗黑与现代界面约束评估"
+      ],
+      "thesis": "紧密信息关联可以转用，手写和翻折则不适合普通属性编辑。",
+      "viewport": "保留 Locus 的内容网格与 Inspector，参考只影响文字、密度和状态识别。",
+      "case": "紧密信息关联可以转用，手写和翻折则不适合普通属性编辑。",
+      "risk": "容易回到怀旧外观。",
+      "kept": "保留字段旁动作，不采用纸张与磁带意象。",
+      "hero": "https://impeccable.style/worlds/cards/vernacular-ephemera-cassette-j-card-hero.webp"
+    },
+    {
+      "id": "challenger-timetable",
+      "label": "规则属性行",
+      "lineage": "航班时刻表",
+      "verdict": "declined",
+      "palette": [
+        "#161718",
+        "#ECEEF1",
+        "#A9ADB5"
+      ],
+      "materials": [
+        "已按暗黑与现代界面约束评估"
+      ],
+      "thesis": "重复行的节奏有价值，单字号和倾斜面板会损害中文层级。",
+      "viewport": "保留 Locus 的内容网格与 Inspector，参考只影响文字、密度和状态识别。",
+      "case": "重复行的节奏有价值，单字号和倾斜面板会损害中文层级。",
+      "risk": "会重现玻璃面板和复古控件感。",
+      "kept": "保留行间距纪律，不采用倾斜与玻璃。",
+      "hero": "https://impeccable.style/worlds/cards/rw-timetable-slide-rack-hero.webp"
+    },
+    {
+      "id": "challenger-splitflap",
+      "label": "稳定数据列",
+      "lineage": "翻页式信息牌",
+      "verdict": "declined",
+      "palette": [
+        "#161718",
+        "#ECEEF1",
+        "#A9ADB5"
+      ],
+      "materials": [
+        "已按暗黑与现代界面约束评估"
+      ],
+      "thesis": "数值对齐清楚，但固定字符格和翻页动效不适合长文件名与稳定编辑。",
+      "viewport": "保留 Locus 的内容网格与 Inspector，参考只影响文字、密度和状态识别。",
+      "case": "数值对齐清楚，但固定字符格和翻页动效不适合长文件名与稳定编辑。",
+      "risk": "装置感过强，资料易碎片化。",
+      "kept": "保留数值对齐，不采用字符格或翻页动画。",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-split-flap-concourse-hero.webp"
+    }
+  ],
+  "reroll": {
+    "registers": [
+      "safer",
+      "bolder"
+    ]
+  },
+  "buildPath": {
+    "value": "comp",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "暗色素材库基线",
+    "lineage": "成熟素材管理器的常规语法",
+    "thesis": "用熟悉的深灰素材库界面作对照，明确区分内容区、工具和属性。",
+    "palette": [
+      "#1B1C1E",
+      "#242529",
+      "#303237",
+      "#EEF0F4",
+      "#A6AAB3",
+      "#6E9DE5"
+    ],
+    "materials": [
+      "统一深灰表面",
+      "常规无衬线字阶",
+      "轻量交互状态"
+    ],
+    "viewport": "三列图片与紧凑属性侧栏，控件克制可见，图片下只有简短说明。",
+    "risk": "最熟悉，但视觉识别度有限；Eagle 仅作研究参考，尚未被用户选定。",
+    "comp": ".impeccable/mocks/decision/75117ec9-r1/canon.png"
+  },
+  "steer": true
+}
