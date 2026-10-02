@@ -46,8 +46,8 @@ function TagsRoute() {
       browsing={session.tagBrowsing}
       filter={session.filter}
       onSelect={(tag) => {
-        session.tagBrowsing.select(tag)
-        void navigate({ search: { tag } })
+        session.tagBrowsing.locate(tag)
+        void navigate({ search: { tag }, replace: true })
       }}
       onContent={() =>
         void navigate({ to: "/entity", search: { mode: "grid", collectionId: "library" } })

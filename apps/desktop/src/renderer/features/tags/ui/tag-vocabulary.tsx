@@ -1,6 +1,7 @@
 import { useId, useMemo, useState, useSyncExternalStore } from "react"
 import {
   CornerDownRightIcon,
+  ChevronRightIcon,
   FolderTreeIcon,
   PlusIcon,
   PencilIcon,
@@ -86,7 +87,7 @@ export function TagVocabulary({
     forest = useMemo(() => tagForest(records), [records]),
     byId = forest.byId,
     selected = b.tagId ? byId.get(b.tagId) : undefined,
-    path = tagPath(forest, b.tagId),
+    path = tagPath(forest, b.branchId ?? b.tagId),
     breadcrumb = path.map((tag) => tag.name).join(" / ")
   const blocked = c.hostClosing || c.pending,
     retained = !!c.readError
@@ -234,9 +235,32 @@ export function TagVocabulary({
                 <Badge variant="secondary">{selected.parent ? "Child tag" : "Root tag"}</Badge>
                 {retained && <Badge variant="outline">Previous observation</Badge>}
               </div>
-              <p className="truncate text-xs text-muted-foreground" title={breadcrumb}>
-                {breadcrumb}
-              </p>
+              <nav aria-label="Tag path" className="min-w-0 overflow-x-auto" title={breadcrumb}>
+                <ol className="flex w-max items-center gap-1">
+                  {path.map((tag, index) => (
+                    <li key={tag.id} className="flex items-center gap-1">
+                      {!!index && (
+                        <ChevronRightIcon
+                          aria-hidden="true"
+                          className="size-3 text-muted-foreground"
+                        />
+                      )}
+                      <Button
+                        variant={tag.id === b.tagId ? "secondary" : "ghost"}
+                        size="xs"
+                        aria-label={`Locate ${tag.name}`}
+                        aria-current={tag.id === b.tagId ? "location" : undefined}
+                        onClick={() => {
+                          b.find("")
+                          onSelect(tag.id)
+                        }}
+                      >
+                        {tag.name}
+                      </Button>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
             </div>
             <div className="flex flex-wrap items-center gap-1">
               <Button

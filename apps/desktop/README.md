@@ -148,7 +148,11 @@ Entity selected. Create, rename or globally delete vocabulary records there.
 Browse the forest in columns: selecting a tag opens its children to the right,
 and selecting a sibling replaces that branch. Each row shows direct child and
 total descendant counts (excluding itself). Deep paths scroll horizontally;
-each column scrolls vertically. Search results show the full path and reveal it
+each column scrolls vertically.
+Selecting an ancestor with arrow keys or the clickable breadcrumb only locates
+that node; the rest of the open branch remains. Right arrow follows the current
+path's child. Tag selections replace the current URL so Back crosses workflows.
+Search results show the full path and reveal it
 on selection. The selection, search and scroll positions survive page reentry
 within the current library session.
 **Overview → Personal tags** searches existing names and saves each assignment

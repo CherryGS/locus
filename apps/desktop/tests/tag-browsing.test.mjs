@@ -105,6 +105,54 @@ test("management navigation survives suspension and absent reads; confirmed dele
   assert.equal(browser.columnScroll.get("roots"), 420)
   browser.dispose()
 })
+test("ancestor location retains the open branch; only choosing a different branch replaces it", async () => {
+  let records = [
+    tag("root"),
+    tag("middle", "root"),
+    tag("leaf", "middle"),
+    tag("sibling", "root"),
+    tag("other"),
+  ]
+  const { tags, browser } = setup({
+    tags: async () => records,
+    tagWrite: async ({ change }) => {
+      records = records.filter((t) => t.id !== change.id)
+      records.find((t) => t.id === "leaf").parent = "root"
+      return { status: "tag_deleted", id: change.id }
+    },
+  })
+  await tags.read()
+  browser.locate("leaf")
+  browser.locate("root")
+  assert.equal(browser.tagId, "root")
+  assert.equal(browser.branchId, "leaf")
+  assert.equal(tagColumns(tagForest(records), browser.branchId).columns.length, 3)
+  browser.locate("middle")
+  browser.locate("root")
+  browser.suspend()
+  assert.equal(browser.branchId, "leaf")
+  browser.revealSelection = false
+  browser.locate("root")
+  assert(browser.revealSelection)
+  assert.equal(browser.branchId, "leaf")
+  browser.locate("sibling")
+  assert.equal(browser.branchId, "sibling")
+  assert.equal(tagColumns(tagForest(records), browser.branchId).columns.length, 2)
+  browser.locate("other")
+  assert.equal(browser.branchId, "other")
+  browser.locate("leaf")
+  browser.locate("middle")
+  await tags.write({ operation: "delete", id: "middle", revision: "one" }, "delete")
+  await tick()
+  assert.equal(browser.tagId, undefined)
+  assert.equal(browser.branchId, "leaf")
+  assert.deepEqual(
+    tagPath(tagForest(records), browser.branchId).map((t) => t.id),
+    ["root", "leaf"],
+  )
+  browser.dispose()
+  tags.dispose()
+})
 test("generation hands off generated stable source and never queries a private Entity result", async () => {
   const { browser, requests } = setup()
   let received,

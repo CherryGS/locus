@@ -55,9 +55,9 @@ export function TagColumns({
     viewport = useRef<HTMLDivElement>(null),
     previous = useRef<string | undefined>(undefined),
     pendingFocus = useRef<string | undefined>(undefined)
-  const { path, columns } = tagColumns(forest, b.tagId),
+  const { path, columns } = tagColumns(forest, b.branchId ?? b.tagId),
     active = new Set(path.map((tag) => tag.id)),
-    signature = JSON.stringify([b.tagId, ...columns.map((c) => c.parent?.id)])
+    signature = JSON.stringify(columns.map((c) => c.parent?.id))
   const focus = (id?: string) => {
     if (!id) return
     const target = viewport.current?.querySelector<HTMLElement>(`[data-tree-tag="${id}"]`)
@@ -69,11 +69,16 @@ export function TagColumns({
     if (!node) return
     if (previous.current === undefined) node.scrollLeft = b.scrollLeft
     if (b.revealSelection || (previous.current !== undefined && previous.current !== signature)) {
-      const last = node.querySelector<HTMLElement>("[data-tag-column]:last-child")
-      if (last) {
-        const right = last.offsetLeft + last.offsetWidth
+      const branchChanged = previous.current !== undefined && previous.current !== signature,
+        selected = node.querySelector<HTMLElement>(`[data-tree-tag="${b.tagId}"]`),
+        target =
+          branchChanged || b.tagId === b.branchId
+            ? node.querySelector<HTMLElement>("[data-tag-column]:last-child")
+            : selected?.closest<HTMLElement>("[data-tag-column]")
+      if (target) {
+        const right = target.offsetLeft + target.offsetWidth
         if (right > node.scrollLeft + node.clientWidth) node.scrollLeft = right - node.clientWidth
-        else if (last.offsetLeft < node.scrollLeft) node.scrollLeft = last.offsetLeft
+        else if (target.offsetLeft < node.scrollLeft) node.scrollLeft = target.offsetLeft
       }
     }
     previous.current = signature
@@ -108,6 +113,7 @@ export function TagColumns({
             forest={forest}
             browsing={b}
             activeId={path[depth]?.id}
+            nextId={path[depth + 1]?.id}
             blocked={blocked}
             onCreate={() => onCreate(parent ?? undefined)}
             onSelect={onSelect}
@@ -128,6 +134,7 @@ function TagColumn({
   forest,
   browsing: b,
   activeId,
+  nextId,
   blocked,
   onCreate,
   onSelect,
@@ -141,6 +148,7 @@ function TagColumn({
   forest: TagForest
   browsing: TagBrowsing
   activeId?: string
+  nextId?: string
   blocked: boolean
   onCreate: () => void
   onSelect: (id: string) => void
@@ -150,6 +158,11 @@ function TagColumn({
   const viewport = useRef<HTMLDivElement>(null),
     mounted = useRef(false),
     key = parent?.id ?? "roots"
+  useLayoutEffect(() => {
+    const node = viewport.current
+    if (node && b.revealSelection && b.tagId && tags.some((tag) => tag.id === b.tagId))
+      revealTag(node, b.tagId)
+  })
   useLayoutEffect(() => {
     const node = viewport.current
     if (!node) return
@@ -275,8 +288,9 @@ function TagColumn({
                     focus(parent.id)
                   }
                   if (key === "ArrowRight" && children.length) {
-                    onSelect(tag.id)
-                    focus(children[0].id)
+                    const id = onPath ? (nextId ?? children[0].id) : children[0].id
+                    onSelect(id)
+                    focus(id)
                   }
                 }}
               >
@@ -296,6 +310,14 @@ function TagColumn({
       </ScrollArea>
     </section>
   )
+}
+
+function revealTag(viewport: HTMLElement, id: string) {
+  const row = viewport.querySelector<HTMLElement>(`[data-tree-tag="${id}"]`)
+  if (!row) return
+  if (row.offsetTop < viewport.scrollTop) viewport.scrollTop = row.offsetTop
+  else if (row.offsetTop + row.offsetHeight > viewport.scrollTop + viewport.clientHeight)
+    viewport.scrollTop = row.offsetTop + row.offsetHeight - viewport.clientHeight
 }
 
 export function TagLookup({

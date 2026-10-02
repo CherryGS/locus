@@ -5,6 +5,8 @@ import type { TagCoordinator } from "./tag-coordinator"
 /** Management navigation belongs to this library/run, independently of route mounts. */
 export class TagBrowsing {
   tagId?: string
+  // The open branch survives selecting an ancestor within that same path.
+  branchId?: string
   lookup = ""
   scrollLeft = 0
   columnScroll = new Map<string, number>()
@@ -37,6 +39,15 @@ export class TagBrowsing {
         )
       )
         this.select(undefined)
+      if (!tags.vocabulary) return
+      const byId = new Map(tags.vocabulary.map((tag) => [tag.id, tag])),
+        selected = this.tagId && byId.has(this.tagId) ? this.tagId : undefined,
+        branch = this.branchId && byId.has(this.branchId) ? this.branchId : undefined,
+        next = branch && (!selected || this.onBranch(selected, branch)) ? branch : selected
+      if (next !== this.branchId) {
+        this.branchId = next
+        this.changed()
+      }
     })
   }
   private changed() {
@@ -48,11 +59,26 @@ export class TagBrowsing {
   select(id?: string) {
     if (this.tagId !== id) {
       this.suspend()
+      if (id && !this.onBranch(id, this.branchId)) this.branchId = id
       this.tagId = id
       this.revealSelection = !!id
       this.error = undefined
       this.changed()
     }
+  }
+  locate(id: string) {
+    this.select(id)
+    this.revealSelection = true
+    this.changed()
+  }
+  private onBranch(id: string, tip?: string) {
+    const byId = new Map((this.tags.vocabulary ?? []).map((tag) => [tag.id, tag]))
+    let current = tip
+    while (current) {
+      if (current === id) return true
+      current = byId.get(current)?.parent ?? undefined
+    }
+    return false
   }
   find(value: string) {
     this.lookup = value
