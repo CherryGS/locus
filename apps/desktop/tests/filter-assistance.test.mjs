@@ -3,6 +3,7 @@ import { test } from "node:test"
 import { setTimeout as delay } from "node:timers/promises"
 import { FilterAssistance } from "../src/renderer/features/entity-filter/model/assistance.ts"
 import { bytePosition, byteToRaw } from "../src/renderer/features/entity-filter/model/raw-input.ts"
+import { ApiFailure } from "../src/renderer/shared/api/backend-api.ts"
 const deferred = () => {
   let resolve, reject
   const promise = new Promise((yes, no) => { resolve = yes; reject = no })
@@ -44,6 +45,7 @@ test("fresh direct provenance survives fast typing and rejects stale lexical rep
   const f = fixture({ filterEditing: () => ++calls === 1 ? first.promise : second.promise })
   f.a.input("@", 1, 0)
   f.a.input("@ta", 3)
+  assert.equal(f.a.session.lookupRequested, false, "Delayed eligibility must not steal focus from continued source editing")
   first.resolve(fieldContext)
   await delay(0)
   assert.equal(f.a.context, undefined)
@@ -183,6 +185,8 @@ test("identifier candidates use their native value tag and field previews use a 
   f.api.filterEditing = async () => ({ ...fieldContext, fragment: "unknown", reference: "unknown" })
   f.a.input("@unknown", 8, 0)
   await delay(0)
+  f.a.setLookup("unknown")
+  await delay(0)
   assert.equal(requestedHelp.field, undefined)
   f.a.exit()
 })
@@ -210,6 +214,8 @@ test("an exact declared choice leads matching suggestions and keeps observed pro
     searchStrings: async () => ({ values: ["Jpeg"], no_values: false }) })
   f.a.fields = [{ ...field, choices: { closed: true, values: ["Png", "Jpeg", "WebP", "Gif"] } }]
   f.a.input("@tag_names_exact:", 17, 0)
+  await delay(0)
+  f.a.setLookup("^Jpeg$")
   await delay(0)
   assert.deepEqual(f.a.candidates, [{ value: "Jpeg", declared: true, observed: true }])
   assert(f.a.acceptHighlighted())
@@ -263,4 +269,73 @@ test("a newer candidate selection supersedes an older literal request for the sa
   assert.equal(await latest, true)
   assert.equal(f.source().text, '@tag_names_exact:"second"')
   f.a.exit()
+})
+
+test("default regex field lookup stays transient and invalid input is recoverable", async (t) => {
+  const f = fixture({ filterEditing: async () => fieldContext })
+  t.after(() => f.a.exit())
+  f.a.fields = ["bilibili_bvid", "bilibili_author_id", "bilibili_title", "twitter_post_id"].map((id) =>
+    ({ ...field, id, native_exact: id, native_value: id }))
+  f.a.input("@", 1, 0)
+  await delay(0)
+  f.a.setLookup("BILIBILI.*ID")
+  assert.deepEqual(f.a.fieldCandidates.map((f) => f.id), ["bilibili_bvid", "bilibili_author_id"])
+  assert.equal(f.source().text, "@")
+  assert.deepEqual(f.a.activeRange, { start: 0, end: 1 })
+  f.a.setLookup("[")
+  assert.match(f.a.lookupError, /Invalid regex/)
+  assert.equal(f.a.acceptHighlighted(), false)
+  assert.equal(f.source().text, "@")
+  f.a.setLookup("bilibili.*id")
+  assert.equal(f.a.lookupError, undefined)
+  assert.equal(f.a.fieldCandidates.length, 2)
+  await f.a.complete()
+  assert.equal(f.source().text, "")
+  assert.equal(f.a.activeRange, undefined)
+})
+
+test("regex value intents reject old pages and literals without changing source or snapshots", async (t) => {
+  const oldPage = deferred(), newPage = deferred(), literal = deferred(), requests = []
+  const f = fixture({ filterLiteral: () => literal.promise,
+    searchStrings: (request) => { requests.push(request); return request.fragment === "old" ? oldPage.promise : request.fragment === "new.*" ? newPage.promise : Promise.resolve({ values: ["chosen"] }) } })
+  t.after(() => f.a.exit())
+  f.a.input("@tag_names_exact:", 17, 0)
+  await delay(0)
+  const accepting = f.a.acceptValue("chosen")
+  f.a.setLookup("old")
+  f.a.setLookup("new.*")
+  await delay(0)
+  oldPage.resolve({ values: ["obsolete"], continuation: "obsolete-page" })
+  literal.resolve({ literal: '"obsolete"' })
+  assert.equal(await accepting, false)
+  await delay(0)
+  assert(f.a.loading)
+  assert.equal(f.a.continuation, undefined)
+  newPage.resolve({ values: ["new value"], continuation: "current-page" })
+  await delay(0)
+  assert.deepEqual(f.a.observed, ["new value"])
+  assert.equal(f.source().text, "@tag_names_exact:")
+  assert.equal(f.captures(), 1)
+  assert(requests.every((r) => r.matching === "regex"))
+  assert.equal(f.a.continuation, "current-page")
+})
+
+test("backend regex errors recover on editing without discarding the aligned observation", async (t) => {
+  const f = fixture({ searchStrings: async (request) => {
+    if (request.fragment === "(?=x)") throw new ApiFailure({ code: "invalid_request", message: "Invalid candidate regex: lookaround is unsupported" }, 400)
+    return { values: ["chosen"] }
+  } })
+  t.after(() => f.a.exit())
+  f.a.input("@tag_names_exact:", 17, 0)
+  await delay(0)
+  f.a.setLookup("(?=x)")
+  await delay(0)
+  assert.match(f.a.lookupError, /unsupported/)
+  assert.equal(f.a.acceptHighlighted(), false)
+  f.a.setLookup("cho.*")
+  await delay(0)
+  assert.equal(f.a.lookupError, undefined)
+  assert.equal(f.a.candidateCount, 1)
+  assert.equal(f.captures(), 1)
+  assert.equal(f.source().text, "@tag_names_exact:")
 })

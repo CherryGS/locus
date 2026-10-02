@@ -2489,6 +2489,7 @@ export interface components {
             fragment: string;
             /** Format: uint */
             limit?: number | null;
+            matching?: components["schemas"]["Search_StringMatching"];
         };
         /**
          * @description Owner-declared authoring capability; observations never become an enum.
@@ -2570,6 +2571,8 @@ export interface components {
             /** Format: uint */
             start: number;
         };
+        /** @enum {string} */
+        Search_StringMatching: "substring" | "regex";
         /** @description Decimal strings preserve the full integer range across JSON consumers. */
         Search_Value: {
             /** @enum {string} */

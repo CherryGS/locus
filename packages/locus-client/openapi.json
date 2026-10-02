@@ -14902,6 +14902,9 @@
             ],
             "format": "uint",
             "minimum": 0
+          },
+          "matching": {
+            "$ref": "#/components/schemas/Search_StringMatching"
           }
         }
       },
@@ -15216,6 +15219,13 @@
             "minimum": 0
           }
         }
+      },
+      "Search_StringMatching": {
+        "type": "string",
+        "enum": [
+          "substring",
+          "regex"
+        ]
       },
       "Search_Value": {
         "oneOf": [

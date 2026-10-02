@@ -10,7 +10,7 @@ use std::{
 use tantivy::{DocAddress, Searcher, TantivyDocument, schema::OwnedValue};
 
 /// caseless 0.2.2 pins Unicode 16.0.0 default full folding, without normalization.
-pub const MATCHING_POLICY: &str = "unicode-16.0.0-default-full-fold-no-normalization-v1";
+pub const MATCHING_POLICY: &str = "unicode-16-full-fold-substring-unicode-regex-case-v2";
 pub(crate) const LIFETIME_SECONDS: u64 = 600;
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Observation {
@@ -26,8 +26,17 @@ pub struct StringPageRequest {
     pub field: String,
     #[serde(default)]
     pub fragment: String,
+    #[serde(default)]
+    pub matching: StringMatching,
     pub continuation: Option<String>,
     pub limit: Option<usize>,
+}
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum StringMatching {
+    #[default]
+    Substring,
+    Regex,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct StringPage {
@@ -61,6 +70,7 @@ pub(crate) struct DiscoveryContext {
 pub(crate) struct Cursor {
     pub field: String,
     pub fragment: String,
+    pub matching: StringMatching,
     pub offset: usize,
 }
 
@@ -193,14 +203,29 @@ impl DiscoveryContext {
                 "field has no string observation capability".into(),
             ));
         }
+        // Compile against original values, never folded regex source: folding
+        // would turn escapes such as \D into \d and change character classes.
+        let regex = if request.matching == StringMatching::Regex {
+            Some(
+                regex::RegexBuilder::new(&request.fragment)
+                    .case_insensitive(true)
+                    .build()
+                    .map_err(|e| SearchError::Request(format!("Invalid candidate regex: {e}")))?,
+            )
+        } else {
+            None
+        };
         let offset = if let Some(token) = request.continuation {
             let cursors = self.cursors.lock().unwrap_or_else(|e| e.into_inner());
             let cursor = cursors
                 .get(&token)
                 .ok_or_else(|| SearchError::Request("foreign or invalid continuation".into()))?;
-            if cursor.field != request.field || cursor.fragment != request.fragment {
+            if cursor.field != request.field
+                || cursor.fragment != request.fragment
+                || cursor.matching != request.matching
+            {
                 return Err(SearchError::Request(
-                    "continuation field/fragment mismatch".into(),
+                    "continuation field/matching/fragment mismatch".into(),
                 ));
             }
             cursor.offset
@@ -212,11 +237,19 @@ impl DiscoveryContext {
             return Err(SearchError::Invalid("observation kind".into()));
         };
         let fragment = caseless::default_case_fold_str(&request.fragment);
-        let exact = originals.iter().find(|(_, s)| s == &request.fragment);
+        let matches = |folded: &str, original: &str| {
+            regex.as_ref().map_or_else(
+                || folded.contains(&fragment),
+                |regex| regex.is_match(original),
+            )
+        };
+        let exact = originals
+            .iter()
+            .find(|(f, s)| s == &request.fragment && matches(f, s));
         let ordered = exact.into_iter().chain(
             originals
                 .iter()
-                .filter(|(f, s)| s != &request.fragment && f.contains(&fragment)),
+                .filter(|(f, s)| s != &request.fragment && matches(f, s)),
         );
         let mut matched = ordered.skip(offset).peekable();
         let mut values = Vec::new();
@@ -244,6 +277,7 @@ impl DiscoveryContext {
                     Cursor {
                         field: request.field,
                         fragment: request.fragment,
+                        matching: request.matching,
                         offset: offset + values.len(),
                     },
                 );

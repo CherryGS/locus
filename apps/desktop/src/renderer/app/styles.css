@@ -146,6 +146,25 @@ a, button, input, select, textarea {
     width: 6px;
     height: 6px;
   }
+  .filter-assistance-scope {
+    position: absolute;
+    inset: 0 auto auto 0;
+    overflow: hidden;
+    pointer-events: none;
+    border-radius: var(--radius);
+  }
+  .filter-assistance-scope-content {
+    box-sizing: border-box;
+    color: transparent;
+    border-color: transparent;
+  }
+  .filter-assistance-scope mark {
+    color: transparent;
+    background: color-mix(in oklab, var(--primary) 12%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 45%, transparent);
+    border-radius: 3px;
+    box-decoration-break: clone;
+  }
   .filter-source::-webkit-scrollbar-track {
     background: transparent;
   }

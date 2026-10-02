@@ -8,6 +8,8 @@ import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTitle } from "@/shared/ui/popover"
 import { Separator } from "@/shared/ui/separator"
 import { Spinner } from "@/shared/ui/spinner"
+import { Input } from "@/shared/ui/input"
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field"
 import type { FilterCoordinator } from "../model/filter-coordinator"
 import { diagnosticPosition } from "../model/raw-input"
 import { useAssistanceAnchor } from "./assistance-anchor"
@@ -15,10 +17,28 @@ import { useAssistanceAnchor } from "./assistance-anchor"
 export function AssistancePanel({ coordinator: c, inputRef }: {
   coordinator: FilterCoordinator; inputRef: RefObject<HTMLTextAreaElement | null>
 }) {
-  const a = c.assistance, viewport = useRef<HTMLDivElement>(null)
+  const a = c.assistance, viewport = useRef<HTMLDivElement>(null), lookup = useRef<HTMLInputElement>(null)
+  const focused = useRef<number | undefined>(undefined)
   const range = a.context?.kind === "field" ? a.context.field_range : a.context?.value_range
   const anchor = useAssistanceAnchor(inputRef, a.active,
     range ? diagnosticPosition(c.draft.source.text, range.start) : undefined)
+  useLayoutEffect(() => {
+    if (!a.active) { focused.current = undefined; return }
+    if (anchor && a.session?.confirmed && a.session.lookupRequested && a.lookupAvailable && focused.current !== a.session.id && lookup.current) {
+      focused.current = a.session.id
+      lookup.current.focus()
+    }
+  })
+  const finish = async (complete: boolean) => {
+    const element = inputRef.current
+    if (!element) return
+    const position = element.selectionStart, marker = a.activeRange?.start
+    if (complete && !await a.complete()) return
+    if (!complete) a.exit()
+    element.focus()
+    const caret = Math.min(element.value.length, position - (complete && marker !== undefined && position > marker ? 1 : 0))
+    element.setSelectionRange(caret, caret)
+  }
   useLayoutEffect(() => {
     const scroller = viewport.current, current = scroller?.querySelector('[aria-current="true"]')
     if (!scroller || !current) return
@@ -47,17 +67,22 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.keyCode === 229) return
           if (event.key === "Escape") {
-            event.preventDefault(); event.stopPropagation(); a.exit(); inputRef.current?.focus()
-          } else if (event.key === "Enter" && (event.target as Element).closest('[aria-label^="Use "]')) {
-            event.preventDefault(); void a.complete(); inputRef.current?.focus()
+            event.preventDefault(); event.stopPropagation(); void finish(false)
+          } else if (event.key === "Enter" && ((event.target as Element).closest('[aria-label^="Use "]') || event.target === lookup.current)) {
+            event.preventDefault(); event.stopPropagation(); void finish(true)
+          } else if (event.target === lookup.current && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+            if (a.move(event.key === "ArrowDown" ? 1 : -1)) event.preventDefault()
+          } else if (event.target === lookup.current && event.key === "Tab" && !event.shiftKey && a.acceptHighlighted()) {
+            event.preventDefault()
           }
         }}
         onBlurCapture={(event) => {
           if (!a.locked && !(event.relatedTarget as Element | null)?.closest('[data-filter-helper-interaction], #filter-source')) a.exit()
         }}
-        onPointerDown={(event) => event.preventDefault()}>
+        onPointerDown={(event) => { if (!(event.target as Element).closest("input")) event.preventDefault() }}>
         <div className="flex shrink-0 items-center gap-2 px-1">
           <Badge variant={fields ? "secondary" : "outline"}>{fields ? "Field" : "Value"}</Badge>
+          {a.lookupAvailable && <Badge variant="outline">Regex</Badge>}
           <div className="min-w-0 flex-1">
             <PopoverTitle className="truncate">{fields ? "Choose a field" : a.context?.reference || "Native query"}</PopoverTitle>
             {field && !fields && <p className="text-xs text-muted-foreground">{field.owner} · {field.field_type} · {field.shape}{field.unit && ` · ${field.unit}`}</p>}
@@ -69,6 +94,17 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
                 onClick={() => a.refresh()}><RefreshCwIcon /></Button>}
           </div>
         </div>
+        {a.lookupAvailable && <FieldGroup className="shrink-0 px-1">
+          <Field data-invalid={!!a.lookupError}>
+            <FieldLabel htmlFor="filter-assistance-search" className="sr-only">{fields ? "Find fields with regex" : "Find values with regex"}</FieldLabel>
+            <Input id="filter-assistance-search" ref={lookup} value={a.lookupText} disabled={a.locked}
+              aria-invalid={!!a.lookupError} aria-describedby={a.lookupError ? "filter-assistance-regex-error" : "filter-assistance-hint"}
+              placeholder={fields ? "bilibili.*id" : "Search original values with regex…"}
+              spellCheck={false} autoComplete="off" onFocus={() => { a.lookupFocused = true }}
+              onBlur={() => { a.lookupFocused = false }} onChange={(event) => a.setLookup(event.target.value)} />
+            {a.lookupError && <FieldError id="filter-assistance-regex-error">{a.lookupError}</FieldError>}
+          </Field>
+        </FieldGroup>}
         <ScrollArea className="min-h-0 min-w-0 overflow-clip"
           viewportProps={{ ref: viewport, className: "max-h-[min(16rem,calc(var(--available-height)-6rem))] overscroll-contain",
             "aria-label": fields ? "Assisted fields" : "Assisted values" }}>
@@ -106,12 +142,12 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
               </Button>)}
             </div>}
             {a.loading && field?.assistance !== "strings" && !a.bounds && <p role="status" className="px-1 text-xs text-muted-foreground">Reading whole-library values…</p>}
-            {fields && !c.cataloguePending && !c.catalogueError && !a.fieldCandidates.length &&
+            {fields && !a.lookupError && !c.cataloguePending && !c.catalogueError && !a.fieldCandidates.length &&
               <Empty className="p-2"><EmptyHeader><EmptyTitle>No matching fields</EmptyTitle></EmptyHeader></Empty>}
             {a.error && <Alert variant="destructive"><AlertDescription>{a.error}
               <Button size="sm" variant="outline" onClick={() => a.retry()}>Retry assistance</Button>
             </AlertDescription></Alert>}
-            {!a.error && field?.assistance === "strings" && a.context?.kind === "value" && !a.observed.length &&
+            {!a.error && !a.lookupError && field?.assistance === "strings" && a.context?.kind === "value" && !a.observed.length &&
               <Empty className="p-2"><EmptyHeader><EmptyTitle>{a.editing || a.loading ? "Finding values…" : a.noValues ? "No observed values" : "No matching values"}</EmptyTitle></EmptyHeader></Empty>}
             {a.bounds && <p className="px-1 text-xs text-muted-foreground">
               {a.bounds.minimum && a.bounds.maximum ? <>Observed library range: <span className="select-text">{a.bounds.minimum.value} – {a.bounds.maximum.value}</span>{field?.unit && ` ${field.unit}`}</> : "No observed values"}

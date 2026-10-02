@@ -26,6 +26,15 @@ usable after explanation expiry. Compatible derived generations reopen, while
 representation/catalogue changes rebuild only the derived index. Presets and
 primary data are outside index cleanup.
 
+Original-value discovery supports literal substring lookup and case-insensitive
+regex lookup over the same aligned, retained library observation. Requests with
+`matching: "regex"` interpret `fragment` as an unanchored regex pattern; omitted
+matching retains literal full-case-folded substring behavior. Regex operates on
+original strings without folding pattern syntax, returns originals unchanged,
+and rejects invalid/unsupported patterns. Continuation is bound to field, pattern
+and matching mode. The desktop's transient `@` lookup defaults to regex; its
+pattern never becomes executable query source or a saved preset.
+
 Run `just rust-test-code locus-search`, the server Filter composition tests,
 `just server-search-smoke`, `just desktop-filter-browser` and
 `just desktop-renderer-scale 1000000` for executable evidence. Performance reports

@@ -2,7 +2,7 @@
 use crate::{
     collector::Complete,
     compiler,
-    discovery::{DiscoveryContext, Observed, StringPageRequest},
+    discovery::{DiscoveryContext, Observed, StringMatching, StringPageRequest},
     schema::Mapping,
 };
 use locus_core::api::{ComponentId, EntityId};
@@ -63,6 +63,7 @@ fn page(
                 context: "fixture".into(),
                 field: field.into(),
                 fragment: fragment.into(),
+                matching: Default::default(),
                 continuation,
                 limit: Some(limit),
             },
@@ -161,6 +162,7 @@ fn original_discovery_folding_live_precision_paging_and_snapshot() {
                     context: "fixture".into(),
                     field: "title".into(),
                     fragment: String::new(),
+                    matching: Default::default(),
                     continuation: Some(foreign),
                     limit: None
                 }
@@ -204,6 +206,100 @@ fn original_discovery_folding_live_precision_paging_and_snapshot() {
             .values
             .is_empty()
     );
+}
+
+#[test]
+fn regex_discovery_preserves_patterns_originals_and_mode_qualified_paging() {
+    let (m, index, ids) = fixture();
+    let c = ComponentId::new();
+    let mut writer = index.writer_with_num_threads(1, 15_000_000).unwrap();
+    let originals = [
+        "cat", "Cat", "dog", "123", "dot.a", "dotXa", "Σ", "ς", "Straße", "STRASSE", "^$", "",
+    ];
+    writer
+        .add_document(
+            m.document(
+                ids[0],
+                &[FieldValue::collection(
+                    "tags",
+                    c,
+                    Some(originals.iter().map(|s| Value::Text((*s).into())).collect()),
+                )],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    writer.commit().unwrap();
+    let context = context(&index);
+    let request = |pattern: &str| StringPageRequest {
+        context: "fixture".into(),
+        field: "tags".into(),
+        fragment: pattern.into(),
+        matching: StringMatching::Regex,
+        continuation: None,
+        limit: Some(128),
+    };
+    assert_eq!(
+        context.strings(&m, request("^(cat|dog)$")).unwrap().values,
+        vec!["Cat", "cat", "dog"]
+    );
+    assert_eq!(
+        context.strings(&m, request(r"dot\.a")).unwrap().values,
+        vec!["dot.a"]
+    );
+    assert!(
+        !context
+            .strings(&m, request(r"^\D+$"))
+            .unwrap()
+            .values
+            .contains(&"123".into())
+    );
+    assert_eq!(
+        context.strings(&m, request("σ")).unwrap().values,
+        vec!["Σ", "ς"]
+    );
+    assert_eq!(
+        context.strings(&m, request("^strasse$")).unwrap().values,
+        vec!["STRASSE"]
+    );
+    assert_eq!(context.strings(&m, request("^$")).unwrap().values, vec![""]);
+    assert_eq!(
+        context.strings(&m, request("")).unwrap().values.len(),
+        originals.len()
+    );
+    assert!(context.strings(&m, request("[")).is_err());
+    assert!(context.strings(&m, request("(?=cat)")).is_err());
+    let mut first_request = request(".");
+    first_request.limit = Some(2);
+    let first = context.strings(&m, first_request).unwrap();
+    let mut next = request(".");
+    next.continuation = first.continuation.clone();
+    next.matching = StringMatching::Substring;
+    assert!(context.strings(&m, next).is_err());
+    let mut values = first.values;
+    let mut continuation = first.continuation;
+    while continuation.is_some() {
+        let mut next = request(".");
+        next.continuation = continuation;
+        next.limit = Some(2);
+        let page = context.strings(&m, next).unwrap();
+        values.extend(page.values);
+        continuation = page.continuation;
+    }
+    assert_eq!(values.len(), originals.len() - 1);
+    assert_eq!(
+        values
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        values.len()
+    );
+    let legacy: StringPageRequest = serde_json::from_value(serde_json::json!({
+        "context": "fixture", "field": "tags", "fragment": ".", "continuation": null, "limit": 128,
+    }))
+    .unwrap();
+    assert_eq!(legacy.matching, StringMatching::Substring);
+    assert_eq!(context.strings(&m, legacy).unwrap().values, vec!["dot.a"]);
 }
 fn context_new(index: &Index) -> DiscoveryContext {
     context(index)

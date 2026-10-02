@@ -1,4 +1,4 @@
-import { errorText, type BackendApi, type Wire } from "@/shared/api"
+import { ApiFailure, errorText, type BackendApi, type Wire } from "@/shared/api"
 import { bytePosition, byteToRaw, displaySource, rawPosition } from "./raw-input"
 
 export type AssistanceApi = Pick<BackendApi,
@@ -6,7 +6,7 @@ export type AssistanceApi = Pick<BackendApi,
   "searchStrings" | "searchBounds" | "releaseSearchObservation">
 type Field = Wire<"Search_FieldDefinition">
 type Candidate = { value: string; declared: boolean; observed: boolean }
-type Session = { id: number; marker: number; end: number; confirmed: boolean }
+type Session = { id: number; marker: number; end: number; confirmed: boolean; lookupRequested: boolean }
 
 // Event provenance and one marker belong to the consumer. All native spans,
 // references, fragments and serialization come from the source owner.
@@ -24,6 +24,9 @@ export class FilterAssistance {
   error?: string
   helpError?: string
   highlight = 0
+  lookupText = ""
+  lookupFocused = false
+  private lookupReplyError?: string
   selection?: { revision: number; position: number }
   private serial = 0
   private edit = 0
@@ -48,18 +51,40 @@ export class FilterAssistance {
   ) {}
   get active() { return !!this.session }
   get locked() { return !this.canEdit() }
+  get lookupAvailable() {
+    return this.context?.kind === "field" || this.context?.kind === "value" && this.field?.assistance === "strings"
+  }
+  get lookupError() {
+    try { new RegExp(this.lookupText, "iu") }
+    catch (error) { return `Invalid regex: ${errorText(error)}` }
+    return this.lookupReplyError
+  }
+  get activeRange() {
+    if (!this.session) return undefined
+    return { start: this.session.marker, end: this.session.end }
+  }
+  setLookup(text: string) {
+    if (!this.session || this.locked || !this.lookupAvailable) return
+    this.lookupText = text; this.lookupReplyError = undefined
+    this.discovery++; this.acceptanceIntent++; this.highlight = 0
+    this.continuation = undefined; this.loading = false
+    this.updateHelp(); this.changed()
+    if (!this.lookupError && this.context?.kind === "value") void this.readDiscovery()
+  }
   get field() { return this.fields.find((f) => f.id === this.context?.field) }
   private get helpReference() {
     return this.context?.kind === "field" ? this.fieldCandidates[this.highlight]?.native_exact :
       this.context?.field ? this.context.reference || undefined : undefined
   }
   get fieldCandidates() {
-    const fragment = this.context?.fragment.toLowerCase() ?? ""
+    if (this.lookupError) return []
+    const pattern = new RegExp(this.lookupText, "iu")
     return this.fields.filter((f) => [f.id, f.owner, f.native_exact, f.native_value]
-      .some((s) => s.toLowerCase().includes(fragment)))
+      .some((s) => pattern.test(s)))
   }
   get candidates(): Candidate[] {
-    if (this.context?.kind !== "value" || !this.context.value_range) return []
+    if (this.lookupError || this.context?.kind !== "value" || !this.context.value_range) return []
+    const pattern = new RegExp(this.lookupText, "iu")
     const values = new Map<string, Candidate>()
     // Declared choices remain separately available during a discovery outage.
     // Search owns observed matching; never label a choice absent based on a page.
@@ -68,20 +93,23 @@ export class FilterAssistance {
     // Current owner-declared choices are ASCII format names. Keep observed
     // Search ordering and put an exact authored match first after merging.
     for (const value of this.field?.choices?.values ?? [])
-      if (!values.has(value) && value.toLowerCase().includes(this.context.fragment.toLowerCase()))
+      if (!values.has(value) && pattern.test(value))
         values.set(value, { value, declared: true, observed: false })
-    const result = [...values.values()], exact = result.findIndex((c) => c.value === this.context?.fragment)
+    const result = [...values.values()], exact = result.findIndex((c) => c.value === this.lookupText)
     if (exact > 0) result.unshift(...result.splice(exact, 1))
     return result
   }
   get candidateCount() {
-    if (this.editing || this.loading) return 0
+    if (this.editing || this.loading || this.lookupError) return 0
     return this.context?.kind === "field" ? this.fieldCandidates.length : this.candidates.length
   }
   input(text: string, caret: number, freshMarker?: number) {
     if (!this.canEdit()) return
     const old = this.source().text
     if (this.session) {
+      // A delayed eligibility reply must not take focus from a user who has
+      // already continued deliberate native-source editing after the marker.
+      if (text !== old) this.session.lookupRequested = false
       // Edits before/deleting the marker abandon assistance; a normal textarea
       // replacement/paste never resurrects a marker from its resulting text.
       let start = 0
@@ -91,7 +119,8 @@ export class FilterAssistance {
     }
     this.write(text)
     if (!this.session && freshMarker !== undefined) {
-      this.session = { id: ++this.serial, marker: freshMarker, end: rawPosition(text, caret), confirmed: false }
+      this.lookupText = ""; this.lookupReplyError = undefined; this.lookupFocused = false
+      this.session = { id: ++this.serial, marker: freshMarker, end: rawPosition(text, caret), confirmed: false, lookupRequested: true }
       this.changed()
     }
     if (this.session) this.recontext(caret)
@@ -145,6 +174,7 @@ export class FilterAssistance {
       session.end = Math.max(session.end, byteToRaw(source.text, context.condition_range?.end ?? marker + 1))
       const previous = this.context
       if (!previous || previous.field !== context.field || previous.reference !== context.reference || previous.kind !== context.kind) {
+        this.lookupText = ""; this.lookupReplyError = undefined
         this.observed = []; this.bounds = undefined; this.continuation = undefined; this.noValues = false
       }
       this.context = context
@@ -212,9 +242,10 @@ export class FilterAssistance {
   async readDiscovery(more = false) {
     const session = this.session, context = this.context, field = this.field
     if (!session || !field || !context || this.editing || field.assistance === "manual") return
+    if (this.lookupError) return
     if (this.observationFailure) return
     if (field.assistance === "strings" && (context.kind !== "value" || !context.value_range)) return
-    const ticket = ++this.discovery, editing = this.edit
+    const ticket = ++this.discovery, editing = this.edit, pattern = this.lookupText
     this.loading = true; this.error = undefined
     if (!more) this.noValues = false
     this.changed()
@@ -227,7 +258,7 @@ export class FilterAssistance {
         if (current()) this.bounds = bounds
       } else {
         const page = await this.api.searchStrings({ context: observation.context, field: field.id,
-          fragment: context.fragment, continuation: more ? this.continuation : undefined, limit: 40 })
+          fragment: pattern, matching: "regex", continuation: more ? this.continuation : undefined, limit: 40 })
         if (current()) {
           this.observed = more ? [...this.observed, ...page.values] : page.values
           this.continuation = page.continuation; this.noValues = page.no_values
@@ -235,6 +266,11 @@ export class FilterAssistance {
       }
     } catch (error) {
       if (current()) {
+        if (error instanceof ApiFailure && error.detail.code === "invalid_request") {
+          this.lookupReplyError = errorText(error)
+          this.observed = []; this.continuation = undefined
+          return
+        }
         this.error = `Library observation unavailable: ${errorText(error)}. Refresh to try again.`
         this.observationFailure = this.error
         this.observed = []; this.bounds = undefined; this.continuation = undefined
@@ -259,7 +295,7 @@ export class FilterAssistance {
     this.changed(); return true
   }
   acceptHighlighted() {
-    if (this.editing || this.loading) return false
+    if (this.editing || this.loading || this.lookupError) return false
     if (this.context?.kind === "field") {
       const field = this.fieldCandidates[this.highlight]
       if (field) { this.acceptField(field); return true }
@@ -280,14 +316,14 @@ export class FilterAssistance {
     this.recontext(position)
   }
   acceptField(field: Field) {
-    if (!this.canEdit() || this.editing) return
+    if (!this.canEdit() || this.editing || this.lookupError) return
     const context = this.context
-    if (!context?.field_range || context.kind !== "field" || !this.fields.includes(field)) return
+    if (!context?.field_range || context.kind !== "field" || !this.fieldCandidates.includes(field)) return
     try { this.replace(context.field_range, field.native_exact + (context.separator_range ? "" : ":"), context.separator_range ? 1 : 0) }
     catch (error) { this.error = errorText(error); this.changed() }
   }
   acceptValue(value: string) {
-    if (!this.canEdit() || this.editing || this.loading) return Promise.resolve(false)
+    if (!this.canEdit() || this.editing || this.loading || this.lookupError) return Promise.resolve(false)
     const pending = this.insertValue(value, ++this.acceptanceIntent)
     this.accepting = pending
     void pending.finally(() => { if (this.accepting === pending) this.accepting = undefined })
@@ -295,12 +331,12 @@ export class FilterAssistance {
   }
   private async insertValue(value: string, acceptance: number) {
     const context = this.context, session = this.session, source = structuredClone(this.source()), ticket = this.edit
-    const candidate = this.candidates.find((c) => c.value === value), discovery = this.discovery
+    const candidate = this.candidates.find((c) => c.value === value), discovery = this.discovery, pattern = this.lookupText
     if (!context?.value_range || context.kind !== "value" || !context.reference || !candidate) return false
     try {
       const literal = await this.api.filterLiteral({ format: source.format, version: source.version,
         field: context.reference, value: { type: this.field?.field_type === "identifier" ? "identifier" : "text", value } })
-      if (acceptance !== this.acceptanceIntent || this.session !== session || this.edit !== ticket || JSON.stringify(source) !== JSON.stringify(this.source())) return false
+      if (acceptance !== this.acceptanceIntent || this.session !== session || this.edit !== ticket || pattern !== this.lookupText || JSON.stringify(source) !== JSON.stringify(this.source())) return false
       if (candidate.observed && !candidate.declared && discovery !== this.discovery) {
         this.error = "The candidate observation changed. Select a current value to try again."; this.changed(); return false
       }
@@ -346,6 +382,7 @@ export class FilterAssistance {
   exit() {
     if (!this.session) return
     this.session = undefined; this.context = undefined; this.help = undefined; this.helpKey = undefined
+    this.lookupText = ""; this.lookupReplyError = undefined; this.lookupFocused = false
     this.accepting = undefined; this.locating = undefined; this.selection = undefined
     this.locationKey = undefined
     this.acceptanceIntent++

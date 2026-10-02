@@ -1516,6 +1516,7 @@ dependencies = [
  "locus-query",
  "locus-store",
  "locus-task",
+ "regex",
  "schemars",
  "serde",
  "serde_json",

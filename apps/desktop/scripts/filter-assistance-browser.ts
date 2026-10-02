@@ -6,9 +6,13 @@ import type { components } from "@locus/client"
 export async function checkFilterAssistance(page: Page, dialog: Locator, source: Locator,
   catalogue: components["schemas"]["SearchCatalogueBody"], output: string) {
   const panel = page.locator("#filter-assistance")
-  const type = async (text: string) => {
+  const lookup = panel.locator("#filter-assistance-search")
+  const type = async (text: string, narrowFields = true) => {
     await source.fill("")
     await source.pressSequentially(text)
+    // Deliberately authored native headers remain source; tests use the separate
+    // regex input when they need a narrowed candidate list.
+    if (narrowFields && !text.includes(":")) { await lookup.waitFor(); await lookup.fill(text.slice(1)) }
   }
   const exited = async () => {
     // A provisional helper can await its first owner reply before showing a
@@ -26,6 +30,62 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
   await panel.waitFor({ state: "hidden" })
   assert.equal(await source.inputValue(), 'civitai_file_name:"@')
 
+  // New default keyboard path: the transient pattern never enters native source.
+  await source.fill("entity_id:* AND ")
+  await source.pressSequentially("@")
+  await lookup.waitFor()
+  await page.waitForFunction(() => document.activeElement?.id === "filter-assistance-search")
+  await page.keyboard.type("bilibili.*id")
+  const bili = await panel.locator('button[aria-label^="Use field "]').allTextContents()
+  assert(bili.length >= 3 && bili.every((text) => /bilibili.*id/i.test(text)), JSON.stringify(bili))
+  assert.equal(await source.inputValue(), "entity_id:* AND @")
+  assert.equal(await page.locator("[data-filter-active-scope]").count(), 1)
+  await page.screenshot({ path: join(output, "filter-assistance-regex-fields.png"), animations: "disabled" })
+  await page.keyboard.press("Escape")
+  await exited()
+  assert.equal(await source.inputValue(), "entity_id:* AND @")
+  assert.equal(await page.locator("[data-filter-active-scope]").count(), 0)
+  assert(await source.evaluate((element) => document.activeElement === element))
+
+  await type("@")
+  await lookup.fill("^bilibili_bvid$")
+  await page.keyboard.press("Tab")
+  await page.waitForFunction(() => document.activeElement?.id === "filter-source")
+  await page.keyboard.type("BV123")
+  await page.keyboard.press("Enter")
+  await exited()
+  assert.equal(await source.inputValue(), "bilibili_bvid:BV123", "Manual-only values continue through the keyboard")
+
+  await type("@")
+  await page.keyboard.type("[")
+  await panel.getByRole("alert").filter({ hasText: /Invalid regex/ }).waitFor()
+  assert.equal(await panel.locator('button[aria-label^="Use field "]').count(), 0)
+  await lookup.fill("^civitai_file_name(?:_exact)?$")
+  await page.keyboard.press("Tab")
+  await observedValuesReady()
+  assert.equal(await lookup.inputValue(), "")
+  assert(await lookup.evaluate((element) => document.activeElement === element))
+  await lookup.fill("(?=B)")
+  await panel.getByRole("alert").filter({ hasText: /look-around.*not supported/ }).waitFor()
+  assert.equal(await panel.getByRole("button", { name: /^Use value / }).count(), 0)
+  assert.equal(await source.inputValue(), `@${field.native_exact}:`)
+  await lookup.fill("^B\\.safetensors$")
+  await panel.getByRole("button", { name: "Use value B.safetensors", exact: true }).waitFor()
+  await page.waitForFunction(() => document.getElementById("filter-assistance")?.getAttribute("aria-busy") === "false")
+  await page.keyboard.press("Tab")
+  await page.waitForFunction(() => (document.getElementById("filter-source") as HTMLTextAreaElement)?.value.endsWith(':"B.safetensors"'))
+  assert(await lookup.evaluate((element) => document.activeElement === element))
+  await page.screenshot({ path: join(output, "filter-assistance-regex-value.png"), animations: "disabled" })
+  await page.keyboard.press("Enter")
+  await exited()
+  assert.equal(await source.inputValue(), `${field.native_exact}:"B.safetensors"`)
+  assert(await source.evaluate((element) => document.activeElement === element))
+
+  async function observedValuesReady() {
+    await panel.getByRole("button", { name: /^Use value / }).first().waitFor()
+    await page.waitForFunction(() => document.getElementById("filter-assistance")?.getAttribute("aria-busy") === "false")
+  }
+
   // Hold an obsolete lexical reply while newer direct typing completes.
   let release!: () => void, received!: () => void, delivered!: () => void
   const held = new Promise<void>((resolve) => { release = resolve })
@@ -38,9 +98,10 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
     const response = await route.fetch()
     received(); await held; await route.fulfill({ response }); delivered()
   })
-  await type("@")
+  await type("@", false)
   await request
   await source.pressSequentially("civitai_file_name")
+  await lookup.fill("civitai_file_name")
   await panel.getByRole("button", { name: "Use field civitai_file_name", exact: true }).waitFor()
   await panel.getByRole("heading", { name: "Choose a field", exact: true }).waitFor()
   await panel.getByText(`${field.native_exact}:"cat girl"`, { exact: true }).waitFor()
@@ -145,19 +206,16 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
     assert.equal(await observed.first().getAttribute("aria-disabled"), "true")
   }
   try {
-    await source.pressSequentially("B")
-    await editingSeen.promise
-    await stablePendingFrames()
-    editingGate.resolve()
+    await lookup.pressSequentially("B")
     await valuesSeen.promise
     await stablePendingFrames()
     valuesGate.resolve()
     await page.waitForFunction(() => document.querySelectorAll('#filter-assistance button[aria-label^="Use value "]').length === 1 &&
       document.getElementById("filter-assistance")?.getAttribute("aria-busy") === "false")
-    assert.equal(edits, 1, "One physical input must not also fetch for its selection event")
+    assert.equal(edits, 0, "Transient lookup typing must not edit or reparse source")
     assert.equal(valueReads, 1)
     assert.equal(helpReads, 0, "The current field's help stays cached")
-    await source.press("Tab")
+    await lookup.press("Tab")
     await page.waitForFunction(() => (document.getElementById("filter-source") as HTMLTextAreaElement)?.value.endsWith(':"B.safetensors"'))
   } finally {
     editingGate.resolve(); valuesGate.resolve()
@@ -198,6 +256,7 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
 
   // Type fields offer observations only; formats expose genuine declared choices.
   await type("@image_format:Jpeg")
+  await lookup.fill("Jpeg")
   const jpeg = panel.getByRole("button", { name: "Use value Jpeg", exact: true })
   await jpeg.waitFor()
   assert.equal(await jpeg.getAttribute("aria-current"), "true")
@@ -222,7 +281,7 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
   await panel.getByRole("button", { name: "More values", exact: true }).click()
   await page.waitForFunction(() => document.querySelectorAll('#filter-assistance button[aria-label^="Use value "]').length > 2)
   assert.equal(captures, 1)
-  await source.pressSequentially("no-such-value")
+  await lookup.fill("no-such-value")
   await panel.getByText("No matching values", { exact: true }).waitFor()
   assert.equal(captures, 1, "One helper reuses its observation across fragments")
   await source.press("Escape"); await exited()
@@ -297,7 +356,10 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
   await source.fill("entity_id:*\nAND\n\n\n")
   await source.pressSequentially(`@${field.native_exact}:`)
   await observed.first().waitFor()
-  await page.waitForFunction(() => document.getElementById("filter-assistance")?.getAttribute("data-side") === "top")
+  const repositioned = await panel.boundingBox()
+  assert(repositioned && repositioned.x >= 0 && repositioned.y >= 0 &&
+    repositioned.x + repositioned.width <= 720 && repositioned.y + repositioned.height <= 480,
+    "Collision handling keeps the taller regex helper visible beside multiline source")
   await page.screenshot({ path: join(output, "filter-assistance-flipped.png"), animations: "disabled" })
   await source.press("Escape"); await exited()
   await page.setViewportSize({ width: 1200, height: 800 })
