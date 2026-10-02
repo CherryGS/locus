@@ -5,6 +5,9 @@
 /.codegraph
 /.local
 
+# Local skill hooks reference ignored skill installations.
+/.codex/hooks.json
+
 node_modules
 dist
 coverage
