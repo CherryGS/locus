@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { Crepe } from "@milkdown/crepe"
 import { uploadConfig } from "@milkdown/kit/plugin/upload"
+import { PencilIcon } from "lucide-react"
 import "@milkdown/crepe/theme/common/style.css"
 import "@milkdown/crepe/theme/frame.css"
 import "./tag-document.css"
 import { Button } from "@/shared/ui/button"
 import { Spinner } from "@/shared/ui/spinner"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyContent } from "@/shared/ui/empty"
 import type { TagDetails, TagDetailState } from "../model/tag-detail"
 import { errorText } from "@/shared/api"
 
@@ -41,6 +42,9 @@ export function TagDocument({
         [Crepe.Feature.Latex]: false,
         [Crepe.Feature.TopBar]: false,
         [Crepe.Feature.AI]: false,
+      },
+      featureConfigs: {
+        [Crepe.Feature.Placeholder]: { text: "Write a description…", mode: "doc" },
       },
     })
     crepe.editor.config((ctx) =>
@@ -92,7 +96,7 @@ export function TagDocument({
     s.editor?.readonly(!s.editing || !c.editable || c.unresolved(s))
   })
   return (
-    <section aria-label="Tag document" className="flex min-w-0 shrink-0 flex-col gap-2">
+    <section aria-label="Tag document" className="flex min-h-full min-w-0 flex-col gap-2">
       {(s.documentError || failure) && (
         <Alert variant="destructive">
           <AlertDescription>
@@ -129,11 +133,25 @@ export function TagDocument({
         </Alert>
       )}
       {s.document ? (
-        <div className="tag-markdown min-w-0" data-editing={s.editing}>
+        <div className="tag-markdown flex min-w-0 flex-1 flex-col" data-editing={s.editing}>
           {!s.editing && !s.document.markdown && (
-            <p className="px-6 py-2 text-sm text-muted-foreground">
-              Add a description to this tag.
-            </p>
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>No description yet</EmptyTitle>
+                <EmptyDescription>Notes, context, and links for this tag.</EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!ready || s.documentPending || !c.editable || c.unresolved(s)}
+                  onClick={() => c.begin(s)}
+                >
+                  <PencilIcon data-icon="inline-start" />
+                  Write description
+                </Button>
+              </EmptyContent>
+            </Empty>
           )}
           {!ready && !failure && (
             <div className="px-6 py-3">

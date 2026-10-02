@@ -90,7 +90,7 @@ export function TagDetailPage({
           <div className="h-full min-h-0 px-3 pt-3 pb-2">
             <ScrollArea
               data-description-frame
-              className="h-full rounded-md border border-border"
+              className="h-full rounded-lg border border-border bg-muted/20"
               viewportProps={{ "aria-label": "Description area" }}
             >
               <TagDocument coordinator={coordinator} state={state} />
