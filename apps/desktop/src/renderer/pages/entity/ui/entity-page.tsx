@@ -66,7 +66,6 @@ export function EntityPage({
   navigate,
   live,
   context,
-  onSourceReturn,
 }: {
   source: EntitySource
   collections: readonly RelatedCollection[]
@@ -74,11 +73,9 @@ export function EntityPage({
   visitKey: string
   browsing?: EntityBrowsingState
   navigate: (destination: EntityDestination, replace?: boolean) => void
-  onSourceReturn?: () => void
   context?: {
     id: string
     title: ReactNode
-    controls?: ReactNode
     sequence?: IdentitySequence
     pending: boolean
     error?: string
@@ -326,7 +323,7 @@ export function EntityPage({
     setExplanation(result.explanation)
     navigate(next)
   }, [destination, navigate, library.sequence, collections, live?.filter.sequence, context?.id, context?.sequence])
-  useSourceReturn(viewing ? exit : onSourceReturn)
+  useSourceReturn(viewing ? exit : undefined)
   useEffect(() => {
     if (!viewing) return
     function exitOnEscape(event: globalThis.KeyboardEvent) {
@@ -672,7 +669,6 @@ export function EntityPage({
         {!viewing && destination.collectionId === "library" && live && (
           <FilterModal coordinator={live.filter} />
         )}
-        {!viewing && activeContext?.controls}
         {!viewing && selected && <span className="text-xs text-muted-foreground">1 selected</span>}
         {live && (
           <Button

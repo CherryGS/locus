@@ -19,6 +19,7 @@ export type TagDetailState = {
   scope: boolean
   requestedScope: boolean
   sequence?: IdentitySequence
+  galleryId?: string
   queryPending: boolean
   queryError?: string
   documentTicket: number
@@ -214,6 +215,8 @@ export class TagDetails {
       void observation.release().catch(() => {})
       if (!this.live || ticket !== state.queryTicket) return
       state.sequence = observation.entities
+      if (!state.galleryId || state.sequence.indexOf(state.galleryId) < 0)
+        state.galleryId = state.sequence.at(0)
       state.scope = inclusive
     } catch (error) {
       if (this.live && ticket === state.queryTicket) state.queryError = errorText(error)
@@ -227,6 +230,11 @@ export class TagDetails {
   suspend(state: TagDetailState) {
     state.queryTicket++
     state.queryPending = false
+    this.changed()
+  }
+  selectEntity(state: TagDetailState, id: string) {
+    if (!state.sequence || state.sequence.indexOf(id) < 0 || state.galleryId === id) return
+    state.galleryId = id
     this.changed()
   }
   async prepare() {

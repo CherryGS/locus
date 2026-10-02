@@ -73,7 +73,8 @@ try {
     kitten = tags.find((t) => t.name === "Kitten")!,
     other = tags.find((t) => t.name === "Other")!
   // A primary unused category can still find content carrying a descendant.
-  const entity = (await readEntityIds(backend.client)).at(0)!
+  const allIds = await readEntityIds(backend.client)
+  const entity = allIds.at(0)!
   const add = await backend.client.POST("/api/v1/tags", {
     body: {
       request_id: crypto.randomUUID(),
@@ -241,7 +242,7 @@ try {
     await page!.locator('.tag-markdown .ProseMirror[contenteditable="false"]').waitFor()
   }
   const returnForest = async () => {
-    await page!.getByRole("button", { name: "Return to tags", exact: true }).click()
+    await page!.keyboard.press("Escape")
     await page!.waitForURL(/#\/tags/)
     await rootItem.waitFor()
     assert.deepEqual(await columns.evaluateAll((nodes) => nodes.map((n) => n.getAttribute("data-tag-column"))), forestColumns)
@@ -254,34 +255,69 @@ try {
   await description.getByRole("table").waitFor()
   await page.locator(".tag-markdown").getByText("cat-code", { exact: true }).waitFor()
   await page.getByText("No tagged content", { exact: true }).waitFor()
-  assert.equal(await page.getByRole("gridcell").count(), 0)
+  assert.equal(await page.locator("[data-gallery-entity]").count(), 0)
   await page.getByRole("button", { name: "Include descendants", exact: true }).click()
-  await page.getByRole("gridcell").waitFor()
-  assert.equal(await page.getByRole("gridcell").count(), 1)
+  await page.locator("[data-gallery-entity]").waitFor()
+  assert.equal(await page.locator("[data-gallery-entity]").count(), 1)
   await page.route("**/api/v1/search/query", (route) => route.fulfill({
     status: 500, json: { code: "operation_failed", message: "fixture Tag query failure" },
   }))
   await page.getByRole("button", { name: "This tag", exact: true }).click()
   await page.getByText(/fixture Tag query failure/).waitFor()
   await page.getByText(/Showing the previous inclusive result/).waitFor()
-  assert.equal(await page.getByRole("gridcell").count(), 1)
+  assert.equal(await page.locator("[data-gallery-entity]").count(), 1)
   await page.unroute("**/api/v1/search/query")
   await page.getByRole("button", { name: "Refresh tag content", exact: true }).click()
   await page.getByText("No tagged content", { exact: true }).waitFor()
   await page.getByRole("button", { name: "Include descendants", exact: true }).click()
-  await page.getByRole("gridcell").waitFor()
-  const taggedCell = page.getByRole("gridcell")
-  await taggedCell.click()
-  const selectedEntity = new URLSearchParams(page.url().split("?")[1]).get("entityId")
-  assert.equal(selectedEntity, entity)
-  await page.getByRole("grid", { name: "Entities", exact: true }).press("Enter")
-  await page.waitForURL(/mode=inspect/)
-  assert.equal(await description.count(), 0)
-  await page.keyboard.press("Escape")
+  await page.locator("[data-gallery-entity]").waitFor()
+  assert.equal(await page.locator("[data-gallery-entity]").getAttribute("data-gallery-entity"), entity)
+  assert.equal(await page.getByRole("grid", { name: "Entities", exact: true }).count(), 0)
+  const gallery = page.getByRole("region", { name: "Associated content", exact: true })
+  await gallery.getByRole("status", { name: "Gallery position", exact: true }).getByText("1 / 1", { exact: true }).waitFor()
+  const extraIds = [1, 2].map((index) => allIds.at(index)!)
+  for (const id of extraIds) {
+    const result = await backend.client.POST("/api/v1/tags", { body: { request_id: crypto.randomUUID(), change: { operation: "add", entity_id: id, tag_id: kitten.id } } })
+    assert.equal(result.data?.status, "tag_assignment")
+  }
+  await page.getByRole("button", { name: "Refresh tag content", exact: true }).click()
+  await gallery.getByRole("status", { name: "Gallery position", exact: true }).getByText("1 / 3", { exact: true }).waitFor()
+  const detailUrl = page.url()
+  await gallery.getByRole("button", { name: "Next entity", exact: true }).click()
+  assert.equal(await page.locator("[data-gallery-entity]").getAttribute("data-gallery-entity"), extraIds[0])
+  await page.keyboard.press("ArrowRight")
+  assert.equal(await page.locator("[data-gallery-entity]").getAttribute("data-gallery-entity"), extraIds[1])
+  assert.equal(await gallery.getByRole("button", { name: "Next entity", exact: true }).isDisabled(), true)
+  await page.keyboard.press("ArrowLeft")
+  assert.equal(await page.locator("[data-gallery-entity]").getAttribute("data-gallery-entity"), extraIds[0])
+  assert.equal(page.url(), detailUrl)
+  await gallery.getByRole("group", { name: "Gallery thumbnails", exact: true }).getByRole("button").first().click()
+  assert.equal(await page.locator("[data-gallery-entity]").getAttribute("data-gallery-entity"), entity)
+  await gallery.getByRole("button", { name: "Next entity", exact: true }).click()
+  await page.waitForFunction(() => {
+    const image = document.querySelector<HTMLImageElement>("[data-gallery-entity] img")
+    return !!image?.complete && image.naturalWidth > 0
+  })
+  await page.screenshot({ path: join(output, "tag-gallery.png"), animations: "disabled" })
+  await page.setViewportSize({ width: 360, height: 800 })
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
+  await page.screenshot({ path: join(output, "tag-gallery-narrow.png"), animations: "disabled" })
+  await page.setViewportSize({ width: 1200, height: 800 })
+  await beginEdit()
+  await append(" cursor-test")
+  await editor.press("ArrowLeft")
+  await editor.press("ArrowRight")
+  assert.equal(await page.locator("[data-gallery-entity]").getAttribute("data-gallery-entity"), extraIds[0])
+  await description.getByRole("button", { name: "Cancel", exact: true }).click()
   await savedView()
-  assert.equal(new URLSearchParams(page.url().split("?")[1]).get("entityId"), selectedEntity)
-  assert.equal(await page.getByRole("gridcell", { selected: true }).count(), 1)
-  assert.equal(await page.getByRole("button", { name: "Include descendants", exact: true }).getAttribute("aria-pressed"), "true")
+  await returnForest()
+  await enterDetail()
+  await savedView()
+  assert.equal(await page.locator("[data-gallery-entity]").getAttribute("data-gallery-entity"), extraIds[0])
+  for (const id of extraIds) await backend.client.POST("/api/v1/tags", { body: { request_id: crypto.randomUUID(), change: { operation: "remove", entity_id: id, tag_id: kitten.id } } })
+  await page.getByRole("button", { name: "Refresh tag content", exact: true }).click()
+  await gallery.getByRole("status", { name: "Gallery position", exact: true }).getByText("1 / 1", { exact: true }).waitFor()
+  assert.equal(await page.locator("[data-gallery-entity]").getAttribute("data-gallery-entity"), entity)
   await beginEdit()
   await append(" 中文即时保存")
   // No debounce wait: Save must capture the live editor immediately.
@@ -297,7 +333,7 @@ try {
   await description.getByRole("button", { name: "Reload tag document", exact: true }).click()
   await description.getByText(/fixture document read failure/).waitFor()
   await page.locator(".tag-markdown").getByText(/中文即时保存/).waitFor()
-  assert.equal(await page.getByRole("gridcell").count(), 1)
+  assert.equal(await page.locator("[data-gallery-entity]").count(), 1)
   await page.unroute(`**/api/v1/tags/${animal.id}/document`)
   await description.getByRole("button", { name: "Reload tag document", exact: true }).click()
   await page.locator(".tag-markdown").getByText(/中文即时保存/).waitFor()
@@ -312,6 +348,14 @@ try {
   await editor.getByText(/pasted-text/).waitFor()
   await editor.press("ControlOrMeta+z")
   await editor.getByText(/pasted-text/).waitFor({ state: "hidden" })
+  await page.locator(".tag-markdown .ProseMirror > p").last().click()
+  await editor.press("End")
+  await editor.press("Enter")
+  await page.keyboard.insertText("/")
+  await page.locator('.milkdown-slash-menu[data-show="true"]').waitFor()
+  await page.keyboard.press("Escape")
+  await page.locator('.milkdown-slash-menu[data-show="true"]').waitFor({ state: "hidden" })
+  assert.match(page.url(), /#\/tag\//)
   await append(" cancel-this")
   await page.screenshot({ path: join(output, "tag-detail-edit.png"), animations: "disabled" })
   await description.getByRole("button", { name: "Cancel", exact: true }).click()
@@ -321,10 +365,11 @@ try {
   const leaveGuard = page.getByRole("dialog", { name: "Unsaved description", exact: true })
   await beginEdit()
   await append(" discard-this")
-  await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
+  await page.keyboard.press("Escape")
   await leaveGuard.waitFor()
-  await leaveGuard.getByRole("button", { name: "Cancel", exact: true }).click()
+  await page.keyboard.press("Escape")
   await leaveGuard.waitFor({ state: "hidden" })
+  assert.match(page.url(), /#\/tag\//)
   await editor.getByText(/discard-this/).waitFor()
   await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
   await leaveGuard.getByRole("button", { name: "Discard", exact: true }).click()
@@ -745,9 +790,9 @@ try {
           "row context menus and keyboard context entry",
           "collapsed clickable breadcrumb without horizontal overflow",
           "narrow layout",
-          "focused Enter and repeated click detail activation with forest restoration",
+          "focused Enter and repeated click detail activation with Esc forest restoration",
           "focused search match Enter and repeated click preserve lookup text and focus on return",
-          "Tag-associated direct/inclusive Entity context and inspection return preserve main Filter",
+          "direct/inclusive Tag gallery, arrows/buttons/thumbnails and retained selection preserve main Filter",
           "Markdown list/table/code render, live Chinese save, reload, paste/undo and cancel",
           "dirty description Save/Discard/Cancel departures",
           "failed document draft retention and lost-response original-request recovery",

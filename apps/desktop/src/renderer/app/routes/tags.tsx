@@ -53,7 +53,7 @@ function TagsRoute() {
         void navigate({ to: "/entity", search: { mode: "grid", collectionId: "library" } })
       }
       onActivate={(tagId) => void navigate({ to: "/tag/$tagId", params: { tagId },
-        search: { mode: "grid", collectionId: `tag:${tagId}` } })}
+        search: {} })}
     />
   )
 }
