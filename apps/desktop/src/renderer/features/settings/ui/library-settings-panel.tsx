@@ -1,8 +1,15 @@
 import { useState } from "react"
-import { FolderOpenIcon } from "lucide-react"
+import { CircleHelpIcon, FolderOpenIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/shared/ui/popover"
 import { SettingsGroup } from "./settings-rows"
 import type { DesktopBridge, DesktopState } from "../../../../shared/desktop-bridge"
 
@@ -53,13 +60,6 @@ export function LibrarySettingsPanel({ library, switchLibrary }: LibrarySettings
         <p className="break-all font-mono text-sm">
           {library?.root ?? "Library location is available in the desktop application."}
         </p>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Choose an existing Locus library folder. Locus will finish current work and restart into that
-          library. Your files stay in their original libraries.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          The selected library is remembered for future launches. Explicit startup paths take priority.
-        </p>
         {(problem || library?.notice) && (
           <Alert variant="destructive">
             <AlertDescription>{problem ?? library?.notice}</AlertDescription>
@@ -70,16 +70,27 @@ export function LibrarySettingsPanel({ library, switchLibrary }: LibrarySettings
             {message}
           </p>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="self-start"
-          disabled={pending}
-          onClick={() => void choose()}
-        >
-          <FolderOpenIcon data-icon="inline-start" />
-          {pending ? "Choosing library…" : "Choose library and restart"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-1">
+          <Button variant="outline" size="sm" disabled={pending} onClick={() => void choose()}>
+            <FolderOpenIcon data-icon="inline-start" />
+            {pending ? "Choosing library…" : "Choose library and restart"}
+          </Button>
+          <Popover>
+            <PopoverTrigger
+              render={<Button variant="ghost" size="icon-sm" />}
+              aria-label="About library switching"
+            >
+              <CircleHelpIcon aria-hidden="true" />
+            </PopoverTrigger>
+            <PopoverContent align="start">
+              <PopoverTitle>Library switching</PopoverTitle>
+              <PopoverDescription>
+                Locus finishes current work before restarting. Files stay in their original libraries.
+                Your selection is remembered for future launches. Explicit startup paths take priority.
+              </PopoverDescription>
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
     </SettingsGroup>
   )

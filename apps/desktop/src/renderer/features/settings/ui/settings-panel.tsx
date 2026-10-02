@@ -47,15 +47,15 @@ export function SettingsPanel({
                     ? "Library"
                     : "Media tools"}
             </h1>
-            <p className="text-xs text-muted-foreground">
-              {restricted
-                ? "Repair configuration to start this library."
-                : category === "external"
-                  ? "Use the connection address and token below in your extension."
-                  : category === "library"
-                    ? "Choose where your library is opened."
+            {(restricted || category !== "library") && (
+              <p className="text-xs text-muted-foreground">
+                {restricted
+                  ? "Repair configuration to start this library."
+                  : category === "external"
+                    ? "Use the connection address and token below in your extension."
                     : "Tools for reading videos and creating previews."}
-            </p>
+              </p>
+            )}
           </div>
           <Button
             variant="outline"

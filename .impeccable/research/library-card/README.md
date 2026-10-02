@@ -27,3 +27,19 @@ No shared Card/Button defaults or neighboring components are restyled.
 
 These are browser screenshots of an isolated real renderer, not generated design
 images. This is a bounded first iteration, not approval of a global visual system.
+
+## Follow-up: on-demand explanations
+
+The user requested that explanatory-copy rules be added to `rules/ui.md` and
+applied to the interface. The Library category's redundant subtitle is removed.
+The card's permanent help paragraphs are replaced by one clickable help button
+beside the existing action. It explains completion before restart, file retention,
+remembered selection and explicit-path priority. The path, source and attributable
+error/status feedback remain directly visible; the action still names restart.
+
+- `help-closed.jpg`: the resulting quiet default state.
+- `help-open.jpg`: optional explanation in the existing Base UI popover.
+- Typecheck and renderer build pass. Enter opens the named help dialog; Escape
+  closes only that popover and restores focus to its trigger, leaving Settings
+  open. The observed card bounds remain x=384, y=157, 736 by 130 while help opens.
+- No new dependency, global help abstraction or changed library-switch behavior.

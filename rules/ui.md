@@ -10,6 +10,23 @@
 - Keep values readable while giving feedback. For example, copying an ID should
   change its icon/status, not replace the ID with a shorter success message.
 
+## Explanatory copy
+
+- Default to showing content and actions. Delete explanations already conveyed by
+  control labels, familiar interaction conventions or the surrounding design.
+  Do not repeat them as permanent small text beside each item.
+- Put useful but occasional background rules in on-demand help near the relevant
+  action or group. Use a tooltip for a short clarification and a clickable help
+  popover for longer explanations. Trim redundant copy before moving it there.
+- Help must have a discoverable, accessible trigger and work with keyboard focus
+  and activation. Do not make necessary information available only on hover.
+- Keep current errors, unsaved changes, pending application and other facts needed
+  to judge the present operation visible and concise. Show consequential action
+  effects at the decision point; do not bury them in optional help.
+- Apply this rule to explanations, not ordinary content or inspector facts. Avoid
+  replacing inline clutter with a help icon on every field; group related help
+  at the smallest useful scope.
+
 ## Stable updates
 
 - Distinguish an initial load from refreshing already observed data. Keep existing
