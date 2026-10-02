@@ -69,13 +69,17 @@ function TagRoute() {
       <TagDetailPage
         coordinator={c}
         state={s}
+        controls={controls}
+        onRefresh={() => {
+          if (!s.editing) void c.read(s)
+          void c.query(s)
+        }}
         onReturn={returning}
         entities={
           <TagGallery
             source={{ sequence: s.sequence ?? emptySequence, get, demand }}
             selectedId={s.galleryId}
             onSelect={(id) => c.selectEntity(s, id)}
-            controls={controls}
             pending={s.queryPending}
             established={!!s.sequence}
             error={s.queryError}
@@ -84,7 +88,6 @@ function TagRoute() {
                 ? `Showing the previous ${s.scope ? "inclusive" : "direct"} result.`
                 : undefined
             }
-            refresh={() => void c.query(s)}
             reread={(id) => void session.reader.reread(id)}
             originalUrl={(id) => session.api.originalUrl(id)}
           />

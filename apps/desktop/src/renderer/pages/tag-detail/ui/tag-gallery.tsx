@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, type ReactNode } from "react"
-import { ChevronLeftIcon, ChevronRightIcon, RefreshCwIcon } from "lucide-react"
+import { useCallback, useEffect, useMemo } from "react"
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import {
   entityCardDisplay,
   entityLabel,
@@ -9,7 +9,6 @@ import {
 } from "@/entities/entity"
 import { Button } from "@/shared/ui/button"
 import { Spinner } from "@/shared/ui/spinner"
-import { Separator } from "@/shared/ui/separator"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
 import { cn } from "@/shared/lib/utils"
@@ -46,24 +45,20 @@ export function TagGallery({
   source,
   selectedId,
   onSelect,
-  controls,
   pending,
   established,
   error,
   retained,
-  refresh,
   reread,
   originalUrl,
 }: {
   source: EntitySource
   selectedId?: string
   onSelect: (id: string) => void
-  controls: ReactNode
   pending: boolean
   established: boolean
   error?: string
   retained?: string
-  refresh: () => void
   reread: (id: string) => void
   originalUrl: (id: string) => string
 }) {
@@ -118,22 +113,8 @@ export function TagGallery({
     <section
       aria-label="Associated content"
       aria-roledescription="carousel"
-      className="flex h-full min-h-0 min-w-0 flex-col"
+      className="flex min-h-88 min-w-0 flex-1 flex-col"
     >
-      <header className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 px-4 py-1.5">
-        <p className="hidden min-w-0 flex-1 truncate text-sm text-muted-foreground sm:block">Gallery</p>
-        {controls}
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          aria-label="Refresh tag content"
-          disabled={pending}
-          onClick={refresh}
-        >
-          {pending ? <Spinner /> : <RefreshCwIcon />}
-        </Button>
-      </header>
-      <Separator />
       {(error || retained) && (
         <Alert variant={error ? "destructive" : "default"}>
           <AlertDescription>
@@ -161,7 +142,7 @@ export function TagGallery({
               className="flex min-h-0 min-w-0 flex-1 flex-col gap-2"
             >
               <div className="relative min-h-0 flex-1 overflow-hidden rounded-md bg-muted/20">
-                <Thumbnail entity={entity} originalUrl={originalUrl} />
+                <div className="absolute inset-0"><Thumbnail entity={entity} originalUrl={originalUrl} /></div>
                 {entity.loading && (
                   <span className="absolute top-2 left-2">
                     <Spinner aria-label="Reading entity" />

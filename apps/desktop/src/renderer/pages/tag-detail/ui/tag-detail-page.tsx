@@ -1,20 +1,30 @@
 import { useEffect, type ReactNode } from "react"
-import { ArrowLeftIcon } from "lucide-react"
-import { TagDocument, type TagDetails, type TagDetailState } from "@/features/tags"
+import { ArrowLeftIcon, RefreshCwIcon } from "lucide-react"
+import {
+  TagDocument,
+  TagDocumentActions,
+  type TagDetails,
+  type TagDetailState,
+} from "@/features/tags"
 import { Button } from "@/shared/ui/button"
 import { Separator } from "@/shared/ui/separator"
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/shared/ui/resizable"
+import { ScrollArea } from "@/shared/ui/scroll-area"
+import { Spinner } from "@/shared/ui/spinner"
 import { useSourceReturn } from "@/shared/source-return"
 
 export function TagDetailPage({
   coordinator,
   state,
   entities,
+  controls,
+  onRefresh,
   onReturn,
 }: {
   coordinator: TagDetails
   state: TagDetailState
   entities: ReactNode
+  controls: ReactNode
+  onRefresh: () => void
   onReturn: () => void
 }) {
   useSourceReturn(onReturn)
@@ -44,7 +54,10 @@ export function TagDetailPage({
   }, [onReturn])
   return (
     <section aria-label="Tag detail" className="flex h-full min-h-0 flex-col">
-      <header className="flex h-11 shrink-0 items-center gap-2 px-3">
+      <header
+        aria-label="Tag page tools"
+        className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 px-3 py-1.5"
+      >
         <Button
           size="icon-sm"
           variant="ghost"
@@ -54,20 +67,29 @@ export function TagDetailPage({
         >
           <ArrowLeftIcon />
         </Button>
-        <h1 className="min-w-0 truncate text-sm font-medium">
+        <h1 className="min-w-12 flex-1 truncate text-sm font-medium">
           {state.document?.tag.name ?? "Tag"}
         </h1>
+        <TagDocumentActions coordinator={coordinator} state={state} />
+        {controls}
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Refresh tag page"
+          title="Refresh tag page"
+          disabled={state.documentPending || state.queryPending || coordinator.unresolved(state)}
+          onClick={onRefresh}
+        >
+          {state.documentPending || state.queryPending ? <Spinner /> : <RefreshCwIcon />}
+        </Button>
       </header>
       <Separator />
-      <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
-        <ResizablePanel defaultSize="38%" minSize="140px">
+      <ScrollArea className="min-h-0 flex-1" viewportProps={{ "aria-label": "Tag page content" }}>
+        <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-4 py-4">
           <TagDocument coordinator={coordinator} state={state} />
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize="62%" minSize="180px">
           {entities}
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        </div>
+      </ScrollArea>
     </section>
   )
 }

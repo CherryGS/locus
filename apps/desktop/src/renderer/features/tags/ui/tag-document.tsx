@@ -4,7 +4,6 @@ import { uploadConfig } from "@milkdown/kit/plugin/upload"
 import "@milkdown/crepe/theme/common/style.css"
 import "@milkdown/crepe/theme/frame.css"
 import "./tag-document.css"
-import { PencilIcon, RefreshCwIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Spinner } from "@/shared/ui/spinner"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
@@ -64,6 +63,7 @@ export function TagDocument({
         s.editor = adapter
         c.mounted(s, crepe.getMarkdown())
         setReady(true)
+        c.changed()
       })
       .catch((error) => {
         if (!disposed) {
@@ -77,6 +77,7 @@ export function TagDocument({
       if (s.editor === adapter) {
         c.capture(s)
         s.editor = undefined
+        c.changed()
       }
       disposed = true
       // Each instance owns its host; a late StrictMode destroy cannot touch its successor.
@@ -90,53 +91,8 @@ export function TagDocument({
   useEffect(() => {
     s.editor?.readonly(!s.editing || !c.editable || c.unresolved(s))
   })
-  const busy = c.unresolved(s)
   return (
-    <section aria-label="Tag document" className="flex h-full min-h-0 flex-col">
-      <div className="flex h-11 shrink-0 items-center gap-2 px-4">
-        <p className="flex-1 text-sm text-muted-foreground">Description</p>
-        {s.attempt?.state === "confirmed" && (
-          <span role="status" className="text-xs text-muted-foreground">
-            {s.attempt.message}
-          </span>
-        )}
-        {s.editing ? (
-          <>
-            <span className="text-xs text-muted-foreground">
-              {s.draft !== s.baseline ? "Unsaved" : "Editing"}
-            </span>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => c.discard(s)}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              disabled={!ready || busy || !c.editable || !!s.editorError}
-              onClick={() => void c.save(s)}
-            >
-              {s.work && <Spinner />}Save
-            </Button>
-          </>
-        ) : (
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={!s.document || s.documentPending || !ready || !c.editable}
-            onClick={() => c.begin(s)}
-          >
-            <PencilIcon data-icon="inline-start" />
-            Edit description
-          </Button>
-        )}
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          aria-label="Reload tag document"
-          disabled={s.documentPending || busy || s.editing}
-          onClick={() => void c.read(s)}
-        >
-          {s.documentPending ? <Spinner /> : <RefreshCwIcon />}
-        </Button>
-      </div>
+    <section aria-label="Tag document" className="flex min-w-0 shrink-0 flex-col gap-2">
       {(s.documentError || failure) && (
         <Alert variant="destructive">
           <AlertDescription>
@@ -173,9 +129,9 @@ export function TagDocument({
         </Alert>
       )}
       {s.document ? (
-        <div className="tag-markdown min-h-0 flex-1 overflow-auto" data-editing={s.editing}>
+        <div className="tag-markdown min-w-0" data-editing={s.editing}>
           {!s.editing && !s.document.markdown && (
-            <p className="px-6 pt-4 text-sm text-muted-foreground">
+            <p className="px-6 py-2 text-sm text-muted-foreground">
               Add a description to this tag.
             </p>
           )}
@@ -184,7 +140,7 @@ export function TagDocument({
               <Spinner />
             </div>
           )}
-          <div ref={container} />
+          <div ref={container} hidden={!s.editing && !s.document.markdown} />
         </div>
       ) : (
         <Empty>
