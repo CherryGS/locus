@@ -2,16 +2,20 @@ import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Button } from "@/shared/ui/button"
 import { Spinner } from "@/shared/ui/spinner"
 import type { TagCoordinator, TagAttempt } from "../model/tag-coordinator"
+import { latestAssignmentAttempts } from "../model/entity-tag-observation"
 export function TagFeedback({
   coordinator: c,
   attempts,
+  retainAssignmentFailures = false,
 }: {
   coordinator: TagCoordinator
   attempts: TagAttempt[]
+  retainAssignmentFailures?: boolean
 }) {
   const unresolved = attempts.filter((a) => a.state === "pending" || a.state === "unconfirmed")
   const latest = attempts.filter((a) => a.state === "failed" || a.state === "confirmed").at(-1)
-  const shown = [...unresolved, ...(latest ? [latest] : [])]
+  const failures = retainAssignmentFailures ? latestAssignmentAttempts(attempts).filter((attempt) => attempt.state === "failed") : []
+  const shown = [...unresolved, ...failures, ...(latest && !failures.includes(latest) ? [latest] : [])]
   return (
     <div className="flex flex-col gap-2" aria-live="polite">
       {shown.map((a) =>

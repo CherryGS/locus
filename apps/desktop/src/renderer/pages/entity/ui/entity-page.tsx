@@ -17,7 +17,7 @@ import {
   FilterEvidence,
   type FilterCoordinator,
 } from "@/features/entity-filter"
-import { EntityTagsEditor, type TagCoordinator } from "@/features/tags"
+import { EntityTagsEditor, EntityTagsStrip, type TagCoordinator } from "@/features/tags"
 import { errorText } from "@/shared/api"
 import type { BackendApi } from "@/shared/api"
 import type { PreferenceCoordinator } from "@/features/entity-view-preferences"
@@ -727,16 +727,15 @@ export function EntityPage({
         onOpen={open}
         content={content}
         viewSelection={viewSelection}
+        personalTags={selected && live ? (
+          <EntityTagsEditor key={selected.id} entity={selected} coordinator={live.tags}
+            reread={() => void live.reader.reread(selected.id)} />
+        ) : undefined}
+        tagSummary={selected && live ? (onShowAll) => (
+          <EntityTagsStrip key={selected.id} entity={selected} coordinator={live.tags} onShowAll={onShowAll} />
+        ) : undefined}
         overviewFeedback={
           <>
-            {selected && live && (
-              <EntityTagsEditor
-                key={selected.id}
-                entity={selected}
-                coordinator={live.tags}
-                reread={() => void live.reader.reread(selected.id)}
-              />
-            )}
             {!!selected?.problems?.length && (
               <EntityProblems problems={selected.problems} recover={recover} />
             )}

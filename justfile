@@ -281,3 +281,6 @@ desktop-bilibili-native: server-build server-fixture-build desktop-build
 # Real personal Tags with isolated data and test-only transport failures.
 desktop-tag-browser: server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:tag-browser
+
+desktop-tag-panels: server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:tag-panels

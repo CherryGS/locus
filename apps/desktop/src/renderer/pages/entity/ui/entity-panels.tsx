@@ -26,6 +26,7 @@ export function entityPanels(
     onReread?: () => void
     onOpenComponent: (component: EntityComponent) => void
   },
+  personalTags?: ReactNode,
 ): EntityPanel[] {
   return [
     {
@@ -35,12 +36,21 @@ export function entityPanels(
       identity: entity ? { label: "Entity ID", value: entity.id } : undefined,
       content: <EntityOverview entity={entity} viewSelection={viewSelection} {...overview} />,
     },
-    ...(entity?.components.map((component) => ({
+    ...(entity && personalTags ? [{
+      id: "tag",
+      label: "Tags",
+      icon: componentAppearance.tag.icon,
+      identity: entity.components.find((component) => component.kind === "tag")
+        ? { label: "Component ID", value: entity.components.find((component) => component.kind === "tag")!.id }
+        : undefined,
+      content: personalTags,
+    }] : []),
+    ...(entity?.components.filter((component) => component.kind !== "tag" || !personalTags).map((component) => ({
       id: component.kind === "unknown" ? component.id : component.kind,
       label: componentAppearance[component.kind].label,
       identity: { label: "Component ID", value: component.id },
       icon: componentAppearance[component.kind].icon,
-      content: <EntityComponentDetails key={`${entity.id}:${component.id}`} component={component} />,
+      content: <EntityComponentDetails key={`${entity.id}:${component.id}`} component={component} showIdentity={false} />,
     })) ?? []),
   ]
 }

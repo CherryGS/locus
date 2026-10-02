@@ -10,6 +10,7 @@ import type { EntityBrowsingState } from "../model/browsing-state"
 import { EntityGrid, minimumEntityGridWidth } from "@/entities/entity"
 import { entityPanels, type EntityPanelId } from "./entity-panels"
 import { CopyIdentityButton } from "@/shared/ui/copy-identity-button"
+import { DetailSection } from "@/entities/entity"
 import { XIcon } from "lucide-react"
 import { CivitaiPanelContext } from "./civitai-panel-slot"
 
@@ -26,6 +27,8 @@ export function EntityWorkspace({
   overviewFeedback,
   onReread,
   gridFeedback,
+  personalTags,
+  tagSummary,
 }: {
   componentFor: (entity: EntityItem) => EntityItem["components"][number]["kind"] | undefined
   source: EntitySource
@@ -39,6 +42,8 @@ export function EntityWorkspace({
   overviewFeedback?: ReactNode
   onReread?: () => void
   gridFeedback?: ReactNode
+  personalTags?: ReactNode
+  tagSummary?: (onShowAll: () => void) => ReactNode
 }) {
   const [localBrowsing] = useState<EntityBrowsingState>({})
   const retained = browsing ?? localBrowsing
@@ -57,7 +62,7 @@ export function EntityWorkspace({
       panelTriggers.current.get(id)?.focus()
       setActivePanelId(id)
     },
-  })
+  }, personalTags)
   const missingPanel = activePanelId !== null && !panels.some((panel) => panel.id === activePanelId)
   const activePanel =
     activePanelId === null ? null : (panels.find((panel) => panel.id === activePanelId) ?? panels[0])
@@ -97,7 +102,13 @@ export function EntityWorkspace({
         >
           <ResizablePanel id="entity-grid-panel" minSize={minimumEntityGridWidth}>
             {viewing
-              ? content
+              ? <div className="flex h-full min-h-0 min-w-0 flex-col">
+                  {tagSummary?.(() => {
+                    if (activePanel === null) setPanelDefaultWidth(lastPanelWidth.current)
+                    setActivePanelId("tag")
+                  })}
+                  <div className="flex min-h-0 flex-1 flex-col">{content}</div>
+                </div>
               : (gridFeedback ??
                 (source.sequence.length > 0 ? (
                   <EntityGrid
@@ -161,26 +172,24 @@ export function EntityWorkspace({
                   </header>
                   <Separator />
                   <ScrollArea key={activePanel.id} className="min-h-0 flex-1">
+                    {activePanel.content}
                     {activePanel.id === "civitai" && (
                       <div ref={setCivitaiPanelTarget} data-slot="civitai-panel-reading" />
                     )}
-                    {activePanel.content}
                     {activePanel.identity && (
                       <>
                         <Separator />
-                        <section
+                        <DetailSection
                           key={activePanel.identity.value}
-                          aria-label="Identifiers"
-                          className="px-4 py-4"
+                          title="Identifiers"
+                          collapsible
+                          summary={activePanel.identity.label}
                         >
-                          <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                            Identifiers
-                          </h3>
-                          <div className="mt-3 flex min-w-0 flex-col gap-1">
+                          <div className="flex min-w-0 flex-col gap-1">
                             <p className="text-xs text-muted-foreground">{activePanel.identity.label}</p>
                             <CopyIdentityButton {...activePanel.identity} />
                           </div>
-                        </section>
+                        </DetailSection>
                       </>
                     )}
                   </ScrollArea>

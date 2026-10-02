@@ -1,8 +1,13 @@
-import type { Wire } from "@/shared/api"
+import { diagnosticText, type Wire } from "@/shared/api"
 import { Separator } from "@/shared/ui/separator"
 import { CopyIdentityButton } from "@/shared/ui/copy-identity-button"
-import { Detail, DetailSection, DetailTime } from "./detail-fields"
-import { CapturedText, SourceLink, twitterReferenceLabels, type TwitterComponent } from "./twitter-fields"
+import { Detail, DetailDurationMilliseconds, DetailSection, DetailTime } from "./detail-fields"
+import {
+  CapturedText,
+  SourceLink,
+  twitterReferenceLabels,
+  type TwitterComponent,
+} from "./twitter-fields"
 
 export function TwitterDetails({ component }: { component: TwitterComponent }) {
   if (component.readStatus && !component.record) return null
@@ -86,10 +91,28 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
           </dl>
         )}
       </DetailSection>
+      <Separator />
+      <DetailSection title="Local association">
+        <dl>
+          <Detail label="Status">
+            {component.applicability?.status === "input"
+              ? component.applicability.comparison.status
+              : (component.applicability?.status ?? "Not observed")}
+          </Detail>
+          {component.applicability?.status === "input" && component.applicability.file_error && (
+            <Detail label="File problem">{component.applicability.file_error.message}</Detail>
+          )}
+          {component.applicability?.status === "error" && (
+            <Detail label="Problem">
+              {diagnosticText({ owner: "twitter", error: component.applicability.error })}
+            </Detail>
+          )}
+        </dl>
+      </DetailSection>
       {snapshot && (
         <>
           <Separator />
-          <DetailSection title="Capture context">
+          <DetailSection title="Capture context" collapsible>
             <dl>
               <Detail label="Requested URL">
                 <SourceLink url={snapshot.requested_url ?? undefined} />
@@ -100,7 +123,11 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
             </dl>
           </DetailSection>
           <Separator />
-          <DetailSection title="Occurrence claims">
+          <DetailSection
+            title="Occurrence claims"
+            collapsible
+            summary={snapshot.occurrence == null ? "Not captured" : "Saved source-reported occurrence"}
+          >
             <dl>
               <Detail label="Platform media ID">
                 <CapturedText value={snapshot.occurrence?.media_id ?? undefined} />
@@ -115,7 +142,11 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
             </dl>
           </DetailSection>
           <Separator />
-          <DetailSection title="Selected representation">
+          <DetailSection
+            title="Selected representation"
+            collapsible
+            summary={snapshot.representation == null ? "Not captured" : "Saved source-reported claims"}
+          >
             <dl>
               <Detail label="URL">
                 <SourceLink url={snapshot.representation?.url ?? undefined} />
@@ -124,7 +155,11 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
             </dl>
           </DetailSection>
           <Separator />
-          <DetailSection title="Remote preview">
+          <DetailSection
+            title="Remote preview"
+            collapsible
+            summary={snapshot.preview == null ? "Not captured" : "Saved descriptive capture"}
+          >
             <dl>
               <Detail label="URL">
                 <SourceLink url={snapshot.preview?.url ?? undefined} />
@@ -138,7 +173,7 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
         </>
       )}
       <Separator />
-      <DetailSection title="Local association">
+      <DetailSection title="Association identifiers" collapsible>
         <dl>
           <Detail label="Captured File">
             {component.record?.basis ? (
@@ -147,15 +182,10 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
               "No local File association"
             )}
           </Detail>
-          <Detail label="Status">
-            {component.applicability?.status === "input"
-              ? component.applicability.comparison.status
-              : (component.applicability?.status ?? "Not observed")}
-          </Detail>
         </dl>
       </DetailSection>
       <Separator />
-      <DetailSection title="Source identifiers">
+      <DetailSection title="Source identifiers" collapsible>
         <dl>
           <Detail label="Post ID">
             {component.postId ? (
@@ -178,12 +208,15 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
 }
 
 function CapturedClaims({ claims }: { claims: Wire<"TwitterMediaClaims"> | null | undefined }) {
+  if (claims == null) return <Detail label="Claims">Not captured</Detail>
+  if (!Object.values(claims).some((value) => value != null))
+    return <Detail label="Claims">No claims supplied</Detail>
   return (
     <>
       <Detail label="Width">{claims?.width ?? "Not captured"}</Detail>
       <Detail label="Height">{claims?.height ?? "Not captured"}</Detail>
-      <Detail label="Duration (ms)">
-        <CapturedText value={claims?.duration_ms ?? undefined} />
+      <Detail label="Duration">
+        <DetailDurationMilliseconds value={claims.duration_ms} />
       </Detail>
       <Detail label="MIME">
         <CapturedText value={claims?.mime_type ?? undefined} />
