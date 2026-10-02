@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "@tanstack/react-router"
-import { CheckIcon, LayoutGridIcon, RefreshCwIcon } from "lucide-react"
+import { CheckIcon, RefreshCwIcon } from "lucide-react"
 import {
   componentAppearance,
   entityLabel,
@@ -658,20 +658,23 @@ export function EntityPage({
             onNavigate={adjacent}
           />
         ) : (
-          <h1 className="flex h-14 min-w-0 flex-1 items-center gap-2 text-lg font-semibold tracking-tight">
-            <LayoutGridIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="truncate">{activeContext ? activeContext.title : "Entity"}</span>
+          <div className="flex h-10 min-w-0 flex-1 items-center gap-2">
+            <h1 className="min-w-0 truncate text-sm font-medium">
+              {activeContext ? activeContext.title : "Entity"}
+            </h1>
             {sequence && (destination.collectionId !== "library" || !live || live.filter.sequence) ? (
               <Badge variant="secondary">{source.sequence.length.toLocaleString()}</Badge>
             ) : (
               <Skeleton className="h-5 w-8" />
             )}
-          </h1>
+            {selected && (
+              <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">1 selected</span>
+            )}
+          </div>
         )}
         {!viewing && destination.collectionId === "library" && live && (
           <FilterModal coordinator={live.filter} />
         )}
-        {!viewing && selected && <span className="text-xs text-muted-foreground">1 selected</span>}
         {live && (
           <Button
             variant="ghost"

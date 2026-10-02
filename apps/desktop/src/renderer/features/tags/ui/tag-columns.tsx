@@ -23,7 +23,7 @@ function TagCounts({
     <span
       className={cn(
         "flex shrink-0 items-center gap-3 text-xs tabular-nums",
-        selected ? "text-primary-foreground/70" : "text-muted-foreground",
+        selected ? "text-primary-foreground" : "text-muted-foreground",
       )}
     >
       <span className="w-8 text-right" title="Direct children">

@@ -1,6 +1,9 @@
 ---
 name: Locus
 description: A quiet, refined dark desktop interface with media-led browsing and moderately compact information surfaces.
+components:
+  entity-grid-toolbar:
+    height: "40px"
 ---
 
 # Design System: Locus
@@ -15,6 +18,13 @@ Shared foundations and real component exploration advance together. This file
 is usable before all components or tokens are settled. It does not describe a
 completed implementation. The current shadcn defaults and rejected historical
 samples do not establish the selected palette or component appearance.
+
+The [first renderer candidate](.impeccable/research/visual-foundation-v01.md)
+applies concrete palette, type and control choices to shared primitives and
+settings rows, together with the user's grid alignment, contrast and toolbar
+feedback. Palette and type choices remain trial values while those details below
+are open. The selected, verified 40px browsing toolbar is recorded in the
+frontmatter; this does not finalize the whole application's visual identity.
 
 - **Selected direction** records explicit user choices.
 - **Working guidance** interprets that direction for the next component trials;
@@ -67,8 +77,11 @@ visual language. Media browsing gives previews visual prominence. Properties,
 tables and settings are moderately compact and support quick scanning.
 
 **Working guidance:** use consistent alignment and a shared spacing rhythm for
-related controls. Preserve usable content bounds, reading space and keyboard
-focus. Changes in density must preserve ordinary facts and available actions.
+related controls. The user selected centering the media grid as one block when
+its width cap leaves spare space, preserving the existing inter-card gap; this
+does not center the Tag column browser. Preserve usable content bounds, reading
+space and keyboard focus. Changes in density must preserve ordinary facts and
+available actions.
 The existing page composition remains functional evidence; the density direction
 alone does not authorize new navigation, information hiding or interaction flows.
 
@@ -102,6 +115,10 @@ surface adaptations of that system.
 
 **Working guidance:**
 
+- **Entity browsing toolbar (selected):** use a compact 40px toolbar with an
+  ordinary-size page title, adjacent result/selection metadata and right-aligned
+  Filter/refresh actions. Omit the duplicate grid icon. Keep the inspection
+  filmstrip under its existing presentation and interaction contract.
 - **Settings:** retain Raycast as the scoped reference for shared groups and
   rows: quiet grouped surfaces, aligned labels and controls, and consistent help
   and action placement across Library, External connection and Media tools.

@@ -201,6 +201,7 @@ export function EntityGrid({
     Math.max(cardWidth, (size.width - 2 * horizontalInset - (columns - 1) * gap) / columns),
   )
   const rowWidth = columns * fittedCardWidth + (columns - 1) * gap
+  const rowInset = Math.max(horizontalInset, (size.width - rowWidth) / 2)
   return (
     <ScrollArea
       className="h-full min-h-0"
@@ -239,7 +240,7 @@ export function EntityGrid({
             aria-rowindex={row + 1}
             className="absolute top-0 grid grid-rows-1"
             style={{
-              left: horizontalInset,
+              left: rowInset,
               width: rowWidth,
               height: rowHeight,
               gap,

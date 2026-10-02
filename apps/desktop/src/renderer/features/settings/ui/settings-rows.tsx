@@ -47,14 +47,14 @@ export function SettingsGroup({
         </div>
         {action && <div className="flex items-center gap-1">{action}</div>}
       </header>
-      <div className="rounded-xl border border-border/60 bg-muted/20">{children}</div>
+      <div className="rounded-xl border border-border/70 bg-card">{children}</div>
     </section>
   )
 }
 
 // Read-only facts and editable fields share the same columns and responsive break.
 const rowClassName =
-  "grid min-h-16 grid-cols-1 items-start gap-x-6 gap-y-2 px-4 py-4 @min-[28rem]/settings:grid-cols-[10rem_minmax(0,1fr)]"
+  "grid min-h-14 grid-cols-1 items-start gap-x-6 gap-y-2 px-4 py-3 @min-[28rem]/settings:grid-cols-[10rem_minmax(0,1fr)]"
 const labelClassName = "text-sm font-normal @min-[28rem]/settings:pt-1.5"
 
 export function SettingsRow({
