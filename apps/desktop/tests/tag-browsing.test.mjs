@@ -2,7 +2,12 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { TagCoordinator } from "../src/renderer/features/tags/model/tag-coordinator.ts"
 import { TagBrowsing } from "../src/renderer/features/tags/model/tag-browsing.ts"
-import { forestView, descendants } from "../src/renderer/features/tags/model/forest.ts"
+import {
+  tagForest,
+  tagPath,
+  tagColumns,
+  descendants,
+} from "../src/renderer/features/tags/model/forest.ts"
 const tick = () => new Promise((resolve) => setImmediate(resolve))
 const deferred = () => {
   let resolve, reject
@@ -37,37 +42,67 @@ function setup(overrides = {}) {
   )
   return { tags, browser, requests }
 }
-test("forest lookup retains ancestors, arbitrary-depth iteration and branch navigation", () => {
-  const records = [tag("root"), tag("middle", "root"), tag("leaf", "middle"), tag("other")]
-  assert.deepEqual(
-    forestView(records, new Set(), "").map((r) => r.tag.id),
+test("column paths switch branches, omit empty leaf columns and count descendants excluding self", () => {
+  const records = [
+      tag("root"),
+      tag("middle", "root"),
+      tag("leaf", "middle"),
+      tag("sibling", "root"),
+      tag("other"),
+    ],
+    forest = tagForest(records)
+  const columns = (id) => tagColumns(forest, id).columns.map((c) => c.tags.map((t) => t.id))
+  assert.deepEqual(columns(), [["root", "other"]])
+  assert.deepEqual(columns("middle"), [["root", "other"], ["middle", "sibling"], ["leaf"]])
+  assert.deepEqual(columns("leaf"), columns("middle"))
+  assert.deepEqual(columns("sibling"), [
     ["root", "other"],
-  )
+    ["middle", "sibling"],
+  ])
+  assert.deepEqual(columns("other"), [["root", "other"]])
+  assert.deepEqual(columns("missing"), [["root", "other"]])
   assert.deepEqual(
-    forestView(records, new Set(), "leaf").map((r) => r.tag.id),
+    tagPath(forest, "leaf").map((t) => t.id),
     ["root", "middle", "leaf"],
   )
+  assert.equal(forest.children.get("root").length, 2)
+  assert.equal(forest.counts.get("root"), 3)
+  assert.equal(forest.counts.get("middle"), 1)
+  assert.equal(forest.counts.get("leaf"), 0)
   assert.deepEqual([...descendants(records, "middle")], ["middle", "leaf"])
+  records.find((t) => t.id === "middle").parent = "other"
+  const moved = tagForest(records)
+  assert.deepEqual(
+    tagPath(moved, "leaf").map((t) => t.id),
+    ["other", "middle", "leaf"],
+  )
+  assert.equal(moved.counts.get("root"), 1)
+  assert.equal(moved.counts.get("other"), 2)
   const deep = Array.from({ length: 3000 }, (_, i) => tag(String(i), i ? String(i - 1) : null))
-  assert.equal(forestView(deep, new Set(), "2999").length, 3000)
+  const deepForest = tagForest(deep)
+  assert.equal(tagPath(deepForest, "2999").length, 3000)
+  assert.equal(deepForest.counts.get("0"), 2999)
+  assert.equal(tagColumns(deepForest, "2999").columns.length, 3000)
 })
 test("management navigation survives suspension and absent reads; confirmed deletion clears selection", async () => {
   const { tags, browser } = setup()
   browser.select("root")
-  browser.toggle("root")
   browser.find("child")
-  browser.scrollTop = 240
+  browser.scrollLeft = 240
+  browser.columnScroll.set("roots", 420)
+  browser.columnScroll.set("root", 120)
   browser.suspend()
   assert.equal(browser.tagId, "root")
-  assert(browser.expanded.has("root"))
   assert.equal(browser.lookup, "child")
-  assert.equal(browser.scrollTop, 240)
+  assert.equal(browser.scrollLeft, 240)
+  assert.equal(browser.columnScroll.get("roots"), 420)
+  assert.equal(browser.columnScroll.get("root"), 120)
   tags.vocabulary = []
   await tags.read()
   assert.equal(browser.tagId, "root")
   await tags.write({ operation: "delete", id: "root", revision: "one" }, "delete")
   assert.equal(browser.tagId, undefined)
-  assert(browser.expanded.has("root"))
+  assert.equal(browser.columnScroll.get("roots"), 420)
   browser.dispose()
 })
 test("generation hands off generated stable source and never queries a private Entity result", async () => {

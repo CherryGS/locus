@@ -18,21 +18,35 @@ try {
   await page.goto(`${preview.origin}/#/`)
   const open = async () => {
     await page!.getByRole("link", { name: /^Tags/ }).first().click()
-    await page!.getByRole("tree", { name: "Tag forest" }).waitFor()
+    await page!.getByRole("heading", { name: "Tags", exact: true }).waitFor()
   }
   await open()
   await page.getByText("No tags yet", { exact: true }).waitFor()
   const create = async (name: string, child = false) => {
     await page!
-      .getByRole("button", { name: child ? "New child" : "New root tag", exact: true })
+      .getByRole("button", {
+        name: child ? "New child" : "New root tag",
+        exact: true,
+      })
       .click()
-    const dialog = page!.getByRole("dialog", { name: "Create a tag", exact: true })
+    const dialog = page!.getByRole("dialog", {
+      name: "Create a tag",
+      exact: true,
+    })
     await dialog.getByLabel("Tag name", { exact: true }).fill(name)
     await dialog.getByRole("button", { name: "Create tag", exact: true }).click()
     await dialog.waitFor({ state: "hidden" })
   }
   const select = async (name: string) => {
-    await page!.getByRole("treeitem", { name: `Select ${name}`, exact: true }).click()
+    const row = page!.getByRole("treeitem", {
+      name: `Select ${name}`,
+      exact: true,
+    })
+    if (await row.count()) await row.click()
+    else {
+      await page!.getByLabel("Find tags", { exact: true }).fill(name)
+      await page!.getByRole("button", { name: `Reveal ${name}`, exact: true }).click()
+    }
     await page!.getByRole("heading", { name, exact: true }).waitFor()
   }
   await create("  Animals  ")
@@ -64,8 +78,7 @@ try {
   })
   assert.equal(add.data?.status, "tag_assignment")
   await page.getByLabel("Find tags", { exact: true }).fill("Kitten")
-  await page.getByRole("treeitem", { name: "Select Animals", exact: true }).waitFor()
-  await page.getByRole("treeitem", { name: "Select Cat", exact: true }).waitFor()
+  await page.getByText("Animals / Cat / Kitten", { exact: true }).waitFor()
   await select("Kitten")
   await page.getByLabel("Find tags", { exact: true }).fill("nomatch")
   await page.getByText("No matching tags", { exact: true }).waitFor()
@@ -76,26 +89,60 @@ try {
   await page.getByRole("heading", { name: "Kitten", exact: true }).waitFor()
   await page.getByLabel("Find tags", { exact: true }).fill("")
   await select("Animals")
-  // The tree owns focus and expansion independently from selection.
-  await page.getByRole("button", { name: "Collapse Animals", exact: true }).click()
-  const rootItem = page.getByRole("treeitem", { name: "Select Animals", exact: true })
+  // Sibling choices replace the branch; leaves never produce an empty column.
+  const columns = page.locator("[data-tag-column]")
+  const rootItem = page.getByRole("treeitem", {
+    name: "Select Animals",
+    exact: true,
+  })
+  assert.equal(
+    await rootItem.getByTitle("Direct children", { exact: true }).textContent(),
+    "Children: 1",
+  )
+  assert.equal(
+    await rootItem.getByTitle("All descendants, excluding this tag", { exact: true }).textContent(),
+    "Descendants: 2",
+  )
+  assert.equal(await columns.count(), 2)
+  await select("Other")
+  assert.equal(await columns.count(), 1)
+  await select("Animals")
   await rootItem.focus()
   await rootItem.press("ArrowRight")
-  await rootItem.press("ArrowDown")
-  const childItem = page.getByRole("treeitem", { name: "Select Cat", exact: true })
+  const childItem = page.getByRole("treeitem", {
+    name: "Select Cat",
+    exact: true,
+  })
   assert(await childItem.evaluate((element) => element === document.activeElement))
   await childItem.press("Enter")
   await page.getByRole("heading", { name: "Cat", exact: true }).waitFor()
-  await childItem.press("ArrowDown")
-  const leafItem = page.getByRole("treeitem", { name: "Select Kitten", exact: true })
+  assert.equal(await columns.count(), 3)
+  await childItem.press("ArrowRight")
+  const leafItem = page.getByRole("treeitem", {
+    name: "Select Kitten",
+    exact: true,
+  })
+  assert(await leafItem.evaluate((element) => element === document.activeElement))
   await leafItem.press("Space")
   await page.getByRole("heading", { name: "Kitten", exact: true }).waitFor()
-  await leafItem.press("Tab")
+  assert.equal(await columns.count(), 3)
+  assert.equal(
+    await leafItem.getByTitle("All descendants, excluding this tag", { exact: true }).textContent(),
+    "Descendants: 0",
+  )
+  await leafItem.press("ArrowLeft")
+  await page.getByRole("heading", { name: "Cat", exact: true }).waitFor()
+  assert(await childItem.evaluate((element) => element === document.activeElement))
+  await childItem.press("Tab")
   assert(await page.evaluate(() => !document.activeElement?.closest('[role="tree"]')))
+  await page.screenshot({ path: join(output, "forest.png"), animations: "disabled" })
   await select("Animals")
-  await page.screenshot({ path: join(output, "forest.png") })
+  await page.getByRole("button", { name: "Find content", exact: true }).click()
   await page.getByRole("button", { name: "Include descendants", exact: true }).click()
-  const filter = page.getByRole("dialog", { name: "Filter Entities", exact: true })
+  const filter = page.getByRole("dialog", {
+    name: "Filter Entities",
+    exact: true,
+  })
   await filter.waitFor()
   assert.equal(
     await filter.getByLabel("Filter source", { exact: true }).inputValue(),
@@ -114,7 +161,10 @@ try {
   await lookup.fill("[")
   await page.getByText(/Invalid regex:/).waitFor()
   await lookup.fill("^Animals$")
-  const rootChoice = page.getByRole("button", { name: "Use value Animals", exact: true })
+  const rootChoice = page.getByRole("button", {
+    name: "Use value Animals",
+    exact: true,
+  })
   await rootChoice.getByText(animal.id, { exact: true }).waitFor()
   assert(await rootChoice.getByText(animal.id, { exact: true }).isVisible())
   await page.screenshot({ path: join(output, "root-helper.png") })
@@ -135,8 +185,12 @@ try {
   await filter.getByRole("button", { name: "Close", exact: true }).click()
   await open()
   await select("Kitten")
+  await page.getByRole("button", { name: "Find content", exact: true }).click()
   await page.getByRole("button", { name: "Exactly this tag", exact: true }).click()
-  const guard = page.getByRole("dialog", { name: "Unsaved Filter edits", exact: true })
+  const guard = page.getByRole("dialog", {
+    name: "Unsaved Filter edits",
+    exact: true,
+  })
   await guard.waitFor()
   await guard.getByRole("button", { name: "Cancel", exact: true }).click()
   assert.equal(
@@ -145,6 +199,7 @@ try {
   )
   await filter.getByRole("button", { name: "Close", exact: true }).click()
   await open()
+  await page.getByRole("button", { name: "Find content", exact: true }).click()
   await page.getByRole("button", { name: "Exactly this tag", exact: true }).click()
   await guard.getByRole("button", { name: "Discard", exact: true }).click()
   assert.equal(
@@ -163,6 +218,8 @@ try {
   tags = (await backend.client.GET("/api/v1/tags")).data!
   assert.equal(tags.find((t) => t.id === cat.id)!.parent, other.id)
   assert.equal(tags.find((t) => t.id === kitten.id)!.parent, cat.id)
+  await page.getByRole("region", { name: "Children of Other", exact: true }).waitFor()
+  assert.equal(await columns.count(), 3)
   const language = (await backend.client.GET("/api/v1/filter/language")).data!
   const query = async (text: string) =>
     (
@@ -175,13 +232,19 @@ try {
   assert.equal((await query(`tag_subtree:"${animal.id}"`)).length, 0)
   assert.equal((await query(`tag_subtree:"${other.id}"`)).length, 1)
   await page.getByRole("button", { name: "Rename", exact: true }).click()
-  dialog = page.getByRole("dialog", { name: "Rename tag everywhere", exact: true })
+  dialog = page.getByRole("dialog", {
+    name: "Rename tag everywhere",
+    exact: true,
+  })
   await dialog.getByLabel("Tag name", { exact: true }).fill("Cats")
   await dialog.getByRole("button", { name: "Save name", exact: true }).click()
   await dialog.waitFor({ state: "hidden" })
   await page.getByRole("heading", { name: "Cats", exact: true }).waitFor()
   await page.getByRole("button", { name: "Delete tag", exact: true }).click()
-  dialog = page.getByRole("dialog", { name: "Delete tag globally?", exact: true })
+  dialog = page.getByRole("dialog", {
+    name: "Delete tag globally?",
+    exact: true,
+  })
   await dialog.getByText(/immediate children move to Other/).waitFor()
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
   await page.getByRole("heading", { name: "Cats", exact: true }).waitFor()
@@ -192,8 +255,11 @@ try {
   tags = (await backend.client.GET("/api/v1/tags")).data!
   assert.equal(tags.find((t) => t.id === kitten.id)!.parent, other.id)
   assert.equal(
-    (await backend.client.GET("/api/v1/entities/{id}/tags", { params: { path: { id: entity } } }))
-      .data!.tag_set!.tags[0].id,
+    (
+      await backend.client.GET("/api/v1/entities/{id}/tags", {
+        params: { path: { id: entity } },
+      })
+    ).data!.tag_set!.tags[0].id,
     kitten.id,
   )
   await page.getByLabel("Find tags", { exact: true }).fill("Kitten")
@@ -215,17 +281,19 @@ try {
   await page.getByText(/Showing the previous forest/).waitFor({ state: "hidden" })
   // A retained navigation position survives a reentry whose primary reread is delayed.
   for (let i = 0; i < 36; i++) {
-    const result = await backend.client.POST("/api/v1/tags", {
-      body: {
-        request_id: crypto.randomUUID(),
-        change: {
-          operation: "create",
-          name: `Scroll fixture ${String(i).padStart(2, "0")}`,
-          parent: null,
+    for (const parent of [null, other.id]) {
+      const result = await backend.client.POST("/api/v1/tags", {
+        body: {
+          request_id: crypto.randomUUID(),
+          change: {
+            operation: "create",
+            name: `${parent ? "Child scroll" : "Scroll"} fixture ${String(i).padStart(2, "0")}`,
+            parent,
+          },
         },
-      },
-    })
-    assert.equal(result.data?.status, "tag_saved")
+      })
+      assert.equal(result.data?.status, "tag_saved")
+    }
   }
   await page.getByLabel("Find tags", { exact: true }).fill("")
   const refreshed = page.waitForResponse(
@@ -234,13 +302,23 @@ try {
   await page.getByRole("button", { name: "Refresh vocabulary", exact: true }).click()
   await refreshed
   await page.getByRole("treeitem", { name: "Select Scroll fixture 35", exact: true }).waitFor()
-  const treeViewport = page.getByLabel("Tag tree navigation", { exact: true })
+  const treeViewport = page.getByLabel("Root tags navigation", { exact: true })
   await treeViewport.evaluate((element) => {
     element.scrollTop = 420
   })
   await page.waitForFunction(
-    () => (document.querySelector('[aria-label="Tag tree navigation"]')?.scrollTop ?? 0) > 400,
+    () => (document.querySelector('[aria-label="Root tags navigation"]')?.scrollTop ?? 0) > 400,
   )
+  const childViewport = page.getByLabel("Children navigation for Other", { exact: true })
+  await childViewport.evaluate((element) => {
+    element.scrollTop = 320
+  })
+  await page.waitForFunction(
+    () =>
+      (document.querySelector('[aria-label="Children navigation for Other"]')?.scrollTop ?? 0) >
+      300,
+  )
+  assert((await treeViewport.evaluate((element) => element.scrollTop)) > 400)
   await page.getByRole("link", { name: "Entity", exact: true }).click()
   let releaseRead!: () => void
   const heldRead = new Promise<void>((resolve) => {
@@ -252,16 +330,66 @@ try {
   })
   await open()
   assert((await treeViewport.evaluate((element) => element.scrollTop)) > 400)
+  assert((await childViewport.evaluate((element) => element.scrollTop)) > 300)
   releaseRead()
   await page.getByRole("button", { name: "Refresh vocabulary", exact: true }).waitFor()
   await page.waitForFunction(
     () => !document.querySelector<HTMLButtonElement>('[aria-label="Tags"] button')?.disabled,
   )
   assert((await treeViewport.evaluate((element) => element.scrollTop)) > 400)
+  assert((await childViewport.evaluate((element) => element.scrollTop)) > 300)
   await page.unroute("**/api/v1/tags")
+  // Reveal an offscreen deep path and retain horizontal plus each column's scroll.
+  let deepParent = other.id
+  for (let i = 0; i < 8; i++) {
+    const created = await backend.client.POST("/api/v1/tags", {
+      body: {
+        request_id: crypto.randomUUID(),
+        change: { operation: "create", name: `Deep ${i}`, parent: deepParent },
+      },
+    })
+    assert.equal(created.data?.status, "tag_saved")
+    if (created.data?.status === "tag_saved") deepParent = created.data.tag.id
+  }
+  await page.getByRole("button", { name: "Refresh vocabulary", exact: true }).click()
+  await page.getByLabel("Find tags", { exact: true }).fill("Deep 7")
+  await page.getByRole("button", { name: "Reveal Deep 7", exact: true }).click()
+  await page.getByRole("heading", { name: "Deep 7", exact: true }).waitFor()
+  assert.equal(await columns.count(), 9)
+  const horizontal = page.getByLabel("Tag columns navigation", { exact: true })
+  assert((await horizontal.evaluate((e) => e.scrollLeft)) > 0)
+  assert(
+    await page.getByRole("treeitem", { name: "Select Deep 7", exact: true }).evaluate((row) => {
+      const viewport = document
+          .querySelector('[aria-label="Tag columns navigation"]')!
+          .getBoundingClientRect(),
+        box = row.getBoundingClientRect()
+      return box.left >= viewport.left && box.right <= viewport.right
+    }),
+  )
+  const horizontalPosition = await horizontal.evaluate((e) => e.scrollLeft)
+  await page.screenshot({ path: join(output, "forest-deep.png"), animations: "disabled" })
+  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await open()
+  await horizontal.waitFor()
+  assert.equal(await horizontal.evaluate((e) => e.scrollLeft), horizontalPosition)
   await page.getByLabel("Find tags", { exact: true }).fill("Kitten")
+  await page.getByRole("button", { name: "Reveal Kitten", exact: true }).click()
+  await page.getByRole("heading", { name: "Kitten", exact: true }).waitFor()
   await page.setViewportSize({ width: 640, height: 780 })
-  await page.screenshot({ path: join(output, "forest-narrow.png") })
+  await page.waitForFunction((id) => {
+    const row = document.querySelector<HTMLElement>(`[data-tree-tag="${id}"]`)
+    if (!row) return false
+    const viewport = row.closest('[data-slot="scroll-area-viewport"]')!.getBoundingClientRect(),
+      box = row.getBoundingClientRect()
+    return box.top >= viewport.top && box.bottom <= viewport.bottom
+  }, kitten.id)
+  assert(
+    await page
+      .getByRole("heading", { name: "Kitten", exact: true })
+      .evaluate((e) => e.clientWidth >= e.scrollWidth),
+  )
+  await page.screenshot({ path: join(output, "forest-narrow.png"), animations: "disabled" })
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
   assert.deepEqual(errors, [])
   await writeFile(
@@ -272,8 +400,8 @@ try {
         library: data.library,
         checks: [
           "forest create and uniqueness",
-          "ancestor-preserving lookup",
-          "navigation reentry",
+          "search path reveal",
+          "single-path columns, counts, keyboard and navigation reentry",
           "guarded generated Filter draft waits Apply",
           "move and rename",
           "one-record delete promotion and direct annotations",

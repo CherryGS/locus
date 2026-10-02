@@ -5,9 +5,11 @@ import type { TagCoordinator } from "./tag-coordinator"
 /** Management navigation belongs to this library/run, independently of route mounts. */
 export class TagBrowsing {
   tagId?: string
-  expanded = new Set<string>()
   lookup = ""
-  scrollTop = 0
+  scrollLeft = 0
+  columnScroll = new Map<string, number>()
+  lookupScrollTop = 0
+  revealSelection = false
   pending = false
   error?: string
   private intent = 0
@@ -47,17 +49,13 @@ export class TagBrowsing {
     if (this.tagId !== id) {
       this.suspend()
       this.tagId = id
+      this.revealSelection = !!id
       this.error = undefined
       this.changed()
     }
   }
   find(value: string) {
     this.lookup = value
-    this.changed()
-  }
-  toggle(id: string) {
-    if (this.expanded.has(id)) this.expanded.delete(id)
-    else this.expanded.add(id)
     this.changed()
   }
   async content(inclusive: boolean, filter: FilterCoordinator, navigate: () => void) {
@@ -83,7 +81,13 @@ export class TagBrowsing {
         value: { type: "identifier", value: id },
       })
       if (this.disposed || ticket !== this.intent || this.tags.hostClosing) return
-      if (!receive({ format: language.format, version: language.version, text: literal.condition }))
+      if (
+        !receive({
+          format: language.format,
+          version: language.version,
+          text: literal.condition,
+        })
+      )
         throw new Error("Filter changed or is busy. Try again to open this Tag condition.")
       navigate()
     } catch (error) {

@@ -145,6 +145,12 @@ the run lifetime, routing and close UI; `pages/entity` composes browsing/inspect
 
 Personal Tags are available from **Tags** in the navigation rail, even with no
 Entity selected. Create, rename or globally delete vocabulary records there.
+Browse the forest in columns: selecting a tag opens its children to the right,
+and selecting a sibling replaces that branch. Each row shows direct child and
+total descendant counts (excluding itself). Deep paths scroll horizontally;
+each column scrolls vertically. Search results show the full path and reveal it
+on selection. The selection, search and scroll positions survive page reentry
+within the current library session.
 **Overview → Personal tags** searches existing names and saves each assignment
 addition/removal immediately. Creating a vocabulary record does not assign it.
 The **Tags** component panel shows retained set identity and stable Tag IDs.

@@ -1,7 +1,5 @@
-import { useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
+import { useId, useMemo, useState, useSyncExternalStore } from "react"
 import {
-  ChevronDownIcon,
-  ChevronRightIcon,
   CornerDownRightIcon,
   FolderTreeIcon,
   PlusIcon,
@@ -9,12 +7,19 @@ import {
   Trash2Icon,
   RefreshCwIcon,
   SearchIcon,
+  XIcon,
+  ListFilterIcon,
 } from "lucide-react"
 import type { Wire } from "@/shared/api"
 import type { FilterCoordinator } from "@/features/entity-filter"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-group"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupButton,
+} from "@/shared/ui/input-group"
 import { Input } from "@/shared/ui/input"
 import { Field, FieldLabel, FieldDescription, FieldGroup } from "@/shared/ui/field"
 import {
@@ -26,16 +31,16 @@ import {
   DialogFooter,
 } from "@/shared/ui/dialog"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from "@/shared/ui/empty"
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/shared/ui/card"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
-import { ScrollArea } from "@/shared/ui/scroll-area"
+import { Separator } from "@/shared/ui/separator"
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverDescription,
+} from "@/shared/ui/popover"
 import {
   Select,
   SelectTrigger,
@@ -47,8 +52,11 @@ import {
 import { Spinner } from "@/shared/ui/spinner"
 import type { TagCoordinator } from "../model/tag-coordinator"
 import type { TagBrowsing } from "../model/tag-browsing"
-import { forestView, descendants } from "../model/forest"
+import { tagForest, tagPath, descendants } from "../model/forest"
 import { TagFeedback } from "./tag-feedback"
+import { TagColumns, TagLookup } from "./tag-columns"
+
+const emptyRecords: Wire<"TagRecord">[] = []
 
 type Editor = {
   operation: "create" | "rename" | "move" | "delete"
@@ -71,16 +79,15 @@ export function TagVocabulary({
 }) {
   useSyncExternalStore(c.subscribe, c.snapshot)
   useSyncExternalStore(b.subscribe, b.snapshot)
-  const prefix = useId(),
-    viewport = useRef<HTMLDivElement>(null)
+  const prefix = useId()
   const [editor, setEditor] = useState<Editor>(),
     [formError, setFormError] = useState<string>()
-  const records = c.vocabulary ?? [],
-    byId = new Map(records.map((t) => [t.id, t]))
-  const selected = b.tagId ? byId.get(b.tagId) : undefined
-  const children = records.filter((t) => t.parent === selected?.id)
-  const rows = forestView(records, b.expanded, b.lookup)
-  const selectionVisible = rows.some((r) => r.tag.id === b.tagId)
+  const records = c.vocabulary ?? emptyRecords,
+    forest = useMemo(() => tagForest(records), [records]),
+    byId = forest.byId,
+    selected = b.tagId ? byId.get(b.tagId) : undefined,
+    path = tagPath(forest, b.tagId),
+    breadcrumb = path.map((tag) => tag.name).join(" / ")
   const blocked = c.hostClosing || c.pending,
     retained = !!c.readError
   const excluded =
@@ -100,12 +107,6 @@ export function TagVocabulary({
       parent: operation === "create" ? (record?.id ?? "") : (record?.parent ?? ""),
     })
   }
-  useLayoutEffect(() => {
-    if (viewport.current && c.vocabulary) viewport.current.scrollTop = b.scrollTop
-  }, [b, c.vocabulary])
-  const focus = (id?: string) => {
-    if (id) viewport.current?.querySelector<HTMLElement>(`[data-tree-tag="${id}"]`)?.focus()
-  }
   const submit = async () => {
     const captured = editor
     if (!captured) return
@@ -113,9 +114,18 @@ export function TagVocabulary({
     const record = captured.record
     const change: Wire<"TagChange"> =
       captured.operation === "create"
-        ? { operation: "create", name: captured.name, parent: captured.parent || null }
+        ? {
+            operation: "create",
+            name: captured.name,
+            parent: captured.parent || null,
+          }
         : captured.operation === "rename" && record
-          ? { operation: "rename", id: record.id, revision: record.revision, name: captured.name }
+          ? {
+              operation: "rename",
+              id: record.id,
+              revision: record.revision,
+              name: captured.name,
+            }
           : captured.operation === "move" && record
             ? {
                 operation: "move",
@@ -123,33 +133,80 @@ export function TagVocabulary({
                 revision: record.revision,
                 parent: captured.parent || null,
               }
-            : { operation: "delete", id: record!.id, revision: record!.revision }
+            : {
+                operation: "delete",
+                id: record!.id,
+                revision: record!.revision,
+              }
     const result = await c.write(change, `${captured.operation} ${record?.name ?? captured.name}`)
     if (result?.state === "confirmed") {
-      if (captured.operation === "create" && captured.parent) b.expanded.add(captured.parent)
       setEditor((current) => (current === captured ? undefined : current))
     } else if (result) setFormError(result.message)
   }
   return (
     <section aria-label="Tags" className="flex h-full min-h-0 min-w-0 flex-col">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b px-6 py-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h1 className="text-lg font-semibold">Tags</h1>
-          <p className="text-sm text-muted-foreground">Organize your personal vocabulary.</p>
+      <header className="flex shrink-0 flex-wrap items-center gap-3 px-5 py-4">
+        <div className="flex min-w-44 flex-1 items-center gap-3">
+          <EmptyMedia variant="icon" className="mb-0">
+            <FolderTreeIcon />
+          </EmptyMedia>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-semibold">Tags</h1>
+              {c.vocabulary && <Badge variant="outline">{records.length}</Badge>}
+              {c.loading && <Spinner aria-label="Reading tags" />}
+            </div>
+            <p className="truncate text-xs text-muted-foreground">
+              Explore and organize your vocabulary.
+            </p>
+          </div>
         </div>
+        <Field className="w-64 max-md:order-last max-md:w-full">
+          <FieldLabel className="sr-only" htmlFor={`${prefix}-find`}>
+            Find tags
+          </FieldLabel>
+          <InputGroup>
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              id={`${prefix}-find`}
+              placeholder="Find a tag anywhere…"
+              value={b.lookup}
+              onChange={(event) => {
+                b.lookupScrollTop = 0
+                b.find(event.target.value)
+              }}
+            />
+            {b.lookup && (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label="Clear tag search"
+                  onClick={() => b.find("")}
+                >
+                  <XIcon />
+                </InputGroupButton>
+              </InputGroupAddon>
+            )}
+          </InputGroup>
+        </Field>
         <Button
-          variant="outline"
+          size="icon"
+          variant="ghost"
+          aria-label="Refresh vocabulary"
+          title="Refresh vocabulary"
           disabled={c.loading || c.hostClosing}
           onClick={() => void c.read()}
         >
-          <RefreshCwIcon data-icon="inline-start" />
-          Refresh vocabulary
+          <RefreshCwIcon />
         </Button>
         <Button disabled={blocked} onClick={() => start("create")}>
           <PlusIcon data-icon="inline-start" />
           New root tag
         </Button>
       </header>
+      <Separator />
       {c.readError && (
         <Alert variant="destructive">
           <AlertDescription>
@@ -160,283 +217,163 @@ export function TagVocabulary({
           </AlertDescription>
         </Alert>
       )}
-      <div className="flex min-h-0 flex-1 max-md:flex-col">
-        <aside
-          aria-label="Tag vocabulary"
-          className="flex w-80 min-w-0 shrink-0 flex-col border-r max-md:h-64 max-md:w-full max-md:border-r-0 max-md:border-b"
-        >
-          <FieldGroup className="shrink-0 p-4">
-            <Field>
-              <FieldLabel htmlFor={`${prefix}-find`}>Find tags</FieldLabel>
-              <InputGroup>
-                <InputGroupAddon>
-                  <SearchIcon />
-                </InputGroupAddon>
-                <InputGroupInput
-                  id={`${prefix}-find`}
-                  placeholder="Search names…"
-                  value={b.lookup}
-                  onChange={(e) => b.find(e.target.value)}
-                />
-              </InputGroup>
-            </Field>
-          </FieldGroup>
-          <ScrollArea
-            className="min-h-0 flex-1"
-            viewportProps={{
-              ref: viewport,
-              "aria-label": "Tag tree navigation",
-              onScroll: (e) => {
-                if (c.vocabulary) b.scrollTop = e.currentTarget.scrollTop
-              },
-            }}
-          >
-            <div role="tree" aria-label="Tag forest" className="flex min-w-0 flex-col gap-1 p-2">
-              {rows.map(({ tag, depth, hasChildren, expanded }, index) => (
-                <div
-                  key={tag.id}
-                  role="none"
-                  className="flex min-w-0 items-center gap-1"
-                  style={{ paddingLeft: Math.min(depth, 12) * 14 }}
+      <div
+        className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 px-5 py-3"
+        aria-label="Selected tag management"
+      >
+        {selected ? (
+          <>
+            <div className="flex min-w-48 flex-1 flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <h2
+                  className="truncate text-base font-semibold"
+                  title={`${selected.name} · ${selected.id}`}
                 >
-                  {hasChildren ? (
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      aria-label={`${expanded ? "Collapse" : "Expand"} ${tag.name}`}
-                      tabIndex={-1}
-                      disabled={!!b.lookup}
-                      onClick={() => b.toggle(tag.id)}
-                    >
-                      {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
-                    </Button>
-                  ) : (
-                    <span className="size-6 shrink-0" />
-                  )}
-                  <div
-                    role="treeitem"
-                    data-tree-tag={tag.id}
-                    aria-level={depth + 1}
-                    aria-expanded={hasChildren ? expanded : undefined}
-                    aria-selected={b.tagId === tag.id}
-                    aria-label={`Select ${tag.name}`}
-                    className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    tabIndex={b.tagId === tag.id || (!selectionVisible && index === 0) ? 0 : -1}
-                    onClick={() => onSelect(tag.id)}
-                    onKeyDown={(event) => {
-                      const key = event.key
-                      if (key === "Enter" || key === " ") {
-                        event.preventDefault()
-                        onSelect(tag.id)
-                      }
-                      if (
-                        ["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End"].includes(
-                          key,
-                        )
-                      )
-                        event.preventDefault()
-                      if (key === "ArrowDown") focus(rows[index + 1]?.tag.id)
-                      if (key === "ArrowUp") focus(rows[index - 1]?.tag.id)
-                      if (key === "Home") focus(rows[0]?.tag.id)
-                      if (key === "End") focus(rows.at(-1)?.tag.id)
-                      if (key === "ArrowRight" && hasChildren) {
-                        if (!expanded) b.toggle(tag.id)
-                        else focus(rows[index + 1]?.tag.id)
-                      }
-                      if (key === "ArrowLeft") {
-                        if (hasChildren && expanded && !b.lookup) b.toggle(tag.id)
-                        else focus(tag.parent ?? undefined)
-                      }
-                    }}
-                  >
-                    <Button
-                      tabIndex={-1}
-                      variant={b.tagId === tag.id ? "secondary" : "ghost"}
-                      className="w-full min-w-0 justify-start"
-                    >
-                      <span className="truncate">{tag.name}</span>
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                  {selected.name}
+                </h2>
+                <Badge variant="secondary">{selected.parent ? "Child tag" : "Root tag"}</Badge>
+                {retained && <Badge variant="outline">Previous observation</Badge>}
+              </div>
+              <p className="truncate text-xs text-muted-foreground" title={breadcrumb}>
+                {breadcrumb}
+              </p>
             </div>
-            {!records.length && !c.readError && (
-              <Empty>
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    {c.loading ? <Spinner /> : <FolderTreeIcon />}
-                  </EmptyMedia>
-                  <EmptyTitle>{c.loading ? "Reading tags…" : "No tags yet"}</EmptyTitle>
-                  <EmptyDescription>
-                    Create a root tag, then add children to organize it.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
-            {!!records.length && !rows.length && (
-              <Empty>
-                <EmptyHeader>
-                  <EmptyTitle>No matching tags</EmptyTitle>
-                  <EmptyDescription>
-                    Try another name. Your selection stays available.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
-          </ScrollArea>
-          <p className="shrink-0 px-4 py-3 text-xs text-muted-foreground">
-            {records.length} tags · names are unique across the library
-          </p>
-        </aside>
-        <ScrollArea className="min-h-0 min-w-0 flex-1">
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
-            {selected ? (
-              <>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{selected.parent ? "Child tag" : "Root tag"}</Badge>
-                    {retained && <Badge variant="outline">Previous observation</Badge>}
-                  </div>
-                  <h2 className="break-words text-2xl font-semibold">{selected.name}</h2>
-                  <p className="break-words text-sm text-muted-foreground">
-                    {selected.parent
-                      ? `Under ${byId.get(selected.parent)?.name ?? "Unavailable parent"}`
-                      : "Top level of your vocabulary"}
+            <div className="flex flex-wrap items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={blocked || retained}
+                onClick={() => start("create", selected)}
+              >
+                <PlusIcon data-icon="inline-start" />
+                New child
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={blocked || retained}
+                onClick={() => start("rename", selected)}
+              >
+                <PencilIcon data-icon="inline-start" />
+                Rename
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={blocked || retained}
+                onClick={() => start("move", selected)}
+              >
+                <CornerDownRightIcon data-icon="inline-start" />
+                Move branch
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Delete tag"
+                title="Delete tag"
+                disabled={blocked || retained}
+                onClick={() => start("delete", selected)}
+              >
+                <Trash2Icon />
+              </Button>
+              <Popover>
+                <PopoverTrigger
+                  render={<Button variant="outline" size="sm" disabled={blocked || retained} />}
+                >
+                  <ListFilterIcon data-icon="inline-start" />
+                  Find content
+                </PopoverTrigger>
+                <PopoverContent align="end">
+                  <PopoverHeader>
+                    <PopoverTitle>Find tagged content</PopoverTitle>
+                    <PopoverDescription>
+                      Open a Filter draft, then choose Apply there.
+                    </PopoverDescription>
+                  </PopoverHeader>
+                  <Button
+                    variant="outline"
+                    disabled={blocked || b.pending || retained}
+                    onClick={() => void b.content(false, filter, onContent)}
+                  >
+                    Exactly this tag
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={blocked || b.pending || retained}
+                    onClick={() => void b.content(true, filter, onContent)}
+                  >
+                    Include descendants
+                  </Button>
+                  {b.pending && <Spinner />}
+                  <p className="text-xs text-muted-foreground">
+                    Parents are never assigned to content automatically.
                   </p>
-                  <code className="break-all text-xs text-muted-foreground">{selected.id}</code>
-                </div>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Manage tag</CardTitle>
-                    <CardDescription>
-                      Names are globally unique and case-sensitive. Moving a tag keeps its children
-                      together.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={blocked || retained}
-                      onClick={() => start("create", selected)}
-                    >
-                      <PlusIcon data-icon="inline-start" />
-                      New child
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={blocked || retained}
-                      onClick={() => start("rename", selected)}
-                    >
-                      <PencilIcon data-icon="inline-start" />
-                      Rename
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={blocked || retained}
-                      onClick={() => start("move", selected)}
-                    >
-                      <CornerDownRightIcon data-icon="inline-start" />
-                      Move branch
-                    </Button>
-                  </CardContent>
-                  <CardFooter className="flex-wrap justify-between gap-3">
-                    <p className="text-sm text-muted-foreground">
-                      {children.length} direct {children.length === 1 ? "child" : "children"}
-                    </p>
-                    <Button
-                      variant="ghost"
-                      disabled={blocked || retained}
-                      onClick={() => start("delete", selected)}
-                    >
-                      <Trash2Icon data-icon="inline-start" />
-                      Delete tag
-                    </Button>
-                  </CardFooter>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Find content</CardTitle>
-                    <CardDescription>
-                      Open a Filter draft for this tag. Review the condition and choose Apply to
-                      update content.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={blocked || b.pending || retained}
-                      onClick={() => void b.content(false, filter, onContent)}
-                    >
-                      Exactly this tag
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={blocked || b.pending || retained}
-                      onClick={() => void b.content(true, filter, onContent)}
-                    >
-                      Include descendants
-                    </Button>
-                    {b.pending && <Spinner />}
-                  </CardContent>
-                  <CardFooter>
-                    <p className="text-sm text-muted-foreground">
-                      Items keep only tags you explicitly assign. Parents are never added
-                      automatically.
-                    </p>
-                  </CardFooter>
-                </Card>
-                {b.error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{b.error}</AlertDescription>
-                  </Alert>
-                )}
-                {!!children.length && (
-                  <div className="flex flex-col gap-2">
-                    <h3 className="text-sm font-medium">Direct children</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {children.map((tag) => (
-                        <Button
-                          key={tag.id}
-                          variant="outline"
-                          onClick={() => {
-                            b.expanded.add(selected.id)
-                            onSelect(tag.id)
-                          }}
-                        >
-                          {tag.name}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <Empty className="min-h-64">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <FolderTreeIcon />
-                  </EmptyMedia>
-                  <EmptyTitle>
-                    {b.tagId && c.vocabulary && !c.readError ? "Tag unavailable" : "Choose a tag"}
-                  </EmptyTitle>
-                  <EmptyDescription>
-                    {b.tagId && c.vocabulary && !c.readError
-                      ? "This selected tag is absent from the current forest. Select another tag or refresh."
-                      : "Select a tag to manage its name and place in the tree, or create a new root."}
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
-            <TagFeedback
-              coordinator={c}
-              attempts={c.attempts.filter(
-                (a) =>
-                  !("entity_id" in a.change) || a.state === "pending" || a.state === "unconfirmed",
-              )}
-            />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium">
+              {b.tagId && c.vocabulary && !c.readError ? "Tag unavailable" : "Choose a tag"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {b.tagId && c.vocabulary && !c.readError
+                ? "Select another tag or refresh the vocabulary."
+                : "Select a tag to explore its children and manage this branch."}
+            </p>
           </div>
-        </ScrollArea>
+        )}
       </div>
+      {b.error && (
+        <Alert variant="destructive">
+          <AlertDescription>{b.error}</AlertDescription>
+        </Alert>
+      )}
+      <Separator />
+      {records.length ? (
+        b.lookup.trim() ? (
+          <TagLookup forest={forest} browsing={b} onSelect={onSelect} />
+        ) : (
+          <TagColumns
+            forest={forest}
+            browsing={b}
+            onSelect={onSelect}
+            onCreate={(parent) => start("create", parent)}
+            blocked={blocked || retained}
+          />
+        )
+      ) : (
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">{c.loading ? <Spinner /> : <FolderTreeIcon />}</EmptyMedia>
+            <EmptyTitle>
+              {c.loading ? "Reading tags…" : c.readError ? "Tags unavailable" : "No tags yet"}
+            </EmptyTitle>
+            <EmptyDescription>
+              {c.readError
+                ? "Refresh to try reading the vocabulary again."
+                : "Create a root tag, then add children to organize it."}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
+      <Separator />
+      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-5 py-2.5">
+        <p className="text-xs text-muted-foreground">
+          Child = direct children · Desc. = all descendants, excluding self
+        </p>
+        <p className="text-xs text-muted-foreground">Names are unique across the library</p>
+        <div className="w-full empty:hidden">
+          <TagFeedback
+            coordinator={c}
+            attempts={c.attempts.filter(
+              (a) =>
+                !("entity_id" in a.change) || a.state === "pending" || a.state === "unconfirmed",
+            )}
+          />
+        </div>
+      </footer>
       <Dialog
         open={!!editor}
         onOpenChange={(open) => {

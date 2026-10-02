@@ -19,39 +19,48 @@ export function descendants(records: Tag[], root: string) {
   }
   return result
 }
-export function forestView(records: Tag[], expanded: Set<string>, lookup: string) {
+export function tagForest(records: Tag[]) {
   const byId = new Map(records.map((t) => [t.id, t])),
-    children = new Map<string | null, Tag[]>()
+    children = new Map<string | null, Tag[]>(),
+    counts = new Map(records.map((t) => [t.id, 0]))
   for (const tag of records) {
     const parent = tag.parent ?? null
     const group = children.get(parent)
     if (group) group.push(tag)
     else children.set(parent, [tag])
   }
-  const keep = new Set<string>(),
-    query = lookup.toLocaleLowerCase()
-  if (query)
-    for (const tag of records)
-      if (tag.name.toLocaleLowerCase().includes(query)) {
-        let current: Tag | undefined = tag
-        while (current && !keep.has(current.id)) {
-          keep.add(current.id)
-          current = current.parent ? byId.get(current.parent) : undefined
-        }
-      }
-  const rows: { tag: Tag; depth: number; hasChildren: boolean; expanded: boolean }[] = []
-  const stack = (children.get(null) ?? [])
-    .slice()
-    .reverse()
-    .map((tag) => ({ tag, depth: 0 }))
-  while (stack.length) {
-    const { tag, depth } = stack.pop()!
-    if (query && !keep.has(tag.id)) continue
-    const branch = children.get(tag.id) ?? [],
-      open = !!query || expanded.has(tag.id)
-    rows.push({ tag, depth, hasChildren: !!branch.length, expanded: open })
-    if (open)
-      for (let i = branch.length - 1; i >= 0; i--) stack.push({ tag: branch[i], depth: depth + 1 })
+  // Accumulate bottom-up once per coherent forest, without recursive depth limits.
+  const order: Tag[] = [],
+    pending = [...(children.get(null) ?? [])]
+  while (pending.length) {
+    const tag = pending.pop()!
+    order.push(tag)
+    for (const child of children.get(tag.id) ?? []) pending.push(child)
   }
-  return rows
+  for (let i = order.length - 1; i >= 0; i--) {
+    const tag = order[i]
+    if (tag.parent) counts.set(tag.parent, counts.get(tag.parent)! + counts.get(tag.id)! + 1)
+  }
+  return { byId, children, counts }
+}
+export type TagForest = ReturnType<typeof tagForest>
+
+export function tagPath(forest: TagForest, id?: string) {
+  const path: Tag[] = []
+  let tag = id ? forest.byId.get(id) : undefined
+  while (tag) {
+    path.push(tag)
+    tag = tag.parent ? forest.byId.get(tag.parent) : undefined
+  }
+  return path.reverse()
+}
+
+export function tagColumns(forest: TagForest, id?: string) {
+  const path = tagPath(forest, id),
+    columns = [{ parent: null as Tag | null, tags: forest.children.get(null) ?? [] }]
+  for (const tag of path) {
+    const tags = forest.children.get(tag.id) ?? []
+    if (tags.length) columns.push({ parent: tag, tags })
+  }
+  return { path, columns }
 }
