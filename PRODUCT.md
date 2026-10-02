@@ -101,6 +101,11 @@ their unfinished behavior must not be presented as an already available feature.
   explicitly selected this approach because whole-page UI logic and information
   density are too complex to judge together. Establish reusable visual rules
   from those concrete examples rather than redesigning entire pages in advance.
+- Component-by-component delivery must preserve a shared visual language across
+  consumers. The user rejected the Media-only treatment because it diverged from
+  neighboring settings pages. Judge shared headings, groups, rows and actions
+  across representative pages together; no individual revision establishes its
+  own visual system. Reference research remains a proposal until selected.
 
 ## Evidence on Hand
 
