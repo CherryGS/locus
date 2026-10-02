@@ -1,11 +1,7 @@
 import { useId, useMemo, useState, useSyncExternalStore } from "react"
 import {
-  CornerDownRightIcon,
-  ChevronRightIcon,
   FolderTreeIcon,
   PlusIcon,
-  PencilIcon,
-  Trash2Icon,
   RefreshCwIcon,
   SearchIcon,
   XIcon,
@@ -30,7 +26,14 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/shared/ui/dialog"
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from "@/shared/ui/empty"
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyContent,
+} from "@/shared/ui/empty"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Separator } from "@/shared/ui/separator"
 import {
@@ -55,11 +58,13 @@ import type { TagBrowsing } from "../model/tag-browsing"
 import { tagForest, tagPath, descendants } from "../model/forest"
 import { TagFeedback } from "./tag-feedback"
 import { TagColumns, TagLookup } from "./tag-columns"
+import { TagBreadcrumbs } from "./tag-breadcrumbs"
+import type { TagEditAction } from "./tag-context-menu"
 
 const emptyRecords: Wire<"TagRecord">[] = []
 
 type Editor = {
-  operation: "create" | "rename" | "move" | "delete"
+  operation: TagEditAction
   record?: Wire<"TagRecord">
   name: string
   parent: string
@@ -86,8 +91,7 @@ export function TagVocabulary({
     forest = useMemo(() => tagForest(records), [records]),
     byId = forest.byId,
     selected = b.tagId ? byId.get(b.tagId) : undefined,
-    path = tagPath(forest, b.branchId ?? b.tagId),
-    breadcrumb = path.map((tag) => tag.name).join(" / ")
+    path = tagPath(forest, b.branchId ?? b.tagId)
   const blocked = c.hostClosing || c.pending,
     retained = !!c.readError
   const attempts = c.attempts.filter(
@@ -148,12 +152,27 @@ export function TagVocabulary({
   }
   return (
     <section aria-label="Tags" className="flex h-full min-h-0 min-w-0 flex-col">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 px-5 py-4">
-        <div className="flex min-w-44 flex-1 items-center gap-2">
-          <h1 className="text-lg font-semibold">Tags</h1>
-          {c.loading && <Spinner aria-label="Reading tags" />}
-        </div>
-        <Field className="w-64 max-md:order-last max-md:w-full">
+      <h1 className="sr-only">Tags</h1>
+      {selected && <h2 className="sr-only">{selected.name}</h2>}
+      <div
+        className="flex min-h-11 shrink-0 items-center gap-2 px-3 py-1.5"
+        aria-label="Tag navigation"
+      >
+        {selected ? (
+          <TagBreadcrumbs
+            path={path}
+            selected={b.tagId}
+            onSelect={(id) => {
+              b.find("")
+              onSelect(id)
+            }}
+          />
+        ) : (
+          <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+            {b.tagId && c.vocabulary && !c.readError ? "Tag unavailable" : "Choose a tag"}
+          </p>
+        )}
+        <Field className="w-52 shrink-0 max-sm:w-36">
           <FieldLabel className="sr-only" htmlFor={`${prefix}-find`}>
             Find tags
           </FieldLabel>
@@ -163,7 +182,7 @@ export function TagVocabulary({
             </InputGroupAddon>
             <InputGroupInput
               id={`${prefix}-find`}
-              placeholder="Find a tag anywhere…"
+              placeholder="Find tags…"
               value={b.lookup}
               onChange={(event) => {
                 b.lookupScrollTop = 0
@@ -184,20 +203,50 @@ export function TagVocabulary({
           </InputGroup>
         </Field>
         <Button
-          size="icon"
+          size="icon-sm"
           variant="ghost"
           aria-label="Refresh vocabulary"
           title="Refresh vocabulary"
           disabled={c.loading || c.hostClosing}
           onClick={() => void c.read()}
         >
-          <RefreshCwIcon />
+          {c.loading ? <Spinner aria-label="Reading tags" /> : <RefreshCwIcon />}
         </Button>
-        <Button disabled={blocked} onClick={() => start("create")}>
-          <PlusIcon data-icon="inline-start" />
-          New root tag
-        </Button>
-      </header>
+        {selected && (
+          <Popover>
+            <PopoverTrigger
+              render={<Button variant="ghost" size="icon-sm" disabled={blocked || retained} />}
+              aria-label="Find content"
+              title={`Find content tagged ${selected.name}`}
+            >
+              <ListFilterIcon />
+            </PopoverTrigger>
+            <PopoverContent align="end">
+              <PopoverHeader>
+                <PopoverTitle>Find tagged content</PopoverTitle>
+                <PopoverDescription>
+                  Open a Filter draft, then choose Apply there.
+                </PopoverDescription>
+              </PopoverHeader>
+              <Button
+                variant="outline"
+                disabled={blocked || b.pending || retained}
+                onClick={() => void b.content(false, filter, onContent)}
+              >
+                Exactly this tag
+              </Button>
+              <Button
+                variant="outline"
+                disabled={blocked || b.pending || retained}
+                onClick={() => void b.content(true, filter, onContent)}
+              >
+                Include descendants
+              </Button>
+              {b.pending && <Spinner />}
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
       <Separator />
       {c.readError && (
         <Alert variant="destructive">
@@ -209,141 +258,27 @@ export function TagVocabulary({
           </AlertDescription>
         </Alert>
       )}
-      <div
-        className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 px-5 py-3"
-        aria-label="Selected tag management"
-      >
-        {selected ? (
-          <>
-            <div className="min-w-48 flex-1">
-              <h2 className="sr-only">{selected.name}</h2>
-              <nav aria-label="Tag path" className="min-w-0 overflow-x-auto" title={breadcrumb}>
-                <ol className="flex w-max items-center gap-1">
-                  {path.map((tag, index) => (
-                    <li key={tag.id} className="flex items-center gap-1">
-                      {!!index && (
-                        <ChevronRightIcon
-                          aria-hidden="true"
-                          className="size-3 text-muted-foreground"
-                        />
-                      )}
-                      <Button
-                        variant={tag.id === b.tagId ? "secondary" : "ghost"}
-                        size="xs"
-                        aria-label={`Locate ${tag.name}`}
-                        aria-current={tag.id === b.tagId ? "location" : undefined}
-                        onClick={() => {
-                          b.find("")
-                          onSelect(tag.id)
-                        }}
-                      >
-                        {tag.name}
-                      </Button>
-                    </li>
-                  ))}
-                </ol>
-              </nav>
-            </div>
-            <div className="flex flex-wrap items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={blocked || retained}
-                onClick={() => start("create", selected)}
-              >
-                <PlusIcon data-icon="inline-start" />
-                New child
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={blocked || retained}
-                onClick={() => start("rename", selected)}
-              >
-                <PencilIcon data-icon="inline-start" />
-                Rename
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={blocked || retained}
-                onClick={() => start("move", selected)}
-              >
-                <CornerDownRightIcon data-icon="inline-start" />
-                Move branch
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Delete tag"
-                title="Delete tag"
-                disabled={blocked || retained}
-                onClick={() => start("delete", selected)}
-              >
-                <Trash2Icon />
-              </Button>
-              <Popover>
-                <PopoverTrigger
-                  render={<Button variant="outline" size="sm" disabled={blocked || retained} />}
-                >
-                  <ListFilterIcon data-icon="inline-start" />
-                  Find content
-                </PopoverTrigger>
-                <PopoverContent align="end">
-                  <PopoverHeader>
-                    <PopoverTitle>Find tagged content</PopoverTitle>
-                    <PopoverDescription>
-                      Open a Filter draft, then choose Apply there.
-                    </PopoverDescription>
-                  </PopoverHeader>
-                  <Button
-                    variant="outline"
-                    disabled={blocked || b.pending || retained}
-                    onClick={() => void b.content(false, filter, onContent)}
-                  >
-                    Exactly this tag
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={blocked || b.pending || retained}
-                    onClick={() => void b.content(true, filter, onContent)}
-                  >
-                    Include descendants
-                  </Button>
-                  {b.pending && <Spinner />}
-                  <p className="text-xs text-muted-foreground">
-                    Parents are never assigned to content automatically.
-                  </p>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium">
-              {b.tagId && c.vocabulary && !c.readError ? "Tag unavailable" : "Choose a tag"}
-            </p>
-            {b.tagId && c.vocabulary && !c.readError && (
-              <p className="text-xs text-muted-foreground">Select another tag or refresh.</p>
-            )}
-          </div>
-        )}
-      </div>
       {b.error && (
         <Alert variant="destructive">
           <AlertDescription>{b.error}</AlertDescription>
         </Alert>
       )}
-      <Separator />
       {records.length ? (
         b.lookup.trim() ? (
-          <TagLookup forest={forest} browsing={b} onSelect={onSelect} />
+          <TagLookup
+            forest={forest}
+            browsing={b}
+            onSelect={onSelect}
+            onEdit={start}
+            blocked={blocked || retained}
+          />
         ) : (
           <TagColumns
             forest={forest}
             browsing={b}
             onSelect={onSelect}
-            onCreate={(parent) => start("create", parent)}
+            onCreate={() => start("create")}
+            onEdit={start}
             blocked={blocked || retained}
           />
         )
@@ -360,6 +295,12 @@ export function TagVocabulary({
                 : "Create a root tag, then add children to organize it."}
             </EmptyDescription>
           </EmptyHeader>
+          <EmptyContent>
+            <Button disabled={blocked || retained || c.loading} onClick={() => start("create")}>
+              <PlusIcon data-icon="inline-start" />
+              New root tag
+            </Button>
+          </EmptyContent>
         </Empty>
       )}
       {!!attempts.length && (

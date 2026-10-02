@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { chromium, type Page } from "playwright"
-import { readEntityIds, searchEntities } from "@locus/client"
+import { readEntityIds, searchEntities, type components } from "@locus/client"
 import { fixture, outputDirectory } from "./fixture.ts"
 import { browserPreview } from "./browser-preview.ts"
 const data = await fixture(),
@@ -22,17 +22,17 @@ try {
   }
   await open()
   await page.getByText("No tags yet", { exact: true }).waitFor()
+  const menuAction = async (action: string, target?: string) => {
+    const row = target
+      ? page!.getByRole("treeitem", { name: `Select ${target}`, exact: true })
+      : page!.getByRole("treeitem", { selected: true })
+    await row.click({ button: "right" })
+    await page!.getByRole("menuitem", { name: action, exact: true }).click()
+  }
   const create = async (name: string, child = false) => {
-    await page!
-      .getByRole("button", {
-        name: child ? "New child" : "New root tag",
-        exact: true,
-      })
-      .click()
-    const dialog = page!.getByRole("dialog", {
-      name: "Create a tag",
-      exact: true,
-    })
+    if (child) await menuAction("New child")
+    else await page!.getByRole("button", { name: "New root tag", exact: true }).click()
+    const dialog = page!.getByRole("dialog", { name: "Create a tag", exact: true })
     await dialog.getByLabel("Tag name", { exact: true }).fill(name)
     await dialog.getByRole("button", { name: "Create tag", exact: true }).click()
     await dialog.waitFor({ state: "hidden" })
@@ -57,7 +57,7 @@ try {
   await create("Other")
   assert.equal((await readEntityIds(backend.client)).length, 4)
   await select("Animals")
-  await page.getByRole("button", { name: "New child", exact: true }).click()
+  await menuAction("New child")
   let dialog = page.getByRole("dialog", { name: "Create a tag", exact: true })
   await dialog.getByLabel("Tag name", { exact: true }).fill("Cat")
   await dialog.getByRole("button", { name: "Create tag", exact: true }).click()
@@ -79,6 +79,12 @@ try {
   assert.equal(add.data?.status, "tag_assignment")
   await page.getByLabel("Find tags", { exact: true }).fill("Kitten")
   await page.getByText("Animals / Cat / Kitten", { exact: true }).waitFor()
+  await page.getByRole("button", { name: "Reveal Kitten", exact: true }).click({ button: "right" })
+  await page.getByRole("menuitem", { name: "Rename", exact: true }).click()
+  const searchRename = page.getByRole("dialog", { name: "Rename tag everywhere", exact: true })
+  assert.equal(await searchRename.getByLabel("Tag name", { exact: true }).inputValue(), "Kitten")
+  await searchRename.getByRole("button", { name: "Cancel", exact: true }).click()
+  assert.equal(await page.getByLabel("Find tags", { exact: true }).inputValue(), "Kitten")
   await select("Kitten")
   await page.getByLabel("Find tags", { exact: true }).fill("nomatch")
   await page.getByText("No matching tags", { exact: true }).waitFor()
@@ -91,6 +97,18 @@ try {
   await select("Animals")
   // Sibling choices replace the branch; leaves never produce an empty column.
   const columns = page.locator("[data-tag-column]")
+  const branchBeforeContext = await columns.evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("data-tag-column")),
+  )
+  await menuAction("Rename", "Other")
+  const renameProbe = page.getByRole("dialog", { name: "Rename tag everywhere", exact: true })
+  assert.equal(await renameProbe.getByLabel("Tag name", { exact: true }).inputValue(), "Other")
+  await renameProbe.getByRole("button", { name: "Cancel", exact: true }).click()
+  await page.getByRole("heading", { name: "Animals", exact: true }).waitFor()
+  assert.deepEqual(
+    await columns.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-tag-column"))),
+    branchBeforeContext,
+  )
   const rootItem = page.getByRole("treeitem", {
     name: "Select Animals",
     exact: true,
@@ -108,6 +126,9 @@ try {
   assert.equal(await columns.count(), 1)
   await select("Animals")
   await rootItem.focus()
+  await rootItem.press("Shift+F10")
+  await page.getByRole("menuitem", { name: "Rename", exact: true }).waitFor()
+  await page.keyboard.press("Escape")
   await rootItem.press("ArrowRight")
   const childItem = page.getByRole("treeitem", {
     name: "Select Cat",
@@ -235,7 +256,7 @@ try {
   await filter.getByRole("button", { name: "Close", exact: true }).click()
   await open()
   await select("Cat")
-  await page.getByRole("button", { name: "Move branch", exact: true }).click()
+  await menuAction("Move branch")
   dialog = page.getByRole("dialog", { name: "Move branch", exact: true })
   await dialog.getByLabel("Parent", { exact: true }).click()
   await page.getByRole("option", { name: "Other", exact: true }).click()
@@ -257,7 +278,7 @@ try {
     ).entities
   assert.equal((await query(`tag_subtree:"${animal.id}"`)).length, 0)
   assert.equal((await query(`tag_subtree:"${other.id}"`)).length, 1)
-  await page.getByRole("button", { name: "Rename", exact: true }).click()
+  await menuAction("Rename")
   dialog = page.getByRole("dialog", {
     name: "Rename tag everywhere",
     exact: true,
@@ -266,7 +287,7 @@ try {
   await dialog.getByRole("button", { name: "Save name", exact: true }).click()
   await dialog.waitFor({ state: "hidden" })
   await page.getByRole("heading", { name: "Cats", exact: true }).waitFor()
-  await page.getByRole("button", { name: "Delete tag", exact: true }).click()
+  await menuAction("Delete tag")
   dialog = page.getByRole("dialog", {
     name: "Delete tag globally?",
     exact: true,
@@ -274,7 +295,7 @@ try {
   await dialog.getByText(/immediate children move to Other/).waitFor()
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
   await page.getByRole("heading", { name: "Cats", exact: true }).waitFor()
-  await page.getByRole("button", { name: "Delete tag", exact: true }).click()
+  await menuAction("Delete tag")
   await dialog.getByRole("button", { name: "Delete tag globally", exact: true }).click()
   await dialog.waitFor({ state: "hidden" })
   await page.getByText("Choose a tag", { exact: true }).waitFor()
@@ -302,6 +323,11 @@ try {
   await page.getByRole("button", { name: "Refresh vocabulary", exact: true }).click()
   await page.getByText(/Showing the previous forest/).waitFor()
   await page.getByRole("heading", { name: "Kitten", exact: true }).waitFor()
+  await page
+    .getByRole("treeitem", { name: "Select Kitten", exact: true })
+    .click({ button: "right" })
+  assert(await page.getByRole("menuitem", { name: "Rename", exact: true }).isDisabled())
+  await page.keyboard.press("Escape")
   await page.unroute("**/api/v1/tags")
   await page.getByRole("button", { name: "Refresh vocabulary", exact: true }).click()
   await page.getByText(/Showing the previous forest/).waitFor({ state: "hidden" })
@@ -397,8 +423,14 @@ try {
   await breadcrumbs.getByRole("button", { name: "Locate Other", exact: true }).click()
   await page.getByRole("heading", { name: "Other", exact: true }).waitFor()
   assert.equal(await columns.count(), 9)
-  assert.equal(await breadcrumbs.getByRole("button").count(), 9)
+  assert.equal(await breadcrumbs.getByRole("button", { name: /^Locate / }).count(), 2)
   assert.equal(await horizontal.evaluate((e) => e.scrollLeft), 0)
+  await breadcrumbs.getByRole("button", { name: "Show hidden path tags", exact: true }).click()
+  const hiddenPath = page.getByRole("dialog", { name: "Hidden path tags", exact: true })
+  await hiddenPath.getByRole("button", { name: "Locate Deep 3", exact: true }).click()
+  await page.getByRole("heading", { name: "Deep 3", exact: true }).waitFor()
+  assert.equal(await columns.count(), 9)
+  assert.equal(await breadcrumbs.evaluate((node) => node.scrollWidth > node.clientWidth), false)
   await breadcrumbs.getByRole("button", { name: "Locate Deep 7", exact: true }).click()
   await page.getByRole("heading", { name: "Deep 7", exact: true }).waitFor()
   assert.equal(await columns.count(), 9)
@@ -425,6 +457,29 @@ try {
       .evaluate((e) => e.clientWidth >= e.scrollWidth),
   )
   await page.screenshot({ path: join(output, "forest-narrow.png"), animations: "disabled" })
+  // Short paths can still have long names: chips truncate without a horizontal scrollbar.
+  let longParent: string | null = null
+  const longNames = [
+    "A very long root tag name for checking narrow navigation",
+    "A very long child tag name for checking narrow navigation",
+    "A very long leaf tag name for checking narrow navigation",
+  ]
+  for (const name of longNames) {
+    const body: components["schemas"]["WriteTag"] = {
+      request_id: crypto.randomUUID(),
+      change: { operation: "create", name, parent: longParent },
+    }
+    const created = await backend.client.POST("/api/v1/tags", { body })
+    assert.equal(created.data?.status, "tag_saved")
+    if (created.data?.status === "tag_saved") longParent = created.data.tag.id
+  }
+  await page.getByRole("button", { name: "Refresh vocabulary", exact: true }).click()
+  await page.getByLabel("Find tags", { exact: true }).fill(longNames[2])
+  await page.getByRole("button", { name: `Reveal ${longNames[2]}`, exact: true }).click()
+  await page.getByRole("heading", { name: longNames[2], exact: true }).waitFor()
+  assert.equal(await breadcrumbs.evaluate((node) => node.scrollWidth > node.clientWidth), false)
+  assert.equal(await breadcrumbs.evaluate((node) => getComputedStyle(node).overflowX), "hidden")
+  await page.screenshot({ path: join(output, "path-long-names.png"), animations: "disabled" })
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
   assert.deepEqual(errors, [])
   await writeFile(
@@ -441,6 +496,8 @@ try {
           "move and rename",
           "one-record delete promotion and direct annotations",
           "retained read failure",
+          "row context menus and keyboard context entry",
+          "collapsed clickable breadcrumb without horizontal overflow",
           "narrow layout",
         ],
       },

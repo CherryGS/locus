@@ -152,6 +152,11 @@ each column scrolls vertically.
 Selecting an ancestor with arrow keys or the clickable breadcrumb only locates
 that node; the rest of the open branch remains. Right arrow follows the current
 path's child. Tag selections replace the current URL so Back crosses workflows.
+Long paths collapse intermediate nodes into clickable `…` popovers, retaining
+the root, current selection and branch tip. Right-click a row (including search
+results), or press Shift+F10, to create a child, rename, move or delete that
+record without changing the open branch. Create roots from the root column's
+`+` or the empty vocabulary's creation action.
 Search results show the full path and reveal it
 on selection. The selection, search and scroll positions survive page reentry
 within the current library session.

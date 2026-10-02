@@ -8,6 +8,7 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/
 import type { Wire } from "@/shared/api"
 import type { TagBrowsing } from "../model/tag-browsing"
 import { tagColumns, tagPath, type TagForest } from "../model/forest"
+import { TagContextMenu, type TagEditAction } from "./tag-context-menu"
 
 function TagCounts({
   forest,
@@ -42,12 +43,14 @@ export function TagColumns({
   browsing: b,
   onSelect,
   onCreate,
+  onEdit,
   blocked,
 }: {
   forest: TagForest
   browsing: TagBrowsing
   onSelect: (id: string) => void
   onCreate: (parent?: Wire<"TagRecord">) => void
+  onEdit: (action: TagEditAction, tag: Wire<"TagRecord">) => void
   blocked: boolean
 }) {
   const prefix = useId(),
@@ -116,6 +119,7 @@ export function TagColumns({
             blocked={blocked}
             onCreate={() => onCreate(parent ?? undefined)}
             onSelect={onSelect}
+            onEdit={onEdit}
             focus={focus}
             active={active}
           />
@@ -137,6 +141,7 @@ function TagColumn({
   blocked,
   onCreate,
   onSelect,
+  onEdit,
   focus,
   active,
 }: {
@@ -151,6 +156,7 @@ function TagColumn({
   blocked: boolean
   onCreate: () => void
   onSelect: (id: string) => void
+  onEdit: (action: TagEditAction, tag: Wire<"TagRecord">) => void
   focus: (id?: string) => void
   active: Set<string>
 }) {
@@ -202,17 +208,18 @@ function TagColumn({
         <p className="min-w-0 flex-1 truncate text-sm font-medium" title={parent?.name}>
           {parent?.name ?? "Root tags"}
         </p>
-        <Button
-          size="icon-xs"
-          variant="ghost"
-          tabIndex={-1}
-          aria-label={parent ? `Create child of ${parent.name}` : "Create root tag"}
-          title={parent ? "Add a child here" : "Add a root tag"}
-          disabled={blocked}
-          onClick={onCreate}
-        >
-          <PlusIcon />
-        </Button>
+        {!parent && (
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            aria-label="New root tag"
+            title="New root tag"
+            disabled={blocked}
+            onClick={onCreate}
+          >
+            <PlusIcon />
+          </Button>
+        )}
       </header>
       <Separator />
       <div
@@ -243,60 +250,61 @@ function TagColumn({
             const children = forest.children.get(tag.id) ?? [],
               onPath = active.has(tag.id)
             return (
-              <Button
-                key={tag.id}
-                role="treeitem"
-                data-tree-tag={tag.id}
-                aria-label={`Select ${tag.name}`}
-                aria-description={`${children.length} direct children, ${forest.counts.get(tag.id) ?? 0} descendants excluding itself`}
-                aria-level={depth + 1}
-                aria-selected={b.tagId === tag.id}
-                aria-expanded={children.length ? onPath : undefined}
-                aria-owns={children.length && onPath ? `${prefix}-${tag.id}` : undefined}
-                tabIndex={
-                  b.tagId === tag.id ||
-                  (!forest.byId.has(b.tagId ?? "") && depth === 0 && index === 0)
-                    ? 0
-                    : -1
-                }
-                variant={b.tagId === tag.id ? "default" : onPath ? "secondary" : "ghost"}
-                size="lg"
-                className="w-full min-w-0 justify-start gap-3"
-                onClick={() => onSelect(tag.id)}
-                onKeyDown={(event) => {
-                  const key = event.key
-                  if (
-                    !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(
-                      key,
+              <TagContextMenu key={tag.id} tag={tag} blocked={blocked} onEdit={onEdit}>
+                <Button
+                  role="treeitem"
+                  data-tree-tag={tag.id}
+                  aria-label={`Select ${tag.name}`}
+                  aria-description={`${children.length} direct children, ${forest.counts.get(tag.id) ?? 0} descendants excluding itself`}
+                  aria-level={depth + 1}
+                  aria-selected={b.tagId === tag.id}
+                  aria-expanded={children.length ? onPath : undefined}
+                  aria-owns={children.length && onPath ? `${prefix}-${tag.id}` : undefined}
+                  tabIndex={
+                    b.tagId === tag.id ||
+                    (!forest.byId.has(b.tagId ?? "") && depth === 0 && index === 0)
+                      ? 0
+                      : -1
+                  }
+                  variant={b.tagId === tag.id ? "default" : onPath ? "secondary" : "ghost"}
+                  size="lg"
+                  className="w-full min-w-0 justify-start gap-3"
+                  onClick={() => onSelect(tag.id)}
+                  onKeyDown={(event) => {
+                    const key = event.key
+                    if (
+                      !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                        key,
+                      )
                     )
-                  )
-                    return
-                  event.preventDefault()
-                  if (key === "ArrowUp") focus(tags[index - 1]?.id)
-                  if (key === "ArrowDown") focus(tags[index + 1]?.id)
-                  if (key === "Home") focus(tags[0]?.id)
-                  if (key === "End") focus(tags.at(-1)?.id)
-                  if (key === "ArrowLeft" && parent) {
-                    onSelect(parent.id)
-                    focus(parent.id)
-                  }
-                  if (key === "ArrowRight" && children.length) {
-                    const id = onPath ? (nextId ?? children[0].id) : children[0].id
-                    onSelect(id)
-                    focus(id)
-                  }
-                }}
-              >
-                <span className="min-w-0 flex-1 truncate text-left" title={tag.name}>
-                  {tag.name}
-                </span>
-                <TagCounts forest={forest} id={tag.id} selected={b.tagId === tag.id} />
-                {children.length ? (
-                  <ChevronRightIcon data-icon="inline-end" />
-                ) : (
-                  <span className="w-4 shrink-0" />
-                )}
-              </Button>
+                      return
+                    event.preventDefault()
+                    if (key === "ArrowUp") focus(tags[index - 1]?.id)
+                    if (key === "ArrowDown") focus(tags[index + 1]?.id)
+                    if (key === "Home") focus(tags[0]?.id)
+                    if (key === "End") focus(tags.at(-1)?.id)
+                    if (key === "ArrowLeft" && parent) {
+                      onSelect(parent.id)
+                      focus(parent.id)
+                    }
+                    if (key === "ArrowRight" && children.length) {
+                      const id = onPath ? (nextId ?? children[0].id) : children[0].id
+                      onSelect(id)
+                      focus(id)
+                    }
+                  }}
+                >
+                  <span className="min-w-0 flex-1 truncate text-left" title={tag.name}>
+                    {tag.name}
+                  </span>
+                  <TagCounts forest={forest} id={tag.id} selected={b.tagId === tag.id} />
+                  {children.length ? (
+                    <ChevronRightIcon data-icon="inline-end" />
+                  ) : (
+                    <span className="w-4 shrink-0" />
+                  )}
+                </Button>
+              </TagContextMenu>
             )
           })}
         </div>
@@ -317,10 +325,14 @@ export function TagLookup({
   forest,
   browsing: b,
   onSelect,
+  onEdit,
+  blocked,
 }: {
   forest: TagForest
   browsing: TagBrowsing
   onSelect: (id: string) => void
+  onEdit: (action: TagEditAction, tag: Wire<"TagRecord">) => void
+  blocked: boolean
 }) {
   const viewport = useRef<HTMLDivElement>(null),
     query = b.lookup.trim().toLocaleLowerCase(),
@@ -352,29 +364,30 @@ export function TagLookup({
                 .map((t) => t.name)
                 .join(" / ")
               return (
-                <Button
-                  key={tag.id}
-                  variant="ghost"
-                  className="h-auto w-full min-w-0 justify-start gap-4 py-3"
-                  aria-label={`Reveal ${tag.name}`}
-                  onClick={() => {
-                    b.revealSelection = true
-                    b.find("")
-                    onSelect(tag.id)
-                  }}
-                >
-                  <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
-                    <span className="max-w-full truncate">{tag.name}</span>
-                    <span
-                      className="max-w-full truncate text-xs font-normal text-muted-foreground"
-                      title={path}
-                    >
-                      {path}
+                <TagContextMenu key={tag.id} tag={tag} blocked={blocked} onEdit={onEdit}>
+                  <Button
+                    variant="ghost"
+                    className="h-auto w-full min-w-0 justify-start gap-4 py-3"
+                    aria-label={`Reveal ${tag.name}`}
+                    onClick={() => {
+                      b.revealSelection = true
+                      b.find("")
+                      onSelect(tag.id)
+                    }}
+                  >
+                    <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                      <span className="max-w-full truncate">{tag.name}</span>
+                      <span
+                        className="max-w-full truncate text-xs font-normal text-muted-foreground"
+                        title={path}
+                      >
+                        {path}
+                      </span>
                     </span>
-                  </span>
-                  <TagCounts forest={forest} id={tag.id} />
-                  <ChevronRightIcon data-icon="inline-end" />
-                </Button>
+                    <TagCounts forest={forest} id={tag.id} />
+                    <ChevronRightIcon data-icon="inline-end" />
+                  </Button>
+                </TagContextMenu>
               )
             })}
           </div>
