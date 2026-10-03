@@ -448,14 +448,16 @@ try {
   await dialog.getByText(/Index status unknown/).waitFor()
   // Exercise retry while failure remains stable; regular status polling may
   // remove this control immediately once the route is restored.
-  await dialog.getByRole("button", { name: "Check index status", exact: true }).click()
+  await dialog.getByRole("button", { name: "Retry status read", exact: true }).click()
   await page.unroute("**/api/v1/search/status")
   await dialog.getByText(/Index status unknown/).waitFor({ state: "hidden" })
   await dialog.getByRole("button", { name: "Close", exact: true }).click()
   await page.getByRole("button", { name: "Setting", exact: true }).click()
   await page.getByRole("button", { name: "Library", exact: true }).click()
   assert.equal(await page.getByText("Advanced maintenance", { exact: true }).count(), 0)
-  await page.getByText(/Index ready/).waitFor()
+  await page.getByLabel("Search index maintenance").getByText("Ready", { exact: true }).waitFor()
+  assert.equal(await page.getByRole("button", { name: "Check index status", exact: true }).count(), 0)
+  assert.equal(await page.getByRole("button", { name: "Retry status read", exact: true }).count(), 0)
   await page.getByRole("button", { name: "Rebuild index", exact: true }).click()
   await page.keyboard.press("Escape")
   await open()

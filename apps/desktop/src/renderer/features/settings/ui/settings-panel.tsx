@@ -20,7 +20,7 @@ export function SettingsPanel({
   libraryMaintenance,
 }: {
   settings: SettingsCoordinator
-  restart: () => Promise<void>
+  restart?: () => Promise<void>
   restricted?: string
   externalSettings: ReturnType<typeof externalAddressSettings>
   externalToken: ExternalTokenCoordinator
@@ -58,7 +58,7 @@ export function SettingsPanel({
               </p>
             )}
           </div>
-          <Button
+          {restricted && restart && <Button
             variant="outline"
             size="sm"
             onClick={() => {
@@ -69,8 +69,8 @@ export function SettingsPanel({
             }}
           >
             <RotateCwIcon data-icon="inline-start" />
-            {restricted ? "Retry application" : "Restart application"}
-          </Button>
+            Retry application
+          </Button>}
         </header>
         {restricted && (
           <Alert variant="destructive">

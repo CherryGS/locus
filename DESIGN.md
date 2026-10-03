@@ -130,6 +130,9 @@ surface adaptations of that system.
   Give the library path the full group width, with its source as quiet metadata
   and the switching action beside the group heading. Keep the path selectable
   and allow long paths to wrap without truncation.
+  Put application restart in the persistent Settings dialog header, shared by
+  all categories. Present search index status and maintenance actions in one row;
+  normal status updates automatically, with explicit reread only after failure.
 - **Media cards:** emphasize the preview, with readable titles and metadata and
   clear existing actions and selection. Keep hover, selection and keyboard focus
   distinguishable through quiet boundaries; preserve card geometry and the grid

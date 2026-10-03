@@ -5,11 +5,12 @@ import { Button } from "@/shared/ui/button"
 import { humanize } from "../model/draft"
 import type { FilterCoordinator } from "../model/filter-coordinator"
 
-function indexLabel(c: FilterCoordinator) {
+function indexLabel(c: FilterCoordinator, prefix = "Index ") {
   if (c.statusError) return `Index status unknown: ${c.statusError}`
   const status = c.status
   if (!status) return "Reading index status…"
-  return `Index ${humanize(status.state)}${status.total ? ` · ${status.completed} / ${status.total} Entities` : ""}`
+  const state = humanize(status.state)
+  return `${prefix}${state.charAt(0).toUpperCase()}${state.slice(1)}${status.total ? ` · ${status.completed} / ${status.total} Entities` : ""}`
 }
 
 function IndexActions({ coordinator: c, rebuild = false, onAction }: {
@@ -19,12 +20,12 @@ function IndexActions({ coordinator: c, rebuild = false, onAction }: {
 }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Button size="sm" variant="ghost" disabled={c.statusPending} onClick={() => {
+      {c.statusError && <Button size="sm" variant="outline" disabled={c.statusPending} onClick={() => {
         onAction?.()
         void c.readStatus()
       }}>
-        Check index status
-      </Button>
+        Retry status read
+      </Button>}
       {!c.statusError && c.status && (!c.status.usable || !!c.status.failure) && (
         <Button size="sm" variant="outline" disabled={!!c.maintenancePending} onClick={() => {
           onAction?.()
@@ -47,8 +48,8 @@ function IndexActions({ coordinator: c, rebuild = false, onAction }: {
 
 export function IndexMaintenance({ coordinator: c, onAction }: { coordinator: FilterCoordinator; onAction?: () => void }) {
   return (
-    <div className="flex flex-col gap-2" aria-label="Search index maintenance">
-      <p className="text-xs text-muted-foreground">{indexLabel(c)}</p>
+    <div className="flex flex-wrap items-center justify-between gap-3" aria-label="Search index maintenance">
+      <p role="status" className="min-w-0 flex-1 text-sm">{indexLabel(c, "")}</p>
       <IndexActions coordinator={c} rebuild onAction={onAction} />
     </div>
   )
