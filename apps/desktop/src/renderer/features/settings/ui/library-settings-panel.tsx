@@ -1,9 +1,8 @@
 import { useState } from "react"
 import { FolderOpenIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
-import { Badge } from "@/shared/ui/badge"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
-import { SettingsGroup, SettingsRow } from "./settings-rows"
+import { SettingsGroup } from "./settings-rows"
 import type { DesktopBridge, DesktopState } from "../../../../shared/desktop-bridge"
 
 export type LibrarySettingsProps = {
@@ -34,6 +33,12 @@ export function LibrarySettingsPanel({ library, switchLibrary }: LibrarySettings
   return (
     <SettingsGroup
       name="Current library"
+      action={
+        <Button variant="outline" size="sm" disabled={pending} onClick={() => void choose()}>
+          <FolderOpenIcon data-icon="inline-start" />
+          {pending ? "Choosing library…" : "Choose library and restart"}
+        </Button>
+      }
       help={{
         label: "About library switching",
         content: (
@@ -44,25 +49,29 @@ export function LibrarySettingsPanel({ library, switchLibrary }: LibrarySettings
         ),
       }}
     >
-      <SettingsRow label="Location">
-        <p className="break-all font-mono leading-relaxed">
-          {library?.root ?? "Library location is available in the desktop application."}
-        </p>
-        {library?.source && (
-          <div>
-            <Badge variant="outline" title={library.source.name}>
-              {library.source.kind === "environment"
-                ? `ENV · ${library.source.name}`
-                : {
-                    startup: "Startup argument",
-                    selection: "Chosen library",
-                    "path-file": "Locus/path",
-                    default: "Default location",
-                    preview: "Preview configuration",
-                  }[library.source.kind]}
-            </Badge>
-          </div>
-        )}
+      <div className="flex min-w-0 flex-col gap-2 px-4 py-3 text-sm select-text">
+        <dl className="flex min-w-0 flex-col gap-1">
+          <dt className="sr-only">Location</dt>
+          <dd className="break-all font-mono text-xs leading-6">
+            {library?.root ?? "Library location is available in the desktop application."}
+          </dd>
+          {library?.source && (
+            <>
+              <dt className="sr-only">Location source</dt>
+              <dd className="text-xs text-muted-foreground" title={library.source.name}>
+                {library.source.kind === "environment"
+                  ? `ENV · ${library.source.name}`
+                  : {
+                      startup: "Startup argument",
+                      selection: "Chosen library",
+                      "path-file": "Locus/path",
+                      default: "Default location",
+                      preview: "Preview configuration",
+                    }[library.source.kind]}
+              </dd>
+            </>
+          )}
+        </dl>
         {(problem || library?.notice) && (
           <Alert variant="destructive">
             <AlertDescription>{problem ?? library?.notice}</AlertDescription>
@@ -73,13 +82,7 @@ export function LibrarySettingsPanel({ library, switchLibrary }: LibrarySettings
             {message}
           </p>
         )}
-        <div className="flex flex-wrap items-center justify-end pt-1">
-          <Button variant="outline" size="sm" disabled={pending} onClick={() => void choose()}>
-            <FolderOpenIcon data-icon="inline-start" />
-            {pending ? "Choosing library…" : "Choose library and restart"}
-          </Button>
-        </div>
-      </SettingsRow>
+      </div>
     </SettingsGroup>
   )
 }

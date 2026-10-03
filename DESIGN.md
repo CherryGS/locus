@@ -127,6 +127,9 @@ surface adaptations of that system.
   Adapt columns and padding to the settings content width. Stack labels above
   controls when two columns would constrain them, and give consequential action
   explanations enough width before placing an adjacent button.
+  Give the library path the full group width, with its source as quiet metadata
+  and the switching action beside the group heading. Keep the path selectable
+  and allow long paths to wrap without truncation.
 - **Media cards:** emphasize the preview, with readable titles and metadata and
   clear existing actions and selection. Keep hover, selection and keyboard focus
   distinguishable through quiet boundaries; preserve card geometry and the grid
@@ -159,8 +162,11 @@ surface adaptations of that system.
   management actions on each record. Managing a different record must not load
   it or replace the current draft/result. Close the chooser before opening name
   or delete confirmation, and preserve focus handoff. Omit the separate options
-  menu. Keep manual index maintenance in Library settings under an advanced
-  disclosure; current Filter index errors retain their inline recovery actions.
+  menu. The chooser permits outside interaction and closes when focus moves to
+  another control; preserve that control's focus instead of restoring the trigger.
+  Escape and explicit Close return to the preset trigger.
+  Show manual index maintenance directly in Library settings; current Filter
+  index errors retain their inline recovery actions.
 - **Tag navigation and editing:** wrap Up/Down focus within each tag column at
   its ends, preserving the existing explicit activation behavior. Entering
   description editing changes readonly mode on the mounted Markdown editor,

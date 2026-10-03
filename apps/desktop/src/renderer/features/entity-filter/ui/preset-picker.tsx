@@ -49,6 +49,7 @@ export function PresetPicker({
   const entry = useRef<HTMLButtonElement>(null),
     pending = useRef<{ id: string } | { preset: Preset; action: "rename" | "delete" } | undefined>(undefined),
     selecting = useRef(false),
+    dismissedOutside = useRef(false),
     wasLoading = useRef(loading)
   useLayoutEffect(() => {
     if (wasLoading.current && !loading && active) entry.current?.focus()
@@ -65,8 +66,10 @@ export function PresetPicker({
   )
   return (
     <Dialog
+      modal={false}
       open={open && active}
-      onOpenChange={(next) => {
+      onOpenChange={(next, details) => {
+        dismissedOutside.current = details.reason === "outside-press" || details.reason === "focus-out"
         setOpen(next)
         if (next) {
           setQuery("")
@@ -105,7 +108,7 @@ export function PresetPicker({
       <DialogContent
         showCloseButton={false}
         className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-lg"
-        finalFocus={() => (selecting.current || !active || !restoreFocus ? false : entry.current)}
+        finalFocus={() => (selecting.current || dismissedOutside.current || !active || !restoreFocus ? false : entry.current)}
       >
         <DialogTitle className="sr-only">Choose a preset</DialogTitle>
         <DialogDescription className="sr-only">Load a saved query into the editor.</DialogDescription>
