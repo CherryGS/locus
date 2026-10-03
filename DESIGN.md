@@ -167,6 +167,9 @@ surface adaptations of that system.
   Inputs and selects share the control surface. Standard controls share the
   radius and 2px keyboard-focus ring; selected toggles
   retain their secondary surface and border while hovered.
+  Show operational and correspondence states as inline icons and text without
+  capsule fills or borders. Reserve badge containers for tags, categories and
+  counts; retain explicit error color and text for states needing attention.
 - **Auxiliary navigation:** use a 48px rail with 40px panel buttons and visible
   vertical names and distinct provider/content icons. These buttons identify,
   open and collapse their panels; omit the duplicate title/close header and
@@ -176,9 +179,10 @@ surface adaptations of that system.
   file/version/observation in the provider source group.
 - **Model and provider reading:** show file statistics as ordinary property rows,
   using the inspector's label/value typography. Let section actions wrap in narrow
-  readers and long declarations break within their column. Enclose version notes
-  in one bordered section with a divider between its header and body; follow it
-  with the model description's own content without an extra visible title.
+  readers and long declarations break within their column. Give version notes
+  the metadata section's format: an external heading followed by a bordered
+  body. Follow it with the model description's own content without an extra
+  visible title.
   Show source properties directly, while keeping long raw
   provider declarations and optional maintenance in their existing disclosures.
   Keep model tags beside the title, with source-link/reread actions in an
@@ -198,7 +202,9 @@ surface adaptations of that system.
   Unavailable choices remain stored and offer ordinary preview fallback; display
   save/recovery errors beside the cover action. Preserve native close/restart
   preparation for pending or unconfirmed choices.
-  Put cover selection on the existing gallery thumbnail as a star; a filled star
+  Put cover selection in a gap at the center of the thumbnail's top border;
+  keep its star outside the image. Allow only horizontal filmstrip scrolling,
+  with enough vertical space for markers and keyboard-focus outlines. A filled star
   marks the saved image and clears its choice when activated again. Unmarked
   thumbnails expose their setting action on hover or keyboard focus. With no
   saved choice, use automatic cover selection. If the saved image lies outside

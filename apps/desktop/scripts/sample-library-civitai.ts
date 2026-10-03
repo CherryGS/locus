@@ -182,6 +182,19 @@ export async function verifyCivitaiSamples(root: string) {
       assert.equal(await gallery.getByRole("button", { name: "Show example 1", exact: true }).getAttribute("aria-pressed"), "true", "cover controls do not change gallery browsing")
       assert.equal(await gallery.locator('[data-slot="civitai-gallery-stage"] img').getAttribute("src"), galleryImage)
       assert(await gallery.getByRole("button", { name: "Use automatic card cover", exact: true }).evaluate(element => element === document.activeElement), "cover save retains focus on its thumbnail marker")
+      const strip = gallery.locator('[data-slot="civitai-gallery-strip"] [data-slot="scroll-area-viewport"]')
+      const filmstrip = await strip.evaluate(element => {
+        element.scrollTop = 20
+        const viewport = element.getBoundingClientRect()
+        const marker = element.querySelector('[aria-label="Use automatic card cover"]')!.getBoundingClientRect()
+        const thumbnail = element.querySelector('[data-card-cover="true"] [data-slot="toggle-group-item"]')!.getBoundingClientRect()
+        return { height: element.clientHeight, content: element.scrollHeight, scrollTop: element.scrollTop,
+          markerInside: marker.top >= viewport.top + 2 && marker.bottom <= viewport.bottom - 2,
+          markerCentered: Math.abs((marker.left + marker.right) / 2 - (thumbnail.left + thumbnail.right) / 2) < 1,
+          markerAtBorder: marker.top < thumbnail.top && marker.bottom > thumbnail.top }
+      })
+      assert(filmstrip.content <= filmstrip.height && filmstrip.scrollTop === 0, "focused filmstrip cannot scroll vertically and crop its border")
+      assert(filmstrip.markerInside && filmstrip.markerCentered && filmstrip.markerAtBorder, "cover marker interrupts the top border with room for keyboard focus")
       if (model.id === "4629") {
         await reader.getByRole("button", { name: "V1 64T · Version 5638", exact: true }).click()
         await gallery.getByText("No saved examples for this version", { exact: true }).waitFor()
@@ -204,6 +217,13 @@ export async function verifyCivitaiSamples(root: string) {
       await card.locator("img").waitFor()
       await grid.evaluate(element => { element.scrollTop = 0 })
       await page.getByRole("button", { name: "Locate selected Entity", exact: true }).click()
+      await page.waitForFunction(entityId => {
+        const card = document.querySelector(`[role="grid"] [data-entity-id="${entityId}"]`)
+        const grid = card?.closest('[role="grid"]')
+        if (!card || !grid) return false
+        const cardBounds = card.getBoundingClientRect(), gridBounds = grid.getBoundingClientRect()
+        return cardBounds.bottom > gridBounds.top && cardBounds.top < gridBounds.bottom && document.activeElement === grid
+      }, entry.entityId)
       const located = await card.evaluate(element => {
         const card = element.getBoundingClientRect(), grid = element.closest('[role="grid"]')!.getBoundingClientRect()
         return card.bottom > grid.top && card.top < grid.bottom && document.activeElement === element.closest('[role="grid"]')
@@ -219,6 +239,7 @@ export async function verifyCivitaiSamples(root: string) {
       await page.setViewportSize({ width: 720, height: 480 })
       const bounds = await reader.evaluate(element => ({ width: element.clientWidth, content: element.scrollWidth }))
       assert(bounds.content <= bounds.width + 1)
+      assert(await strip.evaluate(element => element.scrollHeight <= element.clientHeight && element.scrollTop === 0), "narrow filmstrip stays horizontal-only")
       const selectedVersion = await reader.locator('[aria-label="Civitai version"] [aria-pressed="true"]').getAttribute("aria-label")
       await page.getByRole("button", { name: "Civitai", exact: true }).click()
       await panel.waitFor({ state: "detached" })

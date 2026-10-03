@@ -172,13 +172,13 @@ function RecordDetails({
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="min-w-0 flex-1 break-words text-base font-medium">{record.label}</h2>
           {record.active && (
-            <Badge variant="secondary">
+            <Badge variant="status">
               <Spinner data-icon="inline-start" />
               Active
             </Badge>
           )}
           {record.attention && (
-            <Badge variant="destructive">
+            <Badge variant="status-destructive">
               <TriangleAlertIcon data-icon="inline-start" />
               Needs attention
             </Badge>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import type { CardCoverCoordinator } from "@/features/entity-card-cover"
 import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon, ImageIcon, InfoIcon, StarIcon, VideoIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
+import { cn } from "@/shared/lib/utils"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
 import { ScrollArea } from "@/shared/ui/scroll-area"
@@ -164,11 +165,11 @@ export function CivitaiGallery({
         >
           <ChevronLeftIcon />
         </Button>
-        <div className="h-16 min-w-0 flex-1" data-slot="civitai-gallery-strip">
+        <div className="h-24 min-w-0 flex-1" data-slot="civitai-gallery-strip">
           {!!examples.length && (
             <ScrollArea
               className="h-full w-full"
-              viewportProps={{ ref: strip }}
+              viewportProps={{ ref: strip, style: { overflowY: "hidden" } }}
               scrollbarProps={{ orientation: "horizontal" }}
             >
               <ToggleGroup
@@ -179,7 +180,7 @@ export function CivitaiGallery({
                 onValueChange={(values) => {
                   if (values[0]) setSelected(values[0])
                 }}
-                className="pb-2"
+                className="px-1 pt-4 pb-3"
               >
                 {examples.map(({ representative: example }, exampleIndex) => {
                   const key = exampleKey(example)
@@ -187,10 +188,10 @@ export function CivitaiGallery({
                   const image = example.binding.media.find(media => media.kind === "image")
                   const marked = isCover(example)
                   return (
-                    <div key={key} className="group/gallery-thumbnail relative shrink-0" data-card-cover={marked || undefined}>
+                    <div key={key} className="group/gallery-thumbnail relative flex shrink-0" data-card-cover={marked || undefined}>
                     <ToggleGroupItem
                       value={key}
-                      className="h-14 w-20 overflow-hidden p-1"
+                      className="h-16 w-20 overflow-hidden px-1 pt-3 pb-1"
                       aria-label={`Show example ${exampleIndex + 1}`}
                       ref={(element) => {
                         if (element) buttons.current.set(key, element)
@@ -213,7 +214,7 @@ export function CivitaiGallery({
                       )}
                     </ToggleGroupItem>
                     {covers && originEntity && (
-                      <Button variant="secondary" size="icon-xs" className={`absolute right-1 bottom-2 z-10 rounded-sm aria-disabled:opacity-50 ${marked ? "" : "opacity-0 group-hover/gallery-thumbnail:opacity-100 group-focus-within/gallery-thumbnail:opacity-100 focus-visible:opacity-100"}`}
+                      <Button variant="frame" size="icon-xs" className={cn("absolute -top-3 left-1/2 z-10 -translate-x-1/2 aria-disabled:opacity-50", !marked && "opacity-0 group-hover/gallery-thumbnail:opacity-100 group-focus-within/gallery-thumbnail:opacity-100 focus-visible:opacity-100")}
                         aria-label={marked ? "Use automatic card cover" : `Set example ${exampleIndex + 1} as card cover`}
                         aria-pressed={marked} aria-disabled={coverState?.pending || !!coverState?.attempt}
                         title={marked ? "Card cover · click to clear" : "Set as card cover"}

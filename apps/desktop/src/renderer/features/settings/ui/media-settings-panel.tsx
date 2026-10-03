@@ -201,7 +201,7 @@ export function MediaSettingsPanel({ settings }: { settings: SettingsCoordinator
             {(showActions || pending) && (
               <SettingsActions
                 notice={settings.dirty ? "Unsaved edits · applies after restart" : undefined}
-                status={pending && <Badge variant="secondary">Saved · restart required</Badge>}
+                status={pending && <Badge variant="status"><RotateCcwIcon aria-hidden="true" />Saved · restart required</Badge>}
               >
                 {showActions && (
                   <>

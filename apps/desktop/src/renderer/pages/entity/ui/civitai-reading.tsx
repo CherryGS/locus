@@ -281,11 +281,14 @@ export function CivitaiReading({
           const current = page?.origin.input === "current" && unit.version.id === page.origin.record.matched_version && item.id === page.origin.record.matched_file
           const local = unit.correspondences.some(match => match.file === item.id && match.input === "current")
           const label = current ? "Current" : local ? "In library" : "Unlinked"
+          const StatusIcon = current ? CircleDotIcon : local ? CheckIcon : CircleDashedIcon
           return (
             <li key={item.id} className="flex min-w-0 items-start gap-3 px-3 py-2.5" data-current-file={current || undefined} data-file-state={current ? "current" : local ? "local" : "unlinked"}>
               <FileIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]">{item.name}</span>
-              <Badge variant={current ? "secondary" : "outline"} className="shrink-0" title={current ? "File matched to this Entity" : local ? "Current local correspondence recorded" : "No current local correspondence recorded"}>{label}</Badge>
+              <Badge variant="status" className="w-24 justify-start" title={current ? "File matched to this Entity" : local ? "Current local correspondence recorded" : "No current local correspondence recorded"}>
+                <StatusIcon aria-hidden="true" />{label}
+              </Badge>
             </li>
           )
         })}
@@ -685,9 +688,9 @@ export function CivitaiReading({
                   </div>
                   {versionFiles}
                 </section>
-                <section aria-label="Version notes" data-slot="civitai-version-notes" className="min-w-0 overflow-hidden rounded-lg border">
-                  <header className="border-b px-4 py-3"><h2 className="text-sm font-medium">Version notes</h2></header>
-                  <div className="p-4">
+                <section aria-label="Version notes" data-slot="civitai-version-notes" className="flex min-w-0 flex-col gap-3">
+                  <h2 className="text-sm font-medium">Version notes</h2>
+                  <div className="overflow-hidden rounded-lg border px-3 py-2.5">
                     <CivitaiRichText
                       html={unit.version.description}
                       baseUrl={`https://civitai.com/models/${model.id}?modelVersionId=${unit.version.id}`}

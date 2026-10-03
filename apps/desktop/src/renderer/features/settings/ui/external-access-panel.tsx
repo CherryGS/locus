@@ -6,6 +6,7 @@ import {
   RotateCcwIcon,
   RefreshCwIcon,
   SaveIcon,
+  RadioIcon,
 } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Badge } from "@/shared/ui/badge"
@@ -99,7 +100,7 @@ export function ExternalAccessPanel({
           {runtime?.active_address && !settings.runtimeError ? (
             <div className="flex min-h-8 min-w-0 flex-wrap items-center gap-2">
               <code className="break-all">{`http://${runtime.active_address}`}</code>
-              {!runtime.problem && <Badge variant="outline">Listening</Badge>}
+              {!runtime.problem && <Badge variant="status"><RadioIcon aria-hidden="true" />Listening</Badge>}
             </div>
           ) : (
             <p className="text-muted-foreground">
@@ -148,7 +149,7 @@ export function ExternalAccessPanel({
           {(showActions || pending) && <div className="px-4 pb-3">
             <SettingsActions
               notice={settings.dirty ? "Unsaved edits · applies after restart" : undefined}
-              status={pending && <Badge variant="secondary">Saved · restart required</Badge>}
+              status={pending && <Badge variant="status"><RotateCcwIcon aria-hidden="true" />Saved · restart required</Badge>}
             >
               {showActions && (
                 <>

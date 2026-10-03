@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react"
 import type { Wire } from "@/shared/api"
+import { CheckIcon, CircleDashedIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
@@ -9,8 +10,14 @@ export function CivitaiOutcomeDetails({ outcome }: { outcome: Wire<"CivitaiOutco
   return (
     <div className="flex flex-col gap-2 text-sm">
       <div className="flex flex-wrap gap-2">
-        <Badge variant="outline">Metadata: {outcome.metadata}</Badge>
-        <Badge variant="secondary">Whole operation: {outcome.state}</Badge>
+        <Badge variant="status">
+          {outcome.metadata === "accepted" ? <CheckIcon aria-hidden="true" /> : <CircleDashedIcon aria-hidden="true" />}
+          Metadata: {outcome.metadata}
+        </Badge>
+        <Badge variant="status">
+          {outcome.state === "complete" ? <CheckIcon aria-hidden="true" /> : <CircleDashedIcon aria-hidden="true" />}
+          Whole operation: {outcome.state}
+        </Badge>
       </div>
       {outcome.problem && <p>{outcome.problem}</p>}
       {outcome.examples.map((e) => (

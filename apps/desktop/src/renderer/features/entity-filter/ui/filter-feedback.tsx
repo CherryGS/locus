@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react"
+import { ListFilterIcon } from "lucide-react"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
@@ -115,7 +116,7 @@ export function FilterResultStatus({ coordinator: c }: { coordinator: FilterCoor
       className="flex flex-wrap items-center gap-2 px-4 pb-2 text-xs text-muted-foreground"
       aria-label="Applied Filter result"
     >
-      <Badge variant="secondary">{c.sequence?.length === 0 ? "No matches" : "Filtered result"}</Badge>
+      <Badge variant="status"><ListFilterIcon aria-hidden="true" />{c.sequence?.length === 0 ? "No matches" : "Filtered result"}</Badge>
       <span className="min-w-0 break-words">
         {c.established?.criteria?.text ? c.established.criteria.text : "Native Filter applied"}
       </span>
