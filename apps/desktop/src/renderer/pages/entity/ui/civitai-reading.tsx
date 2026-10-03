@@ -4,7 +4,6 @@ import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/shared/ui/card"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
 import { ScrollArea } from "@/shared/ui/scroll-area"
@@ -13,7 +12,7 @@ import { Separator } from "@/shared/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@/shared/ui/table"
 import type { CivitaiSelection, RelatedCollection } from "../model/navigation"
-import { SourceLink, type EntityItem } from "@/entities/entity"
+import { Detail, DetailIdentifier, SourceLink, type EntityItem } from "@/entities/entity"
 import { CivitaiGallery } from "./civitai-gallery"
 import { CivitaiRichText } from "./civitai-rich-text"
 import { CivitaiPanelPortal, useCivitaiPanel } from "./civitai-panel-slot"
@@ -335,32 +334,30 @@ export function CivitaiReading({
             </details>
           )}
           <Separator />
-          <details className="text-xs text-muted-foreground" data-slot="civitai-source-details">
-            <summary className="cursor-pointer">Source details</summary>
-            <div className="flex flex-col gap-4 pt-4 [overflow-wrap:anywhere]">
-              <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
-                <dt>Origin Entity</dt>
-                <dd>{entity.id}</dd>
-                <dt>Model</dt>
-                <dd>
+          <section className="@container/detail flex min-w-0 flex-col gap-2 select-text" aria-label="Source details" data-slot="civitai-source-details">
+            <h3 className="text-sm font-medium">Source details</h3>
+            <div className="flex min-w-0 flex-col gap-4 [overflow-wrap:anywhere]">
+              <dl>
+                <Detail label="Origin Entity">
+                  <DetailIdentifier label="Origin Entity" value={entity.id} />
+                </Detail>
+                <Detail label="Model">
                   {model.id} · {model.kind}
-                </dd>
-                <dt>Matched version</dt>
-                <dd>{page.origin.record.matched_version}</dd>
-                <dt>Matched file</dt>
-                <dd>{page.origin.record.matched_file}</dd>
+                </Detail>
+                <Detail label="Matched version">{page.origin.record.matched_version}</Detail>
+                <Detail label="Matched file">{page.origin.record.matched_file}</Detail>
                 {unit && (
                   <>
-                    <dt>Version source</dt>
-                    <dd>{unit.in_origin ? "This entry" : `Entity ${unit.source.entity_id}`}</dd>
-                    <dt>Observation</dt>
-                    <dd>{unit.source.observation}</dd>
+                    <Detail label="Version source">{unit.in_origin ? "This entry" : `Entity ${unit.source.entity_id}`}</Detail>
+                    <Detail label="Observation">
+                      <DetailIdentifier label="Observation" value={unit.source.observation} />
+                    </Detail>
                   </>
                 )}
               </dl>
               {unit && (
-                <section aria-label="Provider file declarations" className="flex min-w-0 flex-col gap-3">
-                  <h3 className="font-medium">Provider file declarations · {unit.version.name}</h3>
+                <section aria-label="Provider file declarations" className="flex min-w-0 flex-col gap-3 text-xs">
+                  <h3 className="text-sm font-medium">Provider file declarations · {unit.version.name}</h3>
                   {versionStatus && <p role="status">{versionStatus}</p>}
                   {unit.version.files.map((item) => (
                     <details key={item.id}>
@@ -375,7 +372,7 @@ export function CivitaiReading({
                 </section>
               )}
             </div>
-          </details>
+          </section>
         </>
       )}
     </section>
@@ -685,28 +682,19 @@ export function CivitaiReading({
                   </div>
                   {versionFiles}
                 </section>
-                <section aria-label="Version notes" data-slot="civitai-version-notes" className="min-w-0">
-                  <Card>
-                    <CardHeader className="border-b">
-                      <CardTitle>
-                        <h2>Version notes</h2>
-                      </CardTitle>
-                      <CardDescription>{unit.version.name}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <CivitaiRichText
-                        html={unit.version.description}
-                        baseUrl={`https://civitai.com/models/${model.id}?modelVersionId=${unit.version.id}`}
-                        empty="No version notes saved."
-                      />
-                    </CardContent>
-                  </Card>
+                <section aria-label="Version notes" data-slot="civitai-version-notes" className="flex min-w-0 flex-col gap-3">
+                  <h2 className="text-sm font-medium">Version notes</h2>
+                  <CivitaiRichText
+                    html={unit.version.description}
+                    baseUrl={`https://civitai.com/models/${model.id}?modelVersionId=${unit.version.id}`}
+                    empty="No version notes saved."
+                  />
                 </section>
               </>
             )}
-            <section aria-label="Model description" className="flex min-w-0 flex-col gap-4 py-2">
-              <header className="flex flex-col gap-3 border-b pb-4">
-                <h2 className="text-base font-semibold">Model description</h2>
+            <section aria-label="Model description" className="flex min-w-0 flex-col gap-3 border-t pt-5">
+              <header className="flex flex-col gap-3">
+                <h2 className="text-sm font-medium">Model description</h2>
                 {!!model.tags.length && (
                   <dl className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
                     <dt className="text-xs text-muted-foreground">Model tags</dt>

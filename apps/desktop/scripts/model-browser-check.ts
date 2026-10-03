@@ -41,6 +41,13 @@ try {
   await page.getByRole("button", { name: /layer_00000.weight/ }).click()
   await page.getByText("[0, 64]", { exact: false }).waitFor()
   await page.screenshot({ path: join(output, "complete-tensor.png") })
+  await page.setViewportSize({ width: 720, height: 480 })
+  const modelLayout = await page.locator('[data-slot="model-reading"]').evaluate(element => ({
+    width: element.clientWidth, content: element.scrollWidth,
+  }))
+  assert(modelLayout.content <= modelLayout.width + 1, "Model properties and declaration controls fit a narrow reader")
+  await page.screenshot({ path: join(output, "model-reading-narrow.png") })
+  await page.setViewportSize({ width: 1500, height: 1000 })
   await chooseContentView(page, "File")
   await page.locator('[data-view-id="file.info"]').waitFor()
   await chooseContentView(page, "Model")

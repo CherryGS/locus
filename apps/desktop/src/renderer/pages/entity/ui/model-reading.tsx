@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
-import type { EntityComponent } from "@/entities/entity"
+import { Detail, DetailIdentifier, type EntityComponent } from "@/entities/entity"
 import type { Wire } from "@/shared/api"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Badge } from "@/shared/ui/badge"
@@ -41,13 +41,12 @@ export function ModelReading({ component: c }: { component: Model }) {
   ].filter(Boolean)
   return (
     <ScrollArea className="min-h-0 flex-1">
-      <article data-slot="model-reading" className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
-        <header className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
+      <article data-slot="model-reading" className="@container/detail mx-auto flex w-full max-w-4xl flex-col gap-5 p-4 sm:p-6 select-text">
+        <header>
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-semibold">Model weight file</h2>
             {f && <Badge variant="secondary">{f.format}</Badge>}
           </div>
-          <p className="text-sm text-muted-foreground">Structure and declarations from one retained file inspection.</p>
         </header>
         {statuses.length > 0 && (
           <Alert>
@@ -90,37 +89,36 @@ export function ModelReading({ component: c }: { component: Model }) {
         ) : (
           <>
             <section aria-label="Model overview" className="flex flex-col gap-3">
-              <h3 className="font-medium">This file</h3>
-              <dl className="grid grid-cols-2 gap-4">
-                <div>
-                  <dt className="text-xs text-muted-foreground">Tensors</dt>
-                  <dd className="text-2xl tabular-nums">{integer(f.tensor_count)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Stored elements</dt>
-                  <dd className="text-2xl tabular-nums">{integer(f.element_count)}</dd>
-                </div>
+              <h3 className="text-sm font-medium">This file</h3>
+              <dl className="@min-[22rem]/detail:[&>div]:grid-cols-[8rem_minmax(0,1fr)]">
+                <Detail label="Tensors">{integer(f.tensor_count)}</Detail>
+                <Detail label="Stored elements">{integer(f.element_count)}</Detail>
+                <Detail label="Accepted File">
+                  {r.basis ? <DetailIdentifier label="Accepted File" value={r.basis} /> : "No accepted basis"}
+                </Detail>
               </dl>
-              <p className="text-xs text-muted-foreground">{f.coverage}</p>
-              <div className="flex flex-wrap gap-2">
+              <p className="max-w-[75ch] text-xs leading-relaxed text-muted-foreground">{f.coverage}</p>
+              <ul className="flex flex-col gap-1.5 text-sm">
                 {Object.entries(f.storage_types).map(([type, s]) => (
-                  <Badge key={type} variant="outline">
-                    {type} · {integer(s.tensor_count)} {s.tensor_count === "1" ? "tensor" : "tensors"} ·{" "}
-                    {integer(s.element_count)} {s.element_count === "1" ? "element" : "elements"}
-                  </Badge>
+                  <li key={type} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <code className="text-xs">{type}</code>
+                    <span className="tabular-nums text-muted-foreground">
+                      {integer(s.tensor_count)} {s.tensor_count === "1" ? "tensor" : "tensors"} ·{" "}
+                      {integer(s.element_count)} {s.element_count === "1" ? "element" : "elements"}
+                    </span>
+                  </li>
                 ))}
-              </div>
-              <p className="break-all text-xs text-muted-foreground">Accepted File: {r.basis}</p>
+              </ul>
               {a?.status === "matching" && (
-                <p className="text-xs text-muted-foreground">
+                <p className="max-w-[75ch] text-xs leading-relaxed text-muted-foreground">
                   The current File identity matches. Metadata reading does not check byte health or execution
                   compatibility.
                 </p>
               )}
             </section>
             <section aria-label="Embedded declarations" className="flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-medium">File-provided declarations</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-medium">File-provided declarations</h3>
                 {f.declarations && Object.keys(f.declarations).length > 0 && (
                   <Button
                     size="sm"
@@ -144,7 +142,7 @@ export function ModelReading({ component: c }: { component: Model }) {
                   {Object.entries(f.declarations).map(([key, value]) => (
                     <div key={key}>
                       <dt className="text-xs text-muted-foreground break-all">{key}</dt>
-                      <dd className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm">
+                      <dd className="max-h-64 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] text-sm leading-relaxed">
                         {value || "(empty string)"}
                       </dd>
                     </div>
@@ -153,8 +151,8 @@ export function ModelReading({ component: c }: { component: Model }) {
               ) : null}
             </section>
             <section aria-label="Tensor descriptors" className="flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-medium">Tensor descriptors</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-medium">Tensor descriptors</h3>
                 <Button variant="outline" size="sm" onClick={() => setTensors((v) => !v)} aria-expanded={tensors}>
                   {tensors ? "Hide tensors" : "Explore tensors"}
                 </Button>

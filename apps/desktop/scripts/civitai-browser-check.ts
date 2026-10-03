@@ -74,6 +74,15 @@ try {
   await reading.getByRole("button", { name: "Open library and source", exact: true }).click()
   assert.equal(await reading.getByRole("region", { name: "Library and source" }).count(), 0)
   assert.equal(await civitaiPanel.getByText("B.safetensors · 300", { exact: true }).count(), 1)
+  const sourceDetails = civitaiPanel.getByRole("region", { name: "Source details", exact: true })
+  assert(await sourceDetails.getByText("Origin Entity", { exact: true }).isVisible())
+  await page.setViewportSize({ width: 720, height: 480 })
+  const narrowLayout = await Promise.all([reading, sourceDetails].map(locator => locator.evaluate(element => ({
+    width: element.clientWidth, content: element.scrollWidth,
+  }))))
+  assert(narrowLayout.every(layout => layout.content <= layout.width + 1), "provider reading and source properties fit narrow panes")
+  await page.screenshot({ path: join(output, "civitai-reading-narrow.png") })
+  await page.setViewportSize({ width: 1500, height: 1000 })
   // A delayed source switch must retain the old presentation without allowing
   // its actions to target the newly selected source.
   const stage = reading.locator('[data-slot="civitai-gallery-stage"]')

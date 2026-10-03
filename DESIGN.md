@@ -173,6 +173,12 @@ surface adaptations of that system.
   heading, with distinct provider and content icons. Scroll
   the rail independently in short windows and return focus to the matching
   trigger when a panel closes.
+- **Model and provider reading:** show file statistics as ordinary property rows,
+  using the inspector's label/value typography. Let section actions wrap in narrow
+  readers and long declarations break within their column. Give version notes and
+  model descriptions the same unboxed heading/content structure; omit repeated
+  version subtitles. Show source properties directly, while keeping long raw
+  provider declarations and optional maintenance in their existing disclosures.
 - **Filter workspace:** keep presets secondary to the raw query. Use the darker
   control surface and monospace text for source, with compact query actions and
   directly visible, clickable diagnostics. Separate the optional field reference
