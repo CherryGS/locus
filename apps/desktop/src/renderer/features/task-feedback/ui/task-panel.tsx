@@ -19,7 +19,7 @@ import { Badge } from "@/shared/ui/badge"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from "@/shared/ui/empty"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
-import { DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/shared/ui/dialog"
+import { DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/shared/ui/dialog"
 import { diagnosticText, commitUnknown } from "@/shared/api"
 import type { TaskObservation } from "@/entities/task"
 import { Separator } from "@/shared/ui/separator"
@@ -167,10 +167,10 @@ function RecordDetails({
   retryOutcome: (id: string) => void
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-6 p-5 sm:p-6">
+    <div className="flex min-w-0 flex-col gap-5 p-4">
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="min-w-0 flex-1 break-words text-lg font-semibold tracking-tight">{record.label}</h2>
+          <h2 className="min-w-0 flex-1 break-words text-base font-medium">{record.label}</h2>
           {record.active && (
             <Badge variant="secondary">
               <Spinner data-icon="inline-start" />
@@ -298,16 +298,9 @@ export function TaskPanel({
       finalFocus={finalFocus}
       className="flex h-[90dvh] min-h-0 w-[90vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
     >
-      <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-4">
-        <DialogHeader className="gap-1.5">
-          <DialogTitle>
-            <span className="flex items-center gap-2">
-              <ListChecksIcon className="size-4 text-muted-foreground" />
-              Tasks this run
-            </span>
-          </DialogTitle>
-          <DialogDescription>Import and processing activity for this session.</DialogDescription>
-        </DialogHeader>
+      <header className="flex h-12 shrink-0 items-center justify-between gap-3 px-4">
+        <DialogTitle>Tasks <span className="sr-only">this run</span></DialogTitle>
+        <DialogDescription className="sr-only">Import and processing activity for this session. Records are retained for this application run.</DialogDescription>
         <div className="flex shrink-0 items-center gap-1">
           <Button
             size="icon-sm"
@@ -322,7 +315,7 @@ export function TaskPanel({
             <XIcon />
           </DialogClose>
         </div>
-      </div>
+      </header>
       <Separator />
       {problem && (
         <div className="shrink-0 px-5 py-3">
@@ -337,7 +330,7 @@ export function TaskPanel({
       )}
       {!!records.length && (
         <>
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-5 py-3">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-3">
             <ToggleGroup
               aria-label="Filter tasks"
               className="max-w-full flex-wrap"
@@ -430,17 +423,12 @@ export function TaskPanel({
                     <Icon data-icon="inline-start" className="mt-0.5 text-muted-foreground" />
                     <span className="flex min-w-0 flex-1 flex-col gap-1 text-left">
                       <span className="flex min-w-0 items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate">{record.label}</span>
-                        <Badge variant={record.attention ? "destructive" : "outline"} className="shrink-0">
-                          {record.active ? (
-                            <Spinner />
-                          ) : record.attention ? (
-                            <TriangleAlertIcon />
-                          ) : (
-                            <CheckIcon />
-                          )}
-                          {record.active ? "Active" : record.attention ? "Attention" : "Finished"}
-                        </Badge>
+                        <span className="min-w-0 flex-1 truncate" title={record.label}>{record.label}</span>
+                        <span className="flex shrink-0 items-center gap-1">
+                          {record.active && <span role="img" title="Active" aria-label="Active"><Spinner /></span>}
+                          {record.attention && <span role="img" title="Needs attention" aria-label="Needs attention"><TriangleAlertIcon className="text-destructive" /></span>}
+                          {!record.active && !record.attention && <span role="img" title="Finished" aria-label="Finished"><CheckIcon className="text-muted-foreground" /></span>}
+                        </span>
                       </span>
                       <span className="line-clamp-2 whitespace-normal break-words text-xs font-normal leading-relaxed text-muted-foreground">
                         {record.summary}

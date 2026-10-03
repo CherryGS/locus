@@ -148,10 +148,10 @@ try {
   const bound = reservedPort.address()
   assert(bound && typeof bound !== "string")
   const occupiedAddress = `127.0.0.1:${bound.port}`
-  await page.getByLabel("Saved address", { exact: true }).fill(occupiedAddress)
+  await page.getByLabel("Configured address", { exact: true }).fill(occupiedAddress)
   await page.getByRole("button", { name: "Close", exact: true }).click()
   await page.getByRole("button", { name: "Setting", exact: true }).click()
-  assert.equal(await page.getByLabel("Saved address", { exact: true }).inputValue(), occupiedAddress)
+  assert.equal(await page.getByLabel("Configured address", { exact: true }).inputValue(), occupiedAddress)
   await external.getByRole("button", { name: "Save address", exact: true }).click()
   await external.getByText("Saved · restart required", { exact: true }).waitFor()
   assert.equal(

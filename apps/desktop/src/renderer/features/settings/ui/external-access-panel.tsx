@@ -53,7 +53,7 @@ export function ExternalAccessPanel({
           content: <p>Use this address and shared Token in your connected clients.</p>,
         }}
       >
-        <SettingsRow label="Current address">
+        <SettingsRow label="Connect at">
           {runtime?.active_address && !settings.runtimeError ? (
             <div className="flex min-h-8 min-w-0 flex-wrap items-center gap-2">
               <code className="break-all">{`http://${runtime.active_address}`}</code>
@@ -72,7 +72,7 @@ export function ExternalAccessPanel({
           <div className="flex flex-col gap-2 px-4 pb-3 text-xs">
             {runtime?.override_address && (
               <p className="text-muted-foreground">
-                This run uses an explicit test address override. It does not apply the saved
+                This run uses a startup address override. It does not apply the configured
                 address.
               </p>
             )}
@@ -189,8 +189,9 @@ export function ExternalAccessPanel({
             label: "About connection settings",
             content: (
               <p>
-                Enter a loopback IP and port. Saved changes apply after restart. Restoring the
-                default address leaves the shared Token unchanged.
+                Enter a loopback IP and port. Changes apply after restart unless a startup
+                address override takes priority. Use Connect at for connected clients.
+                Restoring the default address leaves the shared Token unchanged.
               </p>
             ),
           }}
@@ -233,7 +234,7 @@ export function ExternalAccessPanel({
         >
           <FieldGroup className="gap-0">
             <SettingsEditRow
-              label="Saved address"
+              label="Configured address"
               id="external-address"
               value={settings.draft?.address ?? ""}
               placeholder={settings.defaults.address}

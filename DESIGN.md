@@ -190,9 +190,17 @@ surface adaptations of that system.
   Keep the autosave hint inside the Notes input surface as a separate footer,
   without covering editable text. Associate connection availability with the
   current address and name its editable group Connection settings.
+- **Task feedback:** use a compact title row with search and state filters below.
+  Give record names priority in the list, with compact accessible status icons;
+  active work and attention may coexist. Keep progress scoped to its execution
+  stage and preserve business-result wording independently of execution ending.
+  Show import failure causes beside recovery actions. Flatten the details surface
+  within each item and keep its history and disclosure state during updates.
+  Preserve the result-refresh icon, bounds and focus through rereads, deferring
+  visual activity for brief requests and blocking duplicate activation.
 - **Notes feedback:** keep the status and icon footprint fixed. Defer short-lived
   Saving/Loading feedback using the shared pending threshold; retain the observed
-  Saved state and textarea appearance during a quick reread. Show Unsaved and
+  text and textarea appearance during a quick reread. Show Unsaved and
   errors immediately, and qualify a slow retained read as Refreshing. Preserve
   autosave timing, draft ownership and confirmation behavior.
 - **Empty and failed reads:** distinguish an observed empty result from a failed

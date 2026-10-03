@@ -96,6 +96,11 @@ try {
   )
   await page.unroute("**/api/v1/import-batches")
   await page.locator("[data-task-record]").filter({ hasText: "1 need attention" }).waitFor()
+  const importSnapshot = (await backend.client.GET("/api/v1/import-batches")).data!
+  const failedItem = importSnapshot.batches.flatMap(batch => batch.items).find(item => item.source_path === missing)!
+  const failureReason = failedItem.current.copy.reason ?? failedItem.current.base.reason
+  assert(failureReason)
+  await page.locator("article").filter({ hasText: missing }).getByText(failureReason, { exact: true }).waitFor()
   assert.equal(page.url(), destination)
   assert.equal(lists, initialLists)
   assert.equal(submissions, 2)

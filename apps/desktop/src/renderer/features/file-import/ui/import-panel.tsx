@@ -12,6 +12,8 @@ import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
 import { Separator } from "@/shared/ui/separator"
 import { Spinner } from "@/shared/ui/spinner"
+import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
+import { cn } from "@/shared/lib/utils"
 import type { Wire } from "@/shared/api"
 import type { ImportCoordinator } from "../model/import-coordinator"
 type RenderCivitaiOutcome = (outcome: NonNullable<Wire<"ImportResult">["civitai"]>) => ReactNode
@@ -175,6 +177,7 @@ export function ImportDetails({
   useSyncExternalStore(c.subscribe, c.snapshot)
   const [viewError, setViewError] = useState<string>()
   const [viewing, setViewing] = useState<string>()
+  const observing = useDelayedPending(c.observing)
   const ended = new Set(
     tasks
       .filter((task) => task.state === "terminal")
@@ -214,10 +217,10 @@ export function ImportDetails({
           variant="ghost"
           aria-label="Check results"
           title="Refresh import results"
-          disabled={c.observing}
-          onClick={() => void c.observe()}
+          aria-disabled={c.observing}
+          onClick={() => { if (!c.observing) void c.observe() }}
         >
-          {c.observing ? <Spinner /> : <RefreshCwIcon />}
+          <RefreshCwIcon className={cn(observing && "animate-spin motion-reduce:animate-none")} />
         </Button>
       </div>
       {(c.problem || viewError) && (
@@ -236,7 +239,7 @@ export function ImportDetails({
                 : "Submission unconfirmed"}
           </AlertTitle>
           <AlertDescription>
-            {s.problem ?? "Retaining the original request identity."}
+            {s.problem ?? (s.accepted ? "Waiting for item results." : "Waiting for import confirmation.")}
             {"source_paths" in s.body && <p className="break-all">{s.body.source_paths.join("; ")}</p>}
             <Button
               size="sm"
@@ -271,7 +274,7 @@ export function ImportDetails({
               <article
                 key={item.item_id}
                 data-import-item-id={item.item_id}
-                className="flex min-w-0 flex-col gap-3 rounded-lg border p-3"
+                className="flex min-w-0 flex-col gap-3 rounded-xl border border-border/70 bg-card p-3"
               >
                 <div className="flex flex-wrap items-start gap-x-3 gap-y-2 pt-1">
                   <FileIcon className="mt-1 size-4 shrink-0 text-muted-foreground" />
@@ -355,15 +358,7 @@ export function ImportDetails({
                   <Alert>
                     <AlertTitle>New copy required</AlertTitle>
                     <AlertDescription className="flex flex-col gap-2 [&_p:not(:last-child)]:mb-0">
-                      <details className="group/failure">
-                        <summary className="flex cursor-pointer list-none items-center gap-1 text-xs [&::-webkit-details-marker]:hidden">
-                          <ChevronRightIcon className="size-3.5 transition-transform group-open/failure:rotate-90" />
-                          Failure details
-                        </summary>
-                        <p className="mt-2 break-all text-xs">
-                          {item.current.copy.reason ?? item.current.base.reason}
-                        </p>
-                      </details>
+                      <p className="break-words text-xs">{item.current.copy.reason ?? item.current.base.reason}</p>
                       <p>
                         The source is read again and its bytes may have changed. Earlier managed effects are
                         retained.
@@ -385,7 +380,7 @@ export function ImportDetails({
                     <ChevronRightIcon className="size-3.5 transition-transform group-open/file:rotate-90" />
                     Details
                   </summary>
-                  <div className="mt-3 flex min-w-0 flex-col gap-4 rounded-lg bg-muted/30 p-3">
+                  <div className="mt-3 flex min-w-0 flex-col gap-4">
                     <p className="break-all text-xs text-muted-foreground">
                       {item.supplied
                         ? `Supplied scope: ${item.requested_file ? "registered File" : "no File requested"}${item.requested_twitter ? " / Twitter snapshot" : ""}`

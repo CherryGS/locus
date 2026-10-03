@@ -165,6 +165,34 @@ try {
   await batchEntry.click()
   await recoveredFile.getByText("Details", { exact: true }).click()
   await recoveredFile.getByText("Original and recovery attempts (2)", { exact: true }).click()
+  const checkResults = region.getByRole("button", { name: "Check results", exact: true })
+  await checkResults.scrollIntoViewIfNeeded()
+  const refreshIcon = await checkResults.locator("svg").elementHandle()
+  const refreshBounds = await checkResults.boundingBox()
+  let releaseObservation!: () => void, observedRead!: () => void, observationReads = 0
+  const heldObservation = new Promise<void>(resolve => { releaseObservation = resolve })
+  const requestedObservation = new Promise<void>(resolve => { observedRead = resolve })
+  await page.route("**/api/v1/import-batches", async route => {
+    if (route.request().method() !== "GET") { await route.continue(); return }
+    observationReads++
+    const response = await route.fetch()
+    observedRead()
+    await heldObservation
+    await route.fulfill({ response })
+  })
+  await checkResults.click()
+  await requestedObservation
+  await checkResults.press("Enter")
+  await delay(350)
+  assert.equal(observationReads, 1, "Repeated activation cannot overlap result reads")
+  assert(await refreshIcon!.evaluate(icon => icon.isConnected), "Result refresh keeps its icon mounted")
+  assert.deepEqual(await checkResults.boundingBox(), refreshBounds)
+  assert(await checkResults.evaluate(button => button === document.activeElement))
+  releaseObservation()
+  await page.waitForFunction(() => document.querySelector('button[aria-label="Check results"]')?.getAttribute("aria-disabled") === "false")
+  await page.unroute("**/api/v1/import-batches")
+  assert(await refreshIcon!.evaluate(icon => icon.isConnected))
+  assert(await recoveredFile.getByText("Original and recovery attempts (2)", { exact: true }).evaluate(summary => summary.parentElement!.hasAttribute("open")))
   const standaloneEntry = region.locator(`[data-task-record="${success.data.task_id}"]`)
   await region.getByRole("button", { name: "Check results", exact: true }).focus()
   await page.keyboard.press("Alt+ArrowLeft")
