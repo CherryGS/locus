@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useSyncExternalStore } from "react"
 import { CheckIcon } from "lucide-react"
+import { cn } from "@/shared/lib/utils"
+import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
 import { Button } from "@/shared/ui/button"
 import { Field, FieldGroup, FieldLabel } from "@/shared/ui/field"
 import { Textarea } from "@/shared/ui/textarea"
@@ -19,18 +21,32 @@ export function EntityNotesEditor({ entityId, coordinator: c }: {
     return () => { if (!s.error) void c.save(s) }
   }, [c, s])
   const dirty = s.saved !== undefined && s.draft !== s.saved
+  const saving = useDelayedPending(!!s.work)
+  const reading = useDelayedPending(s.reading)
+  const busy = saving || reading
+  const status = s.error
+    ? s.attempt ? "Unconfirmed" : s.saved === undefined ? "Unavailable" : "Not saved"
+    : saving ? "Saving…"
+    : reading ? s.saved === undefined ? "Loading…" : "Refreshing…"
+    : dirty ? "Unsaved"
+    : s.saved !== undefined ? "Saved" : ""
   return (
     <section aria-label="Entity notes" className="px-4 py-4">
       <FieldGroup>
         <Field>
           <div className="flex items-center justify-between gap-2">
             <FieldLabel htmlFor={field}>Notes</FieldLabel>
-            <span role="status" className="flex items-center gap-1 text-xs text-muted-foreground">
-              {s.work ? <><Spinner />Saving…</> : s.reading ? "Loading…" : s.error ? (s.attempt ? "Unconfirmed" : s.saved === undefined ? "Unavailable" : "Not saved") : dirty ? "Unsaved" : s.saved !== undefined ? <><CheckIcon className="size-3" />Saved</> : ""}
+            <span role="status" className="flex h-4 w-24 shrink-0 items-center justify-end gap-1 whitespace-nowrap text-xs text-muted-foreground">
+              <span aria-hidden="true" className="relative size-3 shrink-0">
+                <CheckIcon className={cn("absolute inset-0 size-3", status !== "Saved" && "invisible")} />
+                <Spinner aria-hidden="true" role={undefined} className={cn("absolute inset-0 size-3 motion-reduce:animate-none", !busy && "invisible")} />
+              </span>
+              <span>{status}</span>
             </span>
           </div>
           <Textarea id={field} value={s.draft} placeholder="Add a note, an idea, a reminder…"
-            className="min-h-28 resize-y" disabled={s.saved === undefined || s.reading || !c.editable}
+            className={cn("min-h-28 resize-y", s.saved !== undefined && s.reading && c.editable && "disabled:bg-transparent disabled:opacity-100 dark:disabled:bg-input/30")}
+            disabled={s.saved === undefined || s.reading || !c.editable}
             aria-describedby={`${field}-hint`}
             onChange={(event) => c.update(s, event.target.value, composing.current)}
             onCompositionStart={() => { composing.current = true; c.update(s, s.draft, true) }}

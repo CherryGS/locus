@@ -155,6 +155,11 @@ surface adaptations of that system.
   read lasts long enough to warrant it. Retained previews remain qualified by
   their actual input and observed bytes; a changed or removed input updates the
   presentation, and a failed refresh remains visibly attributable.
+- **Notes feedback:** keep the status and icon footprint fixed. Defer short-lived
+  Saving/Loading feedback using the shared pending threshold; retain the observed
+  Saved state and textarea appearance during a quick reread. Show Unsaved and
+  errors immediately, and qualify a slow retained read as Refreshing. Preserve
+  autosave timing, draft ownership and confirmation behavior.
 
 **Open details:** the actual component variants, numerical tokens and motion
 treatments. No component is considered visually accepted solely because this

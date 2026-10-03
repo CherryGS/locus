@@ -17,6 +17,24 @@ const second = data.images[1].entityId
 const path = `/api/v1/entities/${entity}/notes`
 const overview = page.getByRole("complementary", { name: "Overview", exact: true })
 const notes = overview.getByRole("textbox", { name: "Notes", exact: true })
+const notesStatus = overview.getByRole("region", { name: "Entity notes" }).getByRole("status")
+const watchFeedback = async () => page.evaluate(`(() => {
+  const root=document.querySelector('section[aria-label="Entity notes"]');
+  const status=root.querySelector('[role="status"]'), input=root.querySelector('textarea');
+  const icons=[...status.querySelectorAll('svg')], bounds=status.getBoundingClientRect();
+  const result={states:[],failures:[]};
+  const sample=()=>{
+    const text=status.textContent.trim();if(result.states.at(-1)!==text)result.states.push(text);
+    const next=status.getBoundingClientRect();
+    if(next.width!==bounds.width||next.height!==bounds.height)result.failures.push('status bounds changed');
+    if(!input.isConnected||icons.some(icon=>!icon.isConnected))result.failures.push('notes or status icon remounted');
+  };
+  const observer=new MutationObserver(sample);observer.observe(root,{subtree:true,childList:true,characterData:true,attributes:true});
+  sample();window.notesFeedback={result,observer};
+})()`)
+const feedback = async () => page.evaluate(`(() => {
+  const {result,observer}=window.notesFeedback;observer.disconnect();delete window.notesFeedback;return result;
+})()`) as Promise<{ states: string[]; failures: string[] }>
 const open = async (id = entity) => {
   await page.goto(`${preview.origin}/#/entity?mode=inspect&entityId=${id}`)
   await page.locator(`[data-slot="entity-inspection"][data-entity-id="${id}"]`).waitFor()
@@ -45,9 +63,15 @@ try {
   assert.equal(await page.getByRole("button", { name: "Tags", exact: true }).count(), 0)
   const text = "留意画面里的光影层次。\nA reference for the next collection.\nhttps://example.com/reference"
   let saved = saveResponse()
+  await notes.click()
+  await watchFeedback()
   await notes.fill(text)
   await saved
-  await overview.getByRole("region", { name: "Entity notes" }).getByText("Saved", { exact: true }).waitFor()
+  await notesStatus.getByText("Saved", { exact: true }).waitFor()
+  const fast = await feedback()
+  assert.deepEqual(fast.failures, [])
+  assert(!fast.states.includes("Saving…"), JSON.stringify(fast))
+  assert(await notes.evaluate(element => element === document.activeElement))
   assert.equal(await read(), text)
   await page.screenshot({ path: join(output, "overview.png"), animations: "disabled" })
   await notes.press("ArrowRight")
@@ -68,6 +92,11 @@ try {
   await notes.fill("Saved to the original Entity")
   await notes.press("Control+Enter")
   await started
+  await watchFeedback()
+  await notesStatus.getByText("Saving…", { exact: true }).waitFor()
+  assert(await notes.isEnabled())
+  assert(await notes.evaluate(element => element === document.activeElement))
+  assert.deepEqual((await feedback()).failures, [])
   await page.getByRole("button", { name: "Next entity", exact: true }).click()
   await page.locator(`[data-slot="entity-inspection"][data-entity-id="${second}"]`).waitFor()
   release()
@@ -77,6 +106,27 @@ try {
   assert.equal(await read(second), "")
   await page.getByRole("button", { name: "Previous entity", exact: true }).click()
   await page.waitForFunction(() => document.querySelector<HTMLTextAreaElement>("textarea")?.value === "Saved to the original Entity")
+
+  // A retained note stays readable while its reread takes longer than usual.
+  let releaseRead!: () => void
+  const readGate = new Promise<void>(resolve => { releaseRead = resolve })
+  await page.route(`**${path}`, async route => {
+    if (route.request().method() === "GET") await readGate
+    await route.continue()
+  })
+  await page.getByRole("button", { name: "Close details panel", exact: true }).click()
+  await page.getByRole("button", { name: "Overview", exact: true }).click()
+  await notes.waitFor()
+  await watchFeedback()
+  await notesStatus.getByText("Refreshing…", { exact: true }).waitFor()
+  assert.equal(await notes.inputValue(), "Saved to the original Entity")
+  assert.equal(await notes.evaluate(element => getComputedStyle(element).opacity), "1")
+  const retained = await feedback()
+  assert.deepEqual(retained.failures, [])
+  assert(!retained.states.includes("Loading…"), JSON.stringify(retained))
+  releaseRead()
+  await notesStatus.getByText("Saved", { exact: true }).waitFor()
+  await page.unrouteAll({ behavior: "wait" })
 
   await page.route(`**${path}`, (route) => route.request().method() === "PUT"
     ? route.fulfill({ status: 500, json: { code: "operation_failed", message: "Temporary notes failure" } })
