@@ -167,11 +167,11 @@ export function EntityWorkspace({
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.12 }}
                 >
-                  <header className="flex h-12 min-w-0 shrink-0 items-center gap-2 px-4">
+                  <header className="flex h-10 min-w-0 shrink-0 items-center gap-2 px-4">
                     <activePanel.icon className="size-4 text-muted-foreground" />
                     <h2 className="min-w-0 flex-1 truncate text-sm font-medium">{activePanel.label}</h2>
                     <Button
-                      size="icon-xs"
+                      size="icon-sm"
                       variant="ghost"
                       aria-label="Close details panel"
                       onClick={() => {

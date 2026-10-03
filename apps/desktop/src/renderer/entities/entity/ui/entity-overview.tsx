@@ -138,7 +138,7 @@ export function EntityOverview({
                 <Button
                   key={component.id}
                   variant="ghost"
-                  className="h-9 w-full min-w-0 justify-start gap-2 px-2"
+                  className="h-8 w-full min-w-0 justify-start gap-2 px-2"
                   aria-label={`Open ${label} details`}
                   title={`${label}: ${summary}`}
                   onClick={() => onOpenComponent(component)}
@@ -159,7 +159,7 @@ export function EntityOverview({
           </div>
         ) : structurePending ? (
           <div className="flex flex-col gap-2" aria-label="Reading components">
-            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-8 w-full" />
             <Skeleton className="h-4 w-2/3" />
           </div>
         ) : (

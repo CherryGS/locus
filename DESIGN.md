@@ -157,6 +157,12 @@ surface adaptations of that system.
 - **Shared controls:** compare default, hover, focus, active/selected, disabled,
   pending and error states where applicable. Apply shared choices through the
   existing primitives and semantic tokens, preserving behavior.
+  Use 28px compact actions and 32px standard inputs, selects and property rows.
+  Keep input text at the existing 13px body size in narrow desktop windows.
+  Inputs and selects share the control surface. Standard controls share the
+  radius and 2px keyboard-focus ring; selected toggles
+  retain their secondary surface and border while hovered. Entity's sidebar title
+  row uses the same 40px height as its main toolbar.
 - **Filter workspace:** keep presets secondary to the raw query. Use the darker
   control surface and monospace text for source, with compact query actions and
   directly visible, clickable diagnostics. Separate the optional field reference
