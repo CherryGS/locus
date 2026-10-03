@@ -6,6 +6,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/em
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/shared/ui/resizable"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Separator } from "@/shared/ui/separator"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui/tooltip"
 import type { EntityBrowsingState } from "../model/browsing-state"
 import { EntityGrid, minimumEntityGridWidth } from "@/entities/entity"
 import { entityPanels, type EntityPanelId } from "./entity-panels"
@@ -208,27 +209,33 @@ export function EntityWorkspace({
         <Separator orientation="vertical" />
         <aside
           aria-label="Auxiliary panels"
-          className="flex w-12 shrink-0 flex-col items-center gap-1 bg-sidebar py-2"
+          className="w-10 min-h-0 shrink-0 bg-sidebar"
         >
-          {panels.map(({ id, label, icon: Icon }) => (
-            <Button
-              key={id}
-              ref={(element) => {
-                if (element) panelTriggers.current.set(id, element)
-                else panelTriggers.current.delete(id)
-              }}
-              variant={activePanel?.id === id ? "secondary" : "ghost"}
-              className="h-auto w-10 flex-col gap-1 py-2"
-              aria-label={label}
-              title={label}
-              aria-expanded={activePanel?.id === id}
-              aria-controls={activePanel?.id === id ? "auxiliary-panel" : undefined}
-              onClick={() => togglePanel(id)}
-            >
-              <Icon data-icon="inline-start" />
-              <span className="[writing-mode:vertical-rl]">{label}</span>
-            </Button>
-          ))}
+          <TooltipProvider delay={300}>
+            <ScrollArea className="h-full" scrollbarProps={{ className: "data-vertical:w-1" }}
+              viewportProps={{ className: "overscroll-contain" }}>
+              <div className="flex flex-col items-center gap-1 py-2">
+                {panels.map(({ id, label, icon: Icon }) => (
+                  <Tooltip key={id}>
+                    <TooltipTrigger
+                      render={<Button size="icon" variant={activePanel?.id === id ? "secondary" : "ghost"} />}
+                      ref={(element) => {
+                        if (element) panelTriggers.current.set(id, element)
+                        else panelTriggers.current.delete(id)
+                      }}
+                      aria-label={label}
+                      aria-expanded={activePanel?.id === id}
+                      aria-controls={activePanel?.id === id ? "auxiliary-panel" : undefined}
+                      onClick={() => togglePanel(id)}
+                    >
+                      <Icon aria-hidden="true" />
+                    </TooltipTrigger>
+                    <TooltipContent side="left" sideOffset={8}>{label}</TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </ScrollArea>
+          </TooltipProvider>
         </aside>
       </div>
     </CivitaiPanelContext>

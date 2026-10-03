@@ -168,6 +168,11 @@ surface adaptations of that system.
   radius and 2px keyboard-focus ring; selected toggles
   retain their secondary surface and border while hovered. Entity's sidebar title
   row uses the same 40px height as its main toolbar.
+- **Auxiliary navigation:** use a 40px icon rail with 32px panel buttons. Keep
+  each accessible name, expanded state and current panel heading. Reveal names
+  on hover and keyboard focus, with distinct provider and content icons. Scroll
+  the rail independently in short windows and return focus to the matching
+  trigger when a panel closes.
 - **Filter workspace:** keep presets secondary to the raw query. Use the darker
   control surface and monospace text for source, with compact query actions and
   directly visible, clickable diagnostics. Separate the optional field reference

@@ -134,6 +134,29 @@ try {
   await panel.getByRole("button", { name: "Close details panel", exact: true }).click()
   await panel.waitFor({ state: "detached" })
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-label")), "Image")
+  // Names remain available to keyboard users, and clipped rail items can be
+  // reached without opening another panel or losing the browsing context.
+  await page.setViewportSize({ width: 720, height: 240 })
+  const navigation = page.getByRole("complementary", { name: "Auxiliary panels", exact: true })
+  const railViewport = navigation.locator('[data-slot="scroll-area-viewport"]')
+  await navigation.getByRole("button", { name: "Overview", exact: true }).focus()
+  await page.keyboard.press("Tab")
+  const hint = page.locator('[data-slot="tooltip-content"][data-open]')
+  await hint.filter({ hasText: /^File$/ }).waitFor()
+  await page.keyboard.press("Tab")
+  const imageTrigger = navigation.getByRole("button", { name: "Image", exact: true })
+  assert(await imageTrigger.evaluate(element => element === document.activeElement))
+  await hint.filter({ hasText: /^Image$/ }).waitFor()
+  const railState = await railViewport.evaluate(element => ({
+    scroll: element.scrollTop, height: element.clientHeight, content: element.scrollHeight,
+  }))
+  assert(railState.content > railState.height && railState.scroll > 0, "keyboard focus reveals overflowing panel buttons")
+  await imageTrigger.press("Enter")
+  await panel.waitFor()
+  await panel.getByRole("button", { name: "Close details panel", exact: true }).click()
+  assert(await imageTrigger.evaluate(element => element === document.activeElement))
+  await page.screenshot({ path: join(output, "panel-rail-short.png"), animations: "disabled" })
+  await page.setViewportSize({ width: 720, height: 480 })
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   await page.setViewportSize({ width: 1200, height: 800 })
   // Membership failures preserve the same subject's prior facts and do not
@@ -289,6 +312,7 @@ try {
           "library-empty.png",
           "connected-image.png",
           "component-details-720.png",
+          "panel-rail-short.png",
           "overview-loading.png",
           "retained-metadata.png",
         ],
