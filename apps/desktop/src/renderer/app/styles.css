@@ -259,6 +259,12 @@ a, button, input, select, textarea {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
 }
+/* Query punctuation must remain literal, including .? and regex delimiters. */
+.filter-source,
+.filter-assistance-lookup [data-slot="input-group-control"] {
+  font-variant-ligatures: none;
+  font-feature-settings: "calt" 0, "liga" 0;
+}
 .filter-assistance-reference {
   font-size: 0.8125rem;
   font-weight: 500;

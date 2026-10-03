@@ -27,7 +27,6 @@ import { Button } from "@/shared/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
 import { Spinner } from "@/shared/ui/spinner"
-import { Separator } from "@/shared/ui/separator"
 import {
   Select,
   SelectContent,
@@ -723,7 +722,6 @@ export function EntityPage({
           </AlertDescription>
         </Alert>
       )}
-      <Separator />
       <EntityWorkspace
         componentFor={componentFor}
         revealEntity={revealEntity}

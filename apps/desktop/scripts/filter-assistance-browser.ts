@@ -48,6 +48,13 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
   assert(await source.evaluate((element) => document.activeElement === element))
 
   await type("@")
+  await lookup.fill("/.?tag")
+  await lookup.press("Home")
+  await lookup.press("Delete")
+  assert.equal(await lookup.inputValue(), ".?tag", "Deleting the delimiter retains every regex character")
+  assert(await lookup.evaluate(element => document.activeElement === element))
+  await panel.getByRole("button", { name: "Use field tag_ids", exact: true }).waitFor()
+  await page.screenshot({ path: join(output, "filter-assistance-literal-punctuation.png"), animations: "disabled" })
   await lookup.fill("^bilibili_bvid$")
   await page.keyboard.press("Tab")
   await page.waitForFunction(() => document.activeElement?.id === "filter-source")
