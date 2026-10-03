@@ -12,7 +12,6 @@ import {
   type IdentitySequence,
 } from "@/entities/entity"
 import {
-  FilterModal,
   EntitySearch,
   FilterResultStatus,
   FilterEvidence,
@@ -673,9 +672,6 @@ export function EntityPage({
           <Button variant="ghost" size="icon-sm" aria-label="Locate selected Entity" title="Locate selected Entity"
             disabled={source.sequence.indexOf(selected.id) < 0}
             onClick={() => setRevealEntity(value => value + 1)}><LocateFixedIcon /></Button>
-        )}
-        {!viewing && destination.collectionId === "library" && live && (
-          <FilterModal coordinator={live.filter} />
         )}
         {live && (
           <RefreshButton

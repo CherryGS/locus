@@ -6,7 +6,8 @@ grid/inspection mode, collection identity and lightweight source destination.
 History stores those identities, never Entity payloads or media bytes. Card and
 detail facts remain presentation projections rather than domain-write authority.
 
-The list header uses its remaining width for Search. Submitted Search text and
+The list header uses its remaining width for Search, with the Filter trigger
+inside the input group's right end. Submitted Search text and
 the applied Filter are independent and compose as `(Search) AND (Filter)`;
 unapplied Filter drafts do not participate, and presets save only Filter content.
 A pending or rejected search retains the previous result. Counts, selection and

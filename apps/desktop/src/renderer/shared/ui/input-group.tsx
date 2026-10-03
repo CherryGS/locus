@@ -53,6 +53,11 @@ function InputGroupAddon({
       data-align={align}
       className={cn(inputGroupAddonVariants({ align }), className)}
       onClick={(e) => {
+        // Portaled controls may bubble through an addon in the React tree.
+        // Only clicks inside its actual input frame should focus the input.
+        if (!e.currentTarget.contains(e.target as Node)) {
+          return
+        }
         if ((e.target as HTMLElement).closest("button")) {
           return
         }

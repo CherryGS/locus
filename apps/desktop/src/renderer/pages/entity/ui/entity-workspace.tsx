@@ -190,7 +190,7 @@ export function EntityWorkspace({
         <Separator orientation="vertical" />
         <aside
           aria-label="Auxiliary panels"
-          className="w-12 min-h-0 shrink-0 bg-sidebar"
+          className="w-10 min-h-0 shrink-0 bg-sidebar"
         >
           <ScrollArea className="h-full" scrollbarProps={{ className: "data-vertical:w-1" }}
             viewportProps={{ className: "overscroll-contain" }}>
@@ -199,7 +199,7 @@ export function EntityWorkspace({
                 <Button
                   key={id}
                   variant={activePanel?.id === id ? "secondary" : "ghost"}
-                  className="h-auto w-10 flex-col gap-1 py-2"
+                  className="h-auto w-8 flex-col gap-1 px-1 py-2"
                   ref={(element) => {
                     if (element) panelTriggers.current.set(id, element)
                     else panelTriggers.current.delete(id)

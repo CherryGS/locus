@@ -4,7 +4,8 @@ The root route keeps the title bar, left navigation and footer mounted while
 page outlets change. The remaining main region is an unpadded, full-height page
 outlet. Each page owns its header, scrolling, content and auxiliary tools.
 
-Left navigation remains a collapsed icon rail. A 300 ms hover reveals labels
+Left navigation remains a 40-pixel collapsed icon rail with 32-pixel controls
+and 4-pixel side insets, matching the Entity panel rail. A 300 ms hover reveals labels
 over the main area without moving its edge. Leaving for 150 ms hides the reveal;
 returning cancels closure. The same mounted links survive route changes, and
 icons keep their position through the width transition. Keyboard focus can also

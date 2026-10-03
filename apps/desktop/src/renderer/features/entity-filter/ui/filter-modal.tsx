@@ -4,6 +4,7 @@ import type { Wire } from "@/shared/api"
 import { BookOpenIcon, FilterIcon, TriangleAlertIcon, XIcon } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/shared/ui/button"
+import { InputGroupButton } from "@/shared/ui/input-group"
 import {
   Dialog,
   DialogClose,
@@ -26,7 +27,7 @@ import { IndexStatus } from "./filter-feedback"
 import { FieldReference } from "./field-reference"
 import { AssistancePanel } from "./assistance-panel"
 
-export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator }) {
+export function FilterModal({ coordinator: c, embedded = false }: { coordinator: FilterCoordinator; embedded?: boolean }) {
   useSyncExternalStore(c.subscribe, c.snapshot)
   useEffect(() => () => c.close(), [c])
   const actions = useRef<DialogRootActions | null>(null),
@@ -58,9 +59,14 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
   }
   return (
     <Dialog open={c.open} actionsRef={actions} onOpenChange={(open) => (open ? c.show() : c.close())}>
-      <DialogTrigger ref={entry} render={<Button variant={c.filterApplied ? "secondary" : "outline"} size="sm" />}>
+      <DialogTrigger ref={entry}
+        aria-label={c.filterApplied ? "Filter · applied" : "Filter"}
+        title={c.filterApplied ? "Filter · applied" : "Filter"}
+        render={embedded
+          ? <InputGroupButton size="icon-xs" variant={c.filterApplied ? "secondary" : "ghost"} />
+          : <Button variant={c.filterApplied ? "secondary" : "outline"} size="sm" />}>
         <FilterIcon data-icon="inline-start" />
-        Filter{c.filterApplied ? " · applied" : ""}
+        {!embedded && <>Filter{c.filterApplied ? " · applied" : ""}</>}
       </DialogTrigger>
       <DialogContent
         showCloseButton={false}

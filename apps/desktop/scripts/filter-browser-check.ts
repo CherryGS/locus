@@ -46,6 +46,11 @@ try {
   const grid = page.locator('[role="grid"][aria-label="Entities"]')
   await grid.waitFor()
   const filter = page.getByRole("button", { name: /^Filter(?: · applied)?$/ })
+  const embeddedTrigger = await filter.evaluate(button => {
+    const group = button.closest('[data-slot="input-group"]'), box = button.getBoundingClientRect()
+    return { search: group?.querySelector('input')?.getAttribute("placeholder"), width: box.width, height: box.height }
+  })
+  assert.deepEqual(embeddedTrigger, { search: "Search entities…", width: 24, height: 24 }, "Filter shares Search's input frame and uses a square icon target")
   const dialog = page.getByRole("dialog", { name: "Filter Entities" })
   const open = async () => {
     await filter.click()
@@ -707,7 +712,7 @@ try {
   await open(); await source.fill(""); await apply()
   await headerSearch.fill(single); await headerSearch.press("Enter")
   await grid.locator('[data-entity-count="1"]').waitFor()
-  assert.equal(await filter.innerText(), "Filter")
+  assert.equal(await filter.getAttribute("aria-label"), "Filter")
   await headerSearch.fill("unknown_field:value"); await headerSearch.press("Enter")
   await page.getByText("Search could not be applied", { exact: true }).waitFor()
   assert.equal(await grid.locator('[data-entity-count]').getAttribute("data-entity-count"), "1")

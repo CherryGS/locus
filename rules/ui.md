@@ -32,6 +32,12 @@
   icon-only, and a 12px icon. A visible count may extend the button width.
   Tasks and notifications share this implementation; their labels remain
   available through accessible names and titles.
+- Compact vertical navigation rails are 40px wide with 32px-wide controls and
+  4px side insets. Expanded navigation overlays content without moving the
+  icon column. Panel buttons may grow vertically to retain their text labels.
+- Entity Search and its Filter trigger share one InputGroup. Use an inline-end
+  icon button, with an applied-state indication; keep their inputs independent
+  and combine only applied criteria with AND.
 - When changing a shared visual rule, migrate the affected consumers and check
   computed geometry in the real renderer. Update this rule at the same time
   instead of adding another page-specific workaround.
