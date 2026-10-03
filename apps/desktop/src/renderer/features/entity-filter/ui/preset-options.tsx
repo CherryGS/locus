@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react"
+import { useLayoutEffect, useRef } from "react"
 import { EllipsisIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Field, FieldLabel } from "@/shared/ui/field"
@@ -11,13 +11,18 @@ import { IndexMaintenance } from "./filter-feedback"
 type Action = "rename" | "delete"
 
 export function PresetOptions({
+  open,
+  onOpenChange: setOpen,
+  restoreFocus,
   coordinator: c,
   onAction,
 }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  restoreFocus: boolean
   coordinator: FilterCoordinator
   onAction: (action: Action) => void
 }) {
-  const [open, setOpen] = useState(false)
   const pending = useRef<Action | undefined>(undefined)
   useLayoutEffect(() => {
     if (!c.open) {
@@ -48,7 +53,7 @@ export function PresetOptions({
       >
         <EllipsisIcon />
       </PopoverTrigger>
-      <PopoverContent align="end">
+      <PopoverContent align="end" finalFocus={restoreFocus}>
         <PopoverTitle className="sr-only">Filter options</PopoverTitle>
         <Field>
           <FieldLabel htmlFor="filter-name" className="sr-only">Preset name</FieldLabel>

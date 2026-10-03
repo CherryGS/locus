@@ -155,6 +155,9 @@ surface adaptations of that system.
   Start Filter with preset controls and preset selection with search; keep Close
   in that first row. Preserve accessible dialog names, input labels and the
   confirmation/error information needed for actual operations.
+  Coordinate preset selection and options as mutually exclusive editor layers.
+  Hand focus to the new layer without the departing layer restoring focus over
+  it; naming and unsaved-edit confirmations take precedence over both.
 - **Refresh continuity:** retain established content and empty states while
   rereading. Keep refresh controls and their icon nodes stable, preserve keyboard
   focus while blocking duplicate requests, and show visual activity only when a

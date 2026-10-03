@@ -34,16 +34,21 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
     sourceInput = useRef<HTMLTextAreaElement>(null)
   const [naming, setNaming] = useState<"save" | "save-as" | "rename" | "delete">(),
     [name, setName] = useState(""),
+    [overlay, setOverlay] = useState<"presets" | "options">(),
     [reference, setReference] = useState(false),
     [resizeHint, setResizeHint] = useState(false),
     [reveal, setReveal] = useState<number>()
   useLayoutEffect(() => {
     if (!c.open) {
       setNaming(undefined)
+      setOverlay(undefined)
       setResizeHint(false)
       if (c.hostClosing) actions.current?.unmount()
     }
   }, [c.open, c.hostClosing])
+  useLayoutEffect(() => {
+    if (naming || c.guard) setOverlay(undefined)
+  }, [naming, c.guard])
   const analysis =
     !c.assistance.active && JSON.stringify(c.analysis?.source) === JSON.stringify(c.draft.source) ? c.analysis : undefined
   const closeReference = () => {
@@ -102,6 +107,9 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
               <FieldGroup className="gap-4">
                 <div className="flex min-w-0 items-center gap-2">
                   <PresetPicker
+                    open={overlay === "presets"}
+                    onOpenChange={(open) => setOverlay(current => open ? "presets" : current === "presets" ? undefined : current)}
+                    restoreFocus={!naming && !c.guard && overlay !== "options"}
                     presets={c.presets}
                     selected={c.saved}
                     disabled={c.busy}
@@ -115,6 +123,9 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                     New
                   </Button>
                   <PresetOptions
+                    open={overlay === "options"}
+                    onOpenChange={(open) => setOverlay(current => open ? "options" : current === "options" ? undefined : current)}
+                    restoreFocus={!naming && !c.guard && overlay !== "presets"}
                     coordinator={c}
                     onAction={(action) => {
                       setName(action === "rename" ? c.saved!.name : "")

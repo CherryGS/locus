@@ -19,6 +19,9 @@ import { Spinner } from "@/shared/ui/spinner"
 type Preset = Wire<"FilterPresetSummary">
 
 export function PresetPicker({
+  open,
+  onOpenChange: setOpen,
+  restoreFocus,
   presets,
   selected,
   disabled,
@@ -28,6 +31,9 @@ export function PresetPicker({
   onRetry,
   onSelect,
 }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  restoreFocus: boolean
   presets?: Preset[]
   selected?: Preset
   disabled: boolean
@@ -37,8 +43,7 @@ export function PresetPicker({
   onRetry: () => void
   onSelect: (id: string) => void
 }) {
-  const [open, setOpen] = useState(false),
-    [query, setQuery] = useState("")
+  const [query, setQuery] = useState("")
   const entry = useRef<HTMLButtonElement>(null),
     pending = useRef<string | undefined>(undefined),
     selecting = useRef(false),
@@ -97,7 +102,7 @@ export function PresetPicker({
       <DialogContent
         showCloseButton={false}
         className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-lg"
-        finalFocus={() => (selecting.current || !active ? false : entry.current)}
+        finalFocus={() => (selecting.current || !active || !restoreFocus ? false : entry.current)}
       >
         <DialogTitle className="sr-only">Choose a preset</DialogTitle>
         <DialogDescription className="sr-only">Load a saved query into the editor.</DialogDescription>

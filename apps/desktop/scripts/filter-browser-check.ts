@@ -61,6 +61,26 @@ try {
     name: "Filter source",
     exact: true,
   })
+  // Click the visible background trigger, as a user does while the chooser is open.
+  const chooser = page.getByRole("dialog", { name: "Choose a preset", exact: true })
+  const options = page.getByRole("dialog", { name: "Filter options", exact: true })
+  await dialog.getByRole("button", { name: "Load preset", exact: true }).click()
+  await chooser.waitFor()
+  const optionsTrigger = await dialog.getByRole("button", { name: "Filter options", exact: true, includeHidden: true }).boundingBox()
+  assert(optionsTrigger)
+  await page.mouse.click(optionsTrigger.x + optionsTrigger.width / 2, optionsTrigger.y + optionsTrigger.height / 2)
+  await chooser.waitFor({ state: "hidden" })
+  await options.waitFor()
+  await page.waitForFunction(() => document.activeElement?.id === "filter-name")
+  await dialog.getByRole("button", { name: "Load preset", exact: true }).click()
+  await options.waitFor({ state: "hidden" })
+  await chooser.waitFor()
+  await page.waitForFunction(() => document.activeElement?.id === "filter-preset-search")
+  await page.screenshot({ path: join(output, "exclusive-preset-layer.png") })
+  await page.keyboard.press("Escape")
+  await chooser.waitFor({ state: "hidden" })
+  await page.waitForFunction(() => document.activeElement?.id === "filter-preset")
+  assert.equal(await source.inputValue(), "")
   const quietValidation = async () => {
     assert.equal(await dialog.getByText(/^(Query valid|All Entities|Analyzing current source…|Assisted editing · finish to validate source)$/).count(), 0)
   }
