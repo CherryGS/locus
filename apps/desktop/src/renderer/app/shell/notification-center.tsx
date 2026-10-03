@@ -15,6 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { useNotifications } from "./notification-provider"
 import { NotificationItem } from "./notification-item"
+import { FooterAction } from "./footer-action"
 
 export function NotificationCenter() {
   const { records, open, setOpen, remove, clear } = useNotifications()
@@ -27,13 +28,10 @@ export function NotificationCenter() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        render={<Button variant="ghost" size="xs" className="min-w-7" />}
+        render={<FooterAction icon={BellIcon} count={unread} />}
         aria-label={`Notifications${unread ? ` · ${unread} unread` : ""}`}
         title={`Notifications${unread ? ` · ${unread} unread` : ""}`}
-      >
-        <BellIcon aria-hidden="true" className="size-4" />
-        {unread > 0 && <span aria-hidden="true" className="tabular-nums">{unread}</span>}
-      </PopoverTrigger>
+      />
       <PopoverContent
         ref={panel}
         initialFocus={panel}

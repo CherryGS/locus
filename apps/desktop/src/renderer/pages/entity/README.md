@@ -14,6 +14,8 @@ collection context register into the centered titlebar display, owned by the
 active page. Overview omits a redundant Component count.
 The toolbar and workspace share one full-width horizontal divider. Auxiliary
 panels retain their resize boundary and separate surface.
+The personal-tag summary belongs to the content and adds no second header
+divider. Shared geometry rules are recorded in `rules/ui.md`.
 
 File information uses a centered reading column with the retained filename as
 its heading when available. Properties and storage remain directly visible,

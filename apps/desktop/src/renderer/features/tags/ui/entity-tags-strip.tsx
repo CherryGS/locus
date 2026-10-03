@@ -51,7 +51,7 @@ export function EntityTagsStrip({ entity, coordinator: c, onShowAll }: {
   const remaining = tags.length - visible.length
   return (
     <section aria-label="Personal tag summary" data-entity-id={entity.id}
-      className="@container/tag-strip relative flex h-9 min-w-0 shrink-0 items-center gap-1.5 border-b px-2">
+      className="@container/tag-strip relative flex h-9 min-w-0 shrink-0 items-center gap-1.5 px-2">
       <div aria-hidden="true" className="pointer-events-none invisible absolute size-0 overflow-hidden">
         <div ref={measurements} className="flex w-max gap-1.5">
           {candidates.map((tag) => <Badge key={tag.id} variant="secondary" className="max-w-36 min-w-0">

@@ -85,7 +85,7 @@ export function TagDetailPage({
           {state.documentPending || state.queryPending ? <Spinner /> : <RefreshCwIcon />}
         </Button>
       </header>
-      <Separator />
+      <Separator data-boundary="page" />
       {entities}
       <Separator />
       <div className="min-h-0 flex-1 px-3 pt-3 pb-2">

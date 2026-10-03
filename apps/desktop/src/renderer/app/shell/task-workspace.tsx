@@ -4,7 +4,7 @@ import { ListChecksIcon } from "lucide-react"
 import { ImportDetails } from "@/features/file-import"
 import { TaskPanel } from "@/features/task-feedback"
 import { CivitaiActions, CivitaiOutcomeDetails } from "@/features/civitai"
-import { Button } from "@/shared/ui/button"
+import { FooterAction } from "./footer-action"
 import { Dialog, DialogTrigger } from "@/shared/ui/dialog"
 import type { DialogRootActions } from "@base-ui/react/dialog"
 import { useLibrarySession } from "../providers/library-provider"
@@ -110,10 +110,9 @@ function ConnectedWorkspace({ session, children }: { session: LibrarySession; ch
         retryOutcome={(id) => void observer.outcome(id)}
       />
       <footer aria-label="Application footer" className="flex h-7 shrink-0 items-center justify-end gap-1 border-t bg-sidebar px-1">
-        <DialogTrigger ref={entry} render={<Button variant="ghost" size="xs" className="min-w-7" />} aria-label={taskLabel} title={taskLabel}>
-          <ListChecksIcon aria-hidden="true" className={`size-4 ${attention || problem ? "text-destructive" : active ? "text-primary" : ""}`} />
-          {all.length > 0 && <span aria-hidden="true" className="tabular-nums">{all.length}</span>}
-        </DialogTrigger>
+        <DialogTrigger ref={entry} render={<FooterAction icon={ListChecksIcon} count={all.length}
+          iconClassName={attention || problem ? "text-destructive" : active ? "text-primary" : undefined} />}
+          aria-label={taskLabel} title={taskLabel} />
         <div className="ml-auto"><NotificationCenter /></div>
       </footer>
     </Dialog>

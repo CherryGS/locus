@@ -10,6 +10,28 @@
 - Keep values readable while giving feedback. For example, copying an ID should
   change its icon/status, not replace the ID with a shorter success message.
 
+## Boundaries and control geometry
+
+- Page header dividers belong to the page container, outside padded or
+  width-constrained header content. Draw one 1px divider across that container
+  with the shared Separator and border token. A child summary strip must not
+  add another competing page boundary.
+- Property-group dividers follow the full width of their owning panel or
+  reading column. Use the same width and alignment for sibling groups. A
+  reading column may be narrower than the page; that is a different layer,
+  not a reason for sibling dividers to vary. Avoid local margin/width overrides
+  on separators. Frame boundaries and group boundaries remain distinct.
+- Pure icon buttons use square shared Button size variants. Do not combine
+  a text-button size with min-width or horizontal padding to approximate an
+  icon target. Use the icon size supplied by that variant.
+- Dense footer actions use FooterAction: 24px height, a 24px square when
+  icon-only, and a 12px icon. A visible count may extend the button width.
+  Tasks and notifications share this implementation; their labels remain
+  available through accessible names and titles.
+- When changing a shared visual rule, migrate the affected consumers and check
+  computed geometry in the real renderer. Update this rule at the same time
+  instead of adding another page-specific workaround.
+
 ## Explanatory copy
 
 - Default to showing content and actions. Delete explanations already conveyed by

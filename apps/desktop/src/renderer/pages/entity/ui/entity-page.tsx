@@ -723,7 +723,7 @@ export function EntityPage({
           </AlertDescription>
         </Alert>
       )}
-      <Separator />
+      <Separator data-boundary="page" />
       <EntityWorkspace
         componentFor={componentFor}
         revealEntity={revealEntity}

@@ -26,6 +26,26 @@ try {
   })
   await page.goto(`${preview.origin}/#/entity`)
   await page.getByRole("gridcell").first().waitFor()
+  const checkPageBoundary = async () => {
+    const geometry = await page.locator('section[aria-label="Entity"]').evaluate(element => {
+      const page = element.getBoundingClientRect()
+      const lines = [...element.querySelectorAll(':scope > [data-boundary="page"]')].map(line => {
+        const box = line.getBoundingClientRect(); return { x: box.x, width: box.width, height: box.height }
+      })
+      const tags = element.querySelector('[aria-label="Personal tag summary"]')
+      return { x: page.x, width: page.width, lines, tagsBorder: tags ? getComputedStyle(tags).borderBottomWidth : undefined }
+    })
+    assert.deepEqual(geometry.lines, [{ x: geometry.x, width: geometry.width, height: 1 }], "Grid and inspection share one full page boundary")
+    if (geometry.tagsBorder) assert.equal(geometry.tagsBorder, "0px", "The tag summary does not add a shorter header boundary")
+  }
+  await checkPageBoundary()
+  const footerTargets = await page.getByRole("contentinfo", { name: "Application footer", exact: true }).locator("button").evaluateAll(buttons =>
+    buttons.filter(button => !button.textContent?.trim()).map(button => {
+      const target = button.getBoundingClientRect(), icon = button.querySelector("svg")!.getBoundingClientRect()
+      return { width: target.width, height: target.height, iconWidth: icon.width, iconHeight: icon.height }
+    }))
+  assert(footerTargets.length > 0)
+  assert(footerTargets.every(target => target.width === 24 && target.height === 24 && target.iconWidth === 12 && target.iconHeight === 12), JSON.stringify(footerTargets))
   const sourceReturn = page
     .locator("header.title-bar")
     .getByRole("button", { name: "Return to source", exact: true })
@@ -48,6 +68,7 @@ try {
   await page.getByRole("gridcell").first().dblclick()
   assert(await sourceReturn.isEnabled())
   await page.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
+  await checkPageBoundary()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   await page.getByText("Isolated preference-read failure", { exact: true }).waitFor()
   const selected = await page.locator('[data-slot="entity-inspection"]').getAttribute("data-entity-id")
