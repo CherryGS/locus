@@ -48,9 +48,14 @@ try {
   const filter = page.getByRole("button", { name: /^Filter(?: · applied)?$/ })
   const embeddedTrigger = await filter.evaluate(button => {
     const group = button.closest('[data-slot="input-group"]'), box = button.getBoundingClientRect()
-    return { search: group?.querySelector('input')?.getAttribute("placeholder"), width: box.width, height: box.height }
+    const frame = group!.getBoundingClientRect()
+    const controls = [...group!.querySelectorAll("button")].map(control => control.getBoundingClientRect())
+    return { search: group?.querySelector('input')?.getAttribute("placeholder"), width: box.width, height: box.height,
+      contained: controls.every(control => control.top >= frame.top && control.bottom <= frame.bottom), label: button.textContent?.trim() }
   })
-  assert.deepEqual(embeddedTrigger, { search: "Search entities…", width: 24, height: 24 }, "Filter shares Search's input frame and uses a square icon target")
+  assert.equal(embeddedTrigger.search, "Search entities…")
+  assert.equal(embeddedTrigger.height, 24)
+  assert(embeddedTrigger.width > 24 && embeddedTrigger.contained && embeddedTrigger.label === "Filter", "The labeled Filter action and search controls fit within their shared frame")
   const dialog = page.getByRole("dialog", { name: "Filter Entities" })
   const open = async () => {
     await filter.click()
@@ -717,8 +722,10 @@ try {
   await page.getByText("Search could not be applied", { exact: true }).waitFor()
   assert.equal(await grid.locator('[data-entity-count]').getAttribute("data-entity-count"), "1")
   assert.equal(await headerSearch.inputValue(), "unknown_field:value")
+  const currentIdentities = await readEntityIds(backend.client)
   await page.getByRole("button", { name: "Clear search", exact: true }).click()
   await page.getByText("Search could not be applied", { exact: true }).waitFor({ state: "hidden" })
+  await grid.locator(`[data-entity-count="${currentIdentities.length}"]`).waitFor()
   await page.screenshot({ path: join(output, "header-search.png") })
   assert.deepEqual(errors, [])
   await writeFile(

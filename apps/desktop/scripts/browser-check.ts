@@ -26,6 +26,12 @@ try {
   })
   await page.goto(`${preview.origin}/#/entity`)
   await page.getByRole("gridcell").first().waitFor()
+  const locate = page.getByRole("button", { name: "Locate selected Entity", exact: true })
+  assert(await locate.isDisabled(), "Locate stays visible without a selected Entity")
+  const initialSearch = await page.getByRole("search", { name: "Search Entities", exact: true }).boundingBox()
+  await page.getByRole("gridcell").first().click()
+  assert(await locate.isEnabled())
+  assert.deepEqual(await page.getByRole("search", { name: "Search Entities", exact: true }).boundingBox(), initialSearch, "Selecting an Entity does not resize or move the search control")
   const checkPageBoundary = async () => {
     const geometry = await page.locator('section[aria-label="Entity"]').evaluate(element => {
       const page = element.getBoundingClientRect()
@@ -84,6 +90,7 @@ try {
   await page.getByRole("gridcell").first().dblclick()
   assert(await sourceReturn.isEnabled())
   await page.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
+  assert(await locate.isDisabled(), "Locate remains visible but unavailable without the grid")
   await checkPageBoundary()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   await page.getByText("Isolated preference-read failure", { exact: true }).waitFor()

@@ -653,7 +653,7 @@ export function EntityPage({
             : live?.filter.pending ? "Reading library…" : "Library unavailable"}
         </span>
       </HeaderDisplay>
-      <header data-slot="entity-page-header" className="flex shrink-0 items-center gap-3 px-4">
+      <header data-slot="entity-page-header" className="flex shrink-0 items-center gap-2 px-4">
         {viewing && selected ? (
           <EntityFilmstrip
             source={source}
@@ -668,11 +668,9 @@ export function EntityPage({
             {destination.collectionId === "library" && live ? <EntitySearch coordinator={live.filter} /> : <span className="sr-only">{activeContext?.title ?? "Entity"}</span>}
           </div>
         )}
-        {!viewing && selected && (
-          <Button variant="ghost" size="icon-sm" aria-label="Locate selected Entity" title="Locate selected Entity"
-            disabled={source.sequence.indexOf(selected.id) < 0}
-            onClick={() => setRevealEntity(value => value + 1)}><LocateFixedIcon /></Button>
-        )}
+        <Button variant="ghost" size="icon-sm" aria-label="Locate selected Entity" title="Locate selected Entity"
+          disabled={viewing || !selected || source.sequence.indexOf(selected.id) < 0}
+          onClick={() => setRevealEntity(value => value + 1)}><LocateFixedIcon /></Button>
         {live && (
           <RefreshButton
             aria-label={refreshLabel}
