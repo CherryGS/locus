@@ -83,28 +83,20 @@ try {
   assert.equal(await page.getByLabel("Current Token", { exact: true }).getAttribute("type"), "password")
   await token.getByRole("button", { name: "Reveal Token", exact: true }).click()
   assert.equal(await page.getByLabel("Current Token", { exact: true }).getAttribute("type"), "text")
+  await page.getByLabel("Current Token", { exact: true }).press("Control+A")
+  assert(await page.getByLabel("Current Token", { exact: true }).evaluate((input: HTMLInputElement) =>
+    input.selectionStart === 0 && input.selectionEnd === input.value.length && input.value.length > 0))
   await token.getByRole("button", { name: "Hide Token", exact: true }).click()
-  // This adapter checks UI copy feedback, not the user's OS clipboard. The
-  // production action still calls navigator.clipboard under the browser policy.
+  // Selection is native. Clicking or pressing Enter must not write to clipboard.
   await page.evaluate(
-    "Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText(value) { window.__settingsCopied = value } } })",
+    "window.__settingsCopied = 0; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText() { window.__settingsCopied++ } } })",
   )
-  await token.getByRole("button", { name: "Copy Token", exact: true }).click()
-  await token.getByText("Token copied.", { exact: true }).waitFor()
-  assert(
-    await page.evaluate(
-      () =>
-        (window as any).__settingsCopied ===
-        (document.querySelector("#external-token") as HTMLInputElement).value,
-    ),
-  )
-  await page.evaluate(
-    "Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText() { throw new Error('isolated denied clipboard') } } })",
-  )
-  await token.getByRole("button", { name: "Copy Token", exact: true }).click()
-  await token.getByText("Token could not be copied. Reveal it to copy manually.", { exact: true }).waitFor()
+  await page.getByLabel("Current Token", { exact: true }).click()
+  await page.getByLabel("Current Token", { exact: true }).press("Enter")
+  assert.equal(await page.evaluate("window.__settingsCopied"), 0)
+  assert.equal(await external.getByRole("button", { name: /^Copy / }).count(), 0)
   externalChecks.push(
-    "masked/revealed Token and copy success/failure feedback through an isolated clipboard adapter",
+    "masked/revealed Token supports native selection without copy controls or click/Enter clipboard writes",
   )
 
   let resets = 0
@@ -139,7 +131,7 @@ try {
   await page.route("**/api/v1/external-access/token", (route) => route.abort("failed"))
   await token.getByRole("button", { name: "Read current Token", exact: true }).click()
   await token.getByText("Token observation unavailable", { exact: true }).waitFor()
-  assert.equal(await token.getByRole("button", { name: "Copy Token", exact: true }).isDisabled(), true)
+  assert.equal(await page.getByLabel("Current Token", { exact: true }).inputValue(), "")
   assert.equal(
     await token.getByRole("button", { name: "Reset shared Token", exact: true }).isDisabled(),
     true,

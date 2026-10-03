@@ -9,7 +9,6 @@ import { Separator } from "@/shared/ui/separator"
 import type { EntityBrowsingState } from "../model/browsing-state"
 import { EntityGrid, minimumEntityGridWidth } from "@/entities/entity"
 import { entityPanels, type EntityPanelId } from "./entity-panels"
-import { CopyIdentityButton } from "@/shared/ui/copy-identity-button"
 import { DetailSection } from "@/entities/entity"
 import { XIcon } from "lucide-react"
 import { CivitaiPanelContext } from "./civitai-panel-slot"
@@ -195,7 +194,7 @@ export function EntityWorkspace({
                           key={activePanel.identity.value}
                           title={activePanel.identity.label}
                         >
-                          <CopyIdentityButton {...activePanel.identity} />
+                          <code className="break-all text-xs font-mono select-text">{activePanel.identity.value}</code>
                         </DetailSection>
                       </>
                     )}

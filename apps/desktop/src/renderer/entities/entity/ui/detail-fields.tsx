@@ -1,5 +1,4 @@
 import type { ReactNode } from "react"
-import { CopyIdentityButton } from "@/shared/ui/copy-identity-button"
 import { formatDurationMilliseconds, unixMillisecondsIso } from "../lib/format-metadata"
 
 export function Detail({ label, children }: { label: string; children: ReactNode }) {
@@ -21,7 +20,7 @@ export function DetailSection({
   children: ReactNode
 }) {
   return (
-    <section aria-label={title} className="@container/detail flex min-w-0 flex-col gap-2 px-4 py-4">
+    <section aria-label={title} className="@container/detail flex min-w-0 flex-col gap-2 px-4 py-4 select-text">
       <h3 className="text-sm font-medium">
         {title}
       </h3>
@@ -32,7 +31,7 @@ export function DetailSection({
 
 export function DetailIdentifier({ label, value }: { label: string; value: string }) {
   if (value === "") return <span className="text-muted-foreground">None</span>
-  return <CopyIdentityButton key={value} label={label} value={value} />
+  return <code className="text-xs font-mono select-text" title={`${label}: ${value}`}>{value}</code>
 }
 
 export function DetailDurationMilliseconds({ value }: { value: string | number | null | undefined }) {

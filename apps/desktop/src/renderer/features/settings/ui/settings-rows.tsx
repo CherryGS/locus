@@ -75,7 +75,7 @@ export function SettingsRow({
       ) : (
         <p className={labelClassName}>{label}</p>
       )}
-      <div className="flex min-w-0 flex-col gap-2 text-sm">{children}</div>
+      <div className="flex min-w-0 flex-col gap-2 text-sm select-text">{children}</div>
     </div>
   )
 }

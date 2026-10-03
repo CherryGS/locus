@@ -49,7 +49,7 @@ Screenshots and measurements are retained locally under
 `E:/Project/locus/.local/visual-foundation-v01/`. These checks support this bounded
 refinement; they do not establish a complete accessibility or performance audit.
 
-## Copy-control feedback
+## Copy-control feedback (superseded)
 
 The user subsequently requested less copy-icon repetition, vertically centered
 icons and space between highlighted controls and their text. The shared identity
@@ -64,3 +64,14 @@ between the text and the highlighted left edge including the border. Idle mouse
 icons had zero opacity; hover and keyboard focus had full opacity. Space copied a
 fixture File ID successfully, retaining its value and 42px two-line control height.
 Type checks and the desktop build passed for this correction.
+
+## Native selection (current)
+
+The user withdrew the proposed direct-literal copy behavior because its scope was
+too broad. Read-only inspector and Settings values now remain normal selectable
+content. Dedicated identity/address/Token copy controls are removed; clicking or
+pressing Enter does not write to the clipboard. Users use native selection and
+Ctrl+C/context-menu copying. Token masking/reveal, input editing and existing
+source-link navigation retain their own behavior. The uncommitted literal-copy
+component, clipboard observers, feedback, URL-action changes, new verification
+recipe and fixture helper changes were discarded.

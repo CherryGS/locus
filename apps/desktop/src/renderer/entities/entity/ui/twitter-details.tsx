@@ -1,7 +1,6 @@
 import { diagnosticText, type Wire } from "@/shared/api"
 import { Separator } from "@/shared/ui/separator"
-import { CopyIdentityButton } from "@/shared/ui/copy-identity-button"
-import { Detail, DetailDurationMilliseconds, DetailSection, DetailTime } from "./detail-fields"
+import { Detail, DetailDurationMilliseconds, DetailIdentifier, DetailSection, DetailTime } from "./detail-fields"
 import {
   CapturedText,
   SourceLink,
@@ -171,7 +170,7 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
         <dl>
           <Detail label="Captured File">
             {component.record?.basis ? (
-              <CopyIdentityButton label="Captured File" value={component.record.basis} />
+              <DetailIdentifier label="Captured File" value={component.record.basis} />
             ) : (
               "No local File association"
             )}
@@ -183,14 +182,14 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
         <dl>
           <Detail label="Post ID">
             {component.postId ? (
-              <CopyIdentityButton key={component.postId} label="Post ID" value={component.postId} />
+              <DetailIdentifier label="Post ID" value={component.postId} />
             ) : (
               <CapturedText value={component.postId} />
             )}
           </Detail>
           <Detail label="User ID">
             {author?.userId ? (
-              <CopyIdentityButton key={author.userId} label="User ID" value={author.userId} />
+              <DetailIdentifier label="User ID" value={author.userId} />
             ) : (
               <CapturedText value={author?.userId} />
             )}

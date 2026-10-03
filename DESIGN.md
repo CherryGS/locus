@@ -134,11 +134,12 @@ surface adaptations of that system.
   ordinary-case section headings, supporting labels and primary-foreground values
   to separate hierarchy without fading the content. Reflow narrow property rows
   while retaining directly visible fields and copy actions.
-- **Copyable identities:** keep the full value directly available as the copy
-  control. Center its icon against the whole text block, and extend the highlight
-  beyond the text with symmetric padding while preserving property alignment.
-  Reveal idle icons on hover or keyboard focus; touch contexts and operation
-  feedback retain visible icons without moving the value or changing its bounds.
+- **Native text selection (selected):** identifiers and other read-only inspector
+  and Settings values remain ordinary selectable text. Provide no dedicated copy
+  button or click/keyboard clipboard handler. Users select text and copy through
+  the platform's Ctrl+C or context menu. Preserve normal input editing, Token
+  masking/reveal and existing link navigation. Do not add hover/focus copy states,
+  clipboard feedback, extra tab stops or a generalized literal-copy mechanism.
 - **Shared controls:** compare default, hover, focus, active/selected, disabled,
   pending and error states where applicable. Apply shared choices through the
   existing primitives and semantic tokens, preserving behavior.

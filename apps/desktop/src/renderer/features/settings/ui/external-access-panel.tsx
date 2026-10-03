@@ -1,6 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react"
 import {
-  CopyIcon,
   EyeIcon,
   EyeOffIcon,
   KeyRoundIcon,
@@ -29,7 +28,6 @@ export function ExternalAccessPanel({
   useSyncExternalStore(settings.subscribe, settings.snapshot)
   useSyncExternalStore(token.subscribe, token.snapshot)
   const [revealedRevision, setRevealedRevision] = useState<string>()
-  const [addressFeedback, setAddressFeedback] = useState<string>()
   const [tokenFeedback, setTokenFeedback] = useState<string>()
   const saved = settings.observation?.status === "current" ? settings.observation.saved : undefined
   const runtime = settings.runtime
@@ -48,28 +46,6 @@ export function ExternalAccessPanel({
     setRevealedRevision(undefined)
     setTokenFeedback(undefined)
   }, [current?.revision])
-  const copyAddress = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value)
-      setAddressFeedback("Address copied.")
-    } catch {
-      setAddressFeedback("Address could not be copied. Select the address to copy it manually.")
-    }
-  }
-  const copyToken = async () => {
-    const value = token.current
-    if (!value) return
-    try {
-      await navigator.clipboard.writeText(value.token)
-      setTokenFeedback(
-        token.current?.revision === value.revision
-          ? "Token copied."
-          : "The Token observation changed while copying. Read and copy the current Token again.",
-      )
-    } catch {
-      setTokenFeedback("Token could not be copied. Reveal it to copy manually.")
-    }
-  }
   return (
     <section role="region" aria-label="External connection" className="flex flex-col gap-6">
       <SettingsGroup
@@ -88,16 +64,6 @@ export function ExternalAccessPanel({
           {runtime?.active_address && !settings.runtimeError ? (
             <div className="flex min-h-8 min-w-0 flex-wrap items-center justify-between gap-1">
               <code className="break-all">{`http://${runtime.active_address}`}</code>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Copy address"
-                title="Copy address"
-                onClick={() => void copyAddress(`http://${runtime.active_address}`)}
-              >
-                <CopyIcon data-icon="inline-start" />
-              </Button>
             </div>
           ) : (
             <p className="text-muted-foreground">
@@ -108,13 +74,8 @@ export function ExternalAccessPanel({
             </p>
           )}
         </SettingsRow>
-        {(addressFeedback || runtime?.override_address || runtime?.problem) && (
+        {(runtime?.override_address || runtime?.problem) && (
           <div className="flex flex-col gap-2 px-4 pb-3 text-xs">
-            {addressFeedback && (
-              <p role="status" className="text-muted-foreground">
-                {addressFeedback}
-              </p>
-            )}
             {runtime?.override_address && (
               <p className="text-muted-foreground">
                 This run uses an explicit test address override. It does not apply the saved
@@ -167,16 +128,6 @@ export function ExternalAccessPanel({
                 ) : (
                   <EyeIcon data-icon="inline-start" />
                 )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Copy Token"
-                title="Copy Token"
-                disabled={!current || !!restricted}
-                onClick={() => void copyToken()}
-              >
-                <CopyIcon data-icon="inline-start" />
               </Button>
               <Button
                 variant="ghost"
