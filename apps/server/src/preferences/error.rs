@@ -8,6 +8,8 @@ pub(crate) enum PreferenceError {
         "view_definition_id must be nonempty, without surrounding whitespace or control characters"
     )]
     InvalidViewDefinition,
+    #[error("version_id must be nonempty, without surrounding whitespace or control characters")]
+    InvalidCoverVersion,
     #[error("revision must be a canonical decimal integer from 1 through 9223372036854775807")]
     InvalidRevision,
     #[error("saved revision exhausted for Entity {0}")]

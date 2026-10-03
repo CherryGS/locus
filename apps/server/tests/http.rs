@@ -386,7 +386,7 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
         locus_server::api::openapi().unwrap().to_json().unwrap()
     );
     let schema: Value = serde_json::from_str(&one).unwrap();
-    assert_eq!(schema["paths"].as_object().unwrap().len(), 78);
+    assert_eq!(schema["paths"].as_object().unwrap().len(), 80);
     for (path, methods, tag) in [
         ("/api/v1/filter/reference-choices", &["post"][..], "filter"),
         ("/api/v1/tags", &["get", "post"][..], "tag"),
@@ -475,6 +475,16 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
             &["post"][..],
             "preferences",
         ),
+        (
+            "/api/v1/entities/{entity_id}/card-cover-preference",
+            &["get", "put"][..],
+            "preferences",
+        ),
+        (
+            "/api/v1/entities/card-cover-preferences/batch",
+            &["post"][..],
+            "preferences",
+        ),
         ("/api/v1/import-batches", &["get", "post"][..], "imports"),
         ("/api/v1/import-recoveries", &["post"][..], "imports"),
     ] {
@@ -485,6 +495,16 @@ fn schema_is_deterministic_and_describes_every_business_route_and_stream() {
     assert_eq!(
         schema["components"]["schemas"]["SavedViewPreference"]["properties"]["revision"]["type"],
         "string"
+    );
+    assert_eq!(
+        schema["components"]["schemas"]["SavedCardCoverPreference"]["properties"]["revision"]["type"],
+        "string"
+    );
+    assert!(
+        schema["components"]["schemas"]["UpdateCardCoverPreference"]["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("cover"))
     );
     assert_eq!(
         schema["paths"]["/api/v1/events"]["get"]["responses"]["200"]["content"]["text/event-stream"]

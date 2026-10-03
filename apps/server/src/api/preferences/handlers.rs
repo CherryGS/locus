@@ -65,6 +65,7 @@ pub(crate) fn router() -> utoipa_axum::router::OpenApiRouter<Arc<Shared>> {
         routes,
     };
     OpenApiRouter::new()
+        .merge(super::card_cover_handlers::router())
         .routes(routes!(read_view_preference, update_view_preference))
         // As with membership batches, only the caller-selected identities are read;
         // the generic JSON limit must not impose an accidental item quota.

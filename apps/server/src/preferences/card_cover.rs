@@ -1,43 +1,35 @@
 use std::collections::HashMap;
 
-use locus_core::api::{EntityId, Kernel};
+use locus_core::api::EntityId;
 use locus_store::api::{Context, Session};
 
 use super::{
     error::PreferenceError,
-    identity::{SavedRevision, ViewDefinitionId},
+    identity::SavedRevision,
     persistence,
-    record::{Observation, SavedPreference, UpdateOutcome},
+    record::{CardCoverObservation, CardCoverOutcome, CardCoverSelection, SavedCardCover},
+    service::PreferenceService,
 };
 
-#[derive(Clone)]
-pub(crate) struct PreferenceService {
-    pub(super) kernel: Kernel,
-}
-
 impl PreferenceService {
-    pub fn new(kernel: Kernel) -> Self {
-        Self { kernel }
-    }
-
-    pub async fn read(
+    pub async fn read_card_cover(
         &self,
         session: &mut Session,
         entity: EntityId,
-    ) -> Result<Observation, PreferenceError> {
+    ) -> Result<CardCoverObservation, PreferenceError> {
         let service = self.clone();
         session
             .transaction(move |context| {
-                Box::pin(async move { service.read_in(context, entity).await })
+                Box::pin(async move { service.read_card_cover_in(context, entity).await })
             })
             .await
     }
 
-    pub async fn read_batch(
+    pub async fn read_card_covers(
         &self,
         session: &mut Session,
         entities: Vec<EntityId>,
-    ) -> Result<Vec<Observation>, PreferenceError> {
+    ) -> Result<Vec<CardCoverObservation>, PreferenceError> {
         let service = self.clone();
         session
             .transaction(move |context| {
@@ -48,7 +40,7 @@ impl PreferenceService {
                         let value = match observed.get(&entity) {
                             Some(value) => value,
                             None => {
-                                let value = service.read_in(context, entity).await?;
+                                let value = service.read_card_cover_in(context, entity).await?;
                                 observed.entry(entity).or_insert(value)
                             }
                         };
@@ -60,54 +52,56 @@ impl PreferenceService {
             .await
     }
 
-    async fn read_in(
+    async fn read_card_cover_in(
         &self,
         context: &mut Context,
         entity: EntityId,
-    ) -> Result<Observation, PreferenceError> {
+    ) -> Result<CardCoverObservation, PreferenceError> {
         if !self.kernel.entity_exists_in(context, entity).await? {
-            return Ok(Observation::Missing(entity));
+            return Ok(CardCoverObservation::Missing(entity));
         }
-        Ok(match persistence::record::read(context, entity).await? {
-            Some(value) => Observation::Saved(value),
-            None => Observation::Unset(entity),
-        })
+        Ok(
+            match persistence::card_cover::read(context, entity).await? {
+                Some(value) => CardCoverObservation::Saved(value),
+                None => CardCoverObservation::Unset(entity),
+            },
+        )
     }
 
-    pub async fn update(
+    pub async fn update_card_cover(
         &self,
         session: &mut Session,
         entity: EntityId,
-        view_definition: ViewDefinitionId,
+        cover: Option<CardCoverSelection>,
         expected_revision: Option<SavedRevision>,
-    ) -> Result<UpdateOutcome, PreferenceError> {
+    ) -> Result<CardCoverOutcome, PreferenceError> {
         let service = self.clone();
         session
             .transaction(move |context| {
                 Box::pin(async move {
-                    let current = service.read_in(context, entity).await?;
+                    let current = service.read_card_cover_in(context, entity).await?;
                     let revision = match &current {
-                        Observation::Missing(entity) => return Ok(UpdateOutcome::Missing(*entity)),
-                        Observation::Unset(_) => None,
-                        Observation::Saved(value) => Some(value.revision),
+                        CardCoverObservation::Missing(entity) => {
+                            return Ok(CardCoverOutcome::Missing(*entity));
+                        }
+                        CardCoverObservation::Unset(_) => None,
+                        CardCoverObservation::Saved(value) => Some(value.revision),
                     };
-                    // Prepared old writes cannot overwrite a newer revision. A future UI
-                    // coordinator must discard superseded intent and rebase only its current
-                    // choice; retrying an obsolete choice against a fresh revision is unsafe.
-                    // This backend neither retries nor rebases a conflicting operation.
                     if revision != expected_revision {
-                        return Ok(UpdateOutcome::Conflict(current));
+                        return Ok(CardCoverOutcome::Conflict(current));
                     }
                     let next = revision
                         .map_or(Some(1), |value| value.value().checked_add(1))
                         .ok_or(PreferenceError::RevisionExhausted(entity))?;
-                    let saved = SavedPreference {
+                    // A clear retains its revision: deleting the row would let a stale
+                    // no-preference write overwrite a later save/clear cycle.
+                    let saved = SavedCardCover {
                         entity,
-                        view_definition,
+                        cover,
                         revision: SavedRevision::new(next)?,
                     };
-                    persistence::record::write(context, &saved).await?;
-                    Ok(UpdateOutcome::Saved(saved))
+                    persistence::card_cover::write(context, &saved).await?;
+                    Ok(CardCoverOutcome::Saved(saved))
                 })
             })
             .await

@@ -286,6 +286,237 @@ async fn fixture_sql(root: &tempfile::TempDir, sql: &str) {
         .unwrap();
 }
 
+fn card_path(entity: &str) -> String {
+    format!("/api/v1/entities/{entity}/card-cover-preference")
+}
+
+fn card_selection() -> Value {
+    // Presentation intent may outlive its provider or target. Saving does not
+    // establish a provider relation or certify these references as displayable.
+    json!({
+        "source_component_id": request_id(),
+        "version_id": "12345",
+        "target_entity_id": request_id(),
+        "target_file_id": request_id(),
+        "image_component_id": request_id(),
+    })
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn card_cover_save_clear_conflict_recovery_and_view_preferences_are_independent() {
+    let (_root, server, entity) = app().await;
+    assert_eq!(
+        call(&server, "GET", &card_path(&entity), None).await.1,
+        json!({"status":"unset", "entity_id":entity})
+    );
+    assert_eq!(
+        call(&server, "GET", &card_path(MISSING), None).await.1,
+        json!({"status":"missing", "entity_id":MISSING})
+    );
+    let view = call(
+        &server,
+        "PUT",
+        &path(&entity),
+        Some(json!({"request_id":request_id(), "view_definition_id":"civitai.read"})),
+    )
+    .await
+    .1["preference"]
+        .clone();
+    let cover = card_selection();
+    let id = request_id();
+    let input = json!({"request_id":id, "cover":cover, "expected_revision":null});
+    let mut deliveries = Vec::new();
+    for _ in 0..4 {
+        let router = server.router();
+        let request = request(&server, "PUT", &card_path(&entity), Some(input.clone()));
+        deliveries.push(tokio::spawn(async move {
+            response(router.oneshot(request).await.unwrap()).await
+        }));
+    }
+    let (status, saved) = deliveries.remove(0).await.unwrap();
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        saved,
+        json!({"status":"card_cover_preference_saved", "preference":{"entity_id":entity, "cover":cover, "revision":"1"}})
+    );
+    for delivery in deliveries {
+        assert_eq!(delivery.await.unwrap().1, saved);
+    }
+    let batch = call(
+        &server,
+        "POST",
+        "/api/v1/entities/card-cover-preferences/batch",
+        Some(json!({"entity_ids":[entity,MISSING,entity]})),
+    )
+    .await
+    .1;
+    assert_eq!(batch[0], batch[2]);
+    assert_eq!(
+        batch[0],
+        json!({"status":"saved", "entity_id":entity, "cover":cover, "revision":"1"})
+    );
+    assert_eq!(batch[1]["status"], "missing");
+    let cleared = call(
+        &server,
+        "PUT",
+        &card_path(&entity),
+        Some(json!({"request_id":request_id(), "cover":null, "expected_revision":"1"})),
+    )
+    .await
+    .1;
+    assert_eq!(
+        cleared,
+        json!({"status":"card_cover_preference_saved", "preference":{"entity_id":entity,"cover":null,"revision":"2"}})
+    );
+    for expected in [Value::Null, json!("1")] {
+        let conflict = call(
+            &server,
+            "PUT",
+            &card_path(&entity),
+            Some(json!({"request_id":request_id(), "cover":cover, "expected_revision":expected})),
+        )
+        .await
+        .1;
+        assert_eq!(
+            conflict,
+            json!({"status":"card_cover_preference_conflict", "current":{"status":"saved","entity_id":entity,"cover":null,"revision":"2"}})
+        );
+    }
+    assert_eq!(
+        call(&server, "GET", &format!("/api/v1/requests/{id}"), None)
+            .await
+            .1,
+        json!({"status":"direct_complete", "outcome":saved})
+    );
+    assert_eq!(
+        call(&server, "PUT", &card_path(&entity), Some(input.clone()))
+            .await
+            .1,
+        saved
+    );
+    assert_eq!(
+        call(&server, "GET", &card_path(&entity), None).await.1["cover"],
+        Value::Null
+    );
+    assert_eq!(
+        call(&server, "GET", &path(&entity), None).await.1,
+        json!({"status":"saved", "entity_id":entity,"view_definition_id":view["view_definition_id"],"revision":view["revision"]})
+    );
+    assert_eq!(
+        call(
+            &server,
+            "PUT",
+            &card_path(&entity),
+            Some(json!({"request_id":id, "cover":null, "expected_revision":"2"}))
+        )
+        .await
+        .1["code"],
+        "request_conflict"
+    );
+    assert_eq!(
+        call(
+            &server,
+            "PUT",
+            &card_path(MISSING),
+            Some(json!({"request_id":request_id(),"cover":cover}))
+        )
+        .await
+        .1,
+        json!({"status":"card_cover_preference_missing","entity_id":MISSING})
+    );
+    server.close_admission();
+    assert_eq!(
+        call(&server, "PUT", &card_path(&entity), Some(input))
+            .await
+            .1,
+        saved
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn card_cover_identity_validation_batch_attribution_and_saved_intent_survive_reopen() {
+    let (root, server, entity) = app().await;
+    let cover = card_selection();
+    for body in [
+        json!({"request_id":request_id()}),
+        json!({"request_id":request_id(),"cover":{},"expected_revision":null}),
+        json!({"request_id":request_id(),"cover":{ "source_component_id":MISSING,"version_id":" ","target_entity_id":MISSING,"target_file_id":MISSING,"image_component_id":MISSING }}),
+        json!({"request_id":request_id(),"cover":cover,"expected_revision":"01"}),
+        json!({"request_id":request_id(),"cover":null,"extra":true}),
+    ] {
+        assert_eq!(
+            call(&server, "PUT", &card_path(&entity), Some(body))
+                .await
+                .0,
+            StatusCode::BAD_REQUEST
+        );
+    }
+    for field in [
+        "source_component_id",
+        "target_entity_id",
+        "target_file_id",
+        "image_component_id",
+    ] {
+        let mut invalid = cover.clone();
+        invalid[field] = json!("01992853-c123-4000-8000-ffffffffffff");
+        assert_eq!(
+            call(
+                &server,
+                "PUT",
+                &card_path(&entity),
+                Some(json!({"request_id":request_id(),"cover":invalid}))
+            )
+            .await
+            .0,
+            StatusCode::BAD_REQUEST
+        );
+    }
+    let saved = call(
+        &server,
+        "PUT",
+        &card_path(&entity),
+        Some(json!({"request_id":request_id(),"cover":cover})),
+    )
+    .await
+    .1;
+    let batch = call(
+        &server,
+        "POST",
+        "/api/v1/entities/card-cover-preferences/batch",
+        Some(json!({"entity_ids":vec![entity.clone();512]})),
+    )
+    .await;
+    assert_eq!(batch.0, StatusCode::OK);
+    assert_eq!(batch.1.as_array().unwrap().len(), 512);
+    server.close_admission();
+    server.serve().await.unwrap();
+    let reopened = Server::bind(ServerConfig::new(TOKEN.into(), root.path().join("library")))
+        .await
+        .unwrap();
+    assert_eq!(
+        call(&reopened, "GET", &card_path(&entity), None).await.1,
+        json!({"status":"saved","entity_id":entity,"cover":cover,"revision":saved["preference"]["revision"]})
+    );
+    let cleared = call(
+        &reopened,
+        "PUT",
+        &card_path(&entity),
+        Some(json!({"request_id":request_id(),"cover":null,"expected_revision":"1"})),
+    )
+    .await
+    .1;
+    assert_eq!(cleared["preference"]["revision"], "2");
+    reopened.close_admission();
+    reopened.serve().await.unwrap();
+    let reopened = Server::bind(ServerConfig::new(TOKEN.into(), root.path().join("library")))
+        .await
+        .unwrap();
+    assert_eq!(
+        call(&reopened, "GET", &card_path(&entity), None).await.1,
+        json!({"status":"saved","entity_id":entity,"cover":null,"revision":"2"})
+    );
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn real_commit_unknown_is_typed_and_recoverable_with_actual_saved_observation() {
     let (root, server, entity) = app().await;

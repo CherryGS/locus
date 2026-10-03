@@ -13,6 +13,7 @@ import { BackendApi } from "@/shared/api"
 import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
 import { ImportCoordinator } from "@/features/file-import"
 import { CivitaiCoordinator } from "@/features/civitai"
+import { CardCoverCoordinator } from "@/features/entity-card-cover"
 import type { RelatedCollection, CivitaiSelection } from "@/pages/entity"
 import { TaskObserver } from "@/entities/task"
 import { PreferenceCoordinator } from "@/features/entity-view-preferences"
@@ -46,6 +47,8 @@ export class DesktopSession {
   }
 }
 export class LibrarySession extends DesktopSession {
+  readonly covers: CardCoverCoordinator
+  private unobserveCovers: () => void
   readonly settingsNavigation = new SettingsNavigation()
   readonly browsing = new Map<string, import("@/pages/entity").EntityBrowsingState>()
   readonly relatedCollections = new Map<string, RelatedCollection>()
@@ -68,6 +71,9 @@ export class LibrarySession extends DesktopSession {
     this.reader = new EntityReader(this.api, 256, (entityId, fileId) =>
       this.playback.observe(entityId, fileId),
     )
+    this.covers = new CardCoverCoordinator(this.api, id => this.reader.get(id))
+    this.draftPreparation.add(this.covers)
+    this.unobserveCovers = this.reader.subscribe(() => this.covers.observe())
     this.tags = new TagCoordinator(this.api, this.api.context.runId, (ids) =>
       this.reader.tagEffects(ids),
     )
@@ -101,6 +107,7 @@ export class LibrarySession extends DesktopSession {
       if (state.close.phase !== "idle" || state.connection.status !== "ready") this.playback.pause()
       this.imports.host(state)
       this.civitai.host(state)
+      this.covers.host(state.close.phase !== "idle", state.connection.status === "ready" && state.connection.runId === this.api.context.runId)
       if (state.connection.status !== "ready" || state.connection.runId !== this.api.context.runId) {
         this.filter.dispose()
         this.tags.dispose()
@@ -118,6 +125,7 @@ export class LibrarySession extends DesktopSession {
   readonly demand = (ids: string[]) => {
     this.reader.demand(ids)
     this.preferences.demand(ids)
+    this.covers.demand(ids)
   }
   readonly dispose = () => {
     this.playback.pause()
@@ -131,11 +139,13 @@ export class LibrarySession extends DesktopSession {
     this.imports.dispose()
     this.unobserveImports()
     this.civitai.dispose()
+    this.unobserveCovers()
+    this.covers.dispose()
     window.removeEventListener("pagehide", this.dispose)
   }
   readonly get = (id: string) => {
     const entity = this.reader.get(id)
-    return { ...entity, problems: [...(entity.problems ?? []), ...this.preferences.problems(id)] }
+    return { ...entity, gridPreview: this.covers.get(id).preview, problems: [...(entity.problems ?? []), ...this.preferences.problems(id)] }
   }
   source(): EntitySource {
     return { sequence: this.filter.sequence ?? emptySequence, get: this.get, demand: this.demand }

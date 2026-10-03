@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import { ArrowUpRightIcon, FileIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
+import { ArrowUpRightIcon, CheckIcon, FileIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
+import type { CardCoverCoordinator } from "@/features/entity-card-cover"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
@@ -20,6 +21,7 @@ import { CivitaiPanelPortal } from "./civitai-panel-slot"
 export function CivitaiReading({
   api,
   coordinator,
+  covers,
   entity,
   component,
   initial,
@@ -28,6 +30,7 @@ export function CivitaiReading({
 }: {
   api: BackendApi
   coordinator: CivitaiCoordinator
+  covers?: CardCoverCoordinator
   entity: EntityItem
   component: string
   initial?: CivitaiSelection
@@ -275,12 +278,18 @@ export function CivitaiReading({
       <h3 className="text-xs text-muted-foreground">Source files</h3>
       <ul className="flex min-w-0 flex-col divide-y rounded-lg border">
         {unit.version.files.map((item) => (
-          <li key={item.id} className="flex min-w-0 items-center gap-3 px-3 py-2.5">
-            <FileIcon className="size-4 shrink-0 text-muted-foreground" />
+          <li key={item.id} className="flex min-w-0 items-start gap-3 px-3 py-2.5" data-current-file={unit.version.id === page?.origin.record.matched_version && item.id === page?.origin.record.matched_file || undefined}>
+            <FileIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <span className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="truncate text-sm font-medium" title={item.name}>
+              <span className="text-sm font-medium [overflow-wrap:anywhere]">
                 {item.name}
               </span>
+              {unit.version.id === page?.origin.record.matched_version && item.id === page?.origin.record.matched_file && (
+                <span className="text-xs text-primary">{page.origin.input === "current" ? "This entry’s file" : "This entry’s saved match"}</span>
+              )}
+              {unit.correspondences.filter(match => match.file === item.id && match.input === "current").length > 0 && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><CheckIcon className="size-3" />In library · {unit.correspondences.filter(match => match.file === item.id && match.input === "current").length}</span>
+              )}
               <span className="text-xs font-normal whitespace-normal text-muted-foreground [overflow-wrap:anywhere]">
                 {sourceFileSummary(item)}
               </span>
@@ -382,8 +391,9 @@ export function CivitaiReading({
         aria-label="Civitai model"
       >
         <CivitaiPanelPortal>{libraryDetails}</CivitaiPanelPortal>
-        <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
             <h1 className="text-xl font-semibold tracking-tight">{model?.name ?? "Civitai"}</h1>
             {model && (
               <Badge variant="secondary">
@@ -396,8 +406,14 @@ export function CivitaiReading({
                 {creatorName}
               </span>
             )}
+            </div>
+            {!!model?.tags.length && (
+              <ul aria-label="Model tags" className="flex min-w-0 flex-wrap gap-1.5">
+                {model.tags.map(tag => <li key={tag}><Badge variant="outline">{tag}</Badge></li>)}
+              </ul>
+            )}
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5 pt-0.5" data-slot="civitai-header-actions">
             {model && (
               <span className="mr-1 text-xs text-muted-foreground">
                 <SourceLink url={`https://civitai.com/models/${model.id}`}>
@@ -420,6 +436,17 @@ export function CivitaiReading({
             </Button>
           </div>
         </header>
+        {page && model && (
+          <section aria-label="Current local file" className="flex min-w-0 flex-col gap-1.5 rounded-md bg-secondary/40 px-3 py-2.5 select-text">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+              <span className="text-xs text-muted-foreground">{page.origin.input === "current" ? "This entry" : "Saved match"}</span>
+              <span className="font-medium">{model.versions.find(version => version.id === page.origin.record.matched_version)?.name ?? `Version ${page.origin.record.matched_version}`}</span>
+              <span className="text-muted-foreground">/</span>
+              <span className="min-w-0 [overflow-wrap:anywhere]">{model.versions.find(version => version.id === page.origin.record.matched_version)?.files.find(item => item.id === page.origin.record.matched_file)?.name ?? `File ${page.origin.record.matched_file}`}</span>
+            </div>
+            {file?.relativePath && <code className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{file.relativePath}</code>}
+          </section>
+        )}
         {problem && (
           <Alert variant="destructive">
             <AlertTitle>Page read failed</AlertTitle>
@@ -487,6 +514,8 @@ export function CivitaiReading({
                           title={`Version ${version.id}${version.id === page.origin.record.matched_version ? " · matched to this entry" : ""}`}
                         >
                           <span className="truncate">{name}</span>
+                          {version.id === page.origin.record.matched_version && <span className="text-xs">· this entry</span>}
+                          {version.id !== page.origin.record.matched_version && page.correspondences.some(match => match.version === version.id && match.input === "current") && <CheckIcon className="size-3.5 shrink-0" aria-label="Version in library" />}
                           {!version.in_origin && <span>· not recorded in this snapshot</span>}
                         </ToggleGroupItem>
                       )
@@ -572,6 +601,8 @@ export function CivitaiReading({
             <Separator />
             {unit ? (
               <CivitaiGallery
+                covers={covers}
+                originEntity={entity.id}
                 key={`${unit.model}:${unit.version.id}:${unit.source.component_id}`}
                 api={api}
                 unit={unit}
@@ -650,10 +681,10 @@ export function CivitaiReading({
                           </TableHead>
                           <TableCell className="px-3 whitespace-normal [overflow-wrap:anywhere]">
                             {trainedWords.length ? (
-                              <ul className="flex min-w-0 flex-col gap-2">
+                              <ul className="grid min-w-0 grid-cols-1 gap-2 @lg:grid-cols-2">
                                 {trainedWords.map((word, index) => (
-                                  <li key={index}>
-                                    <code className="select-text text-xs">{word}</code>
+                                  <li key={index} className="min-w-0 rounded-md bg-control p-2.5">
+                                    <code className="block select-text text-xs leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{word}</code>
                                   </li>
                                 ))}
                               </ul>
@@ -682,18 +713,6 @@ export function CivitaiReading({
             <section aria-label="Model description" className="flex min-w-0 flex-col gap-3 border-t pt-5">
               <header className="flex flex-col gap-3">
                 <h2 className="text-sm font-medium">Model description</h2>
-                {!!model.tags.length && (
-                  <dl className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
-                    <dt className="text-xs text-muted-foreground">Model tags</dt>
-                    <dd className="flex min-w-0 flex-wrap gap-1.5">
-                      {model.tags.map((tag) => (
-                        <Badge key={tag} variant="outline">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </dd>
-                  </dl>
-                )}
               </header>
               <CivitaiRichText
                 html={model.description}

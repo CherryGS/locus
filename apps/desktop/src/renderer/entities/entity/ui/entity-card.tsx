@@ -14,10 +14,12 @@ export function EntityCard({
   entity,
   titleId,
   componentKind,
+  gridPreview,
 }: {
   entity: EntityItem
   titleId: string
   componentKind?: EntityItem["components"][number]["kind"]
+  gridPreview?: string
 }) {
   const display = entityCardDisplay(entity)
   const title = display.title ?? entityLabel(entity)
@@ -29,7 +31,7 @@ export function EntityCard({
     <Card size="sm" className="h-full gap-0 py-0">
       <CardContent className="relative min-h-0 flex-1 bg-muted/20 px-0">
         <EntityThumbnail
-          src={display.preview?.src}
+          src={gridPreview ?? display.preview?.src}
           hasFile={entity.components.some((component) => component.kind === "file")}
           hasVideo={entity.components.some((component) => component.kind === "video")}
           hasTwitter={entity.components.some((component) => component.kind === "twitter")}

@@ -22,6 +22,7 @@ function EntityRoute() {
     session?.preferences.snapshot ?? zero,
   )
   useSyncExternalStore(session?.civitai.subscribe ?? noSubscribe, session?.civitai.snapshot ?? zero)
+  useSyncExternalStore(session?.covers.subscribe ?? noSubscribe, session?.covers.snapshot ?? zero)
   const data = Route.useLoaderData()
   const previewSource = useMemo(
     () => ({
@@ -69,6 +70,7 @@ function EntityRoute() {
               api: session.api,
               playback: session.playback,
               civitai: session.civitai,
+              covers: session.covers,
               relatedCollections: session.relatedCollections,
               civitaiExcursions: session.civitaiExcursions,
             }

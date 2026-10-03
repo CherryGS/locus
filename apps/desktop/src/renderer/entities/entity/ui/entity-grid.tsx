@@ -25,6 +25,7 @@ export function EntityGrid({
   onSelect,
   onOpen,
   revealSelectionOnMount,
+  revealSelection,
 }: {
   componentFor: (entity: EntityItem) => EntityItem["components"][number]["kind"] | undefined
   source: EntitySource
@@ -34,6 +35,7 @@ export function EntityGrid({
   onSelect: (entity: EntityItem) => void
   onOpen: (entity: EntityItem) => void
   revealSelectionOnMount: boolean
+  revealSelection?: number
 }) {
   const { sequence, get, demand } = source
   const viewport = useRef<HTMLDivElement>(null)
@@ -54,6 +56,17 @@ export function EntityGrid({
     [sequence, selectedId],
   )
   const selectedRow = selectedIndex < 0 ? -1 : Math.floor(selectedIndex / columns)
+  const revealed = useRef(revealSelection)
+  useEffect(() => {
+    if (revealed.current === revealSelection) return
+    revealed.current = revealSelection
+    const element = viewport.current
+    if (!element || selectedRow < 0) return
+    const target = selectedRow * stride + verticalInset - (size.height - rowHeight) / 2
+    element.scrollTop = mapping.physical(target)
+    setScroll(element.scrollTop)
+    element.focus({ preventScroll: true })
+  }, [revealSelection])
   const first = Math.max(0, Math.floor((logical - verticalInset) / stride) - 2)
   const last = Math.min(rows - 1, Math.ceil((logical + size.height - verticalInset) / stride) + 2)
   const visible = Array.from({ length: Math.max(0, last - first + 1) }, (_, index) => first + index)
@@ -267,6 +280,7 @@ export function EntityGrid({
                   onDoubleClick={() => onOpen(entity)}
                 >
                   <EntityCard
+                    gridPreview={entity.gridPreview}
                     componentKind={componentFor(entity)}
                     entity={entity}
                     titleId={`${cellId(id)}-title`}

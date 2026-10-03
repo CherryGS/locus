@@ -13,6 +13,7 @@ import type { PlaybackCoordinator } from "@/features/video-playback"
 import { ModelReading } from "./model-reading"
 import { CivitaiReading } from "./civitai-reading"
 import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
+import type { CardCoverCoordinator } from "@/features/entity-card-cover"
 import type { CivitaiSelection } from "../model/navigation"
 import { LiveVideo } from "./live-video"
 import type { BackendApi } from "@/shared/api"
@@ -45,6 +46,7 @@ export function EntityContent({
     reader: EntityReader
     playback: PlaybackCoordinator
     civitai: CivitaiCoordinator
+    covers?: CardCoverCoordinator
   }
   collections: readonly RelatedCollection[]
   onRelated: (collection: RelatedCollection, entity: EntityItem) => void
@@ -77,6 +79,7 @@ export function EntityContent({
         <CivitaiReading
           api={live.api}
           coordinator={live.civitai}
+          covers={live.covers}
           entity={entity}
           component={civitai.id}
           initial={civitaiSelection}

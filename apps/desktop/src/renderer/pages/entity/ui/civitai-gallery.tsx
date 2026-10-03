@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react"
+import type { CardCoverCoordinator } from "@/features/entity-card-cover"
 import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon, ImageIcon, InfoIcon, VideoIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { Button } from "@/shared/ui/button"
@@ -21,17 +22,23 @@ const exampleKey = (example: Wire<"CivitaiManagedExample">) =>
 
 export function CivitaiGallery({
   api,
+  covers,
+  originEntity,
   unit,
   opening,
   revision,
   onOpen,
 }: {
   api: BackendApi
+  covers?: CardCoverCoordinator
+  originEntity?: string
   unit: Wire<"CivitaiVersionView">
   opening: boolean
   revision: string
   onOpen: (entity: string) => void
 }) {
+  useSyncExternalStore(covers?.subscribe ?? noSubscribe, covers?.snapshot ?? zero)
+  const coverState = originEntity && covers ? covers.get(originEntity) : undefined
   const groups = new Map<string, Wire<"CivitaiManagedExample">[]>()
   for (const example of unit.examples) {
     const key = exampleKey(example)
@@ -143,6 +150,21 @@ export function CivitaiGallery({
           </p>
         )}
       </div>
+      {covers && originEntity && (
+        <div className="flex flex-wrap items-center gap-2" aria-label="Grid card cover">
+          <Button size="sm" variant="outline" disabled={!usable || opening || coverState?.pending || !!coverState?.attempt || !active?.binding.media.some(media => media.kind === "image")}
+            onClick={() => {
+              const image = active?.binding.media.find(media => media.kind === "image")
+              if (active && image) void covers.choose(originEntity, { source_component_id: active.source.component_id, version_id: unit.version.id, target_entity_id: active.binding.entity_id, target_file_id: active.binding.file_id, image_component_id: image.component_id })
+            }}>Use as card cover</Button>
+          {coverState?.observed?.status === "saved" && coverState.observed.cover && (
+            <Button size="sm" variant="ghost" disabled={coverState.pending || !!coverState.attempt} onClick={() => void covers.choose(originEntity, null)}>Automatic cover</Button>
+          )}
+          {(coverState?.problem || coverState?.unavailable) && <p role="alert" className="basis-full text-xs text-destructive">{coverState.problem ?? coverState.unavailable}
+            {coverState.problem && <Button size="sm" variant="ghost" disabled={coverState.pending} onClick={() => void covers.retry(originEntity)}>Check cover</Button>}
+          </p>}
+        </div>
+      )}
       <div className="flex min-w-0 items-center gap-2" data-slot="civitai-gallery-controls">
         <Button
           variant="outline"
@@ -278,6 +300,8 @@ export function CivitaiGallery({
     </section>
   )
 }
+const noSubscribe = () => () => {}
+const zero = () => 0
 
 function ManagedThumbnail({
   api,
@@ -330,11 +354,18 @@ function ManagedThumbnail({
         throw new Error("Example current File no longer matches its relationship")
       const target = example.binding.media.find((media) => media.kind === "image") ?? example.binding.media[0]
       if (!target) throw new Error("No completed Media component")
+      const mediaKind = target.kind === "image" ? "aadf84d2-0dc0-4a81-8cdb-901162c78321" : "f4be9375-60f1-4d04-8f07-8c9ad765e230"
+      if (!member.memberships.some(membership => membership.kind_id === mediaKind && membership.component_id === target.component_id))
+        throw new Error("Example Media membership changed")
       const preview = await api.savedPreview(target.kind, target.component_id)
       if (!current) return
-      if (!preview || preview.file_id !== example.binding.file_id)
+      if (!preview || preview.kind !== target.kind || preview.file_id !== example.binding.file_id)
         throw new Error("The already-produced preview is unavailable; rereading does not generate it")
       const bytes = await api.previewBytes(preview.locator, controller.signal)
+      const currentMembers = await api.memberships([example.binding.entity_id])
+      const currentMember = currentMembers.find(member => member.entity_id === example.binding.entity_id)
+      if (currentMember?.status !== "present" || !currentMember.memberships.some(member => member.component_id === example.binding.file_id && member.kind_id === "9fd73d3d-d35d-41bc-8b73-402e12f5c017") || !currentMember.memberships.some(member => member.kind_id === mediaKind && member.component_id === target.component_id))
+        throw new Error("Example membership changed while loading")
       if (!current) return
       objectUrl = URL.createObjectURL(bytes)
       if (current) {

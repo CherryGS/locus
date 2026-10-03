@@ -58,6 +58,45 @@ async fn entity_notes_upgrade_defaults_existing_entities_and_survives_reopen() {
         1
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn card_cover_upgrade_preserves_prior_history_entity_notes_and_view_preferences() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("cover-upgrade.sqlite");
+    let mut session = Session::open(&path).await.unwrap();
+    execute(&mut session, &STEPS[..17]).await.unwrap();
+    sql(&mut session, "INSERT INTO locus_core_comm_entity (id,notes) VALUES(X'01992853c12370008000000000000001','existing notes'); INSERT INTO locus_server_comm_entity_view_preference (entity_id,view_definition_id,revision) VALUES(X'01992853c12370008000000000000001','civitai.read',7); CREATE TABLE fixture_history AS SELECT * FROM locus_migration_comm_history").await;
+    execute(&mut session, STEPS).await.unwrap();
+    assert_eq!(count(&mut session, "SELECT count(*) AS count FROM (SELECT * FROM fixture_history EXCEPT SELECT * FROM locus_migration_comm_history)").await,0);
+    assert_eq!(
+        count(
+            &mut session,
+            "SELECT count(*) AS count FROM locus_core_comm_entity WHERE notes='existing notes'"
+        )
+        .await,
+        1
+    );
+    assert_eq!(count(&mut session, "SELECT count(*) AS count FROM locus_server_comm_entity_view_preference WHERE view_definition_id='civitai.read' AND revision=7").await,1);
+    assert_eq!(
+        count(
+            &mut session,
+            "SELECT count(*) AS count FROM locus_server_comm_entity_card_cover_preference"
+        )
+        .await,
+        0
+    );
+    drop(session);
+    let mut session = Session::open(&path).await.unwrap();
+    execute(&mut session, STEPS).await.unwrap();
+    assert_eq!(
+        count(
+            &mut session,
+            "SELECT count(*) AS count FROM locus_migration_comm_history WHERE id=18"
+        )
+        .await,
+        1
+    );
+}
 async fn sql(s: &mut Session, text: &str) {
     let text = text.to_owned();
     s.transaction::<_, MigrationError, _>(move |c| {
@@ -267,7 +306,7 @@ async fn fresh_schema_reopens_without_replay_and_suffix_appends() {
             "SELECT count(*) AS count FROM sqlite_schema WHERE type='table' AND name LIKE 'locus_%'"
         )
         .await,
-        21
+        22
     );
     assert_eq!(
         count(

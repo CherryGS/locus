@@ -1003,6 +1003,120 @@
         }
       }
     },
+    "/api/v1/entities/card-cover-preferences/batch": {
+      "post": {
+        "tags": [
+          "preferences"
+        ],
+        "operationId": "read_card_cover_preferences",
+        "parameters": [
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadCardCoverPreferences"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "One attributed result per input including duplicates. Observation failure rejects the whole batch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EntityCardCoverPreference"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/entities/view-preferences/batch": {
       "post": {
         "tags": [
@@ -1040,6 +1154,232 @@
                   "items": {
                     "$ref": "#/components/schemas/EntityViewPreference"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entities/{entity_id}/card-cover-preference": {
+      "get": {
+        "tags": [
+          "preferences"
+        ],
+        "operationId": "read_card_cover_preference",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityCardCoverPreference"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Foreign origin or host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wrong run or conflicting request ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Operation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admission closed or retained launch rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "preferences"
+        ],
+        "operationId": "update_card_cover_preference",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locus-Run",
+            "in": "header",
+            "description": "Expected backend run from private readiness; context, not authorization. Never silently replace it.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCardCoverPreference"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Conditional recoverable save or clear; commits UI intent only, without claiming a provider relationship or preview availability.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationOutcome"
                 }
               }
             }
@@ -10776,6 +11116,35 @@
       "BoundsRequestBody": {
         "$ref": "#/components/schemas/SearchBoundsRequestData"
       },
+      "CardCoverSelection": {
+        "type": "object",
+        "description": "A retained managed-image choice, qualified again by the renderer before use.",
+        "required": [
+          "source_component_id",
+          "version_id",
+          "target_entity_id",
+          "target_file_id",
+          "image_component_id"
+        ],
+        "properties": {
+          "image_component_id": {
+            "type": "string"
+          },
+          "source_component_id": {
+            "type": "string"
+          },
+          "target_entity_id": {
+            "type": "string"
+          },
+          "target_file_id": {
+            "type": "string"
+          },
+          "version_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ChangeMembership": {
         "type": "object",
         "required": [
@@ -11991,6 +12360,79 @@
             "type": "string"
           }
         }
+      },
+      "EntityCardCoverPreference": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "cover",
+              "revision",
+              "status"
+            ],
+            "properties": {
+              "cover": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CardCoverSelection"
+                  }
+                ]
+              },
+              "entity_id": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "saved"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "status"
+            ],
+            "properties": {
+              "entity_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unset"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "status"
+            ],
+            "properties": {
+              "entity_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "missing"
+                ]
+              }
+            }
+          }
+        ]
       },
       "EntityMemberships": {
         "oneOf": [
@@ -14039,6 +14481,60 @@
           {
             "type": "object",
             "required": [
+              "preference",
+              "status"
+            ],
+            "properties": {
+              "preference": {
+                "$ref": "#/components/schemas/SavedCardCoverPreference"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "card_cover_preference_saved"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "current",
+              "status"
+            ],
+            "properties": {
+              "current": {
+                "$ref": "#/components/schemas/EntityCardCoverPreference"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "card_cover_preference_conflict"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "entity_id",
+              "status"
+            ],
+            "properties": {
+              "entity_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "card_cover_preference_missing"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "notes",
               "status"
             ],
@@ -14931,6 +15427,21 @@
           "terminal"
         ]
       },
+      "ReadCardCoverPreferences": {
+        "type": "object",
+        "required": [
+          "entity_ids"
+        ],
+        "properties": {
+          "entity_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "ReadEvidence": {
         "type": "object",
         "required": [
@@ -15151,6 +15662,32 @@
           }
         },
         "additionalProperties": false
+      },
+      "SavedCardCoverPreference": {
+        "type": "object",
+        "required": [
+          "entity_id",
+          "cover",
+          "revision"
+        ],
+        "properties": {
+          "cover": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CardCoverSelection"
+              }
+            ]
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          }
+        }
       },
       "SavedSettings": {
         "type": "object",
@@ -17733,6 +18270,37 @@
             "$ref": "#/components/schemas/TwitterRecord"
           }
         }
+      },
+      "UpdateCardCoverPreference": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "cover"
+        ],
+        "properties": {
+          "cover": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CardCoverSelection",
+                "description": "Null explicitly clears the selection while retaining its write revision."
+              }
+            ]
+          },
+          "expected_revision": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Null or omitted requires no saved preference, never unconditional overwrite."
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "UpdateViewPreference": {
         "type": "object",

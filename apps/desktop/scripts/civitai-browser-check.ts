@@ -59,6 +59,9 @@ try {
       .waitFor()
   }
   await reading.getByText("A independent model description", { exact: true }).waitFor()
+  assert(await reading.getByRole("list", { name: "Model tags", exact: true }).isVisible())
+  assert(await reading.getByRole("region", { name: "Current local file", exact: true }).getByText("A.safetensors", { exact: true }).isVisible())
+  assert.equal(await reading.locator('[data-current-file="true"]').count(), 1)
   const triggerWords = reading.getByRole("row", { name: /^Trigger words/ })
   assert.equal(await triggerWords.getByRole("listitem").count(), 12)
   assert.equal(await reading.getByRole("region", { name: "Version files" }).getByRole("listitem").count(), 4)

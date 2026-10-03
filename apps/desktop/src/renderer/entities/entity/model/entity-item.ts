@@ -112,6 +112,8 @@ export type EntityItem = {
   refreshing?: boolean
   membershipsStatus?: "unread" | "loading" | "present" | "missing" | "failed"
   problems?: readonly ReadProblem[]
+  // Qualified presentation resource consumed only by grid cards.
+  gridPreview?: string
 }
 
 export const entityLabel = (entity: EntityItem) => entity.name ?? `Entity ${entity.id.slice(-8)}`

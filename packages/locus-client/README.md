@@ -139,6 +139,24 @@ its retained uncertainty, plus rollback, corruption, deletion and revision bound
 
 ## Entity discovery and content reads
 
+Entity grid cover choices are separate from default view preferences. Read
+`GET /entities/{entity_id}/card-cover-preference` or the ordered duplicate-preserving
+`POST /entities/card-cover-preferences/batch` with `{ entity_ids }`. Reads distinguish
+`saved`, `unset` and `missing`; a saved record contains `entity_id`, decimal-string
+`revision` and nullable `cover`.
+
+`PUT /entities/{entity_id}/card-cover-preference` accepts `request_id`, conditional
+`expected_revision` and required `cover`. A selection retains `source_component_id`,
+`version_id`, `target_entity_id`, `target_file_id` and `image_component_id`; `cover: null`
+clears it while advancing and retaining the revision. Outcomes are
+`card_cover_preference_saved`, `card_cover_preference_conflict`,
+`card_cover_preference_missing` or the existing typed `failed`. The same request
+recovery and unknown-commit rules apply. These writes retain UI intent without
+changing default views or asserting provider relationships, current memberships
+or preview availability. Consumers requalify references through current owner reads
+before showing managed images, and never persist blob URLs or automatic fallbacks.
+
+
 ```ts
 import { createLocusClient, readEntityIds } from "@locus/client";
 

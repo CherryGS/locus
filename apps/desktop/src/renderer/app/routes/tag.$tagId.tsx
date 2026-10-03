@@ -50,6 +50,7 @@ function TagRoute() {
   useSyncExternalStore(session?.reader.subscribe ?? noSubscribe, session?.reader.snapshot ?? zero)
   useSyncExternalStore(session?.preferences.subscribe ?? noSubscribe, session?.preferences.snapshot ?? zero)
   useSyncExternalStore(session?.civitai.subscribe ?? noSubscribe, session?.civitai.snapshot ?? zero)
+  useSyncExternalStore(session?.covers.subscribe ?? noSubscribe, session?.covers.snapshot ?? zero)
   const get = useCallback((id: string) => session!.reader.get(id), [session])
   const demand = useCallback((ids: string[]) => session?.demand(ids), [session])
   useEffect(() => {
@@ -113,7 +114,7 @@ function TagRoute() {
             pending: s.queryPending, error: s.queryError, refresh: () => c.query(s) }}
           live={{ reader: session.reader, filter: session.filter, tags: session.tags, notes: session.notes,
             mainDestination: session.mainDestination, preferences: session.preferences, api: session.api,
-            playback: session.playback, civitai: session.civitai, relatedCollections: session.relatedCollections,
+            playback: session.playback, civitai: session.civitai, covers: session.covers, relatedCollections: session.relatedCollections,
             civitaiExcursions: session.civitaiExcursions }}
         />
       ) : <TagDetailPage

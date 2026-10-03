@@ -208,6 +208,11 @@ test("field examples follow keyboard highlight and reject an older preview reply
   assert.equal(f.a.help.reference, "file_name_exact")
   assert.equal(f.source().text, "@", "Previewing must not insert a field")
   assert.equal(f.captures(), 0, "Field previews do not start library discovery")
+  f.a.move(-1)
+  assert.equal(f.a.help.reference, "tag_names_exact", "a warmed field example is available synchronously")
+  f.a.move(1)
+  assert.equal(f.a.help.reference, "file_name_exact")
+  assert.deepEqual(requested, ["tag_names_exact", "file_name_exact"], "moving back does not repaint a loading preview or repeat help reads")
 })
 test("an exact declared choice leads matching suggestions and keeps observed provenance", async () => {
   const f = fixture({ filterEditing: async () => ({ ...valueContext, fragment: "Jpeg" }),

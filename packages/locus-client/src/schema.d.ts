@@ -116,6 +116,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/entities/card-cover-preferences/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["read_card_cover_preferences"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/entities/view-preferences/batch": {
         parameters: {
             query?: never;
@@ -126,6 +142,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["read_view_preferences"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/entities/{entity_id}/card-cover-preference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["read_card_cover_preference"];
+        put: operations["update_card_cover_preference"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1473,6 +1505,14 @@ export interface components {
         };
         BoundsBody: components["schemas"]["SearchBoundsData"];
         BoundsRequestBody: components["schemas"]["SearchBoundsRequestData"];
+        /** @description A retained managed-image choice, qualified again by the renderer before use. */
+        CardCoverSelection: {
+            image_component_id: string;
+            source_component_id: string;
+            target_entity_id: string;
+            target_file_id: string;
+            version_id: string;
+        };
         ChangeMembership: {
             membership: components["schemas"]["Membership"];
             request_id: string;
@@ -1747,6 +1787,21 @@ export interface components {
             /** @description Present only when this process explicitly overrides the captured setting. */
             environment?: string | null;
             path: string;
+        };
+        EntityCardCoverPreference: {
+            cover: null | components["schemas"]["CardCoverSelection"];
+            entity_id: string;
+            revision: string;
+            /** @enum {string} */
+            status: "saved";
+        } | {
+            entity_id: string;
+            /** @enum {string} */
+            status: "unset";
+        } | {
+            entity_id: string;
+            /** @enum {string} */
+            status: "missing";
         };
         EntityMemberships: {
             entity_id: string;
@@ -2218,6 +2273,18 @@ export interface components {
             record: components["schemas"]["ModelRecord"];
         };
         MutationOutcome: {
+            preference: components["schemas"]["SavedCardCoverPreference"];
+            /** @enum {string} */
+            status: "card_cover_preference_saved";
+        } | {
+            current: components["schemas"]["EntityCardCoverPreference"];
+            /** @enum {string} */
+            status: "card_cover_preference_conflict";
+        } | {
+            entity_id: string;
+            /** @enum {string} */
+            status: "card_cover_preference_missing";
+        } | {
             notes: components["schemas"]["EntityNotes"];
             /** @enum {string} */
             status: "entity_notes_saved";
@@ -2425,6 +2492,9 @@ export interface components {
         };
         /** @enum {string} */
         PublicTaskState: "submitted" | "waiting" | "running" | "between_stages" | "terminal";
+        ReadCardCoverPreferences: {
+            entity_ids: string[];
+        };
         ReadEvidence: {
             context: string;
             entities: string[];
@@ -2476,6 +2546,11 @@ export interface components {
         ResetToken: {
             expected_revision: string;
             request_id: string;
+        };
+        SavedCardCoverPreference: {
+            cover: null | components["schemas"]["CardCoverSelection"];
+            entity_id: string;
+            revision: string;
         };
         SavedSettings: {
             group_id: string;
@@ -3092,6 +3167,12 @@ export interface components {
         TwitterView: {
             applicability: components["schemas"]["TwitterApplicability"];
             record: components["schemas"]["TwitterRecord"];
+        };
+        UpdateCardCoverPreference: {
+            cover: null | components["schemas"]["CardCoverSelection"];
+            /** @description Null or omitted requires no saved preference, never unconditional overwrite. */
+            expected_revision?: string | null;
+            request_id: string;
         };
         UpdateViewPreference: {
             /**
@@ -3937,6 +4018,96 @@ export interface operations {
             };
         };
     };
+    read_card_cover_preferences: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadCardCoverPreferences"];
+            };
+        };
+        responses: {
+            /** @description One attributed result per input including duplicates. Observation failure rejects the whole batch. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityCardCoverPreference"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     read_view_preferences: {
         parameters: {
             query?: never;
@@ -3960,6 +4131,185 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EntityViewPreference"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    read_card_cover_preference: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityCardCoverPreference"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing or invalid authorization */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Foreign origin or host */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Method not allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Wrong run or conflicting request ID */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Operation failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admission closed or retained launch rejection */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    update_card_cover_preference: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Expected backend run from private readiness; context, not authorization. Never silently replace it. */
+                "X-Locus-Run": string;
+            };
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCardCoverPreference"];
+            };
+        };
+        responses: {
+            /** @description Conditional recoverable save or clear; commits UI intent only, without claiming a provider relationship or preview availability. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MutationOutcome"];
                 };
             };
             /** @description Invalid request */

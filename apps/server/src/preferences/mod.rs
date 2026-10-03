@@ -1,4 +1,5 @@
 //! Private application owner for retained presentation choices.
+mod card_cover;
 pub(crate) mod error;
 pub(crate) mod identity;
 mod persistence;

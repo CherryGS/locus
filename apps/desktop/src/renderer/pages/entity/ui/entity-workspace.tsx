@@ -14,6 +14,7 @@ import { CivitaiPanelContext } from "./civitai-panel-slot"
 
 export function EntityWorkspace({
   componentFor,
+  revealEntity,
   source,
   browsing,
   selectedEntity,
@@ -30,6 +31,7 @@ export function EntityWorkspace({
   tagSummary,
 }: {
   componentFor: (entity: EntityItem) => EntityItem["components"][number]["kind"] | undefined
+  revealEntity?: number
   source: EntitySource
   browsing?: EntityBrowsingState
   selectedEntity: EntityItem | null
@@ -116,6 +118,7 @@ export function EntityWorkspace({
                 (source.sequence.length > 0 ? (
                   <EntityGrid
                     componentFor={componentFor}
+                    revealSelection={revealEntity}
                     source={source}
                     position={retained.grid}
                     onPosition={(position) => {

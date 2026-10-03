@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "@tanstack/react-router"
-import { TriangleAlertIcon } from "lucide-react"
+import { LocateFixedIcon, TriangleAlertIcon } from "lucide-react"
 import {
   componentAppearance,
   entityLabel,
@@ -40,6 +40,7 @@ import {
 import { useSourceReturn } from "@/shared/source-return"
 import type { PlaybackCoordinator } from "@/features/video-playback"
 import type { CivitaiCoordinator } from "@/features/civitai"
+import type { CardCoverCoordinator } from "@/features/entity-card-cover"
 import type { CivitaiSelection } from "../model/navigation"
 import {
   directDestination,
@@ -93,11 +94,13 @@ export function EntityPage({
     api: BackendApi
     playback: PlaybackCoordinator
     civitai: CivitaiCoordinator
+    covers?: CardCoverCoordinator
     relatedCollections: Map<string, RelatedCollection>
     civitaiExcursions: Map<string, CivitaiSelection>
   }
 }) {
   const router = useRouter()
+  const [revealEntity, setRevealEntity] = useState(0)
   const [managedCollections, setManagedCollections] = useState<RelatedCollection[]>(() => [
     ...(live?.relatedCollections.values() ?? []),
   ])
@@ -669,6 +672,11 @@ export function EntityPage({
             )}
           </div>
         )}
+        {!viewing && selected && (
+          <Button variant="ghost" size="icon-sm" aria-label="Locate selected Entity" title="Locate selected Entity"
+            disabled={source.sequence.indexOf(selected.id) < 0}
+            onClick={() => setRevealEntity(value => value + 1)}><LocateFixedIcon /></Button>
+        )}
         {!viewing && destination.collectionId === "library" && live && (
           <FilterModal coordinator={live.filter} />
         )}
@@ -718,6 +726,7 @@ export function EntityPage({
       <Separator />
       <EntityWorkspace
         componentFor={componentFor}
+        revealEntity={revealEntity}
         browsing={browsing}
         source={source}
         selectedEntity={selected}

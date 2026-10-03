@@ -17,6 +17,23 @@ impl ViewDefinitionId {
     }
 }
 
+/// Provider version identity retained as presentation provenance.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct CivitaiVersionId(String);
+
+impl CivitaiVersionId {
+    pub fn new(value: String) -> Result<Self, PreferenceError> {
+        if value.is_empty() || value.trim() != value || value.chars().any(char::is_control) {
+            return Err(PreferenceError::InvalidCoverVersion);
+        }
+        Ok(Self(value))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SavedRevision(i64);
 

@@ -2,7 +2,10 @@ use super::{
     error::{Diagnostic, DomainDiagnostic},
     file::dto::{CopyProgress, FileMetadata},
     media::dto::{Interpretation, MediaTarget, PreviewMetadata},
-    preferences::dto::{EntityViewPreference, SavedViewPreference},
+    preferences::dto::{
+        EntityCardCoverPreference, EntityViewPreference, SavedCardCoverPreference,
+        SavedViewPreference,
+    },
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -73,6 +76,15 @@ pub enum Submission {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum MutationOutcome {
+    CardCoverPreferenceSaved {
+        preference: SavedCardCoverPreference,
+    },
+    CardCoverPreferenceConflict {
+        current: EntityCardCoverPreference,
+    },
+    CardCoverPreferenceMissing {
+        entity_id: String,
+    },
     EntityNotesSaved {
         notes: super::core::dto::EntityNotes,
     },

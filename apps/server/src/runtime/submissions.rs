@@ -21,6 +21,11 @@ pub(crate) struct Admission {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Arguments {
+    UpdateCardCoverPreference {
+        entity: locus_core::api::EntityId,
+        cover: Option<crate::preferences::record::CardCoverSelection>,
+        revision: Option<crate::preferences::identity::SavedRevision>,
+    },
     Filter(crate::api::filter::dto::FilterChange),
     Tag(crate::api::tag::dto::TagChange),
     Civitai(crate::api::civitai::dto::CivitaiRequest),

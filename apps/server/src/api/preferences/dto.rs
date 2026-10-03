@@ -53,3 +53,57 @@ pub enum PreferenceFailure {
     Core { error: CoreFailure },
     InvalidInput { message: String },
 }
+
+/// A retained managed-image choice, qualified again by the renderer before use.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct CardCoverSelection {
+    pub source_component_id: String,
+    pub version_id: String,
+    pub target_entity_id: String,
+    pub target_file_id: String,
+    pub image_component_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateCardCoverPreference {
+    pub request_id: String,
+    /// Null explicitly clears the selection while retaining its write revision.
+    #[serde(deserialize_with = "Option::deserialize")]
+    #[schema(required = true)]
+    pub cover: Option<CardCoverSelection>,
+    /// Null or omitted requires no saved preference, never unconditional overwrite.
+    pub expected_revision: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ReadCardCoverPreferences {
+    pub entity_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+pub struct SavedCardCoverPreference {
+    pub entity_id: String,
+    #[schema(required = true)]
+    pub cover: Option<CardCoverSelection>,
+    pub revision: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum EntityCardCoverPreference {
+    Saved {
+        entity_id: String,
+        #[schema(required = true)]
+        cover: Option<CardCoverSelection>,
+        revision: String,
+    },
+    Unset {
+        entity_id: String,
+    },
+    Missing {
+        entity_id: String,
+    },
+}

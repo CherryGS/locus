@@ -13,11 +13,13 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field"
 import type { FilterCoordinator } from "../model/filter-coordinator"
 import { diagnosticPosition } from "../model/raw-input"
 import { useAssistanceAnchor } from "./assistance-anchor"
+import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
 
 export function AssistancePanel({ coordinator: c, inputRef }: {
   coordinator: FilterCoordinator; inputRef: RefObject<HTMLTextAreaElement | null>
 }) {
   const a = c.assistance, viewport = useRef<HTMLDivElement>(null), lookup = useRef<HTMLInputElement>(null)
+  const delayedExample = useDelayedPending(!!a.active && a.context?.kind === "field" && a.help?.reference !== a.fieldCandidates[a.highlight]?.native_exact)
   const focused = useRef<number | undefined>(undefined)
   const range = a.context?.kind === "field" ? a.context.field_range : a.context?.value_range
   const anchor = useAssistanceAnchor(inputRef, a.active,
@@ -127,7 +129,7 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
               {fields ? a.fieldCandidates.map((f, i) => <Button key={f.id} size="sm"
                 variant={a.highlight === i ? "secondary" : "ghost"} aria-current={a.highlight === i}
                 className="filter-assistance-candidate h-auto items-center justify-start gap-3 whitespace-normal px-2.5 py-2 text-left" aria-label={`Use field ${f.id}`}
-                aria-describedby={a.highlight === i ? "filter-field-example" : undefined}
+                aria-describedby={a.highlight === i && a.help?.reference === f.native_exact ? "filter-field-example" : undefined}
                 disabled={a.locked} aria-disabled={a.editing || undefined} onClick={() => a.acceptField(f)}>
                 <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
                   <code className="filter-assistance-reference break-all">{f.native_exact}</code>
@@ -165,9 +167,9 @@ export function AssistancePanel({ coordinator: c, inputRef }: {
           </div>
         </ScrollArea>}
         {showList && <Separator />}
-        {highlightedField && <section id="filter-field-example" className="filter-assistance-preview flex shrink-0 flex-col gap-1 px-3 py-2">
-          <span className="sr-only">Example</span>
-          <code className="line-clamp-2 break-all">{a.help?.reference === highlightedField.native_exact ? a.help.examples[0] : a.helpError ? "Example unavailable" : "Reading example…"}</code>
+        {highlightedField && <section id="filter-field-example" className="filter-assistance-preview flex min-h-16 shrink-0 flex-col gap-1 px-3 py-2" aria-busy={a.help?.reference !== highlightedField.native_exact}>
+          <span className="filter-assistance-meta">{delayedExample && a.help ? "Previous field example" : "Example"}</span>
+          <code className="line-clamp-2 break-all" title={a.help ? `Example for ${a.help.reference}` : undefined}>{a.helpError ? "Example unavailable" : a.help ? a.help.examples[0] ?? "No example supplied" : "Reading example…"}</code>
         </section>}
         {!fields && a.help && <section aria-label="Value syntax" className="filter-assistance-preview flex shrink-0 flex-col gap-1 px-3 py-2">
           {showGuidance && <p className="filter-assistance-meta">{a.help.guidance.split(/(?<=\.)\s/)[0]}</p>}

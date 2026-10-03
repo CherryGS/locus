@@ -40,6 +40,8 @@ export class FilterAssistance {
   private capturing?: Promise<Wire<"SearchObservationData">>
   private expiry?: ReturnType<typeof setTimeout>
   private helpKey?: string
+  private helpCache = new Map<string, Wire<"FilterFieldHelpData">>()
+  private helpReads = new Map<string, Promise<Wire<"FilterFieldHelpData">>>()
   private locating?: Promise<void>
   private accepting?: Promise<boolean>
   private acceptanceIntent = 0
@@ -205,10 +207,14 @@ export class FilterAssistance {
     const key = JSON.stringify([source.format, source.version, reference])
     if (this.helpKey === key) return
     this.helpKey = key
-    this.help = undefined
+    // Help is dialect/field syntax, independent of library observations. Keep
+    // its attributed example mounted while a new field is read; cache and warm
+    // nearby candidates so ordinary movement does not repaint a loading label.
+    const cached = this.helpCache.get(key)
+    if (cached) this.help = cached
     this.helpError = undefined
     const ticket = ++this.helpSerial
-    void this.api.filterHelp({ format: source.format, version: source.version, field: reference })
+    void this.helpFor(source, reference)
       .then((help) => {
         if (this.session === session && ticket === this.helpSerial) { this.help = help; this.changed() }
       }).catch((error) => {
@@ -216,6 +222,22 @@ export class FilterAssistance {
           this.helpError = errorText(error); this.changed()
         }
       })
+    if (this.context?.kind === "field") {
+      for (const field of this.fieldCandidates.slice(Math.max(0, this.highlight - 1), this.highlight + 3))
+        void this.helpFor(source, field.native_exact).catch(() => {})
+    }
+  }
+  private helpFor(source: Wire<"FilterSource">, reference?: string) {
+    const key = JSON.stringify([source.format, source.version, reference])
+    const cached = this.helpCache.get(key)
+    if (cached) return Promise.resolve(cached)
+    const pending = this.helpReads.get(key)
+    if (pending) return pending
+    const read = this.api.filterHelp({ format: source.format, version: source.version, field: reference })
+      .then(help => { this.helpCache.set(key, help); return help })
+      .finally(() => this.helpReads.delete(key))
+    this.helpReads.set(key, read)
+    return read
   }
   updateHelp() { if (this.session && this.context) this.readHelp(this.helpReference) }
   retryHelp() { this.helpKey = undefined; this.updateHelp() }

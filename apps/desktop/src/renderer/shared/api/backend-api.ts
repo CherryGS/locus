@@ -323,6 +323,15 @@ export class BackendApi {
       }),
     )
   }
+  async cardCoverPreferences(ids: string[]) {
+    return result(await this.client.POST("/api/v1/entities/card-cover-preferences/batch", { body: { entity_ids: ids } }))
+  }
+  async cardCoverPreference(id: string) {
+    return result(await this.client.GET("/api/v1/entities/{entity_id}/card-cover-preference", { params: { path: { entity_id: id } } }))
+  }
+  async changeCardCoverPreference(id: string, body: Wire<"UpdateCardCoverPreference">) {
+    return result(await this.client.PUT("/api/v1/entities/{entity_id}/card-cover-preference", { params: { path: { entity_id: id } }, body }))
+  }
   async savePreference(id: string, body: Wire<"UpdateViewPreference">) {
     return result(
       await this.client.PUT("/api/v1/entities/{entity_id}/view-preference", {

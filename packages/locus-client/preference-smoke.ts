@@ -80,6 +80,37 @@ try {
   const changedBinding = await client.PUT(route, { params: { path: { entity_id: entity } }, body: { request_id: firstId, view_definition_id: "image.inspect", expected_revision: latest.revision } });
   assert.equal(changedBinding.error?.code, "request_conflict");
   assert.deepEqual(await read(client, entity), { status: "saved", ...latest });
+  const coverRoute = "/api/v1/entities/{entity_id}/card-cover-preference";
+  const coverParams = { path: { entity_id: entity } };
+  const cover = {
+    source_component_id: "01992853-c123-7000-8000-000000000001",
+    version_id: "42",
+    target_entity_id: entity,
+    target_file_id: file.file_id,
+    image_component_id: target.component_id,
+  };
+  // The presentation owner retains references without asserting the provider's
+  // current relationship; rendering separately qualifies it through owner reads.
+  const coverRequest = randomUUID();
+  const coverBody = { request_id: coverRequest, cover, expected_revision: null };
+  const coverSaved = await client.PUT(coverRoute, { params: coverParams, body: coverBody });
+  assert.equal(coverSaved.data?.status, "card_cover_preference_saved");
+  assert.deepEqual((await client.GET(coverRoute, { params: coverParams })).data,
+    { status: "saved", entity_id: entity, revision: "1", cover });
+  const coverBatch = await client.POST("/api/v1/entities/card-cover-preferences/batch", { body: { entity_ids: [entity, missing, entity] } });
+  assert.deepEqual(coverBatch.data, [
+    { status: "saved", entity_id: entity, revision: "1", cover },
+    { status: "missing", entity_id: missing },
+    { status: "saved", entity_id: entity, revision: "1", cover },
+  ]);
+  const clearCover = await client.PUT(coverRoute, { params: coverParams, body: { request_id: randomUUID(), cover: null, expected_revision: "1" } });
+  assert.equal(clearCover.data?.status, "card_cover_preference_saved");
+  const staleCover = await client.PUT(coverRoute, { params: coverParams, body: { request_id: randomUUID(), cover, expected_revision: null } });
+  assert.deepEqual(staleCover.data, { status: "card_cover_preference_conflict", current: { status: "saved", entity_id: entity, revision: "2", cover: null } });
+  assert.deepEqual((await client.PUT(coverRoute, { params: coverParams, body: coverBody })).data, coverSaved.data);
+  assert.deepEqual((await client.GET("/api/v1/requests/{request_id}", { params: { path: { request_id: coverRequest } } })).data,
+    { status: "direct_complete", outcome: coverSaved.data });
+  assert.deepEqual(await read(client, entity), { status: "saved", ...latest });
   const batch = await client.POST("/api/v1/entities/view-preferences/batch", { body: { entity_ids: [entity, independent, missing, unset, entity] } });
   assert.deepEqual(batch.data, [
     { status: "saved", ...latest }, { status: "saved", ...independentSaved.preference },
@@ -101,6 +132,8 @@ try {
   await server.stop();
 
   const restarted = await fixture.start();
+  assert.deepEqual((await restarted.client.GET(coverRoute, { params: coverParams })).data,
+    { status: "saved", entity_id: entity, revision: "2", cover: null });
   assert.notEqual(restarted.context.runId, server.context.runId);
   assert.deepEqual(await read(restarted.client, entity), { status: "saved", ...latest });
   assert.deepEqual(await read(restarted.client, independent), { status: "saved", ...independentSaved.preference });

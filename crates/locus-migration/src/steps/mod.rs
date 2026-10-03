@@ -39,3 +39,6 @@ mod s015_tag;
 mod s016_tag;
 #[path = "000000000017_locus_core_entity_notes.rs"]
 mod s017_core;
+
+#[path = "000000000018_locus_server_entity_card_cover_preferences.rs"]
+mod s018_preferences;

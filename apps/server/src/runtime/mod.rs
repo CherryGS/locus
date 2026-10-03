@@ -3,6 +3,7 @@ mod assistance_tests;
 mod bilibili;
 mod bootstrap;
 mod bytes;
+mod card_cover_preferences;
 pub(crate) mod composition;
 mod core;
 mod entity_notes;
