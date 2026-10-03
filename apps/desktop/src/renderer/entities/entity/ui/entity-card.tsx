@@ -34,6 +34,7 @@ export function EntityCard({
           hasVideo={entity.components.some((component) => component.kind === "video")}
           hasTwitter={entity.components.some((component) => component.kind === "twitter")}
           fallbackLabel={initialLoading ? undefined : "No preview"}
+          fallbackIcon={component?.icon}
         />
         {pending && (
           <Badge variant="secondary" className="absolute top-2 left-2 size-6 p-0" aria-hidden="true">
@@ -47,27 +48,29 @@ export function EntityCard({
             </Badge>
           </div>
         )}
-        {component && (
-          <Badge
-            variant="secondary"
-            className="absolute bottom-2 left-2 max-w-[calc(100%-1rem)] gap-1"
-            data-slot="entity-card-component"
-            data-component={componentKind}
-            aria-label={`Current component: ${component.label}`}
-            title={`Current component: ${component.label}`}
-          >
-            <component.icon aria-hidden="true" />
-            <span className="truncate">{component.label}</span>
-          </Badge>
-        )}
       </CardContent>
-      <CardHeader className="h-14 shrink-0 gap-0.5 rounded-none border-t border-border/50 py-1.5">
-        <CardTitle id={titleId} className="truncate" title={title}>
+      <CardHeader className="flex h-14 shrink-0 flex-col justify-center gap-0.5 rounded-none border-t border-border/50 py-2 transition-colors duration-150 motion-reduce:transition-none group-aria-selected/entity-card:bg-secondary">
+        <CardTitle id={titleId} className="w-full truncate" title={title}>
           {title}
         </CardTitle>
-        <CardDescription className="h-5 truncate tabular-nums">
-          {display.summary ?? (initialLoading ? <Skeleton className="mt-1 h-3 w-20" /> : "—")}
-        </CardDescription>
+        <div className="flex w-full min-w-0 items-center gap-2">
+          <CardDescription className="h-5 min-w-0 flex-1 truncate tabular-nums">
+            {display.summary ?? (initialLoading ? <Skeleton className="mt-1 h-3 w-20" /> : "—")}
+          </CardDescription>
+          {component && (
+            <Badge
+              variant="secondary"
+              className="max-w-[45%] shrink-0 gap-1"
+              data-slot="entity-card-component"
+              data-component={componentKind}
+              aria-label={`Current component: ${component.label}`}
+              title={`Current component: ${component.label}`}
+            >
+              <component.icon aria-hidden="true" />
+              <span className="truncate">{component.label}</span>
+            </Badge>
+          )}
+        </div>
       </CardHeader>
     </Card>
   )

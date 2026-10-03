@@ -1,4 +1,4 @@
-import { AtSignIcon, BoxIcon, FileIcon, VideoIcon } from "lucide-react"
+import { AtSignIcon, BoxIcon, FileIcon, VideoIcon, type LucideIcon } from "lucide-react"
 import { useState } from "react"
 
 export function EntityThumbnail({
@@ -7,12 +7,14 @@ export function EntityThumbnail({
   hasVideo = false,
   hasTwitter = false,
   fallbackLabel,
+  fallbackIcon,
 }: {
   src: string | undefined
   hasFile: boolean
   hasVideo?: boolean
   hasTwitter?: boolean
   fallbackLabel?: string
+  fallbackIcon?: LucideIcon
 }) {
   const [failedSource, setFailedSource] = useState<string>()
   if (src && src !== failedSource) {
@@ -28,7 +30,7 @@ export function EntityThumbnail({
     )
   }
 
-  const Icon = hasVideo ? VideoIcon : hasFile ? FileIcon : hasTwitter ? AtSignIcon : BoxIcon
+  const Icon = fallbackIcon ?? (hasVideo ? VideoIcon : hasFile ? FileIcon : hasTwitter ? AtSignIcon : BoxIcon)
   return (
     <div
       className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground"

@@ -142,6 +142,11 @@ surface adaptations of that system.
   clear existing actions and selection. Keep hover, selection and keyboard focus
   distinguishable through quiet boundaries; preserve card geometry and the grid
   spacing. Inspect with representative real content.
+  Keep type labels beside the summary in the fixed-height metadata footer,
+  leaving previews unobstructed. Preserve full-image containment and stable title
+  truncation. No-preview cards use the displayed component's icon. Selection
+  qualifies the footer with the secondary surface; keyboard focus adds an outer
+  outline while pointer selection stays inside the existing card bounds.
 - **Properties and tables:** favor stable alignment and readable values. Preserve
   the visibility of identifiers, dates, status and other ordinary facts. Use
   ordinary-case section headings, supporting labels and primary-foreground values

@@ -262,7 +262,7 @@ export function EntityGrid({
                   aria-labelledby={`${cellId(id)}-title`}
                   aria-selected={id === selectedId}
                   aria-busy={!!entity.loading}
-                  className="relative isolate min-h-0 min-w-0 cursor-default rounded-xl select-none after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:outline-offset-[-2px] hover:after:outline-1 hover:after:outline-input aria-selected:after:outline-2 aria-selected:after:outline-primary/80 group-focus-visible/entity-grid:aria-selected:after:outline-primary"
+                  className="group/entity-card relative isolate min-h-0 min-w-0 cursor-default rounded-xl select-none after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:outline-offset-[-2px] hover:after:outline-1 hover:after:outline-input aria-selected:after:outline-2 aria-selected:after:outline-primary/80 group-focus-visible/entity-grid:aria-selected:after:outline-primary group-focus-visible/entity-grid:aria-selected:after:outline-offset-2"
                   onClick={() => select(row * columns + column)}
                   onDoubleClick={() => onOpen(entity)}
                 >
