@@ -126,12 +126,12 @@ export function EntityContent({
       ) : viewId === "twitter.read" && twitter ? (
         <TwitterInspection entity={entity} component={twitter} live={live} />
       ) : viewId === "model.read" && model ? (
-        <ModelReading key={`${entity.id}:${model.id}:${model.record?.revision}`} component={model} />
+        <ModelReading key={`${entity.id}:${model.id}`} component={model} />
       ) : viewId === "file.info" && file ? (
         <ScrollArea className="min-h-0 flex-1">
-          <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
-            <h2 className="text-lg font-medium break-words">{file.originalName ?? `File ${file.id}`}</h2>
-            <EntityComponentDetails component={file} />
+          <div className="mx-auto flex max-w-4xl flex-col gap-5 p-4 sm:p-6">
+            <h2 className="text-lg font-medium">File</h2>
+            <EntityComponentDetails component={file} className="[&_[data-slot=detail-section]]:px-0 [&_[data-slot=detail-section]]:py-3" />
             {live && !civitai && !image && !video && !twitter && !bilibili && (
               <section aria-label="Civitai enrichment" className="flex flex-col gap-3">
                 <h3 className="text-sm font-medium">Civitai information</h3>

@@ -44,8 +44,8 @@ export function ModelReading({ component: c }: { component: Model }) {
       <article data-slot="model-reading" className="@container/detail mx-auto flex w-full max-w-4xl flex-col gap-5 p-4 sm:p-6 select-text">
         <header>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold">Model weight file</h2>
-            {f && <Badge variant="secondary">{f.format}</Badge>}
+            <h2 className="text-lg font-medium">Model weight file</h2>
+            {f && <span className="text-xs text-muted-foreground">{f.format}</span>}
           </div>
         </header>
         {statuses.length > 0 && (

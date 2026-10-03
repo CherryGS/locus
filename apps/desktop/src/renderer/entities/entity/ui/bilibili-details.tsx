@@ -8,6 +8,7 @@ import {
   DetailUnixTime,
 } from "./detail-fields"
 import { CapturedText, SourceLink } from "./twitter-fields"
+import { Separator } from "@/shared/ui/separator"
 export function BilibiliDetails({
   component,
   showIdentity = true,
@@ -39,7 +40,8 @@ export function BilibiliDetails({
           </Detail>
         </dl>
       </DetailSection>
-      <DetailSection title="Captured author">
+      <Separator />
+      <DetailSection title="Author">
         <dl>
           <Detail label="Display name">
             <CapturedText value={s.author?.display_name ?? undefined} />
@@ -49,6 +51,7 @@ export function BilibiliDetails({
           </Detail>
         </dl>
       </DetailSection>
+      <Separator />
       <DetailSection title="Selected part">
         <dl>
           <Detail label="Number">{s.part?.number ?? "Not captured"}</Detail>
@@ -62,7 +65,8 @@ export function BilibiliDetails({
           )}
         </dl>
       </DetailSection>
-      <DetailSection title="Local-item association">
+      <Separator />
+      <DetailSection title="Local association">
         <dl>
           <Detail label="Current state">
             {a?.status === "input" ? a.comparison.status : (a?.status ?? "Not observed")}
@@ -75,6 +79,7 @@ export function BilibiliDetails({
           )}
         </dl>
       </DetailSection>
+      <Separator />
       <DetailSection title="Original-cover association">
         <dl>
           <Detail label="Current state">
@@ -88,6 +93,7 @@ export function BilibiliDetails({
           {component.cover?.message && <Detail label="Cover problem">{component.cover.message}</Detail>}
         </dl>
       </DetailSection>
+      <Separator />
       <DetailSection title="Capture details">
         <dl>
           {showIdentity && (
@@ -116,6 +122,7 @@ export function BilibiliDetails({
         </dl>
         <p className="text-xs text-muted-foreground">Part claims were reported by the source.</p>
       </DetailSection>
+      <Separator />
       <DetailSection title="Association identifiers">
         <dl>
           <Detail label="Accepted File">
@@ -151,6 +158,7 @@ export function BilibiliDetails({
           </Detail>
         </dl>
       </DetailSection>
+      <Separator />
       <DetailSection
         title="Selected representation"
       >
@@ -164,6 +172,7 @@ export function BilibiliDetails({
           Source-reported claims; independent of local Video interpretation.
         </p>
       </DetailSection>
+      <Separator />
       <DetailSection
         title="Remote preview"
       >

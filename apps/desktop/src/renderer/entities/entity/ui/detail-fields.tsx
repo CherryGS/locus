@@ -1,9 +1,10 @@
 import type { ReactNode } from "react"
 import { formatDurationMilliseconds, unixMillisecondsIso } from "../lib/format-metadata"
+import { formatFileSize } from "../lib/format-file-size"
 
 export function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid min-h-8 min-w-0 grid-cols-1 items-baseline gap-x-3 gap-y-0.5 py-1.5 @min-[14rem]/detail:grid-cols-[clamp(4.5rem,36%,5.5rem)_minmax(0,1fr)]">
+    <div className="grid min-h-8 min-w-0 grid-cols-1 items-baseline gap-x-3 gap-y-0.5 py-1.5 @min-[14rem]/detail:grid-cols-[clamp(4.5rem,36%,5.5rem)_minmax(0,1fr)] @min-[22rem]/detail:grid-cols-[8rem_minmax(0,1fr)]">
       <dt className="text-xs leading-5 text-muted-foreground">{label}</dt>
       <dd className="min-w-0 text-sm leading-5 tabular-nums select-text [overflow-wrap:anywhere]">
         {children}
@@ -20,7 +21,7 @@ export function DetailSection({
   children: ReactNode
 }) {
   return (
-    <section aria-label={title} className="@container/detail flex min-w-0 flex-col gap-2 px-4 py-4 select-text">
+    <section data-slot="detail-section" aria-label={title} className="@container/detail flex min-w-0 flex-col gap-2 px-4 py-4 select-text">
       <h3 className="text-sm font-medium">
         {title}
       </h3>
@@ -32,6 +33,15 @@ export function DetailSection({
 export function DetailIdentifier({ label, value }: { label: string; value: string }) {
   if (value === "") return <span className="text-muted-foreground">None</span>
   return <code className="text-xs font-mono select-text" title={`${label}: ${value}`}>{value}</code>
+}
+
+export function DetailFileSize({ value }: { value: number | string }) {
+  const formatted = formatFileSize(value)
+  const exact = `${BigInt(value).toLocaleString()} bytes`
+  return <>
+    <span>{formatted}</span>
+    {formatted !== exact && <span className="block text-xs text-muted-foreground">{exact}</span>}
+  </>
 }
 
 export function DetailDurationMilliseconds({ value }: { value: string | number | null | undefined }) {

@@ -4,10 +4,10 @@ import { Separator } from "@/shared/ui/separator"
 import { Spinner } from "@/shared/ui/spinner"
 import type { EntityComponent } from "../model/entity-item"
 import { diagnosticText } from "@/shared/api"
-import { formatFileSize } from "../lib/format-file-size"
 import { formatDuration } from "../lib/format-duration"
-import { Detail, DetailIdentifier, DetailSection, DetailTime } from "./detail-fields"
+import { Detail, DetailFileSize, DetailIdentifier, DetailSection, DetailTime } from "./detail-fields"
 import { TwitterDetails } from "./twitter-details"
+import { cn } from "@/shared/lib/utils"
 
 function fileExtension(name: string) {
   const dot = name.lastIndexOf(".")
@@ -23,15 +23,17 @@ export function EntityComponentDetails({
   component,
   showIdentity = true,
   showCivitaiObservation = true,
+  className,
 }: {
   component: EntityComponent
   /** The auxiliary-panel shell supplies its own Component ID. */
   showIdentity?: boolean
   /** The active Civitai reader places provenance below its source panel. */
   showCivitaiObservation?: boolean
+  className?: string
 }) {
   return (
-    <div className="flex min-w-0 flex-col pb-1">
+    <div className={cn("flex min-w-0 flex-col pb-1", className)}>
       {component.readStatus === "loading" && (
         <p className="flex items-center gap-2 px-4 pt-4 text-xs text-muted-foreground">
           <Spinner />
@@ -142,22 +144,12 @@ function ComponentDetailsContent({
   if (component.kind === "model")
     return (
       <>
-        <DetailSection title="Model observation">
+        <DetailSection title="Properties">
           <dl>
-            <Detail label="Input status">{component.applicability?.status ?? "Not observed"}</Detail>
-            {component.record?.last_failure && (
-              <Detail label="Last attempt">
-                {component.record.last_failure.detail} ({component.record.last_failure.code})
-              </Detail>
-            )}
-            {component.fileProblem && (
-              <Detail label="File problem">{diagnosticText(component.fileProblem)}</Detail>
-            )}
+            <Detail label="Format">{component.record?.facts?.format ?? "Not observed"}</Detail>
+            <Detail label="Tensors">{component.record?.facts ? BigInt(component.record.facts.tensor_count).toLocaleString() : "Not observed"}</Detail>
+            <Detail label="Stored elements">{component.record?.facts ? BigInt(component.record.facts.element_count).toLocaleString() : "Not observed"}</Detail>
           </dl>
-          <p className="text-xs text-muted-foreground">
-            Read structure, declarations and tensors in the Model content view. Overview explains
-            inspection, input and read problems.
-          </p>
         </DetailSection>
         <Separator />
         <DetailSection title="Observation details">
@@ -186,6 +178,9 @@ function ComponentDetailsContent({
               )}
             </Detail>
             <Detail label="Revision">{component.record?.revision ?? "Not observed"}</Detail>
+            <Detail label="Input status">{component.applicability?.status ?? "Not observed"}</Detail>
+            {component.record?.last_failure && <Detail label="Last attempt">{component.record.last_failure.detail} ({component.record.last_failure.code})</Detail>}
+            {component.fileProblem && <Detail label="File problem">{diagnosticText(component.fileProblem)}</Detail>}
           </dl>
         </DetailSection>
       </>
@@ -224,7 +219,7 @@ function ComponentDetailsContent({
                 </>
               )}
               <Detail label="Size">
-                {component.bytes === undefined ? "Not observed" : formatFileSize(component.bytes)}
+                {component.bytes === undefined ? "Not observed" : <DetailFileSize value={component.bytes} />}
               </Detail>
               {component.importedAt && (
                 <Detail label="Imported">
@@ -284,19 +279,17 @@ function ComponentDetailsContent({
           )}
         </dl>
       </DetailSection>
-      {component.kind === "file" && (component.relativePath || component.bytes !== undefined) && (
+      {component.kind === "file" && (component.relativePath || showIdentity) && (
         <>
           <Separator />
           <DetailSection title="Storage details">
             <dl>
-              {component.bytes !== undefined && (
-                <Detail label="Exact size">{BigInt(component.bytes).toLocaleString()} bytes</Detail>
-              )}
               {component.relativePath && (
                 <Detail label="Managed path">
-                  <code className="text-muted-foreground">{component.relativePath}</code>
+                  <code className="text-xs">{component.relativePath}</code>
                 </Detail>
               )}
+              {showIdentity && <Detail label="Component ID"><DetailIdentifier label="Component ID" value={component.id} /></Detail>}
             </dl>
           </DetailSection>
         </>
@@ -325,24 +318,6 @@ function ComponentDetailsContent({
       {record && (
         <>
           <Separator />
-          {(record.last_failure || (applicability && applicability.status !== "matching")) && (
-            <>
-              <DetailSection title="Observation status">
-                <dl>
-                  {applicability && <Detail label="Input status">{applicability.status}</Detail>}
-                  {applicability?.status === "error" && (
-                    <Detail label="Problem">{diagnosticText(applicability.diagnostic)}</Detail>
-                  )}
-                  {record.last_failure && (
-                    <Detail label="Last attempt">
-                      {record.last_failure.detail} ({record.last_failure.code})
-                    </Detail>
-                  )}
-                </dl>
-              </DetailSection>
-              <Separator />
-            </>
-          )}
           <DetailSection title="Observation details">
             <dl>
               <Detail label="Revision">{record.revision}</Detail>
@@ -354,6 +329,7 @@ function ComponentDetailsContent({
                 )}
               </Detail>
               <Detail label="Input status">{applicability?.status ?? "Not observed"}</Detail>
+              {applicability?.status === "error" && <Detail label="Problem">{diagnosticText(applicability.diagnostic)}</Detail>}
               {applicability?.status === "matching" && (
                 <Detail label="Current File">
                   <DetailIdentifier label="Current File" value={applicability.file_id} />

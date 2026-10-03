@@ -1,7 +1,6 @@
 import { useRef, useState } from "react"
 import { BellIcon, ListXIcon, XIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
-import { Badge } from "@/shared/ui/badge"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 import {
   Popover,
@@ -28,12 +27,12 @@ export function NotificationCenter() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        render={<Button variant="ghost" size="sm" />}
+        render={<Button variant="ghost" className="min-w-8 px-2" />}
         aria-label={`Notifications${unread ? ` · ${unread} unread` : ""}`}
         title={`Notifications${unread ? ` · ${unread} unread` : ""}`}
       >
-        <BellIcon aria-hidden="true" />
-        {unread > 0 && <Badge variant="secondary" aria-hidden="true" className="tabular-nums">{unread}</Badge>}
+        <BellIcon aria-hidden="true" className="size-4" />
+        {unread > 0 && <span aria-hidden="true" className="tabular-nums">{unread}</span>}
       </PopoverTrigger>
       <PopoverContent
         ref={panel}

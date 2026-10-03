@@ -15,10 +15,18 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
   return (
     <div className="flex min-w-0 flex-col pb-1">
       <DetailSection title="Post">
-        <p className="text-xs text-muted-foreground">Saved capture</p>
         <dl>
           <Detail label="Subject page">
             <SourceLink url={component.postUrl}>Open post</SourceLink>
+          </Detail>
+          <Detail label="Post ID">
+            {component.postId ? <DetailIdentifier label="Post ID" value={component.postId} /> : <CapturedText value={component.postId} />}
+          </Detail>
+          <Detail label="Published">
+            {component.publishedAt ? <DetailTime value={component.publishedAt} /> : <CapturedText value={undefined} />}
+          </Detail>
+          <Detail label="Observed">
+            {component.capturedAt ? <DetailTime value={component.capturedAt} /> : <CapturedText value={undefined} />}
           </Detail>
         </dl>
       </DetailSection>
@@ -34,24 +42,8 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
           <Detail label="Profile">
             <SourceLink url={author?.profileUrl}>Open profile</SourceLink>
           </Detail>
-        </dl>
-      </DetailSection>
-      <Separator />
-      <DetailSection title="Dates">
-        <dl>
-          <Detail label="Published">
-            {component.publishedAt ? (
-              <DetailTime value={component.publishedAt} />
-            ) : (
-              <CapturedText value={undefined} />
-            )}
-          </Detail>
-          <Detail label="Observed">
-            {component.capturedAt ? (
-              <DetailTime value={component.capturedAt} />
-            ) : (
-              <CapturedText value={undefined} />
-            )}
+          <Detail label="User ID">
+            {author?.userId ? <DetailIdentifier label="User ID" value={author.userId} /> : <CapturedText value={author?.userId} />}
           </Detail>
         </dl>
       </DetailSection>
@@ -97,6 +89,9 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
             {component.applicability?.status === "input"
               ? component.applicability.comparison.status
               : (component.applicability?.status ?? "Not observed")}
+          </Detail>
+          <Detail label="Captured File">
+            {component.record?.basis ? <DetailIdentifier label="Captured File" value={component.record.basis} /> : "No local File association"}
           </Detail>
           {component.applicability?.status === "input" && component.applicability.file_error && (
             <Detail label="File problem">{component.applicability.file_error.message}</Detail>
@@ -165,37 +160,6 @@ export function TwitterDetails({ component }: { component: TwitterComponent }) {
           </DetailSection>
         </>
       )}
-      <Separator />
-      <DetailSection title="Association identifiers">
-        <dl>
-          <Detail label="Captured File">
-            {component.record?.basis ? (
-              <DetailIdentifier label="Captured File" value={component.record.basis} />
-            ) : (
-              "No local File association"
-            )}
-          </Detail>
-        </dl>
-      </DetailSection>
-      <Separator />
-      <DetailSection title="Source identifiers">
-        <dl>
-          <Detail label="Post ID">
-            {component.postId ? (
-              <DetailIdentifier label="Post ID" value={component.postId} />
-            ) : (
-              <CapturedText value={component.postId} />
-            )}
-          </Detail>
-          <Detail label="User ID">
-            {author?.userId ? (
-              <DetailIdentifier label="User ID" value={author.userId} />
-            ) : (
-              <CapturedText value={author?.userId} />
-            )}
-          </Detail>
-        </dl>
-      </DetailSection>
     </div>
   )
 }

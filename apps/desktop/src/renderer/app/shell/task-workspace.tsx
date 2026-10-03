@@ -19,7 +19,7 @@ export function TaskWorkspace({ children }: { children: ReactNode }) {
   ) : (
     <>
       <div className="flex min-h-0 flex-1">{children}</div>
-      <footer aria-label="Application footer" className="flex shrink-0 justify-end border-t bg-sidebar px-2">
+      <footer aria-label="Application footer" className="flex h-9 shrink-0 items-center justify-end gap-1 border-t bg-sidebar px-2">
         <NotificationCenter />
       </footer>
     </>
@@ -109,14 +109,12 @@ function ConnectedWorkspace({ session, children }: { session: LibrarySession; ch
         }}
         retryOutcome={(id) => void observer.outcome(id)}
       />
-      <footer aria-label="Application footer" className="flex shrink-0 items-center border-t bg-sidebar px-2">
-        <DialogTrigger ref={entry} render={<Button variant="ghost" size="sm" />} aria-label={taskLabel} title={taskLabel}>
-          <ListChecksIcon aria-hidden="true" className={attention || problem ? "text-destructive" : active ? "text-primary" : undefined} />
+      <footer aria-label="Application footer" className="flex h-9 shrink-0 items-center justify-end gap-1 border-t bg-sidebar px-2">
+        <DialogTrigger ref={entry} render={<Button variant="ghost" className="min-w-8 px-2" />} aria-label={taskLabel} title={taskLabel}>
+          <ListChecksIcon aria-hidden="true" className={`size-4 ${attention || problem ? "text-destructive" : active ? "text-primary" : ""}`} />
           {all.length > 0 && <span aria-hidden="true" className="tabular-nums">{all.length}</span>}
         </DialogTrigger>
-        <div className="ml-auto">
-          <NotificationCenter />
-        </div>
+        <NotificationCenter />
       </footer>
     </Dialog>
   )
