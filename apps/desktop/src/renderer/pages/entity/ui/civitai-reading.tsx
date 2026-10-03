@@ -226,40 +226,15 @@ export function CivitaiReading({
     typeof versionFields.publishedAt === "string" && Number.isFinite(Date.parse(versionFields.publishedAt))
       ? new Date(versionFields.publishedAt)
       : undefined
-  const operationAttention =
-    coordinator.newBlocked(entity.id) ||
-    !!coordinator.problem ||
-    coordinator.operations.some(
-      (operation) =>
-        operation.outcome.entity_id === entity.id &&
-        (!!operation.active_request_id || operation.outcome.state !== "complete"),
-    )
-  const [maintenanceOpen, setMaintenanceOpen] = useState(false)
-  useEffect(() => {
-    if (operationAttention) setMaintenanceOpen(true)
-  }, [operationAttention])
   const maintenance = (
-    <details
-      open={maintenanceOpen}
-      onToggle={(event) => setMaintenanceOpen(event.currentTarget.open)}
-      className="text-xs"
-      data-slot="civitai-maintenance"
-    >
-      <summary className="cursor-pointer text-muted-foreground">
-        Library maintenance{operationAttention ? " · needs attention" : ""}
-      </summary>
-      <div className="flex flex-col gap-3 pt-3">
-        <p className="text-muted-foreground">
-          Refresh uses this entry's local file, independently of the version being viewed.
-        </p>
-        <CivitaiActions
-          coordinator={coordinator}
-          entityId={entity.id}
-          fileId={file?.readStatus === "ready" ? file.id : undefined}
-          firstOnly={false}
-        />
-      </div>
-    </details>
+    <section aria-label="Library maintenance" className="flex min-w-0 flex-col gap-3 text-xs" data-slot="civitai-maintenance">
+      <CivitaiActions
+        coordinator={coordinator}
+        entityId={entity.id}
+        fileId={file?.readStatus === "ready" ? file.id : undefined}
+        firstOnly={false}
+      />
+    </section>
   )
   const versionStatus =
     unit && (unitPending || pending)
@@ -309,12 +284,11 @@ export function CivitaiReading({
       {page && model && (
         <>
           {unit && (
-            <details className="text-xs" data-slot="civitai-library-links">
-              <summary className="cursor-pointer text-muted-foreground">
+            <section aria-label="Library links" className="flex min-w-0 flex-col gap-3 text-xs" data-slot="civitai-library-links">
+              <h3 className="text-sm font-medium">
                 Library links · {unit.version.name} · {unit.correspondences.length} recorded
-              </summary>
-              <div className="flex flex-col gap-3 pt-3 [overflow-wrap:anywhere]">
-                <p className="text-muted-foreground">Recorded local correspondences for this version.</p>
+              </h3>
+              <div className="flex flex-col gap-3 select-text [overflow-wrap:anywhere]">
                 {unit.correspondences.length ? (
                   unit.correspondences.map((correspondence) => (
                     <div key={correspondence.source.component_id} className="flex flex-col gap-1">
@@ -335,7 +309,7 @@ export function CivitaiReading({
                   </p>
                 )}
               </div>
-            </details>
+            </section>
           )}
           <Separator />
           <section className="@container/detail flex min-w-0 flex-col gap-2 select-text" aria-label="Source details" data-slot="civitai-source-details">
@@ -591,6 +565,7 @@ export function CivitaiReading({
               <CivitaiGallery
                 covers={covers}
                 originEntity={entity.id}
+                originVersion={page.origin.input === "current" ? page.origin.record.matched_version : undefined}
                 key={`${unit.model}:${unit.version.id}:${unit.source.component_id}`}
                 api={api}
                 unit={unit}

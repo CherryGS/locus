@@ -183,8 +183,8 @@ surface adaptations of that system.
   the metadata section's format: an external heading followed by a bordered
   body. Follow it with the model description's own content without an extra
   visible title.
-  Show source properties directly, while keeping long raw
-  provider declarations and optional maintenance in their existing disclosures.
+  Show source properties and maintenance actions directly, while keeping long
+  raw provider declarations and operation histories in their existing disclosures.
   Keep model tags beside the title, with source-link/reread actions in an
   independent column that a long title cannot push onto an unrelated row.
   Omit the top-level version/file breadcrumb; keep the managed path in the source
@@ -192,6 +192,7 @@ surface adaptations of that system.
   rows show only the filename and one matching status. Use qualified recorded
   correspondences rather than claiming unlinked Files do not exist. Stack each
   complete trigger phrase in its own block, preserving newlines inside that phrase.
+  Show short local-correspondence lists directly in the source panel.
 - **Grid location and covers:** Locate selected Entity reveals the same identity
   and restores grid keyboard focus without changing selection, query or context.
   Civitai grid cards can use an applicable saved gallery Image automatically or
@@ -209,8 +210,12 @@ surface adaptations of that system.
   with enough vertical space for markers and keyboard-focus outlines. A filled star
   marks the saved image and clears its choice when activated again. Unmarked
   thumbnails expose their setting action on hover or keyboard focus. With no
-  saved choice, use automatic cover selection. If the saved image lies outside
-  the viewed version, show its clearable star in the existing gallery controls.
+  saved choice, use automatic cover selection. Cover controls belong only to the
+  origin Entity's matched version; other versions are browsing surfaces. Keep a
+  retained version's marker in place and at full opacity while its replacement
+  is read, blocking mutations without changing the control's appearance. On the
+  origin's version, an unavailable or older cross-version choice remains
+  clearable through the existing gallery controls.
 - **Filter workspace:** keep presets secondary to the raw query. Use the darker
   control surface and monospace text for source, with compact query actions and
   directly visible, clickable diagnostics. Separate the optional field reference

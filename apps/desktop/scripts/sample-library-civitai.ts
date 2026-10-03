@@ -199,6 +199,9 @@ export async function verifyCivitaiSamples(root: string) {
       await page.getByRole("button", { name: "Civitai", exact: true }).click()
       const panel = page.getByRole("complementary", { name: "Civitai", exact: true })
       assert.equal(await panel.locator(":scope > header").count(), 0)
+      const libraryLinks = panel.getByRole("region", { name: "Library links", exact: true })
+      assert(await libraryLinks.getByText(`Entity ${entry.entityId}`, { exact: true }).isVisible(), "short library correspondences are visible without a disclosure")
+      assert(await panel.getByRole("region", { name: "Library maintenance", exact: true }).getByRole("button", { name: "Refresh origin Civitai information", exact: true }).isVisible(), "the ordinary maintenance action is visible without a disclosure")
       assert.equal(await reader.getByRole("button", { name: "Open library and source", exact: true }).count(), 0)
       await reader.getByRole("region", { name: "Version information", exact: true }).scrollIntoViewIfNeeded()
       await page.screenshot({ path: join(output, `${caseId}-wide.png`) })
@@ -230,16 +233,46 @@ export async function verifyCivitaiSamples(root: string) {
       assert(filmstrip.markerInside && filmstrip.markerCentered && filmstrip.markerAtBorder, "cover marker interrupts the top border with room for keyboard focus")
       assert.equal(await gallery.getByRole("button", { name: "Use automatic card cover", exact: true }).evaluate(element => getComputedStyle(element).backgroundColor), "rgba(0, 0, 0, 0)", "the cover marker has no background")
       if (version.data.version.id === "5637") {
+        let releaseSwitch!: () => void, switchRequested!: () => void
+        const heldSwitch = new Promise<void>(resolve => { releaseSwitch = resolve })
+        const requestedSwitch = new Promise<void>(resolve => { switchRequested = resolve })
+        const routePattern = `**/civitai/${component_id}/version?*`
+        await page.route(routePattern, async route => {
+          if (new URL(route.request().url()).searchParams.get("version") === "5638") {
+            switchRequested()
+            await heldSwitch
+          }
+          await route.continue()
+        })
+        const marker = gallery.getByRole("button", { name: "Use automatic card cover", exact: true })
+        const retainedMarker = await marker.elementHandle()
+        const oldOpacity = await marker.evaluate(element => getComputedStyle(element).opacity)
+        const oldThumbnailOpacity = await gallery.locator('[data-card-cover="true"] [data-gallery-thumbnail]').evaluate(element => getComputedStyle(element).opacity)
+        let coverWrites = 0
+        page.on("request", request => {
+          if (request.method() === "PUT" && request.url().endsWith(`/${entry.entityId}/card-cover-preference`)) coverWrites++
+        })
         await reader.getByRole("button", { name: "V1 64T · Version 5638", exact: true }).click()
+        await requestedSwitch
+        assert(await retainedMarker!.evaluate(element => element.isConnected), "a delayed version switch retains the same cover marker")
+        assert.equal(await marker.evaluate(element => getComputedStyle(element).opacity), oldOpacity, "loading does not dim or flash the retained star")
+        assert.equal(await gallery.locator('[data-card-cover="true"] [data-gallery-thumbnail]').evaluate(element => getComputedStyle(element).opacity), oldThumbnailOpacity, "loading keeps the thumbnail's appearance stable")
+        assert.equal(await marker.getAttribute("aria-disabled"), "true")
+        await marker.click({ force: true })
+        assert.equal(coverWrites, 0, "a retained marker cannot change the cover during a version switch")
+        releaseSwitch()
         await reader.getByRole("region", { name: "Version files", exact: true }).getByText("ng_deepnegative_v1_64t.pt", { exact: true }).waitFor()
+        await page.unroute(routePattern)
         assert.equal(await reader.locator('[data-file-state="local"]').count(), 1, "a different version's admitted file is local but not the origin Entity's current file")
+        assert.equal(await gallery.getByRole("button", { name: /card cover/ }).count(), 0, "a different version is browsing-only and has no cover controls")
         await reader.getByRole("button", { name: "V1 32T · Version 5281", exact: true }).click()
         await gallery.getByText("No saved examples for this version", { exact: true }).waitFor()
         assert.equal(await reader.locator('[data-file-state="unlinked"]').count(), 1, "the unadmitted version has no recorded local file match")
         assert.equal(await gallery.locator('[data-card-cover="true"]').count(), 0)
-        assert.equal(await gallery.getByRole("button", { name: "Use automatic card cover", exact: true }).count(), 1, "a cover from another version remains visible in existing gallery controls")
+        assert.equal(await gallery.getByRole("button", { name: /card cover/ }).count(), 0, "an unmatched version has no cover controls")
         await reader.getByRole("button", { name: "V1 75T · Version 5637", exact: true }).click()
         await gallery.locator('[data-card-cover="true"]').waitFor()
+        assert.equal(await gallery.getByRole("button", { name: "Use automatic card cover", exact: true }).evaluate(element => getComputedStyle(element).opacity), "1", "returning to the origin version restores its undimmed marker")
       }
       const preference = await backend.client.GET("/api/v1/entities/{entity_id}/card-cover-preference", { params: { path: { entity_id: entry.entityId } } })
       assert(preference.data?.status === "saved" && preference.data.cover)

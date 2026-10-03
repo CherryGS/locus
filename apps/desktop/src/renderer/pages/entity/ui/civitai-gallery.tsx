@@ -25,6 +25,7 @@ export function CivitaiGallery({
   api,
   covers,
   originEntity,
+  originVersion,
   unit,
   opening,
   revision,
@@ -33,6 +34,7 @@ export function CivitaiGallery({
   api: BackendApi
   covers?: CardCoverCoordinator
   originEntity?: string
+  originVersion?: string
   unit: Wire<"CivitaiVersionView">
   opening: boolean
   revision: string
@@ -41,6 +43,8 @@ export function CivitaiGallery({
   useSyncExternalStore(covers?.subscribe ?? noSubscribe, covers?.snapshot ?? zero)
   const coverState = originEntity && covers ? covers.get(originEntity) : undefined
   const savedCover = coverState?.observed?.status === "saved" ? coverState.observed.cover : null
+  // Displayed data, rather than the pending selection, owns the retained marker.
+  const ownVersion = originVersion === unit.version.id
   const isCover = (example: Wire<"CivitaiManagedExample">) => !!savedCover && savedCover.version_id === unit.version.id && savedCover.target_entity_id === example.binding.entity_id && savedCover.target_file_id === example.binding.file_id && example.binding.media.some(media => media.kind === "image" && media.component_id === savedCover.image_component_id)
   const groups = new Map<string, Wire<"CivitaiManagedExample">[]>()
   for (const example of unit.examples) {
@@ -54,7 +58,7 @@ export function CivitaiGallery({
       contributors[0],
     contributors,
   }))
-  const outsideCover = savedCover && !examples.some(({ representative }) => isCover(representative))
+  const outsideCover = ownVersion && savedCover && !examples.some(({ representative }) => isCover(representative))
   const [selected, setSelected] = useState<string>()
   const [previews, setPreviews] = useState<Record<string, Preview | undefined>>({})
   const strip = useRef<HTMLDivElement>(null)
@@ -176,9 +180,9 @@ export function CivitaiGallery({
                 aria-label="Choose example"
                 variant="outline"
                 value={activeKey ? [activeKey] : []}
-                disabled={opening}
+                aria-disabled={opening}
                 onValueChange={(values) => {
-                  if (values[0]) setSelected(values[0])
+                  if (!opening && values[0]) setSelected(values[0])
                 }}
                 className="px-1 pt-4 pb-3"
               >
@@ -186,11 +190,12 @@ export function CivitaiGallery({
                   const key = exampleKey(example)
                   const isVideo = example.binding.media.some((media) => media.kind === "video")
                   const image = example.binding.media.find(media => media.kind === "image")
-                  const marked = isCover(example)
+                  const marked = ownVersion && isCover(example)
                   return (
-                    <div key={key} className="group/gallery-thumbnail relative flex shrink-0" data-card-cover={marked || undefined}>
+                    <div key={key} className="group/gallery-thumbnail relative flex shrink-0" data-card-cover={marked || undefined} data-cover-editable={ownVersion && !!covers && !!originEntity || undefined}>
                     <ToggleGroupItem
                       data-gallery-thumbnail
+                      aria-disabled={opening}
                       value={key}
                       className="h-16 w-20 overflow-hidden px-1 pt-3 pb-1"
                       aria-label={`Show example ${exampleIndex + 1}`}
@@ -214,14 +219,14 @@ export function CivitaiGallery({
                         <ImageIcon />
                       )}
                     </ToggleGroupItem>
-                    {covers && originEntity && (
-                      <Button variant="frame" size="icon-xs" className={cn("absolute -top-3 left-1/2 z-10 -translate-x-1/2 aria-disabled:opacity-50", !marked && "opacity-0 group-hover/gallery-thumbnail:opacity-100 group-focus-within/gallery-thumbnail:opacity-100 focus-visible:opacity-100")}
+                    {ownVersion && covers && originEntity && (
+                      <Button variant="frame" size="icon-xs" className={cn("absolute -top-3 left-1/2 z-10 -translate-x-1/2", !marked && "opacity-0 group-hover/gallery-thumbnail:opacity-100 group-focus-within/gallery-thumbnail:opacity-100 focus-visible:opacity-100")}
                         aria-label={marked ? "Use automatic card cover" : `Set example ${exampleIndex + 1} as card cover`}
-                        aria-pressed={marked} aria-disabled={coverState?.pending || !!coverState?.attempt}
+                        aria-pressed={marked} aria-disabled={opening || coverState?.pending || !!coverState?.attempt}
                         title={marked ? "Card cover · click to clear" : "Set as card cover"}
-                        disabled={opening || !marked && (!example.applicable || !example.binding.complete || !image)}
+                        disabled={!marked && (!example.applicable || !example.binding.complete || !image)}
                         onClick={() => {
-                          if (coverState?.pending || coverState?.attempt) return
+                          if (opening || coverState?.pending || coverState?.attempt) return
                           if (marked) void covers.choose(originEntity, null)
                           else if (image) void covers.choose(originEntity, { source_component_id: example.source.component_id, version_id: unit.version.id, target_entity_id: example.binding.entity_id, target_file_id: example.binding.file_id, image_component_id: image.component_id })
                         }}><StarIcon className={marked ? "fill-current" : undefined} /></Button>
@@ -256,9 +261,9 @@ export function CivitaiGallery({
           <div className="flex items-center gap-0.5">
           {outsideCover && covers && originEntity && (
             <Button variant="ghost" size="icon-sm" aria-label="Use automatic card cover" title={`Card cover from version ${savedCover.version_id} · click to clear`}
-              aria-pressed="true" aria-disabled={coverState?.pending || !!coverState?.attempt}
+              aria-pressed="true" aria-disabled={opening || coverState?.pending || !!coverState?.attempt}
               onClick={event => {
-                if (coverState?.pending || coverState?.attempt) return
+                if (opening || coverState?.pending || coverState?.attempt) return
                 const trigger = event.currentTarget
                 void covers.choose(originEntity, null).then(() => {
                   const observed = covers.get(originEntity).observed

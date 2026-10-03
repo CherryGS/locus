@@ -239,8 +239,8 @@ a, button, input, select, textarea {
   border-color: color-mix(in oklch, var(--ring), transparent 50%);
 }
 [data-card-cover] > [data-gallery-thumbnail]::before,
-.group\/gallery-thumbnail:hover > [data-gallery-thumbnail]::before,
-.group\/gallery-thumbnail:focus-within > [data-gallery-thumbnail]::before {
+.group\/gallery-thumbnail[data-cover-editable]:hover > [data-gallery-thumbnail]::before,
+.group\/gallery-thumbnail[data-cover-editable]:focus-within > [data-gallery-thumbnail]::before {
   clip-path: polygon(0 0, calc(50% - 12px) 0, calc(50% - 12px) 2px,
     calc(50% + 12px) 2px, calc(50% + 12px) 0, 100% 0, 100% 100%, 0 100%);
 }

@@ -73,6 +73,7 @@ export function CivitaiActions({
     <div className="flex flex-col gap-3" aria-label="Origin Civitai operations">
       <Button
         variant="outline"
+        className="h-auto min-h-8 whitespace-normal py-1.5"
         disabled={!fileId || !c.available || c.newBlocked(entityId)}
         onClick={() => fileId && void c.submit(entityId, fileId, firstOnly)}
       >

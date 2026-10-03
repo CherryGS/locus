@@ -255,7 +255,6 @@ try {
   await reading.getByText(/Controlled page read failure/).waitFor({ state: "hidden" })
   await data.phase("A")
   await page.getByRole("button", { name: "Civitai", exact: true }).click()
-  await civitaiPanel.locator('[data-slot="civitai-maintenance"] > summary').click()
   await civitaiPanel.getByRole("button", { name: "Refresh origin Civitai information", exact: true }).click()
   await civitaiPanel.getByText("Origin operation · complete", { exact: true }).waitFor()
   const view = await backend.client.GET("/api/v1/civitai/{component_id}/view", {
