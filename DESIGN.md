@@ -166,13 +166,14 @@ surface adaptations of that system.
   Keep input text at the existing 13px body size in narrow desktop windows.
   Inputs and selects share the control surface. Standard controls share the
   radius and 2px keyboard-focus ring; selected toggles
-  retain their secondary surface and border while hovered. Entity's sidebar title
-  row uses the same 40px height as its main toolbar.
+  retain their secondary surface and border while hovered.
 - **Auxiliary navigation:** use a 48px rail with 40px panel buttons and visible
-  vertical names. Keep each accessible name, expanded state and current panel
-  heading, with distinct provider and content icons. Scroll
-  the rail independently in short windows and return focus to the matching
-  trigger when a panel closes.
+  vertical names and distinct provider/content icons. These buttons identify,
+  open and collapse their panels; omit the duplicate title/close header and
+  provider-page opener. Keep the panel's accessible name and the trigger's
+  expanded state. Scroll the rail independently in short windows and retain
+  focus on its trigger when toggling. Avoid repeating the origin's matched
+  file/version/observation in the provider source group.
 - **Model and provider reading:** show file statistics as ordinary property rows,
   using the inspector's label/value typography. Let section actions wrap in narrow
   readers and long declarations break within their column. Give version notes and

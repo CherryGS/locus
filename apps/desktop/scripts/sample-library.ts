@@ -24,12 +24,21 @@ if (command === "generate") {
 } else if (command === "verify") {
   const { verifySampleLibrary } = await import("./sample-library-verify.ts")
   await verifySampleLibrary(root)
+} else if (command === "extend-civitai") {
+  const { extendCivitaiSamples } = await import("./sample-library-civitai.ts")
+  await extendCivitaiSamples(root)
+} else if (command === "verify-civitai") {
+  const { verifyCivitaiSamples } = await import("./sample-library-civitai.ts")
+  await verifyCivitaiSamples(root)
 } else if (command === "preview") {
   const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8")) as Manifest
   const backend = await startServer(manifest.library, undefined, manifest.providerConfig, true)
   let preview: Awaited<ReturnType<typeof browserPreview>> | undefined
   try {
-    preview = await browserPreview(backend)
+    const port = rest[0] === "--port" ? Number(rest[1]) : 0
+    if (rest.length && (rest[0] !== "--port" || rest.length !== 2 || !Number.isInteger(port) || port < 1 || port > 65535))
+      throw new Error("Expected --port <1..65535>")
+    preview = await browserPreview(backend, port)
     const origin = preview.origin
     const guide = join(root, "preview.md")
     await writeFile(
@@ -70,5 +79,5 @@ if (command === "generate") {
   }
 } else
   throw new Error(
-    "Usage: sample-library.ts generate|verify|preview [output-root] [--real-inputs directory]",
+    "Usage: sample-library.ts generate|verify|extend-civitai|verify-civitai|preview [output-root] [--real-inputs directory | --port number]",
   )

@@ -193,6 +193,19 @@ export async function verifySampleLibrary(root: string) {
           assert.equal(version.data.examples.length, 4)
         }
         if (entry.name === "civitai/existing") assert.equal(version.data.examples.length, 0)
+        if (entry.name.startsWith("retained/Agnes-multiple-triggers/")) {
+          assert.equal(civitai.data.origin.record.model.id, "522077")
+          assert.equal(JSON.parse(version.data.version.raw_json).trainedWords.length, 2)
+          assert.equal(version.data.version.files.length, 1)
+          assert.equal(version.data.examples.length, 2)
+        }
+        if (entry.name.startsWith("retained/DeepNegative-multiple-files/")) {
+          assert.equal(civitai.data.origin.record.model.id, "4629")
+          assert.equal(version.data.version.files.length, 2)
+          assert(version.data.version.files.some(file => file.name.endsWith(".pt")))
+          assert(version.data.version.files.some(file => file.name.endsWith(".safetensors")))
+          assert.equal(version.data.examples.length, 2)
+        }
         report.civitai = { page: civitai.data, version: version.data }
       }
       if (entry.result.bilibili?.component_id) {

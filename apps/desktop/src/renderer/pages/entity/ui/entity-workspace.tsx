@@ -10,7 +10,6 @@ import type { EntityBrowsingState } from "../model/browsing-state"
 import { EntityGrid, minimumEntityGridWidth } from "@/entities/entity"
 import { entityPanels, type EntityPanelId } from "./entity-panels"
 import { DetailSection } from "@/entities/entity"
-import { XIcon } from "lucide-react"
 import { CivitaiPanelContext } from "./civitai-panel-slot"
 
 export function EntityWorkspace({
@@ -93,13 +92,7 @@ export function EntityWorkspace({
 
   return (
     <CivitaiPanelContext
-      value={{
-        target: civitaiPanelTarget,
-        open: () => {
-          if (activePanel === null) setPanelDefaultWidth(lastPanelWidth.current)
-          setActivePanelId("civitai")
-        },
-      }}
+      value={{ target: civitaiPanelTarget }}
     >
       <div data-slot="entity-workspace" className="flex min-h-0 flex-1">
         <ResizablePanelGroup
@@ -167,22 +160,6 @@ export function EntityWorkspace({
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.12 }}
                 >
-                  <header className="flex h-10 min-w-0 shrink-0 items-center gap-2 px-4">
-                    <activePanel.icon className="size-4 text-muted-foreground" />
-                    <h2 className="min-w-0 flex-1 truncate text-sm font-medium">{activePanel.label}</h2>
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label="Close details panel"
-                      onClick={() => {
-                        panelTriggers.current.get(activePanel.id)?.focus()
-                        setActivePanelId(null)
-                      }}
-                    >
-                      <XIcon />
-                    </Button>
-                  </header>
-                  <Separator />
                   <ScrollArea key={activePanel.id} className="min-h-0 flex-1">
                     {activePanel.content}
                     {activePanel.id === "civitai" && (

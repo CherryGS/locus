@@ -232,7 +232,7 @@ try {
   await page.setViewportSize({ width: 360, height: 800 })
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
   await checkStrip()
-  await page.getByRole("button", { name: "Close details panel", exact: true }).click()
+  await page.getByRole("button", { name: "Overview", exact: true }).click()
   for (const width of [1200, 900, 720, 560, 360]) {
     await page.setViewportSize({ width, height: 800 })
     await checkStrip()

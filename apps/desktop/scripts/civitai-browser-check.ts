@@ -59,6 +59,9 @@ try {
       .waitFor()
   }
   await reading.getByText("A independent model description", { exact: true }).waitFor()
+  const triggerWords = reading.getByRole("row", { name: /^Trigger words/ })
+  assert.equal(await triggerWords.getByRole("listitem").count(), 12)
+  assert.equal(await reading.getByRole("region", { name: "Version files" }).getByRole("listitem").count(), 4)
   assert.equal(await reading.getByText("Version 40", { exact: false }).count(), 0)
   await reading
     .getByRole("button", { name: "Version 30 · not recorded in this snapshot", exact: true })
@@ -71,7 +74,7 @@ try {
     1,
   )
   assert.equal(await reading.getByRole("region", { name: "Version files" }).getByRole("button").count(), 0)
-  await reading.getByRole("button", { name: "Open library and source", exact: true }).click()
+  await page.getByRole("button", { name: "Civitai", exact: true }).click()
   assert.equal(await reading.getByRole("region", { name: "Library and source" }).count(), 0)
   assert.equal(await civitaiPanel.getByText("B.safetensors · 300", { exact: true }).count(), 1)
   const sourceDetails = civitaiPanel.getByRole("region", { name: "Source details", exact: true })
@@ -81,6 +84,8 @@ try {
     width: element.clientWidth, content: element.scrollWidth,
   }))))
   assert(narrowLayout.every(layout => layout.content <= layout.width + 1), "provider reading and source properties fit narrow panes")
+  const triggerCode = triggerWords.locator("code").filter({ hasText: "a".repeat(96) })
+  assert.equal(await triggerCode.evaluate(element => getComputedStyle(element).userSelect), "text")
   await page.screenshot({ path: join(output, "civitai-reading-narrow.png") })
   await page.setViewportSize({ width: 1500, height: 1000 })
   // A delayed source switch must retain the old presentation without allowing
@@ -220,7 +225,7 @@ try {
   await page.locator('[data-slot="entity-inspection"][data-view-id="image.inspect"]').waitFor()
   await page.getByRole("button", { name: "Return to source", exact: true }).first().click()
   await versionDescription("B version description")
-  await reading.getByRole("button", { name: "Open library and source", exact: true }).click()
+  await page.getByRole("button", { name: "Civitai", exact: true }).click()
   await civitaiPanel.getByText("B.safetensors · 300", { exact: true }).waitFor({ state: "attached" })
   if (!(await page.getByRole("combobox", { name: "Default view", exact: true }).count()))
     await page.getByRole("button", { name: "Overview", exact: true }).click()
@@ -240,7 +245,7 @@ try {
   await reading.getByRole("button", { name: "Reread saved information", exact: true }).click()
   await reading.getByText(/Controlled page read failure/).waitFor({ state: "hidden" })
   await data.phase("A")
-  await reading.getByRole("button", { name: "Open library and source", exact: true }).click()
+  await page.getByRole("button", { name: "Civitai", exact: true }).click()
   await civitaiPanel.locator('[data-slot="civitai-maintenance"] > summary').click()
   await civitaiPanel.getByRole("button", { name: "Refresh origin Civitai information", exact: true }).click()
   await civitaiPanel.getByText("Origin operation · complete", { exact: true }).waitFor()

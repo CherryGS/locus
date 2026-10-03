@@ -18,11 +18,14 @@ export type ProviderVersion = {
   name: string
   description?: string
   baseModel?: string
+  trainedWords?: string[]
   files: {
     id: number
     name: string
     type: string
     hashes: { BLAKE3?: string }
+    sizeKB?: number
+    metadata?: { format?: string; fp?: string }
   }[]
   images: ProviderImage[]
 }

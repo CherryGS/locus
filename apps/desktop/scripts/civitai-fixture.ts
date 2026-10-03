@@ -7,6 +7,7 @@ import { join, resolve, sep } from "node:path"
 import { randomUUID } from "node:crypto"
 import { setTimeout as delay } from "node:timers/promises"
 import { startServer, workspace } from "./fixture.ts"
+import type { ProviderModel, ProviderVersion } from "./sample-library-assets.ts"
 export async function civitaiFixture() {
   const root = await mkdtemp(join(tmpdir(), "locus-civitai-check-")),
     library = join(root, "library")
@@ -17,7 +18,7 @@ export async function civitaiFixture() {
   })
   const seed = JSON.parse(response.stdout) as {
     config: string
-    cases: { name: string; path: string; hash: string; model: unknown }[]
+    cases: { name: string; path: string; hash: string; model: ProviderModel }[]
   }
   let server: Awaited<ReturnType<typeof startServer>> | undefined = await startServer(
     library,
@@ -26,6 +27,19 @@ export async function civitaiFixture() {
   )
   const entries: { name: string; entityId: string; componentId?: string; fileId: string }[] = []
   const originalConfig = JSON.parse(await readFile(seed.config, "utf8"))
+  // Exercise a dense source directory independently of network availability.
+  // Additional declarations are remote facts, not downloaded local weights.
+  function enrich(version: ProviderVersion) {
+    if (!version.files.length) return
+    version.trainedWords = ["fixture-style", "cinematic lighting", "柔和光线", "café portrait", "watercolor landscape", "intricate architecture", "soft shadows", "warm palette", "long trigger phrase with spaces and punctuation, detailed composition", "超长触发词用于验证窄面板换行与文字选择", "a".repeat(96), "final-trigger"]
+    version.files.push(
+      { id: version.id * 10000 + 1, name: "alternate-full-precision-weight-file-with-a-long-name.safetensors", type: "Model", hashes: {}, sizeKB: 512000, metadata: { format: "SafeTensor", fp: "fp32" } },
+      { id: version.id * 10000 + 2, name: "training-data-and-configuration.zip", type: "Training Data", hashes: {}, sizeKB: 1024 },
+    )
+  }
+  for (const item of seed.cases) for (const version of item.model.modelVersions) enrich(version)
+  for (const version of Object.values(originalConfig.lookups) as ProviderVersion[]) enrich(version)
+  await writeFile(seed.config, JSON.stringify(originalConfig))
   async function phase(name: string) {
     const config = JSON.parse(await readFile(seed.config, "utf8"))
     config.models["1"] = structuredClone(seed.cases.find((c) => c.name === name)!.model)

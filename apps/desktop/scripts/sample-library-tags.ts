@@ -288,7 +288,7 @@ export async function verifySampleTags(client: LocusClient, manifest: Manifest, 
       await page.keyboard.press("Escape")
       await tagDialog.waitFor({ state: "hidden" })
       assert(await tagPanel.getByRole("button", { name: "Add tags", exact: true }).evaluate((element) => element === document.activeElement))
-      await page.getByRole("button", { name: "Close details panel", exact: true }).click()
+      await page.getByRole("button", { name: "Overview", exact: true }).click()
       await page.screenshot({ path: join(output, `tags-${name.toLowerCase()}-inspect.png`), animations: "disabled" })
       await page.keyboard.press("Escape")
       await grid.waitFor()

@@ -131,7 +131,7 @@ try {
     .evaluate((element) => ({ width: element.clientWidth, content: element.scrollWidth }))
   assert(detailsSize.content <= detailsSize.width + 1, "expanded component details fit the narrow pane")
   await page.screenshot({ path: join(output, "component-details-720.png") })
-  await panel.getByRole("button", { name: "Close details panel", exact: true }).click()
+  await page.getByRole("button", { name: "Image", exact: true }).click()
   await panel.waitFor({ state: "detached" })
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-label")), "Image")
   // Names remain available to keyboard users, and clipped rail items can be
@@ -150,7 +150,7 @@ try {
   assert(railState.content > railState.height && railState.scroll > 0, "keyboard focus reveals overflowing panel buttons")
   await imageTrigger.press("Enter")
   await panel.waitFor()
-  await panel.getByRole("button", { name: "Close details panel", exact: true }).click()
+  await page.getByRole("button", { name: "Image", exact: true }).click()
   assert(await imageTrigger.evaluate(element => element === document.activeElement))
   await page.screenshot({ path: join(output, "panel-rail-short.png"), animations: "disabled" })
   await page.setViewportSize({ width: 720, height: 480 })

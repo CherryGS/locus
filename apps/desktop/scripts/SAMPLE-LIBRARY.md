@@ -55,6 +55,31 @@ migration history. All relative roots resolve against the repository, including
 when npm runs the entry in the desktop package.
 `LOCUS_FFMPEG` and `LOCUS_FFPROBE` retain their existing tool-path meanings.
 
+To append real Civitai reading samples to an existing library, stop its preview
+and run these commands from `apps/desktop`:
+
+```text
+npm exec -- tsx scripts/sample-library.ts extend-civitai
+npm exec -- tsx scripts/sample-library.ts verify-civitai
+npm run sample:preview -- .local/comprehensive-library --port 63706
+```
+
+The explicit extension command uses the public Civitai API and downloads actual
+Agnes LoRA and Deep Negative files, verifying their upstream SHA-256. Agnes has
+two long trigger phrases; Deep Negative lists SafeTensor and PickleTensor files
+in one version. Inputs, complete API snapshots and provenance stay under
+`inputs/civitai-public`; Git contains only the reproducible acquisition consumer.
+Offline provider replay includes two general-audience examples per chosen
+version. The PickleTensor companion is retained as File without claiming Model
+recognition or executing its contents. Repeating the extension skips registered
+named cases and verifies cached weights before reuse.
+
+`verify-civitai` checks these added records and wide/narrow renderer layouts
+without requiring the old library's view preferences to equal their initial
+seed values. The full `sample:verify` remains a seed-state verification and can
+reject a library changed through interactive UI use. Preview's optional `--port`
+preserves an existing local browser URL across a controlled restart.
+
 If preview reports `incompatible migration history`, the retained library was
 created against different development migration definitions. Startup includes the
 backend's diagnostic and refuses that database. Preserve the old output and

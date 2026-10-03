@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import { ArrowUpRightIcon, FileIcon, PanelRightIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
+import { ArrowUpRightIcon, FileIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
 import { Button } from "@/shared/ui/button"
@@ -15,7 +15,7 @@ import type { CivitaiSelection, RelatedCollection } from "../model/navigation"
 import { Detail, DetailIdentifier, SourceLink, type EntityItem } from "@/entities/entity"
 import { CivitaiGallery } from "./civitai-gallery"
 import { CivitaiRichText } from "./civitai-rich-text"
-import { CivitaiPanelPortal, useCivitaiPanel } from "./civitai-panel-slot"
+import { CivitaiPanelPortal } from "./civitai-panel-slot"
 
 export function CivitaiReading({
   api,
@@ -34,7 +34,6 @@ export function CivitaiReading({
   onSelection: (selection: CivitaiSelection) => void
   onRelated: (collection: RelatedCollection, entity: EntityItem) => void
 }) {
-  const readingPanel = useCivitaiPanel()
   useSyncExternalStore(coordinator.subscribe, coordinator.snapshot)
   const [page, setPage] = useState<Wire<"CivitaiPage">>()
   const [unit, setUnit] = useState<Wire<"CivitaiVersionView">>()
@@ -344,14 +343,12 @@ export function CivitaiReading({
                 <Detail label="Model">
                   {model.id} · {model.kind}
                 </Detail>
-                <Detail label="Matched version">{page.origin.record.matched_version}</Detail>
-                <Detail label="Matched file">{page.origin.record.matched_file}</Detail>
                 {unit && (
                   <>
                     <Detail label="Version source">{unit.in_origin ? "This entry" : `Entity ${unit.source.entity_id}`}</Detail>
-                    <Detail label="Observation">
+                    {!unit.in_origin && <Detail label="Observation">
                       <DetailIdentifier label="Observation" value={unit.source.observation} />
-                    </Detail>
+                    </Detail>}
                   </>
                 )}
               </dl>
@@ -420,16 +417,6 @@ export function CivitaiReading({
               onClick={() => setRetry((value) => value + 1)}
             >
               {pending ? <Spinner /> : <RefreshCwIcon />}
-            </Button>
-            <Button
-              variant={operationAttention ? "outline" : "ghost"}
-              size="icon-sm"
-              aria-label="Open library and source"
-              title="Library links, source details and maintenance"
-              disabled={!readingPanel}
-              onClick={() => readingPanel?.open()}
-            >
-              <PanelRightIcon />
             </Button>
           </div>
         </header>

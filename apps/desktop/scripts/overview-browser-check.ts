@@ -115,7 +115,7 @@ try {
     if (route.request().method() === "GET") await readGate
     await route.continue()
   })
-  await page.getByRole("button", { name: "Close details panel", exact: true }).click()
+  await page.getByRole("button", { name: "Overview", exact: true }).click()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   await notes.waitFor()
   await watchFeedback()
@@ -134,7 +134,7 @@ try {
     : route.continue())
   await notes.fill("Keep this unsaved draft")
   await overview.getByText("Temporary notes failure", { exact: true }).waitFor()
-  await page.getByRole("button", { name: "Close details panel", exact: true }).click()
+  await page.getByRole("button", { name: "Overview", exact: true }).click()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   assert.equal(await notes.inputValue(), "Keep this unsaved draft")
   await page.unrouteAll({ behavior: "wait" })
