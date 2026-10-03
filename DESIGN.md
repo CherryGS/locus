@@ -192,7 +192,11 @@ surface adaptations of that system.
   active HTTP endpoint.
   Group the active HTTP endpoint, editable bind address and Token in one HTTP
   surface. Keep address saving and Token operations independent inside that group.
-- **Task feedback:** use a compact title row with search and state filters below.
+- **Utility panels:** Tasks, Notifications and the tag chooser start with one compact toolbar;
+  merge filtering, search and panel actions instead of reserving a separate title
+  row. Keep accessible names and allow controls to wrap in narrow windows.
+  Preserve consequential confirmation headings and the Settings restart toolbar.
+- **Task feedback:** give search, state filters, refresh and Close one toolbar.
   Give record names priority in the list, with compact accessible status icons;
   active work and attention may coexist. Keep progress scoped to its execution
   stage and preserve business-result wording independently of execution ending.

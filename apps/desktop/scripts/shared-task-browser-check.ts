@@ -313,7 +313,7 @@ try {
       await region.getByText("Original and recovery attempts (2)", { exact: true }).isVisible(),
       "expanded task details survive dismissal",
     )
-    await page.screenshot({ path: join(output, `shared-tasks-${viewport.width}.png`) })
+    await page.screenshot({ path: join(output, `shared-tasks-${viewport.width}.png`), animations: "disabled" })
   }
   await region.getByRole("button", { name: "Close tasks", exact: true }).click()
   await region.waitFor({ state: "hidden" })

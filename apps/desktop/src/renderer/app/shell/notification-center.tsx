@@ -43,35 +43,13 @@ export function NotificationCenter() {
         sideOffset={10}
         className="w-96 max-w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0"
       >
-        <div className="flex items-center gap-2 px-4 py-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <PopoverTitle>Notifications</PopoverTitle>
-            <PopoverDescription className="sr-only">Notices from this session.</PopoverDescription>
-          </div>
+        <PopoverTitle className="sr-only">Notifications</PopoverTitle>
+        <PopoverDescription className="sr-only">Notices from this session.</PopoverDescription>
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2">
           {records.length > 0 && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={clear}
-              aria-label="Clear all"
-              title="Clear all notifications"
-            >
-              <ListXIcon />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Close notifications"
-            onClick={() => setOpen(false)}
-          >
-            <XIcon />
-          </Button>
-        </div>
-        {records.length > 0 && (
-          <div className="px-4 pb-3">
             <ToggleGroup
               aria-label="Filter notifications"
+              className="min-w-0 flex-wrap"
               size="sm"
               value={[filter]}
               onValueChange={(values) => {
@@ -85,8 +63,29 @@ export function NotificationCenter() {
                 Warnings & errors <span className="tabular-nums text-muted-foreground">{issues.length}</span>
               </ToggleGroupItem>
             </ToggleGroup>
+          )}
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            {records.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={clear}
+                aria-label="Clear all"
+                title="Clear all notifications"
+              >
+                <ListXIcon />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Close notifications"
+              onClick={() => setOpen(false)}
+            >
+              <XIcon />
+            </Button>
           </div>
-        )}
+        </div>
         <Separator />
         <ScrollArea viewportProps={{ className: "max-h-[min(26rem,calc(100dvh-10rem))] overscroll-contain" }}>
           {visible.length === 0 ? (

@@ -205,7 +205,7 @@ try {
   assert.equal(await panel.getByRole("link").count(), total + 1)
   assert.equal(await panel.getByRole("button", { name: "Entity ID", exact: true }).count(), 0)
   assert.equal(await panel.getByText("Entity ID", { exact: true }).count(), 1, "Identity is visible without a disclosure control")
-  await panel.getByRole("button", { name: "Copy entity id", exact: true }).waitFor()
+  assert.equal(await panel.getByRole("button", { name: "Copy entity id", exact: true }).count(), 0)
   assert.equal(await panel.getByRole("list", { name: "Assigned tags", exact: true }).getByRole("listitem").count(), total)
   const strip = page.getByRole("region", { name: "Personal tag summary", exact: true })
   const checkStrip = async () => {

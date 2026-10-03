@@ -6,7 +6,7 @@ import type { Wire } from "@/shared/api"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Button, buttonVariants } from "@/shared/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/ui/collapsible"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui/dialog"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/shared/ui/dialog"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
 import { Field, FieldGroup, FieldLabel } from "@/shared/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/shared/ui/input-group"
@@ -87,35 +87,36 @@ export function AddTagDialog({
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent finalFocus={returnFocus} className="flex max-h-[80dvh] min-h-0 flex-col overflow-hidden sm:max-w-xl">
-        <DialogHeader className="shrink-0 pr-8">
-          <div className="flex items-center gap-2">
-            <DialogTitle>Tags</DialogTitle>
-            <Link to="/tags" search={{}} aria-label="Manage tags" title="Manage tags"
-              className={buttonVariants({ size: "icon-sm", variant: "ghost", className: "ml-auto" })}>
-              <Settings2Icon />
-            </Link>
-          </div>
-          <DialogDescription className="sr-only">Edit tags for {subject.label}. Changes save immediately.</DialogDescription>
-        </DialogHeader>
-        <FieldGroup className="shrink-0">
-          <Field>
-            <FieldLabel htmlFor={field} className="sr-only">Find an existing tag</FieldLabel>
-            <InputGroup>
-              <InputGroupAddon><SearchIcon aria-hidden="true" /></InputGroupAddon>
-              <InputGroupInput ref={input} id={field} autoFocus value={find}
-                onChange={(event) => setFind(event.target.value)} placeholder="Search tags…" />
-              {!!find && (
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton size="icon-xs" aria-label="Clear tag search" onClick={() => {
-                    setFind("")
-                    input.current?.focus()
-                  }}><XIcon /></InputGroupButton>
-                </InputGroupAddon>
-              )}
-            </InputGroup>
-          </Field>
-        </FieldGroup>
+      <DialogContent showCloseButton={false} finalFocus={returnFocus} className="flex max-h-[80dvh] min-h-0 flex-col overflow-hidden sm:max-w-xl">
+        <DialogTitle className="sr-only">Tags</DialogTitle>
+        <DialogDescription className="sr-only">Edit tags for {subject.label}. Changes save immediately.</DialogDescription>
+        <header className="flex shrink-0 items-center gap-2">
+          <FieldGroup className="min-w-0 flex-1">
+            <Field>
+              <FieldLabel htmlFor={field} className="sr-only">Find an existing tag</FieldLabel>
+              <InputGroup>
+                <InputGroupAddon><SearchIcon aria-hidden="true" /></InputGroupAddon>
+                <InputGroupInput ref={input} id={field} autoFocus value={find}
+                  onChange={(event) => setFind(event.target.value)} placeholder="Search tags…" />
+                {!!find && (
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton size="icon-xs" aria-label="Clear tag search" onClick={() => {
+                      setFind("")
+                      input.current?.focus()
+                    }}><XIcon /></InputGroupButton>
+                  </InputGroupAddon>
+                )}
+              </InputGroup>
+            </Field>
+          </FieldGroup>
+          <Link to="/tags" search={{}} aria-label="Manage tags" title="Manage tags"
+            className={buttonVariants({ size: "icon-sm", variant: "ghost" })}>
+            <Settings2Icon />
+          </Link>
+          <DialogClose render={<Button size="icon-sm" variant="ghost" aria-label="Close" />}>
+            <XIcon />
+          </DialogClose>
+        </header>
         <ScrollArea className="min-h-0 min-w-0" viewportProps={{
           "aria-label": "Available tags", className: "max-h-[min(28rem,calc(80dvh-8rem))]",
         }}>

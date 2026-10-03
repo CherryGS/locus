@@ -298,39 +298,11 @@ export function TaskPanel({
       finalFocus={finalFocus}
       className="flex h-[90dvh] min-h-0 w-[90vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
     >
-      <header className="flex h-12 shrink-0 items-center justify-between gap-3 px-4">
-        <DialogTitle>Tasks <span className="sr-only">this run</span></DialogTitle>
+      <DialogTitle className="sr-only">Tasks this run</DialogTitle>
+      <header className="flex shrink-0 flex-wrap items-center gap-2 px-4 py-2">
         <DialogDescription className="sr-only">Import and processing activity for this session. Records are retained for this application run.</DialogDescription>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label="Check task observation"
-            title="Refresh task status"
-            onClick={reread}
-          >
-            <RefreshCwIcon />
-          </Button>
-          <DialogClose render={<Button size="icon-sm" variant="ghost" aria-label="Close tasks" />}>
-            <XIcon />
-          </DialogClose>
-        </div>
-      </header>
-      <Separator />
-      {problem && (
-        <div className="shrink-0 px-5 py-3">
-          <Alert>
-            <TriangleAlertIcon />
-            <AlertTitle>Task feedback needs attention</AlertTitle>
-            <AlertDescription className="max-h-24 overflow-auto whitespace-pre-line break-words">
-              {problem}
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-      {!!records.length && (
-        <>
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-3">
+        {!!records.length && (
+          <>
             <ToggleGroup
               aria-label="Filter tasks"
               className="max-w-full flex-wrap"
@@ -365,11 +337,36 @@ export function TaskPanel({
               placeholder="Search tasks…"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="w-full sm:w-52"
+              className="min-w-32 flex-1 sm:ml-auto sm:max-w-64"
             />
-          </div>
-          <Separator />
-        </>
+          </>
+        )}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Check task observation"
+            title="Refresh task status"
+            onClick={reread}
+          >
+            <RefreshCwIcon />
+          </Button>
+          <DialogClose render={<Button size="icon-sm" variant="ghost" aria-label="Close tasks" />}>
+            <XIcon />
+          </DialogClose>
+        </div>
+      </header>
+      <Separator />
+      {problem && (
+        <div className="shrink-0 px-5 py-3">
+          <Alert>
+            <TriangleAlertIcon />
+            <AlertTitle>Task feedback needs attention</AlertTitle>
+            <AlertDescription className="max-h-24 overflow-auto whitespace-pre-line break-words">
+              {problem}
+            </AlertDescription>
+          </Alert>
+        </div>
       )}
       {!records.length ? (
         <Empty className="m-5 flex-1">
