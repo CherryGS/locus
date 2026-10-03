@@ -190,6 +190,7 @@ export function CivitaiGallery({
                   return (
                     <div key={key} className="group/gallery-thumbnail relative flex shrink-0" data-card-cover={marked || undefined}>
                     <ToggleGroupItem
+                      data-gallery-thumbnail
                       value={key}
                       className="h-16 w-20 overflow-hidden px-1 pt-3 pb-1"
                       aria-label={`Show example ${exampleIndex + 1}`}

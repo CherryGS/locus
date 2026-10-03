@@ -16,6 +16,8 @@ export type SampleCase = {
   input?: string
   result: Wire<"ImportResult">
   currentFileId?: string
+  // Explicit provider enrichment is separate from the retained import result.
+  civitaiComponentId?: string
 }
 export type Manifest = {
   format: 1

@@ -203,7 +203,9 @@ surface adaptations of that system.
   save/recovery errors beside the cover action. Preserve native close/restart
   preparation for pending or unconfirmed choices.
   Put cover selection in a gap at the center of the thumbnail's top border;
-  keep its star outside the image. Allow only horizontal filmstrip scrolling,
+  keep its star outside the image with no button background, including on hover.
+  Interrupt the actual frame rather than masking its line with a filled button.
+  Allow only horizontal filmstrip scrolling,
   with enough vertical space for markers and keyboard-focus outlines. A filled star
   marks the saved image and clears its choice when activated again. Unmarked
   thumbnails expose their setting action on hover or keyboard focus. With no

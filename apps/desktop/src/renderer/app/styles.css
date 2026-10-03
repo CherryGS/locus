@@ -221,6 +221,30 @@ a, button, input, select, textarea {
   .civitai-rich-text > :last-child { @apply mb-0; }
 }
 
+/* Draw the thumbnail frame separately so its cover marker needs no background
+   to interrupt the top edge. Preserve the toggle's fill and focus ring. */
+[data-gallery-thumbnail] {
+  position: relative;
+  border-color: transparent;
+}
+[data-gallery-thumbnail]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--input);
+  border-radius: inherit;
+  pointer-events: none;
+}
+[data-gallery-thumbnail][data-pressed]::before {
+  border-color: color-mix(in oklch, var(--ring), transparent 50%);
+}
+[data-card-cover] > [data-gallery-thumbnail]::before,
+.group\/gallery-thumbnail:hover > [data-gallery-thumbnail]::before,
+.group\/gallery-thumbnail:focus-within > [data-gallery-thumbnail]::before {
+  clip-path: polygon(0 0, calc(50% - 12px) 0, calc(50% - 12px) 2px,
+    calc(50% + 12px) 2px, calc(50% + 12px) 0, 100% 0, 100% 100%, 0 100%);
+}
+
 /* Feature-level presentation overrides for the composed search menu. */
 .filter-assistance-popup {
   border-radius: var(--radius-xl);

@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { basename, join, relative, resolve } from "node:path"
 import { chromium } from "playwright"
+import { setTimeout as delay } from "node:timers/promises"
 import { browserPreview } from "./browser-preview.ts"
 import { startServer } from "./fixture.ts"
 import type { ProviderConfig, ProviderModel, ProviderVersion } from "./sample-library-assets.ts"
@@ -29,12 +30,14 @@ export async function extendCivitaiSamples(root: string) {
   assert.equal(resolve(manifest.root), root)
   const config = JSON.parse(await readFile(manifest.providerConfig, "utf8")) as ProviderConfig
   const samples = [
-    { model: 522077, version: 580050, name: "Agnes-multiple-triggers", files: [495504] },
-    { model: 4629, version: 5637, name: "DeepNegative-multiple-files", files: [1186961, 5845] },
+    { model: 522077, version: 580050, name: "Agnes-multiple-triggers", files: [495504], enrich: false },
+    { model: 4629, version: 5637, name: "DeepNegative-multiple-files", files: [1186961, 5845], enrich: false },
+    { model: 4629, version: 5638, name: "DeepNegative-other-version", files: [5846], enrich: true },
   ]
-  const admissions: { name: string; path: string; expected: string }[] = []
+  const admissions: { name: string; path: string; expected: string; enrich: boolean }[] = []
   for (const sample of samples) {
-    const directory = join(root, "inputs", "civitai-public", String(sample.model))
+    if (manifest.cases.filter(entry => entry.name.startsWith(`retained/${sample.name}/`)).length === sample.files.length) continue
+    const directory = join(root, "inputs", "civitai-public", String(sample.model), ...(sample.enrich ? [String(sample.version)] : []))
     await mkdir(directory, { recursive: true })
     const url = `https://civitai.com/api/v1/models/${sample.model}`
     console.log(`Reading public Civitai model ${sample.model}`)
@@ -46,7 +49,7 @@ export async function extendCivitaiSamples(root: string) {
     const version = model.modelVersions.find(item => item.id === sample.version)
     assert(version && version.files.length && Array.isArray(version.trainedWords))
     if (sample.model === 522077) assert(version.trainedWords.length >= 2)
-    if (sample.model === 4629) assert(version.files.length >= 2)
+    if (sample.version === 5637) assert(version.files.length >= 2)
     await writeFile(join(directory, "upstream-model.json"), original)
     const files: { path: string; url: string; sha256: string; bytes: number }[] = []
     for (const fileId of sample.files) {
@@ -72,6 +75,7 @@ export async function extendCivitaiSamples(root: string) {
       admissions.push({
         name: `retained/${sample.name}/${file.name}`,
         path,
+        enrich: sample.enrich,
         expected: `Real hash-matched Civitai model ${sample.model}, version ${sample.version}; ${version.trainedWords.length} trigger phrases and ${version.files.length} listed files; two retained general-audience previews`,
       })
     }
@@ -105,10 +109,32 @@ export async function extendCivitaiSamples(root: string) {
       assert(result.complete, JSON.stringify(result))
       const pickleCompanion = sample.path.endsWith(".pt")
       assert(pickleCompanion || result.civitai?.state === "complete", JSON.stringify(result))
-      const view = result.civitai?.component_id ? "civitai.read" : "file.info"
+      let civitaiComponentId: string | undefined
+      if (sample.enrich) {
+        const request_id = randomUUID()
+        const receipt = await session.server.client.POST("/api/v1/civitai-operations", { body: {
+          request_id, entity_id: result.confirmed_entity_id!, file_id: result.confirmed_file_id!, first_only: true,
+        } })
+        assert(receipt.data, JSON.stringify(receipt.error))
+        const deadline = Date.now() + 180_000
+        while (Date.now() < deadline) {
+          const response = await session.server.client.GET("/api/v1/civitai-operations")
+          assert(response.data, JSON.stringify(response.error))
+          const operation = response.data.operations.find(operation => operation.last_request_id === request_id)
+          if (operation && !operation.active_request_id) {
+            assert.equal(operation.outcome.state, "complete", JSON.stringify(operation))
+            assert(operation.outcome.component_id)
+            civitaiComponentId = operation.outcome.component_id
+            break
+          }
+          await delay(30)
+        }
+        assert(civitaiComponentId, "Explicit provider enrichment did not finish")
+      }
+      const view = civitaiComponentId || result.civitai?.component_id ? "civitai.read" : "file.info"
       await session.preference(result.confirmed_entity_id!, view)
       manifest.cases.push({ name: sample.name, entityId: result.confirmed_entity_id!, fileId: result.confirmed_file_id!,
-        view, expected: pickleCompanion ? "Real PickleTensor companion retained as File; listed beside the SafeTensor in Deep Negative's saved version. No Model recognition or execution is claimed." : sample.expected,
+        view, civitaiComponentId, expected: sample.enrich ? `${sample.expected}; explicitly enriched after File admission to compare local versions` : pickleCompanion ? "Real PickleTensor companion retained as File; listed beside the SafeTensor in Deep Negative's saved version. No Model recognition or execution is claimed." : sample.expected,
         provenance: "retained", input: relative(root, sample.path), result })
       await writeFile(manifestPath, JSON.stringify(manifest, null, 2))
     }
@@ -122,8 +148,8 @@ export async function extendCivitaiSamples(root: string) {
 
 export async function verifyCivitaiSamples(root: string) {
   const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8")) as Manifest
-  const entries = manifest.cases.filter(entry => entry.name.startsWith("retained/Agnes-multiple-triggers/") || entry.name.startsWith("retained/DeepNegative-multiple-files/"))
-  assert.equal(entries.length, 3)
+  const entries = manifest.cases.filter(entry => entry.name.startsWith("retained/Agnes-multiple-triggers/") || entry.name.startsWith("retained/DeepNegative-multiple-files/") || entry.name.startsWith("retained/DeepNegative-other-version/"))
+  assert.equal(entries.length, 4)
   const backend = await startServer(manifest.library, undefined, manifest.providerConfig)
   const preview = await browserPreview(backend)
   const browser = await chromium.launch({ headless: true })
@@ -134,7 +160,7 @@ export async function verifyCivitaiSamples(root: string) {
   try {
     for (const entry of entries) {
       const page = await browser.newPage({ viewport: { width: 1200, height: 800 } })
-      const component_id = entry.result.civitai?.component_id
+      const component_id = entry.civitaiComponentId ?? entry.result.civitai?.component_id
       if (!component_id) {
         assert(entry.name.endsWith(".pt") && entry.view === "file.info")
         await page.close()
@@ -143,13 +169,14 @@ export async function verifyCivitaiSamples(root: string) {
       const response = await backend.client.GET("/api/v1/civitai/{component_id}/page", { params: { path: { component_id } } })
       assert(response.data?.origin.input === "current")
       const model = response.data.origin.record.model
+      const caseId = `${model.id}-${response.data.origin.record.matched_version}`
       const version = await backend.client.GET("/api/v1/civitai/{component_id}/version", { params: {
         path: { component_id }, query: { version: response.data.origin.record.matched_version },
       } })
       assert(version.data)
       const words = JSON.parse(version.data.version.raw_json).trainedWords as string[]
       assert.equal(words.length, model.id === "522077" ? 2 : 1)
-      assert.equal(version.data.version.files.length, model.id === "522077" ? 1 : 2)
+      assert.equal(version.data.version.files.length, version.data.version.id === "5637" ? 2 : 1)
       assert.equal(version.data.examples.length, 2)
       assert(version.data.examples.every(example => example.applicable && example.binding.complete))
       const original = await backend.client.GET("/api/v1/entities/{entity_id}/card-cover-preference", { params: { path: { entity_id: entry.entityId } } })
@@ -163,12 +190,18 @@ export async function verifyCivitaiSamples(root: string) {
       await page.goto(`${preview.origin}/#/entity?mode=inspect&entityId=${entry.entityId}`)
       const reader = page.locator('[data-slot="civitai-page"]')
       await reader.getByRole("row", { name: /^Trigger words/ }).waitFor()
+      assert.equal(await reader.locator('[data-version-state="current"]').count(), 1)
+      assert.equal(await reader.locator('[data-file-state="current"]').count(), 1)
+      if (model.id === "4629") {
+        assert.equal(await reader.locator('[data-version-state="local"]').count(), 1, "the other admitted Deep Negative version has a qualified local match")
+        assert.equal(await reader.locator('[data-version-state="unlinked"]').count(), 4)
+      }
       await page.getByRole("button", { name: "Civitai", exact: true }).click()
       const panel = page.getByRole("complementary", { name: "Civitai", exact: true })
       assert.equal(await panel.locator(":scope > header").count(), 0)
       assert.equal(await reader.getByRole("button", { name: "Open library and source", exact: true }).count(), 0)
       await reader.getByRole("region", { name: "Version information", exact: true }).scrollIntoViewIfNeeded()
-      await page.screenshot({ path: join(output, `${model.id}-wide.png`) })
+      await page.screenshot({ path: join(output, `${caseId}-wide.png`) })
       // Select a different saved image, without changing the content-view
       // preference or the gallery's fresh-entry default.
       const defaultView = await backend.client.GET("/api/v1/entities/{entity_id}/view-preference", { params: { path: { entity_id: entry.entityId } } })
@@ -195,9 +228,14 @@ export async function verifyCivitaiSamples(root: string) {
       })
       assert(filmstrip.content <= filmstrip.height && filmstrip.scrollTop === 0, "focused filmstrip cannot scroll vertically and crop its border")
       assert(filmstrip.markerInside && filmstrip.markerCentered && filmstrip.markerAtBorder, "cover marker interrupts the top border with room for keyboard focus")
-      if (model.id === "4629") {
+      assert.equal(await gallery.getByRole("button", { name: "Use automatic card cover", exact: true }).evaluate(element => getComputedStyle(element).backgroundColor), "rgba(0, 0, 0, 0)", "the cover marker has no background")
+      if (version.data.version.id === "5637") {
         await reader.getByRole("button", { name: "V1 64T · Version 5638", exact: true }).click()
+        await reader.getByRole("region", { name: "Version files", exact: true }).getByText("ng_deepnegative_v1_64t.pt", { exact: true }).waitFor()
+        assert.equal(await reader.locator('[data-file-state="local"]').count(), 1, "a different version's admitted file is local but not the origin Entity's current file")
+        await reader.getByRole("button", { name: "V1 32T · Version 5281", exact: true }).click()
         await gallery.getByText("No saved examples for this version", { exact: true }).waitFor()
+        assert.equal(await reader.locator('[data-file-state="unlinked"]').count(), 1, "the unadmitted version has no recorded local file match")
         assert.equal(await gallery.locator('[data-card-cover="true"]').count(), 0)
         assert.equal(await gallery.getByRole("button", { name: "Use automatic card cover", exact: true }).count(), 1, "a cover from another version remains visible in existing gallery controls")
         await reader.getByRole("button", { name: "V1 75T · Version 5637", exact: true }).click()
@@ -229,7 +267,7 @@ export async function verifyCivitaiSamples(root: string) {
         return card.bottom > grid.top && card.top < grid.bottom && document.activeElement === element.closest('[role="grid"]')
       })
       assert(located, "locate reveals and focuses the current Entity without changing selection")
-      await page.screenshot({ path: join(output, `${model.id}-grid-cover.png`) })
+      await page.screenshot({ path: join(output, `${caseId}-grid-cover.png`) })
       await page.goto(`${preview.origin}/#/entity?mode=inspect&entityId=${entry.entityId}`)
       await reader.getByRole("button", { name: "Use automatic card cover", exact: true }).waitFor()
       const reset = page.waitForResponse(response => response.url().endsWith(`/${entry.entityId}/card-cover-preference`) && response.request().method() === "PUT")
@@ -244,8 +282,8 @@ export async function verifyCivitaiSamples(root: string) {
       await page.getByRole("button", { name: "Civitai", exact: true }).click()
       await panel.waitFor({ state: "detached" })
       assert.equal(await reader.locator('[aria-label="Civitai version"] [aria-pressed="true"]').getAttribute("aria-label"), selectedVersion)
-      await page.screenshot({ path: join(output, `${model.id}-narrow.png`) })
-      evidence.push({ entity: entry.entityId, model: model.id, triggers: words.length, files: version.data.version.files.length, examples: version.data.examples.length })
+      await page.screenshot({ path: join(output, `${caseId}-narrow.png`) })
+      evidence.push({ entity: entry.entityId, model: model.id, version: version.data.version.id, triggers: words.length, files: version.data.version.files.length, examples: version.data.examples.length })
       await page.close()
     }
     await writeFile(join(output, "result.json"), JSON.stringify({ status: "PASS", cases: evidence }, null, 2))
