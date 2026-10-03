@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { DialogRootActions } from "@base-ui/react/dialog"
-import { BookOpenIcon, FilterIcon, TriangleAlertIcon } from "lucide-react"
+import { BookOpenIcon, FilterIcon, TriangleAlertIcon, XIcon } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/shared/ui/button"
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -15,7 +16,6 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/shared/ui/field"
 import { Input } from "@/shared/ui/input"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
-import { Badge } from "@/shared/ui/badge"
 import { Spinner } from "@/shared/ui/spinner"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import type { FilterCoordinator } from "../model/filter-coordinator"
@@ -57,6 +57,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
         Filter{c.filtered ? " · applied" : ""}
       </DialogTrigger>
       <DialogContent
+        showCloseButton={false}
         finalFocus={() => (c.hostClosing ? false : entry.current)}
         className={cn(
           "filter-dialog flex max-h-[calc(100dvh-2rem)] w-[min(42rem,calc(100dvw-2rem))] flex-col",
@@ -84,17 +85,10 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
         }}
         onPointerLeave={() => setResizeHint(false)}
       >
-        <DialogHeader className="border-b pb-4 pr-8 [@media(max-height:600px)]:pb-2">
-          <div className="flex flex-wrap items-center gap-3">
-            <DialogTitle>Filter Entities</DialogTitle>
-            <Badge variant="outline" className="text-muted-foreground">
-              {c.dirty ? "Unsaved draft" : c.saved ? "Saved preset" : "New draft"}
-            </Badge>
-          </div>
-          <DialogDescription id="filter-description" className="sr-only">
-            Write a query or load a saved preset. Apply once, or save it for reuse.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogTitle className="sr-only">Filter Entities</DialogTitle>
+        <DialogDescription id="filter-description" className="sr-only">
+          Write a query or load a saved preset. Apply once, or save it for reuse.
+        </DialogDescription>
         <div className="flex min-h-0 flex-1 flex-col gap-3">
           <ScrollArea
             className={cn("min-h-0 min-w-0", reference ? "max-h-[min(23rem,calc(100dvh-18rem))] shrink-0" : "flex-1")}
@@ -127,6 +121,10 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                       setNaming(action)
                     }}
                   />
+                  <DialogClose render={<Button variant="ghost" size="icon" />}>
+                    <XIcon />
+                    <span className="sr-only">Close</span>
+                  </DialogClose>
                 </div>
                 <Field className="gap-2" data-invalid={analysis?.state === "invalid"}>
                   <div className="flex items-center justify-between gap-2">

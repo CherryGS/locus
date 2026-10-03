@@ -49,9 +49,9 @@ export function PresetOptions({
         <EllipsisIcon />
       </PopoverTrigger>
       <PopoverContent align="end">
-        <PopoverTitle>Filter options</PopoverTitle>
+        <PopoverTitle className="sr-only">Filter options</PopoverTitle>
         <Field>
-          <FieldLabel htmlFor="filter-name">Preset name</FieldLabel>
+          <FieldLabel htmlFor="filter-name" className="sr-only">Preset name</FieldLabel>
           <Input
             id="filter-name"
             value={c.draft.name}

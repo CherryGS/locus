@@ -660,16 +660,16 @@ export function EntityPage({
           />
         ) : (
           <div className="flex h-10 min-w-0 flex-1 items-center gap-2">
-            <h1 className="min-w-0 truncate text-sm font-medium">
+            <h1 className="min-w-0 truncate text-sm leading-none font-medium">
               {activeContext ? activeContext.title : "Entity"}
             </h1>
             {sequence && (destination.collectionId !== "library" || !live || live.filter.sequence) ? (
-              <Badge variant="secondary">{source.sequence.length.toLocaleString()}</Badge>
+              <Badge variant="secondary" className="py-0 text-sm leading-none tabular-nums">{source.sequence.length.toLocaleString()}</Badge>
             ) : (
               <Skeleton className="h-5 w-8" />
             )}
             {selected && (
-              <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">1 selected</span>
+              <span className="shrink-0 whitespace-nowrap text-sm leading-none text-muted-foreground">1 selected</span>
             )}
           </div>
         )}

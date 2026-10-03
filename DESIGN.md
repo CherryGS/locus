@@ -119,6 +119,8 @@ surface adaptations of that system.
   ordinary-size page title, adjacent result/selection metadata and right-aligned
   Filter/refresh actions. Omit the duplicate grid icon. Keep the inspection
   filmstrip under its existing presentation and interaction contract.
+  Align title, result count and selection metadata using the same text size and
+  line height; count-badge padding must not offset its text from that center.
 - **Settings:** retain Raycast as the scoped reference for shared groups and
   rows: quiet grouped surfaces, aligned labels and controls, and consistent help
   and action placement across Library, External connection and Media tools.
@@ -149,6 +151,10 @@ surface adaptations of that system.
   directly visible, clickable diagnostics. Separate the optional field reference
   with a heading rhythm and aligned types, without row actions. Keep the footer
   reachable while the editor and reference scroll independently in short windows.
+  Omit visible dialog headers, draft-state badges and duplicate option labels.
+  Start Filter with preset controls and preset selection with search; keep Close
+  in that first row. Preserve accessible dialog names, input labels and the
+  confirmation/error information needed for actual operations.
 - **Refresh continuity:** retain established content and empty states while
   rereading. Keep refresh controls and their icon nodes stable, preserve keyboard
   focus while blocking duplicate requests, and show visual activity only when a

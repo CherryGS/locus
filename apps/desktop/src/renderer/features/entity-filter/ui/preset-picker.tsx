@@ -1,13 +1,13 @@
 import { useLayoutEffect, useRef, useState } from "react"
-import { BookmarkIcon, CheckIcon, SearchIcon } from "lucide-react"
+import { BookmarkIcon, CheckIcon, SearchIcon, XIcon } from "lucide-react"
 import type { Wire } from "@/shared/api"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Button } from "@/shared/ui/button"
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/shared/ui/dialog"
@@ -78,7 +78,7 @@ export function PresetPicker({
         }
       }}
     >
-    <Field className="min-w-0 flex-1">
+      <Field className="min-w-0 flex-1">
         <FieldLabel htmlFor="filter-preset" className="sr-only">Load preset</FieldLabel>
         <DialogTrigger
           ref={entry}
@@ -95,27 +95,32 @@ export function PresetPicker({
         </DialogTrigger>
       </Field>
       <DialogContent
+        showCloseButton={false}
         className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-lg"
         finalFocus={() => (selecting.current || !active ? false : entry.current)}
       >
-        <DialogHeader>
-          <DialogTitle>Choose a preset</DialogTitle>
-          <DialogDescription>Load a saved query into the editor.</DialogDescription>
-        </DialogHeader>
-        <Field>
-          <FieldLabel htmlFor="filter-preset-search" className="sr-only">
-            Search presets
-          </FieldLabel>
-          <InputGroup>
-            <InputGroupAddon align="inline-start"><SearchIcon /></InputGroupAddon>
-            <InputGroupInput
-              id="filter-preset-search"
-              placeholder="Search by name…"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </InputGroup>
-        </Field>
+        <DialogTitle className="sr-only">Choose a preset</DialogTitle>
+        <DialogDescription className="sr-only">Load a saved query into the editor.</DialogDescription>
+        <div className="flex items-center gap-2">
+          <Field className="min-w-0 flex-1">
+            <FieldLabel htmlFor="filter-preset-search" className="sr-only">
+              Search presets
+            </FieldLabel>
+            <InputGroup>
+              <InputGroupAddon align="inline-start"><SearchIcon /></InputGroupAddon>
+              <InputGroupInput
+                id="filter-preset-search"
+                placeholder="Search by name…"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </InputGroup>
+          </Field>
+          <DialogClose render={<Button variant="ghost" size="icon" />}>
+            <XIcon />
+            <span className="sr-only">Close</span>
+          </DialogClose>
+        </div>
         {error && (
           <Alert variant="destructive">
             <AlertDescription>

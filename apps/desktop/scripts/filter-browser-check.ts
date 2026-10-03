@@ -56,6 +56,7 @@ try {
     await dialog.waitFor({ state: "hidden" })
   }
   await open()
+  assert.equal(await dialog.getByText(/^(New draft|Saved preset|Unsaved draft)$/).count(), 0)
   const source = dialog.getByRole("textbox", {
     name: "Filter source",
     exact: true,
@@ -301,7 +302,7 @@ try {
     .getByRole("dialog", { name: "Unsaved Filter edits" })
     .getByRole("button", { name: "Save and switch", exact: true })
     .click()
-  await dialog.getByText("New draft", { exact: true }).waitFor()
+  await page.waitForFunction(() => (document.getElementById("filter-source") as HTMLTextAreaElement)?.value === "")
   assert(await dialog.isVisible(), "Guard save application keeps the destination editor open")
   assert.equal(await source.inputValue(), "")
   await source.fill("entity_id:*")
