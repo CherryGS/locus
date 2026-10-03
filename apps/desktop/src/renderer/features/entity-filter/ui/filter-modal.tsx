@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { DialogRootActions } from "@base-ui/react/dialog"
+import type { Wire } from "@/shared/api"
 import { BookOpenIcon, FilterIcon, TriangleAlertIcon, XIcon } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/shared/ui/button"
@@ -21,7 +22,6 @@ import { ScrollArea } from "@/shared/ui/scroll-area"
 import type { FilterCoordinator } from "../model/filter-coordinator"
 import { RawSourceInput } from "./raw-source-input"
 import { PresetPicker } from "./preset-picker"
-import { PresetOptions } from "./preset-options"
 import { IndexStatus } from "./filter-feedback"
 import { FieldReference } from "./field-reference"
 import { AssistancePanel } from "./assistance-panel"
@@ -34,20 +34,21 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
     sourceInput = useRef<HTMLTextAreaElement>(null)
   const [naming, setNaming] = useState<"save" | "save-as" | "rename" | "delete">(),
     [name, setName] = useState(""),
-    [overlay, setOverlay] = useState<"presets" | "options">(),
+    [pickerOpen, setPickerOpen] = useState(false),
+    [managed, setManaged] = useState<Wire<"FilterPresetSummary">>(),
     [reference, setReference] = useState(false),
     [resizeHint, setResizeHint] = useState(false),
     [reveal, setReveal] = useState<number>()
   useLayoutEffect(() => {
     if (!c.open) {
       setNaming(undefined)
-      setOverlay(undefined)
+      setPickerOpen(false)
       setResizeHint(false)
       if (c.hostClosing) actions.current?.unmount()
     }
   }, [c.open, c.hostClosing])
   useLayoutEffect(() => {
-    if (naming || c.guard) setOverlay(undefined)
+    if (naming || c.guard) setPickerOpen(false)
   }, [naming, c.guard])
   const analysis =
     !c.assistance.active && JSON.stringify(c.analysis?.source) === JSON.stringify(c.draft.source) ? c.analysis : undefined
@@ -107,9 +108,9 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
               <FieldGroup className="gap-4">
                 <div className="flex min-w-0 items-center gap-2">
                   <PresetPicker
-                    open={overlay === "presets"}
-                    onOpenChange={(open) => setOverlay(current => open ? "presets" : current === "presets" ? undefined : current)}
-                    restoreFocus={!naming && !c.guard && overlay !== "options"}
+                    open={pickerOpen}
+                    onOpenChange={setPickerOpen}
+                    restoreFocus={!naming && !c.guard}
                     presets={c.presets}
                     selected={c.saved}
                     disabled={c.busy}
@@ -118,20 +119,15 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                     error={c.presetsError}
                     onRetry={() => void c.readPresets()}
                     onSelect={(id) => c.requestSwitch(id)}
+                    onManage={(preset, action) => {
+                      setManaged(preset)
+                      setName(preset.name)
+                      setNaming(action)
+                    }}
                   />
                   <Button variant="ghost" disabled={c.busy} onClick={() => c.requestSwitch(null)}>
                     New
                   </Button>
-                  <PresetOptions
-                    open={overlay === "options"}
-                    onOpenChange={(open) => setOverlay(current => open ? "options" : current === "options" ? undefined : current)}
-                    restoreFocus={!naming && !c.guard && overlay !== "presets"}
-                    coordinator={c}
-                    onAction={(action) => {
-                      setName(action === "rename" ? c.saved!.name : "")
-                      setNaming(action)
-                    }}
-                  />
                   <DialogClose render={<Button variant="ghost" size="icon" />}>
                     <XIcon />
                     <span className="sr-only">Close</span>
@@ -203,7 +199,9 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                 {c.uncertainWrites.map((write) => (
                   <details key={write.request}>
                     <summary className="cursor-pointer text-sm">
-                      Unconfirmed {write.change?.operation ?? "save"} · {write.draft.name || "Untitled"}
+                      Unconfirmed {write.change?.operation ?? "save"} · {write.change && "id" in write.change
+                        ? write.change.id
+                        : write.change && "name" in write.change ? write.change.name : write.draft.name || "Untitled"}
                     </summary>
                     {/* Retain the exact submitted draft until the write outcome is reconciled. */}
                     <pre
@@ -293,7 +291,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
             <DialogHeader>
               <DialogTitle>
                 {naming === "delete"
-                  ? `Delete “${c.saved?.name}”?`
+                  ? `Delete “${managed?.name}”?`
                   : naming === "rename"
                     ? "Rename preset"
                     : naming === "save"
@@ -320,8 +318,8 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                 onClick={() => {
                   const kind = naming
                   setNaming(undefined)
-                  if (kind === "delete") void c.deletePreset()
-                  else if (kind === "rename") void c.rename(name)
+                  if (kind === "delete") void c.deletePreset(managed)
+                  else if (kind === "rename") void c.rename(name, managed)
                   else void c.save(name)
                 }}
               >

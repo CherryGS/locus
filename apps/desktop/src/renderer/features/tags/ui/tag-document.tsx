@@ -25,7 +25,6 @@ export function TagDocument({
   const [failure, setFailure] = useState<string>()
   const version = s.editorVersion
   const content = s.editing ? s.draft : s.document?.markdown
-  const persistedRevision = s.document?.tag.revision
   useEffect(() => {
     const element = container.current
     if (!element || content === undefined) return
@@ -90,8 +89,9 @@ export function TagDocument({
         .catch(() => {})
         .finally(() => host.remove())
     }
-    // Typing is imperative; remount only on deliberate edit/save/discard or saved read replacement.
-  }, [c, s, version, s.editing ? undefined : persistedRevision])
+    // Entering edit mode only changes readonly; preserve editor and code-block instances.
+    // Saved read replacement and explicit save/discard still adopt their owned content.
+  }, [c, s, version])
   useEffect(() => {
     s.editor?.readonly(!s.editing || !c.editable || c.unresolved(s))
   })

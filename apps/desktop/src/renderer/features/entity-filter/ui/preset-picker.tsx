@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react"
-import { BookmarkIcon, CheckIcon, SearchIcon, XIcon } from "lucide-react"
+import { BookmarkIcon, CheckIcon, PencilIcon, SearchIcon, Trash2Icon, XIcon } from "lucide-react"
 import type { Wire } from "@/shared/api"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Button } from "@/shared/ui/button"
@@ -30,6 +30,7 @@ export function PresetPicker({
   error,
   onRetry,
   onSelect,
+  onManage,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -42,10 +43,11 @@ export function PresetPicker({
   error?: string
   onRetry: () => void
   onSelect: (id: string) => void
+  onManage: (preset: Preset, action: "rename" | "delete") => void
 }) {
   const [query, setQuery] = useState("")
   const entry = useRef<HTMLButtonElement>(null),
-    pending = useRef<string | undefined>(undefined),
+    pending = useRef<{ id: string } | { preset: Preset; action: "rename" | "delete" } | undefined>(undefined),
     selecting = useRef(false),
     wasLoading = useRef(loading)
   useLayoutEffect(() => {
@@ -73,13 +75,14 @@ export function PresetPicker({
         }
       }}
       onOpenChangeComplete={(visible) => {
-        const id = pending.current
-        if (visible || !id) return
+        const intent = pending.current
+        if (visible || !intent) return
         pending.current = undefined
         if (active) {
           // Restore focus before a possible unsaved-edit dialog opens.
           entry.current?.focus()
-          onSelect(id)
+          if ("id" in intent) onSelect(intent.id)
+          else onManage(intent.preset, intent.action)
         }
       }}
     >
@@ -142,13 +145,14 @@ export function PresetPicker({
           ) : matches?.length ? (
             <ul aria-label="Saved presets" className="flex max-h-64 flex-col gap-1">
               {matches.map((preset) => (
-                <li key={preset.id}>
+                <li key={preset.id} className="flex min-w-0 items-center gap-1">
                   <Button
                     variant={preset.id === selected?.id ? "secondary" : "ghost"}
-                    className="h-auto min-h-10 w-full justify-start py-2"
+                    className="h-auto min-h-10 min-w-0 flex-1 justify-start py-2"
+                    disabled={disabled}
                     aria-label={"Load " + preset.name}
                     onClick={() => {
-                      pending.current = preset.id
+                      pending.current = { id: preset.id }
                       selecting.current = true
                       setOpen(false)
                     }}
@@ -160,6 +164,18 @@ export function PresetPicker({
                       <CheckIcon data-icon="inline-end" aria-label="Current preset" />
                     )}
                   </Button>
+                  {(["rename", "delete"] as const).map(action => (
+                    <Button key={action} variant="ghost" size="icon-sm" disabled={disabled}
+                      aria-label={`${action === "rename" ? "Rename" : "Delete"} preset ${preset.name}`}
+                      title={action === "rename" ? "Rename preset" : "Delete preset"}
+                      onClick={() => {
+                        pending.current = { preset, action }
+                        selecting.current = true
+                        setOpen(false)
+                      }}>
+                      {action === "rename" ? <PencilIcon /> : <Trash2Icon />}
+                    </Button>
+                  ))}
                 </li>
               ))}
             </ul>

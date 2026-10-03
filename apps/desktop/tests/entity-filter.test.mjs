@@ -537,6 +537,30 @@ test("blank-name Save does not supersede Refresh and preset list replies respect
   c.dispose()
 })
 
+test("managing an unloaded preset leaves the selected draft and result association intact", async () => {
+  const { c, api } = fixture()
+  c.show()
+  const selected = { id: "selected", name: "Selected", revision: "1", source: source("selected") }
+  c.saved = selected
+  c.edit(draft("edited", "Draft name"))
+  const before = c.draft
+  const foreign = { id: "foreign", name: "Foreign", revision: "2" }
+  api.filterWrite = async body => {
+    assert.equal(body.change.id, "foreign")
+    assert.equal(body.change.revision, "2")
+    return body.change.operation === "rename"
+      ? { status: "filter_saved", preset: { ...foreign, name: "Renamed", source: source("foreign") } }
+      : { status: "filter_deleted" }
+  }
+  await c.rename("Renamed", foreign)
+  assert.equal(c.saved, selected)
+  assert.equal(c.draft, before)
+  await c.deletePreset(foreign)
+  assert.equal(c.saved, selected)
+  assert.equal(c.draft, before)
+  c.dispose()
+})
+
 test("Rename preserves unsaved name/source and late unknown writes retain separate reconciliation identities", async () => {
   const { c, api } = fixture()
   c.show()

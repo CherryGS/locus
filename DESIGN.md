@@ -155,9 +155,16 @@ surface adaptations of that system.
   Start Filter with preset controls and preset selection with search; keep Close
   in that first row. Preserve accessible dialog names, input labels and the
   confirmation/error information needed for actual operations.
-  Coordinate preset selection and options as mutually exclusive editor layers.
-  Hand focus to the new layer without the departing layer restoring focus over
-  it; naming and unsaved-edit confirmations take precedence over both.
+  Keep preset loading, renaming and deletion together in the chooser, with
+  management actions on each record. Managing a different record must not load
+  it or replace the current draft/result. Close the chooser before opening name
+  or delete confirmation, and preserve focus handoff. Omit the separate options
+  menu. Keep manual index maintenance in Library settings under an advanced
+  disclosure; current Filter index errors retain their inline recovery actions.
+- **Tag navigation and editing:** wrap Up/Down focus within each tag column at
+  its ends, preserving the existing explicit activation behavior. Entering
+  description editing changes readonly mode on the mounted Markdown editor,
+  preserving its code blocks and using its normalized text as the draft baseline.
 - **Refresh continuity:** retain established content and empty states while
   rereading. Keep refresh controls and their icon nodes stable, preserve keyboard
   focus while blocking duplicate requests, and show visual activity only when a

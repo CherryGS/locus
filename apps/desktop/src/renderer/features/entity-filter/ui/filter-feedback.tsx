@@ -45,7 +45,7 @@ function IndexActions({ coordinator: c, rebuild = false, onAction }: {
   )
 }
 
-export function IndexMaintenance({ coordinator: c, onAction }: { coordinator: FilterCoordinator; onAction: () => void }) {
+export function IndexMaintenance({ coordinator: c, onAction }: { coordinator: FilterCoordinator; onAction?: () => void }) {
   return (
     <div className="flex flex-col gap-2" aria-label="Search index maintenance">
       <p className="text-xs text-muted-foreground">{indexLabel(c)}</p>

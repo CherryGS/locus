@@ -90,12 +90,14 @@ export class TagDetails {
   }
   begin(state: TagDetailState) {
     if (!this.editable || !state.document || state.documentPending || this.unresolved(state)) return
+    let normalized: string | undefined
+    try { normalized = state.editor?.read() }
+    catch (error) { state.editorError = errorText(error); this.changed(); return }
     state.editing = true
-    state.draft = state.document.markdown
-    state.baseline = undefined
+    state.draft = normalized ?? state.document.markdown
+    state.baseline = normalized
     state.editorError = undefined
     state.attempt = undefined
-    state.editorVersion++
     this.changed()
   }
   mounted(state: TagDetailState, normalized: string) {
@@ -131,7 +133,12 @@ export class TagDetails {
       const document = await this.api.tagDocument(state.id)
       if (!this.live || ticket !== state.documentTicket) return
       if (document.tag.id !== state.id) throw new Error("Document did not match the requested Tag.")
-      if (!state.editing || adoptGuard) state.document = document
+      if (!state.editing || adoptGuard) {
+        const replaceEditor = !state.editing &&
+          (state.document?.markdown !== document.markdown || !!state.editorError)
+        state.document = document
+        if (replaceEditor) state.editorVersion++
+      }
     } catch (error) {
       if (this.live && ticket === state.documentTicket) state.documentError = errorText(error)
     } finally {

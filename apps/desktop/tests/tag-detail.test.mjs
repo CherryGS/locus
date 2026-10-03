@@ -17,6 +17,18 @@ const document = (id = "tag", revision = "r1", markdown = "# Old\n") => ({
   tag: { id, name: id, revision, parent: null },
   markdown,
 })
+test("entering edit mode keeps the mounted editor and adopts its normalized baseline", async () => {
+  const f = fixture()
+  await f.c.read(f.s)
+  const adapter = { read: () => "# Canonical\n", readonly: () => {} }
+  f.s.editor = adapter
+  const version = f.s.editorVersion
+  f.c.begin(f.s)
+  assert.equal(f.s.editor, adapter)
+  assert.equal(f.s.editorVersion, version)
+  assert.equal(f.s.baseline, "# Canonical\n")
+  assert.equal(f.c.dirty(f.s), false)
+})
 function fixture(overrides = {}) {
   const sent = [],
     released = []
@@ -98,9 +110,11 @@ test("failed save retains text; fresh guard read never replaces draft; recovery 
   f.api.tagDocument = async () => document("tag", "r3", "Other saved text")
   await f.c.read(f.s)
   assert.equal(f.s.document.tag.revision, "r1")
+  const editingVersion = f.s.editorVersion
   await f.c.read(f.s, true)
   assert.equal(f.s.document.tag.revision, "r3")
   assert.equal(f.s.draft, "New")
+  assert.equal(f.s.editorVersion, editingVersion, "A guard read must retain the editing instance")
   let captured, observed
   f.api.tagWrite = async (body) => {
     captured = body

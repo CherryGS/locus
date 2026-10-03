@@ -1,5 +1,5 @@
 import { LibrarySettingsPanel, type LibrarySettingsProps } from "./library-settings-panel"
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { RotateCwIcon } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/shared/ui/alert"
 import { Button } from "@/shared/ui/button"
@@ -17,6 +17,7 @@ export function SettingsPanel({
   category = "external",
   library,
   switchLibrary,
+  libraryMaintenance,
 }: {
   settings: SettingsCoordinator
   restart: () => Promise<void>
@@ -24,6 +25,7 @@ export function SettingsPanel({
   externalSettings: ReturnType<typeof externalAddressSettings>
   externalToken: ExternalTokenCoordinator
   category?: "library" | "external" | "media"
+  libraryMaintenance?: ReactNode
 } & LibrarySettingsProps) {
   const [hostError, setHostError] = useState<string>()
   useEffect(() => {
@@ -93,6 +95,7 @@ export function SettingsPanel({
         {(category === "library" || (restricted && switchLibrary)) && (
           <LibrarySettingsPanel library={library} switchLibrary={switchLibrary} />
         )}
+        {!restricted && category === "library" && libraryMaintenance}
         {(restricted || category === "media") && <MediaSettingsPanel settings={settings} />}
       </div>
     </section>

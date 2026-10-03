@@ -346,8 +346,8 @@ function TagColumn({
                     )
                       return
                     event.preventDefault()
-                    if (key === "ArrowUp") focus(tags[index - 1]?.id)
-                    if (key === "ArrowDown") focus(tags[index + 1]?.id)
+                    if (key === "ArrowUp") focus(tags[(index - 1 + tags.length) % tags.length]?.id)
+                    if (key === "ArrowDown") focus(tags[(index + 1) % tags.length]?.id)
                     if (key === "Home") focus(tags[0]?.id)
                     if (key === "End") focus(tags.at(-1)?.id)
                     if (key === "ArrowLeft") onMove(-1, tag.id)

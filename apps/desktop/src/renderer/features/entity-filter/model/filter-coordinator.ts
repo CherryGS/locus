@@ -425,24 +425,24 @@ export class FilterCoordinator {
     }
     this.changed()
   }
-  async rename(name: string) {
-    if (!this.saved || this.busy) return
+  async rename(name: string, preset: Wire<"FilterPresetSummary"> | undefined = this.saved) {
+    if (!preset || this.busy) return
     await this.organize({
       operation: "rename",
-      id: this.saved.id,
-      revision: this.saved.revision,
+      id: preset.id,
+      revision: preset.revision,
       name,
     })
   }
-  async deletePreset() {
-    if (!this.saved || this.busy) return
+  async deletePreset(preset: Wire<"FilterPresetSummary"> | undefined = this.saved) {
+    if (!preset || this.busy) return
     await this.organize({
       operation: "delete",
-      id: this.saved.id,
-      revision: this.saved.revision,
+      id: preset.id,
+      revision: preset.revision,
     })
   }
-  private async organize(change: Wire<"FilterChange">) {
+  private async organize(change: Extract<Wire<"FilterChange">, { operation: "rename" | "delete" }>) {
     const visit = this.visit,
       action = ++this.action,
       original = this.saved,
@@ -466,7 +466,7 @@ export class FilterCoordinator {
           }
         throw new Error(outcome.message)
       }
-      if (visit === this.visit && action === this.action && original?.id === this.saved?.id) {
+      if (visit === this.visit && action === this.action && change.id === original?.id && original?.id === this.saved?.id) {
         if (outcome.status === "filter_deleted") {
           this.saved = undefined
           this.notice = "Preset deleted; source remains an unsaved draft."
