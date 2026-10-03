@@ -16,6 +16,13 @@ const entity = Object.freeze({
   id: "entity-identity", name: "Separate overview label", components: Object.freeze([file, image]),
 })
 
+test("Civitai qualified cover participates in the shared preview slot with normal fallback", () => {
+  const civitai = { kind: "civitai", id: "civitai", thumbnail: "qualified-cover" }
+  assert.equal(entityCardDisplay({ ...entity, components: [image, civitai] }).preview.src, "qualified-cover")
+  assert.equal(entityCardDisplay({ ...entity, components: [{ ...civitai, thumbnail: undefined }, image] }).preview.src, image.thumbnail)
+  assert.equal(entityCardDisplay({ ...entity, components: [{ kind: "civitai", id: "civitai" }] }).preview, undefined)
+})
+
 test("each card slot selects its own contribution, independently of attachment order", () => {
   const expected = { title: "original.png", preview: { src: "preview-resource" }, summary: "1200 × 800" }
   assert.deepEqual(entityCardDisplay(entity), expected)

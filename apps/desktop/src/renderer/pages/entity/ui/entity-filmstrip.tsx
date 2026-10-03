@@ -77,7 +77,7 @@ export function EntityFilmstrip({
         style={{ width: trackWidth }}
       >
         {neighbors.map(({ entity, offset }) => {
-          const thumbnail = entity.gridPreview ?? entityCardDisplay(entity).preview?.src
+          const thumbnail = entityCardDisplay(entity).preview?.src
           const name =
             entity.components.find((component) => component.kind === "file")?.originalName ?? entityLabel(entity)
           const selected = entity.id === selectedId

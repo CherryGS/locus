@@ -9,7 +9,7 @@ type Observation = {
 export type EntityComponent = Observation &
   (
     | { kind: "tag"; id: string; record?: Wire<"TagSetRecord"> }
-    | { kind: "civitai"; id: string; record?: Wire<"CivitaiRecord">; view?: Wire<"CivitaiView"> }
+    | { kind: "civitai"; id: string; record?: Wire<"CivitaiRecord">; view?: Wire<"CivitaiView">; thumbnail?: string }
     | {
         kind: "file"
         id: string
@@ -112,8 +112,6 @@ export type EntityItem = {
   refreshing?: boolean
   membershipsStatus?: "unread" | "loading" | "present" | "missing" | "failed"
   problems?: readonly ReadProblem[]
-  // Qualified presentation resource shared by grid cards and the filmstrip.
-  gridPreview?: string
 }
 
 export const entityLabel = (entity: EntityItem) => entity.name ?? `Entity ${entity.id.slice(-8)}`

@@ -12,6 +12,7 @@ type Entry = {
   attempt?: Wire<"UpdateCardCoverPreference">
   preview?: string
   key?: string
+  presentationKey?: string
   generation: number
   observationVersion: number
   controller?: AbortController
@@ -86,9 +87,15 @@ export class CardCoverCoordinator {
       if (!entry.observed) continue
       const targetStamp = entry.target && this.targetStamp(entry.target)
       if (targetStamp !== undefined && entry.targetStamp !== targetStamp) {
+        this.clearPreview(entry)
         entry.key = undefined; entry.targetStamp = targetStamp
       }
       const cover = entry.observed.status === "saved" ? entry.observed.cover : null
+      const presentationKey = JSON.stringify([origin?.id, origin?.record?.model?.id, origin?.record?.matched_version, cover])
+      if (entry.presentationKey !== presentationKey) {
+        this.clearPreview(entry)
+        entry.presentationKey = presentationKey
+      }
       const key = JSON.stringify([origin?.id, origin?.record?.observation, origin?.view?.input, origin?.readStatus, origin?.previous, cover])
       if (key === entry.key) continue
       entry.key = key
@@ -111,15 +118,15 @@ export class CardCoverCoordinator {
   }
   private async resolve(id: string, entry: Entry, origin: string, matched: string, cover: CardCover | null, generation: number, signal: AbortSignal) {
     const current = () => this.live && this.entries.get(id) === entry && entry.generation === generation && !signal.aborted
-    // A changed source/selection must never keep impersonating the new cover.
-    this.clearPreview(entry)
+    // The same cover remains visible during revalidation. observe() clears it
+    // immediately when its source, selection or target membership changes.
     entry.unavailable = undefined
     try {
       const unit = await this.api.civitaiVersion(origin, cover?.version_id ?? matched, cover?.source_component_id)
       const example = unit.examples.find(example => example.applicable && example.binding.complete &&
         (!cover || example.source.component_id === cover.source_component_id && example.binding.entity_id === cover.target_entity_id && example.binding.file_id === cover.target_file_id) &&
         example.binding.media.some(media => media.kind === "image" && (!cover || media.component_id === cover.image_component_id)))
-      if (!example) { if (cover) throw new Error("The selected cover is no longer an applicable saved example."); return }
+      if (!example) { if (current()) this.clearPreview(entry); if (cover) throw new Error("The selected cover is no longer an applicable saved example."); return }
       const image = example.binding.media.find(media => media.kind === "image" && (!cover || media.component_id === cover.image_component_id))!
       const verify = async () => {
         const [target] = await this.api.memberships([example.binding.entity_id])
@@ -141,9 +148,10 @@ export class CardCoverCoordinator {
       if (originView.input !== "current" || originView.host !== id || originView.record.component_id !== origin || originView.record.model.id !== unit.model) throw new Error("Cover origin input or model changed while loading.")
       if (!current()) return
       entry.target = example.binding.entity_id; entry.targetStamp = this.targetStamp(entry.target)
+      this.clearPreview(entry)
       entry.preview = URL.createObjectURL(bytes)
     } catch (error) {
-      if (current()) entry.unavailable = errorText(error)
+      if (current()) { this.clearPreview(entry); entry.unavailable = errorText(error) }
     } finally { if (current()) this.changed() }
   }
   async choose(id: string, cover: CardCover | null) {

@@ -68,7 +68,8 @@ export function CivitaiActions({
   firstOnly: boolean
 }) {
   useSyncExternalStore(c.subscribe, c.snapshot)
-  const own = c.operations.filter((o) => o.outcome.entity_id === entityId)
+  const own = c.operations.filter((o) => o.outcome.entity_id === entityId &&
+    (!!o.active_request_id || o.outcome.state !== "complete" || o.unconfirmed_effects || o.observation_problem || o.outcome.problem))
   return (
     <div className="flex flex-col gap-3" aria-label="Origin Civitai operations">
       <Button
@@ -77,9 +78,10 @@ export function CivitaiActions({
         disabled={!fileId || !c.available || c.newBlocked(entityId)}
         onClick={() => fileId && void c.submit(entityId, fileId, firstOnly)}
       >
+        {c.blocked(entityId) && <Spinner />}
         {firstOnly ? "Enrich this File with Civitai" : "Refresh origin Civitai information"}
       </Button>
-      {c.newBlocked(entityId) && (
+      {c.newBlocked(entityId) && !c.blocked(entityId) && (
         <p className="text-sm">
           Original work is active or unconfirmed. Observe or recover that provider operation; imported work
           uses its whole-item import action.

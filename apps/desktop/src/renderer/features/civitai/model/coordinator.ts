@@ -188,16 +188,23 @@ export class CivitaiCoordinator {
           )
         )
           this.pending.delete(id)
+      const affected = new Set<string>()
       for (const operation of result.operations) {
-        const signature = `${operation.outcome.effect_revision}:${operation.outcome.state}`
+        // Admission and task status are not content changes. Refresh only after
+        // a provider effect, coalescing shared targets across this observation.
+        const signature = operation.outcome.effect_revision
         if (this.effects.get(operation.operation_id) === signature) continue
         this.effects.set(operation.operation_id, signature)
-        this.effectsChanged([
+        if (signature === "0") continue
+        for (const id of [
           operation.outcome.entity_id,
           ...operation.outcome.examples.flatMap((e) =>
             e.target_confirmed && e.target_candidate ? [e.target_candidate] : [],
           ),
-        ])
+        ]) affected.add(id)
+      }
+      if (affected.size) {
+        this.effectsChanged([...affected])
         this.projectionRevision++
       }
     } catch (e) {

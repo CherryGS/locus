@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { CardCoverCoordinator } from "@/features/entity-card-cover"
-import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon, ImageIcon, InfoIcon, StarIcon, VideoIcon } from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon, ImageIcon, InfoIcon, StarIcon, VideoIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "@/shared/ui/button"
@@ -20,6 +20,7 @@ import {
 type Preview = { url?: string; problem?: string }
 const exampleKey = (example: Wire<"CivitaiManagedExample">) =>
   `${example.binding.entity_id}:${example.binding.file_id}`
+class PreviewQualificationError extends Error {}
 
 export function CivitaiGallery({
   api,
@@ -146,9 +147,6 @@ export function CivitaiGallery({
             ) : (
               <Skeleton className="size-full" />
             )}
-            <span className="absolute right-3 bottom-3 rounded-md bg-background/80 p-1.5" aria-hidden="true">
-              <ExpandIcon />
-            </span>
           </Button>
         ) : (
           <p className="max-w-md p-6 text-center text-sm text-muted-foreground">
@@ -159,6 +157,7 @@ export function CivitaiGallery({
           </p>
         )}
       </div>
+      {preview?.url && preview.problem && <p role="alert" className="text-xs text-destructive">{preview.problem}</p>}
       <div className="flex min-w-0 items-center gap-2" data-slot="civitai-gallery-controls">
         <Button
           variant="outline"
@@ -206,7 +205,8 @@ export function CivitaiGallery({
                     >
                       {example.applicable && example.binding.complete ? (
                         <ManagedThumbnail
-                          key={revision}
+                          key={JSON.stringify(example.binding.media)}
+                          revision={revision}
                           api={api}
                           example={example}
                           onPreview={reportPreview}
@@ -341,12 +341,14 @@ function ManagedThumbnail({
   onPreview,
   viewport,
   selected,
+  revision,
 }: {
   api: BackendApi
   example: Wire<"CivitaiManagedExample">
   onPreview: (key: string, value: Preview | undefined) => void
   viewport: { current: HTMLDivElement | null }
   selected: boolean
+  revision: string
 }) {
   const element = useRef<HTMLSpanElement>(null)
   const [nearby, setNearby] = useState(false)
@@ -362,13 +364,17 @@ function ManagedThumbnail({
   const needed = selected || nearby
   const [url, setUrl] = useState<string>()
   const [problem, setProblem] = useState<string>()
+  const retainedUrl = useRef<string>(undefined)
   const key = exampleKey(example)
   useEffect(() => {
-    setUrl(undefined)
-    setProblem(undefined)
+    return () => {
+      if (retainedUrl.current) URL.revokeObjectURL(retainedUrl.current)
+      onPreview(key, undefined)
+    }
+  }, [key, onPreview])
+  useEffect(() => {
     if (!needed) return
     const controller = new AbortController()
-    let objectUrl: string | undefined
     let current = true
     void (async () => {
       const result = await api.memberships([example.binding.entity_id])
@@ -383,56 +389,66 @@ function ManagedThumbnail({
             membership.component_id === example.binding.file_id,
         )
       )
-        throw new Error("Example current File no longer matches its relationship")
+        throw new PreviewQualificationError("Example current File no longer matches its relationship")
       const target = example.binding.media.find((media) => media.kind === "image") ?? example.binding.media[0]
-      if (!target) throw new Error("No completed Media component")
+      if (!target) throw new PreviewQualificationError("No completed Media component")
       const mediaKind = target.kind === "image" ? "aadf84d2-0dc0-4a81-8cdb-901162c78321" : "f4be9375-60f1-4d04-8f07-8c9ad765e230"
       if (!member.memberships.some(membership => membership.kind_id === mediaKind && membership.component_id === target.component_id))
-        throw new Error("Example Media membership changed")
+        throw new PreviewQualificationError("Example Media membership changed")
       const preview = await api.savedPreview(target.kind, target.component_id)
       if (!current) return
       if (!preview || preview.kind !== target.kind || preview.file_id !== example.binding.file_id)
-        throw new Error("The already-produced preview is unavailable; rereading does not generate it")
+        throw new PreviewQualificationError("The already-produced preview is unavailable; rereading does not generate it")
       const bytes = await api.previewBytes(preview.locator, controller.signal)
+      if (typeof createImageBitmap === "function") { const bitmap = await createImageBitmap(bytes); bitmap.close() }
       const currentMembers = await api.memberships([example.binding.entity_id])
       const currentMember = currentMembers.find(member => member.entity_id === example.binding.entity_id)
       if (currentMember?.status !== "present" || !currentMember.memberships.some(member => member.component_id === example.binding.file_id && member.kind_id === "9fd73d3d-d35d-41bc-8b73-402e12f5c017") || !currentMember.memberships.some(member => member.kind_id === mediaKind && member.component_id === target.component_id))
-        throw new Error("Example membership changed while loading")
+        throw new PreviewQualificationError("Example membership changed while loading")
       if (!current) return
-      objectUrl = URL.createObjectURL(bytes)
+      const objectUrl = URL.createObjectURL(bytes)
       if (current) {
+        if (retainedUrl.current) URL.revokeObjectURL(retainedUrl.current)
+        retainedUrl.current = objectUrl
+        setProblem(undefined)
         setUrl(objectUrl)
         onPreview(key, { url: objectUrl })
       }
     })().catch((error) => {
       if (current) {
         const message = errorText(error)
+        if (error instanceof PreviewQualificationError) {
+          if (retainedUrl.current) URL.revokeObjectURL(retainedUrl.current)
+          retainedUrl.current = undefined
+          setUrl(undefined)
+        }
         setProblem(message)
-        onPreview(key, { problem: message })
+        onPreview(key, { url: retainedUrl.current, problem: retainedUrl.current ? `Previous preview · ${message}` : message })
       }
     })
     return () => {
       current = false
       controller.abort()
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-      onPreview(key, undefined)
     }
-  }, [api, example.binding.entity_id, example.binding.file_id, key, onPreview, needed])
+  }, [api, example.binding.entity_id, example.binding.file_id, key, onPreview, needed, revision])
   return (
     <span ref={element} className="flex size-full items-center justify-center">
-      {problem ? (
-        <ImageIcon aria-label="Preview unavailable" />
-      ) : url ? (
+      {url ? (
         <img
           src={url}
           alt="Managed Civitai example"
           className="size-full object-contain"
           onError={() => {
             const message = "Managed image could not be displayed. Reread the selected version to retry."
+            if (retainedUrl.current) URL.revokeObjectURL(retainedUrl.current)
+            retainedUrl.current = undefined
+            setUrl(undefined)
             setProblem(message)
             onPreview(key, { problem: message })
           }}
         />
+      ) : problem ? (
+        <ImageIcon aria-label="Preview unavailable" />
       ) : (
         <Skeleton className="size-full" />
       )}

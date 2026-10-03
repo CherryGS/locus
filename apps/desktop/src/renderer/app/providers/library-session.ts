@@ -145,7 +145,10 @@ export class LibrarySession extends DesktopSession {
   }
   readonly get = (id: string) => {
     const entity = this.reader.get(id)
-    return { ...entity, gridPreview: this.covers.get(id).preview, problems: [...(entity.problems ?? []), ...this.preferences.problems(id)] }
+    return { ...entity,
+      components: entity.components.map(component => component.kind === "civitai"
+        ? { ...component, thumbnail: this.covers.get(id).preview } : component),
+      problems: [...(entity.problems ?? []), ...this.preferences.problems(id)] }
   }
   source(): EntitySource {
     return { sequence: this.filter.sequence ?? emptySequence, get: this.get, demand: this.demand }

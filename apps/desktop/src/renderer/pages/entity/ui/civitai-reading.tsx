@@ -17,6 +17,7 @@ import { Detail, DetailIdentifier, DetailSection, SourceLink, type EntityItem } 
 import { CivitaiGallery } from "./civitai-gallery"
 import { CivitaiRichText } from "./civitai-rich-text"
 import { CivitaiPanelPortal } from "./civitai-panel-slot"
+import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
 
 export function CivitaiReading({
   api,
@@ -49,6 +50,7 @@ export function CivitaiReading({
   const [unitPending, setUnitPending] = useState(false)
   const [retry, setRetry] = useState(0)
   const [opening, setOpening] = useState(false)
+  const showPending = useDelayedPending(pending || unitPending)
   const selected = useRef(selection)
   selected.current = selection
   const generation = useRef(0)
@@ -216,6 +218,8 @@ export function CivitaiReading({
   const file = entity.components.find((c) => c.kind === "file")
   const originRecord = page?.origin.record ?? entity.components.find(c => c.kind === "civitai")?.record
   const model = page?.origin.record.model
+  // Current-self correspondence is already shown by Local match and file state.
+  const additionalMatches = unit?.correspondences.filter(match => match.source.entity_id !== entity.id || match.input !== "current" || !!match.problem || !unit.version.files.some(file => file.id === match.file)) ?? []
   // Optional provider fields belong to their own saved model or version source.
   const creator = sourceObject(sourceObject(model?.raw_json).creator)
   const creatorName = typeof creator.username === "string" ? creator.username : undefined
@@ -288,16 +292,15 @@ export function CivitaiReading({
           <Detail label="Entity"><DetailIdentifier label="Origin Entity" value={entity.id} /></Detail>
         </dl>
       </section>
-      {page && model && unit && (
+      {unit && additionalMatches.length > 0 && (
         <>
             <Separator />
             <section aria-label="Library links" className="flex min-w-0 flex-col gap-3 px-4 py-4 text-xs" data-slot="civitai-library-links">
               <h3 className="text-sm font-medium">
-                Library · {unit.version.name}
+                Local matches · {unit.version.name}
               </h3>
               <div className="flex flex-col divide-y select-text [overflow-wrap:anywhere]">
-                {unit.correspondences.length ? (
-                  unit.correspondences.map(correspondence => {
+                {additionalMatches.map(correspondence => {
                     const own = correspondence.source.entity_id === entity.id
                     const current = correspondence.input === "current"
                     const StatusIcon = current ? own ? CircleDotIcon : CheckIcon : CircleDashedIcon
@@ -315,13 +318,7 @@ export function CivitaiReading({
                       {correspondence.problem && <p className="text-destructive">{correspondence.problem}</p>}
                       </div>
                     )
-                  })
-                ) : (
-                  <p>
-                    No recorded local correspondence in this read. This does not prove absence from the
-                    library.
-                  </p>
-                )}
+                  })}
               </div>
             </section>
         </>
@@ -339,7 +336,6 @@ export function CivitaiReading({
         <Separator />
         <section aria-label="Provider file declarations" className="flex min-w-0 flex-col gap-3 px-4 py-4 text-xs">
           <h3 className="text-sm font-medium">Source data</h3>
-          {versionStatus && <p role="status">{versionStatus}</p>}
           {unit.version.files.map(item => (
             <details key={item.id}>
               <summary className="cursor-pointer break-words">{item.name} · {item.id}</summary>
@@ -400,7 +396,7 @@ export function CivitaiReading({
               disabled={pending}
               onClick={() => setRetry((value) => value + 1)}
             >
-              {pending ? <Spinner /> : <RefreshCwIcon />}
+              {showPending ? <Spinner /> : <RefreshCwIcon />}
             </Button>
           </div>
         </header>
@@ -409,11 +405,6 @@ export function CivitaiReading({
             <AlertTitle>Page read failed</AlertTitle>
             <AlertDescription>{problem}</AlertDescription>
           </Alert>
-        )}
-        {pending && page && (
-          <p role="status" className="text-xs text-muted-foreground">
-            Previous Page observation · rereading saved information.
-          </p>
         )}
         {!page || !model ? (
           <>
@@ -486,8 +477,8 @@ export function CivitaiReading({
                     title={versionStatus}
                     className="flex h-5 min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground"
                   >
-                    {(unitPending || pending) && <Spinner />}
-                    <span className="truncate">{versionStatus}</span>
+                    {showPending && <Spinner />}
+                    <span className="truncate">{showPending || unitProblem ? versionStatus : undefined}</span>
                   </div>
                 </section>
                 {!member && (

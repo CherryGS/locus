@@ -280,7 +280,6 @@ export function EntityGrid({
                   onDoubleClick={() => onOpen(entity)}
                 >
                   <EntityCard
-                    gridPreview={entity.gridPreview}
                     componentKind={componentFor(entity)}
                     entity={entity}
                     titleId={`${cellId(id)}-title`}

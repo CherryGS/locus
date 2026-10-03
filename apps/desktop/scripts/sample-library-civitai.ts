@@ -200,7 +200,7 @@ export async function verifyCivitaiSamples(root: string) {
       const panel = page.getByRole("complementary", { name: "Civitai", exact: true })
       assert.equal(await panel.locator(":scope > header").count(), 0)
       const libraryLinks = panel.getByRole("region", { name: "Library links", exact: true })
-      assert(await libraryLinks.getByText("This Entity", { exact: true }).isVisible(), "short library correspondences are visible without a disclosure")
+      assert.equal(await libraryLinks.getByText("This Entity", { exact: true }).count(), 0, "current-self correspondence is already covered by the local match and file state")
       assert(await panel.getByRole("region", { name: "Source details", exact: true }).getByText(entry.entityId, { exact: true }).isVisible(), "the full origin ID remains directly selectable without repeating it in the library list")
       assert(await panel.getByRole("region", { name: "Library maintenance", exact: true }).getByRole("button", { name: "Refresh origin Civitai information", exact: true }).isVisible(), "the ordinary maintenance action is visible without a disclosure")
       assert.equal(await reader.getByRole("button", { name: "Open library and source", exact: true }).count(), 0)

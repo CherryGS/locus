@@ -118,3 +118,22 @@ test("late response after disposal cannot publish effects", async () => {
   assert.deepEqual(f.effects, [])
   assert.deepEqual(f.c.operations, [])
 })
+
+test("status-only changes do not reread content and one observation coalesces shared effects", async t => {
+  const f = setup()
+  t.after(() => f.c.dispose())
+  const operation = (id, revision, state) => ({ operation_id: id, active_request_id: null,
+    outcome: { entity_id: "origin", effect_revision: revision, state, examples: [{ target_confirmed: true, target_candidate: "target" }] } })
+  let operations = [operation("one", "0", "pending")]
+  f.api.civitaiOperations = async () => ({ run_id: "run", operations })
+  await f.c.observe()
+  assert.equal(f.effects.length, 0)
+  operations = [operation("one", "1", "running"), operation("two", "1", "running")]
+  await f.c.observe()
+  assert.deepEqual(f.effects, [["origin", "target"]])
+  assert.equal(f.c.projectionRevision, 1)
+  operations = operations.map(item => ({ ...item, outcome: { ...item.outcome, state: "complete" } }))
+  await f.c.observe()
+  assert.equal(f.effects.length, 1)
+  assert.equal(f.c.projectionRevision, 1)
+})

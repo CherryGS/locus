@@ -144,14 +144,8 @@ try {
   await requestedSwitch
   assert.deepEqual(await stageLayout(), stageBefore, "loading must not collapse or move the gallery")
   assert.equal(await stage.locator("img").getAttribute("src"), previousPreview)
-  assert.match(
-    await reading.locator('[data-slot="civitai-version-status"]').innerText(),
-    /Loading version.*Showing/,
-  )
-  assert.equal(
-    await reading.getByRole("button", { name: "Inspect managed example", exact: true }).isEnabled(),
-    false,
-  )
+  await reading.locator('[data-slot="civitai-version-status"]').getByText(/Loading version.*Showing/).waitFor()
+  assert.equal(await reading.getByRole("button", { name: "Inspect managed example", exact: true }).getAttribute("aria-disabled"), "true")
   releaseSwitch()
   await versionDescription("C version description")
   await page.unroute(`**/civitai/${a.componentId}/version?*`)
@@ -255,13 +249,68 @@ try {
   await reading.getByText(/Controlled page read failure/).waitFor({ state: "hidden" })
   await data.phase("A")
   await page.getByRole("button", { name: "Civitai", exact: true }).click()
-  await civitaiPanel.getByRole("button", { name: "Refresh origin Civitai information", exact: true }).click()
-  await civitaiPanel.getByText("Origin operation · complete", { exact: true }).waitFor()
+  const refresh = civitaiPanel.getByRole("button", { name: "Refresh origin Civitai information", exact: true })
+  await stage.locator("img").waitFor()
+  const retainedStage = await stage.locator("img").elementHandle()
+  const retainedThumbnail = await reading.locator('[data-gallery-thumbnail][aria-pressed="true"] img').elementHandle()
+  assert(retainedStage && retainedThumbnail)
+  await page.evaluate(() => {
+    const stage = document.querySelector('[data-slot="civitai-gallery-stage"]')!
+    const image = stage.querySelector("img")!
+    const state = { removed: false, moved: false, observer: undefined as MutationObserver | undefined }
+    const bounds = stage.getBoundingClientRect()
+    const viewport = stage.closest('[data-slot="scroll-area-viewport"]')!
+    const position = bounds.y + viewport.scrollTop
+    state.observer = new MutationObserver(records => {
+      if (records.some(record => [...record.removedNodes].some(node => node === image || node.contains(image)))) state.removed = true
+      if (Math.abs(stage.getBoundingClientRect().y + viewport.scrollTop - position) > 1) state.moved = true
+    })
+    state.observer.observe(document.querySelector('[data-slot="civitai-page"]')!, { childList: true, subtree: true })
+    ;(window as unknown as { refreshStability: typeof state }).refreshStability = state
+  })
+  let releaseRefresh!: () => void, refreshRequested!: () => void
+  const heldRefresh = new Promise<void>(resolve => { releaseRefresh = resolve })
+  const requestedRefresh = new Promise<void>(resolve => { refreshRequested = resolve })
+  await page.route(`**/civitai/${a.componentId}/page`, async route => {
+    refreshRequested()
+    await heldRefresh
+    await route.continue()
+  })
+  const refreshBounds = await stageLayout()
+  const refreshScroll = await readerViewport.evaluate(element => element.scrollTop)
+  for (let revision = 1; revision <= 3; revision++) {
+    await refresh.click()
+    if (revision === 1) {
+      await requestedRefresh
+      assert(await retainedStage!.evaluate(element => element.isConnected), "delayed refresh retains existing preview")
+      assert.deepEqual(await stageLayout(), refreshBounds)
+      assert.equal(await readerViewport.evaluate(element => element.scrollTop), refreshScroll)
+      releaseRefresh()
+    }
+    const deadline = Date.now() + 30_000
+    while (true) {
+      const result = await backend.client.GET("/api/v1/civitai-operations")
+      if (result.data?.operations.filter(operation => operation.outcome.entity_id === a.entityId && operation.outcome.state === "complete").length === revision) break
+      assert(Date.now() < deadline, "refresh completes under the real provider boundary")
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+    await page.waitForFunction(() => !document.querySelector('[aria-label="Origin Civitai operations"] button')?.hasAttribute("disabled"))
+    assert.equal(await civitaiPanel.getByText("Origin operation · complete", { exact: true }).count(), 0)
+  }
+  await page.unroute(`**/civitai/${a.componentId}/page`)
+  assert(await retainedStage!.evaluate(element => element.isConnected), "refresh retains the gallery image node")
+  assert(await retainedThumbnail!.evaluate(element => element.isConnected), "refresh retains the selected thumbnail node")
+  const stability = await page.evaluate(() => {
+    const state = (window as unknown as { refreshStability: { removed: boolean; moved: boolean; observer: MutationObserver } }).refreshStability
+    state.observer.disconnect()
+    return { removed: state.removed, moved: state.moved }
+  })
+  assert.deepEqual(stability, { removed: false, moved: false })
   const view = await backend.client.GET("/api/v1/civitai/{component_id}/view", {
     params: { path: { component_id: a.componentId! } },
   })
   assert.equal(view.data?.host, a.entityId)
-  assert.equal(view.data?.record.revision, "1")
+  assert.equal(view.data?.record.revision, "3")
   await page.screenshot({ path: join(output, "refreshed-origin.png") })
   // Saved provider HTML retains useful structure, without giving the provider
   // access to the trusted renderer or loading remote resources on presentation.

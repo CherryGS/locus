@@ -4,6 +4,7 @@ import {
   videoDisplayItems,
   twitterDisplayItems,
   bilibiliDisplayItems,
+  civitaiDisplayItems,
   type ImageDisplayItem,
 } from "./component-display-items.ts"
 import { resolveDisplaySlot, type DisplayCandidate } from "./display-slot.ts"
@@ -13,7 +14,7 @@ import type { EntityItem } from "./entity-item"
 // slot; it does not rank entire component kinds or depend on attachment order.
 const cardSlots = {
   title: [fileDisplayItems.originalName, twitterDisplayItems.title, bilibiliDisplayItems.title],
-  preview: [bilibiliDisplayItems.preview, imageDisplayItems.preview, videoDisplayItems.preview],
+  preview: [civitaiDisplayItems.preview, bilibiliDisplayItems.preview, imageDisplayItems.preview, videoDisplayItems.preview],
   summary: [
     imageDisplayItems.dimensions,
     videoDisplayItems.duration,

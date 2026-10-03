@@ -36,6 +36,22 @@ test("automatic saved example and explicit cover stay independent of viewer choi
   assert.equal(f.calls[1].expected_revision, "1")
   assert.equal(f.calls[1].cover, null)
 })
+
+test("same cover survives a delayed observation refresh and failed requalification clears it", async t => {
+  let observation = "one", fail = false, release
+  const f = fixture({}, id => ({ id, components: [{ id: source, kind: "civitai", readStatus: "ready", record: { matched_version: "10", observation }, view: { input: "current" } }] }))
+  t.after(() => f.c.dispose())
+  f.c.demand([origin]); await delay(0)
+  const preview = f.c.get(origin).preview
+  assert(preview)
+  const version = f.api.civitaiVersion
+  f.api.civitaiVersion = async () => { await new Promise(resolve => { release = resolve }); if (fail) throw Error("relationship unavailable"); return version() }
+  observation = "two"; f.c.observe()
+  assert.equal(f.c.get(origin).preview, preview)
+  fail = true; release(); await delay(0)
+  assert.equal(f.c.get(origin).preview, undefined)
+  assert.match(f.c.get(origin).unavailable, /relationship unavailable/)
+})
 test("late membership replacement rejects bytes while retaining explicit intent", async t => {
   let replaced = false
   const f = fixture({ cardCoverPreferences: async () => [{ status: "saved", entity_id: origin, revision: "1", cover: selection }],

@@ -4,6 +4,14 @@ import type { EntityItem } from "./entity-item"
 
 export type ImageDisplayItem = { src: string }
 
+export const civitaiDisplayItems = {
+  preview(entity: EntityItem): ImageDisplayItem | undefined {
+    // The cover coordinator supplies qualified local bytes, never a remote URL.
+    const src = entity.components.find(component => component.kind === "civitai")?.thumbnail
+    return src ? { src } : undefined
+  },
+}
+
 export const fileDisplayItems = {
   originalName(entity: EntityItem): string | undefined {
     return entity.components.find((component) => component.kind === "file")?.originalName
