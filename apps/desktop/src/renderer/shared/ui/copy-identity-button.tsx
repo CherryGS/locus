@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/shared/ui/button"
 import { CheckIcon, CopyIcon } from "lucide-react"
+import { cn } from "@/shared/lib/utils"
 
 export function CopyIdentityButton({ label, value }: { label: string; value: string }) {
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle")
@@ -33,15 +34,24 @@ export function CopyIdentityButton({ label, value }: { label: string; value: str
       <Button
         variant={status === "failed" ? "destructive" : "ghost"}
         size="xs"
-        className="h-auto w-full min-w-0 shrink flex-1 items-start justify-start gap-2 px-0 py-1 whitespace-normal"
+        className="-mx-1.5 h-auto min-h-7 w-[calc(100%+0.75rem)] min-w-0 shrink flex-1 items-center justify-start gap-2 px-1.5 py-1 whitespace-normal"
         aria-label={`Copy ${label.toLowerCase()}`}
-        title={value}
+        title={`Copy ${label.toLowerCase()}: ${value}`}
         onClick={copy}
       >
         <code className="min-w-0 flex-1 break-all text-left font-mono text-foreground">
           {value}
         </code>
-        {status === "copied" ? <CheckIcon data-icon="inline-end" /> : <CopyIcon data-icon="inline-end" />}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "flex shrink-0 items-center",
+            status === "idle" &&
+              "opacity-0 group-hover/button:opacity-100 group-focus-visible/button:opacity-100 [@media(hover:none)]:opacity-100",
+          )}
+        >
+          {status === "copied" ? <CheckIcon data-icon="inline-end" /> : <CopyIcon data-icon="inline-end" />}
+        </span>
       </Button>
       <span role="status" className="sr-only">
         {feedback}

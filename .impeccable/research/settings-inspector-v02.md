@@ -48,3 +48,19 @@ navigation contracts. The concrete values below remain revisable candidates.
 Screenshots and measurements are retained locally under
 `E:/Project/locus/.local/visual-foundation-v01/`. These checks support this bounded
 refinement; they do not establish a complete accessibility or performance audit.
+
+## Copy-control feedback
+
+The user subsequently requested less copy-icon repetition, vertically centered
+icons and space between highlighted controls and their text. The shared identity
+copy button now centers its icon, extends the highlight 6px past the aligned text
+on each side, and reserves the same icon footprint across states. Idle icons are
+shown on hover and keyboard focus; non-hover input retains the icon. Copy results
+remain visible, and the value stays present.
+
+Actual Image inspector measurements at 320px and 192px widths showed no horizontal
+overflow, zero difference between text-block and icon vertical centers, and 7px
+between the text and the highlighted left edge including the border. Idle mouse
+icons had zero opacity; hover and keyboard focus had full opacity. Space copied a
+fixture File ID successfully, retaining its value and 42px two-line control height.
+Type checks and the desktop build passed for this correction.

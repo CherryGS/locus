@@ -134,6 +134,11 @@ surface adaptations of that system.
   ordinary-case section headings, supporting labels and primary-foreground values
   to separate hierarchy without fading the content. Reflow narrow property rows
   while retaining directly visible fields and copy actions.
+- **Copyable identities:** keep the full value directly available as the copy
+  control. Center its icon against the whole text block, and extend the highlight
+  beyond the text with symmetric padding while preserving property alignment.
+  Reveal idle icons on hover or keyboard focus; touch contexts and operation
+  feedback retain visible icons without moving the value or changing its bounds.
 - **Shared controls:** compare default, hover, focus, active/selected, disabled,
   pending and error states where applicable. Apply shared choices through the
   existing primitives and semantic tokens, preserving behavior.
