@@ -2,7 +2,7 @@ import { useRef, useState } from "react"
 import { BellIcon, ListXIcon, XIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 import {
   Popover,
   PopoverTrigger,
@@ -46,7 +46,7 @@ export function NotificationCenter() {
         <PopoverTitle className="sr-only">Notifications</PopoverTitle>
         <PopoverDescription className="sr-only">Notices from this session.</PopoverDescription>
         <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-          {records.length > 0 && (
+          {records.length > 0 ? (
             <ToggleGroup
               aria-label="Filter notifications"
               className="min-w-0 flex-wrap"
@@ -63,6 +63,13 @@ export function NotificationCenter() {
                 Warnings & errors <span className="tabular-nums text-muted-foreground">{issues.length}</span>
               </ToggleGroupItem>
             </ToggleGroup>
+          ) : (
+            <Empty className="flex-row justify-start gap-3 p-0 text-left">
+              <EmptyMedia className="mb-0"><BellIcon /></EmptyMedia>
+              <EmptyHeader className="items-start">
+                <EmptyTitle>No notifications yet</EmptyTitle>
+              </EmptyHeader>
+            </Empty>
           )}
           <div className="ml-auto flex shrink-0 items-center gap-1">
             {records.length > 0 && (
@@ -86,20 +93,15 @@ export function NotificationCenter() {
             </Button>
           </div>
         </div>
-        <Separator />
-        <ScrollArea viewportProps={{ className: "max-h-[min(26rem,calc(100dvh-10rem))] overscroll-contain" }}>
+        {records.length > 0 && <Separator />}
+        {records.length > 0 && <ScrollArea viewportProps={{ className: "max-h-[min(26rem,calc(100dvh-10rem))] overscroll-contain" }}>
           {visible.length === 0 ? (
             <Empty className="flex-row justify-start gap-3 p-4 text-left">
               <EmptyMedia className="mb-0">
                 <BellIcon />
               </EmptyMedia>
               <EmptyHeader className="items-start gap-1">
-                <EmptyTitle>{records.length ? "No warnings or errors" : "No notifications yet"}</EmptyTitle>
-                <EmptyDescription>
-                  {records.length
-                    ? "Other notices are available in All."
-                    : "Recent notices will appear here."}
-                </EmptyDescription>
+                <EmptyTitle>No warnings or errors</EmptyTitle>
               </EmptyHeader>
             </Empty>
           ) : (
@@ -120,7 +122,7 @@ export function NotificationCenter() {
               })}
             </ul>
           )}
-        </ScrollArea>
+        </ScrollArea>}
       </PopoverContent>
     </Popover>
   )

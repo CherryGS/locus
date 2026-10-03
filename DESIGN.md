@@ -196,6 +196,8 @@ surface adaptations of that system.
   merge filtering, search and panel actions instead of reserving a separate title
   row. Keep accessible names and allow controls to wrap in narrow windows.
   Preserve consequential confirmation headings and the Settings restart toolbar.
+  Empty Notifications uses a single compact content row with inline Close;
+  omit the unused filter toolbar and divider when there are no records.
 - **Task feedback:** give search, state filters, refresh and Close one toolbar.
   Give record names priority in the list, with compact accessible status icons;
   active work and attention may coexist. Keep progress scoped to its execution
