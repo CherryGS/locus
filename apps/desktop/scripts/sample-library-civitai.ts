@@ -242,7 +242,7 @@ export async function verifyCivitaiSamples(root: string) {
       assert.equal(await gallery.getByRole("button", { name: "Show example 1", exact: true }).getAttribute("aria-pressed"), "true", "cover controls do not change gallery browsing")
       assert.equal(await gallery.locator('[data-slot="civitai-gallery-stage"] img').getAttribute("src"), galleryImage)
       assert(await gallery.getByRole("button", { name: "Use automatic card cover", exact: true }).evaluate(element => element === document.activeElement), "cover save retains focus on its thumbnail marker")
-      const strip = gallery.locator('[data-slot="civitai-gallery-strip"] [data-slot="scroll-area-viewport"]')
+      const strip = gallery.locator('[data-slot="civitai-gallery-strip"] [data-slot="preview-strip-viewport"]')
       const filmstrip = await strip.evaluate(element => {
         element.scrollTop = 20
         const viewport = element.getBoundingClientRect()

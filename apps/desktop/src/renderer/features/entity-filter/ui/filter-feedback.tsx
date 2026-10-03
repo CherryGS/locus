@@ -111,15 +111,17 @@ export function FilterResultStatus({ coordinator: c }: { coordinator: FilterCoor
     !!status?.usable &&
     !!status.generation &&
     (observation.generation !== status.generation || observation.coveredSequence !== status.covered_sequence)
+  if (!c.filterApplied && !newer && !c.statusError && !status?.failure &&
+      (!status || (status.usable && status.covered_sequence === status.journal_head))) return null
   return (
     <div
       className="flex flex-wrap items-center gap-2 px-4 pb-2 text-xs text-muted-foreground"
       aria-label="Applied Filter result"
     >
-      <Badge variant="status"><ListFilterIcon aria-hidden="true" />{c.sequence?.length === 0 ? "No matches" : "Filtered result"}</Badge>
-      <span className="min-w-0 break-words">
-        {c.established?.criteria?.text ? c.established.criteria.text : "Native Filter applied"}
-      </span>
+      {c.appliedFilter && <>
+        <Badge variant="status"><ListFilterIcon aria-hidden="true" />{c.sequence?.length === 0 ? "No matches" : "Filtered result"}</Badge>
+        <span className="min-w-0 break-words">{c.appliedFilter.text}</span>
+      </>}
       {newer && <span>New index available</span>}
       {status && status.covered_sequence !== status.journal_head && <span>Index updates pending.</span>}
       {status?.failure && <span>Index update failed</span>}

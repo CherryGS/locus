@@ -85,15 +85,15 @@ export function EntityOverview({
       <div className="flex items-start gap-3 px-4 py-5">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <h3 className="break-words text-base font-semibold tracking-tight">{entityLabel(entity)}</h3>
-          <p className="text-xs text-muted-foreground">
+          {(structurePending || entity.membershipsStatus === "missing" || entity.membershipsStatus === "failed") && <p className="text-xs text-muted-foreground">
             {structurePending
               ? "Reading components…"
               : entity.membershipsStatus === "missing"
                 ? "Entity unavailable"
                 : entity.membershipsStatus === "failed"
                   ? "Component list could not be refreshed"
-                  : `${entity.components.length} ${entity.components.length === 1 ? "component" : "components"}`}
-          </p>
+                  : undefined}
+          </p>}
           {entity.loading && (
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Spinner />

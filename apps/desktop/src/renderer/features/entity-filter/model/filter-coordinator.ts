@@ -4,6 +4,7 @@ import type { IdentitySequence } from "@/entities/entity"
 import { ApiFailure, errorText, type BackendApi, type Wire } from "@/shared/api"
 import { emptyDraft, type FilterDraft } from "./draft"
 import { FilterAssistance, type AssistanceApi } from "./assistance"
+import { combinedSearchSource } from "./search-source"
 
 type FilterApi = AssistanceApi & Pick<
   BackendApi,
@@ -24,6 +25,8 @@ type DraftSwitch = { destination: string | null; source?: Wire<"FilterSource"> }
 type Established = {
   sequence: IdentitySequence
   criteria?: Wire<"FilterSource">
+  filterCriteria?: Wire<"FilterSource">
+  searchText?: string
   observation?: SearchObservation
   expiresAt?: number
 }
@@ -34,7 +37,10 @@ export class FilterCoordinator {
   established?: Established
   submitted?: FilterDraft
   open = false
-  pending?: "apply" | "refresh"
+  pending?: "apply" | "refresh" | "search"
+  searchDraft = ""
+  searchError?: string
+  private searchRequest?: string
   saving = false
   preparing = false
   loading = false
@@ -126,6 +132,28 @@ export class FilterCoordinator {
   get filtered() {
     return !!this.established?.criteria
   }
+  get appliedFilter() { return this.established?.filterCriteria }
+  get appliedSearch() { return this.established?.searchText ?? "" }
+  get filterApplied() { return !!this.appliedFilter }
+  editSearch(text: string) { this.searchDraft = text; this.searchError = undefined; this.changed() }
+  async applySearch() {
+    if (this.busy || this.disposed || this.hostClosing) return false
+    const search = this.searchDraft.trim(), filter = this.appliedFilter
+    if (this.pending === "search" && this.searchRequest === search) return false
+    const intent = ++this.intent
+    this.searchRequest = search
+    this.searchError = undefined
+    this.pending = "search"
+    this.changed()
+    try {
+      const profile = this.established?.criteria ?? this.language ?? (search ? await this.api.filterLanguage() : this.draft.source)
+      if (this.disposed || intent !== this.intent || this.hostClosing) return false
+      return await this.replace(combinedSearchSource(search, filter, profile), "search", intent, true, { filter, search })
+    } catch (error) {
+      if (intent === this.intent && !this.disposed) { this.searchError = errorText(error); this.pending = undefined; this.changed() }
+      return false
+    }
+  }
   get busy() {
     return this.preparing || this.saving || this.loading || this.pending === "apply"
   }
@@ -188,7 +216,10 @@ export class FilterCoordinator {
   }
   host(close: boolean) {
     this.hostClosing = close
-    if (close) this.close()
+    if (close) {
+      if (this.pending === "search") { this.intent++; this.pending = undefined; this.searchRequest = undefined }
+      this.close()
+    }
     else this.changed()
   }
   start() {
@@ -539,11 +570,14 @@ export class FilterCoordinator {
         this.changed()
         return false
       }
+      const filter = analysis.state === "empty" ? undefined : source
+      const search = this.appliedSearch
       const success = await this.replace(
-        analysis.state === "empty" ? undefined : source,
+        combinedSearchSource(search, filter, this.established?.criteria ?? source),
         "apply",
         intent,
         keepOpen,
+        { filter, search },
       )
       if (!success && saved && intent === this.intent)
         this.notice = `Saved “${saved}”, not applied: ${this.error ?? "Application failed"}`
@@ -559,13 +593,14 @@ export class FilterCoordinator {
     }
   }
   refresh() {
-    return this.replace(this.established?.criteria, "refresh")
+    return this.replace(this.established?.criteria, "refresh", undefined, false, { filter: this.appliedFilter, search: this.appliedSearch })
   }
   private async replace(
     criteria: Wire<"FilterSource"> | undefined,
-    operation: "apply" | "refresh",
+    operation: "apply" | "refresh" | "search",
     ticket?: number,
     keepOpen = false,
+    parts?: { filter?: Wire<"FilterSource">; search: string },
   ) {
     if (this.disposed) return false
     const intent = ticket ?? ++this.intent
@@ -588,6 +623,8 @@ export class FilterCoordinator {
       this.established = {
         sequence,
         criteria,
+        filterCriteria: parts ? parts.filter : criteria,
+        searchText: parts?.search ?? "",
         observation,
         expiresAt: observation ? Date.now() + observation.expiresAfterSeconds * 1000 : undefined,
       }
@@ -607,7 +644,8 @@ export class FilterCoordinator {
     } catch (e) {
       this.release(observation)
       if (!this.disposed && intent === this.intent) {
-        if (operation === "apply") {
+        if (operation === "search") this.searchError = errorText(e)
+        else if (operation === "apply") {
           this.error = errorText(e)
           const diagnostic =
             e instanceof EntityReadError
@@ -619,7 +657,7 @@ export class FilterCoordinator {
             e instanceof EntityReadError
               ? e.apiError?.code === "invalid_request"
               : e instanceof ApiFailure && e.detail.code === "invalid_request"
-          if (criteria && diagnostic?.owner === "filter")
+          if (criteria && diagnostic?.owner === "filter" && JSON.stringify(criteria) === JSON.stringify(this.draft.source))
             this.analysis = {
               source: criteria,
               state: definitionError ? "invalid" : "unavailable",

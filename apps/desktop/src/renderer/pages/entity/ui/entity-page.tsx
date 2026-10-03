@@ -13,6 +13,7 @@ import {
 } from "@/entities/entity"
 import {
   FilterModal,
+  EntitySearch,
   FilterResultStatus,
   FilterEvidence,
   type FilterCoordinator,
@@ -24,10 +25,8 @@ import type { BackendApi } from "@/shared/api"
 import type { PreferenceCoordinator } from "@/features/entity-view-preferences"
 import { Button } from "@/shared/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
-import { Badge } from "@/shared/ui/badge"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
 import { Spinner } from "@/shared/ui/spinner"
-import { Skeleton } from "@/shared/ui/skeleton"
 import { Separator } from "@/shared/ui/separator"
 import {
   Select,
@@ -55,6 +54,7 @@ import {
 import { availableViews, resolveView } from "../model/content-views"
 import { EntityContent } from "./entity-content"
 import { EntityFilmstrip } from "./entity-filmstrip"
+import { HeaderDisplay } from "@/shared/ui/header-display"
 import type { EntityBrowsingState } from "../model/browsing-state"
 import { EntityWorkspace } from "./entity-workspace"
 import { RefreshButton } from "@/shared/ui/refresh-button"
@@ -647,6 +647,13 @@ export function EntityPage({
       data-preference-cache={live?.preferences.cacheSize}
       data-pending-metadata={live?.reader.pendingCount}
     >
+      <HeaderDisplay>
+        <span className="truncate" aria-label="Browsing status" title={`${activeContext?.title ?? "Library"} · ${source.sequence.length.toLocaleString()} ${source.sequence.length === 1 ? "item" : "items"}${selected ? " · 1 selected" : ""}`}>
+          {sequence && (destination.collectionId !== "library" || !live || live.filter.sequence)
+            ? <>{activeContext && <>{activeContext.title} · </>}{source.sequence.length.toLocaleString()} {source.sequence.length === 1 ? "item" : "items"}{selected ? " · 1 selected" : ""}</>
+            : live?.filter.pending ? "Reading library…" : "Library unavailable"}
+        </span>
+      </HeaderDisplay>
       <header data-slot="entity-page-header" className="flex shrink-0 items-center gap-3 px-4">
         {viewing && selected ? (
           <EntityFilmstrip
@@ -658,18 +665,8 @@ export function EntityPage({
             onNavigate={adjacent}
           />
         ) : (
-          <div className="flex h-10 min-w-0 flex-1 items-center gap-2">
-            <h1 className="min-w-0 truncate text-sm leading-none font-medium">
-              {activeContext ? activeContext.title : "Entity"}
-            </h1>
-            {sequence && (destination.collectionId !== "library" || !live || live.filter.sequence) ? (
-              <Badge variant="secondary" className="py-0 text-sm leading-none tabular-nums">{source.sequence.length.toLocaleString()}</Badge>
-            ) : (
-              <Skeleton className="h-5 w-8" />
-            )}
-            {selected && (
-              <span className="shrink-0 whitespace-nowrap text-sm leading-none text-muted-foreground">1 selected</span>
-            )}
+          <div className="flex h-11 min-w-0 flex-1 items-center">
+            {destination.collectionId === "library" && live ? <EntitySearch coordinator={live.filter} /> : <span className="sr-only">{activeContext?.title ?? "Entity"}</span>}
           </div>
         )}
         {!viewing && selected && (
@@ -693,6 +690,9 @@ export function EntityPage({
         <p className="px-4 pb-2 text-xs text-muted-foreground">
           Direct Entity · temporary single-Entity view
         </p>
+      )}
+      {live?.filter.searchError && destination.collectionId === "library" && !viewing && (
+        <Alert variant="destructive" className="mx-4 mb-2"><AlertTitle>Search could not be applied</AlertTitle><AlertDescription>{live.filter.searchError} Showing the previous result.</AlertDescription></Alert>
       )}
       {live && destination.collectionId === "library" && (
         <FilterResultStatus coordinator={live.filter} />

@@ -103,7 +103,10 @@ try {
   }
   await page.keyboard.press("Escape")
   await modal.waitFor({ state: "hidden" })
-  await overview.getByRole("button", { name: "Copy entity id", exact: true }).waitFor()
+  const entityId = overview.getByRole("region", { name: "Entity ID", exact: true }).getByText(id, { exact: true })
+  await entityId.waitFor()
+  assert.equal(await entityId.evaluate(element => getComputedStyle(element).userSelect), "text")
+  assert.equal(await overview.getByRole("button", { name: "Copy entity id", exact: true }).count(), 0)
   assert.equal(await overview.getByRole("button", { name: "Entity ID", exact: true }).count(), 0)
   assert.deepEqual(errors, [])
   console.log(`PASS Stable tag edits: delayed add/remove, fixed bounds/scroll/focus, unrelated controls/resources preserved, local reads only. ${output}`)

@@ -683,6 +683,38 @@ try {
     .waitFor()
   assert.equal(await readRaw(), `  ${raw}`)
   assert(await dialog.isVisible())
+  // Header search and modal Filter retain separate authored/applied state.
+  await page.keyboard.press("Escape")
+  const aId = data.entries.find(entry => entry.name === "A")!.entityId
+  const bId = data.entries.find(entry => entry.name === "B")!.entityId
+  const pair = `entity_id:"${aId}" OR entity_id:"${bId}"`
+  const single = `entity_id:"${aId}"`
+  const headerSearch = page.getByRole("textbox", { name: "Search entities", exact: true })
+  await open(); await source.fill(pair); await apply()
+  await grid.locator('[data-entity-count="2"]').waitFor()
+  await open(); await source.fill("entity_id:*"); await page.keyboard.press("Escape")
+  await headerSearch.fill(single)
+  const combined = page.waitForRequest(request => new URL(request.url()).pathname === "/api/v1/search/query" && request.postDataJSON().text === `(${single}) AND (${pair})`)
+  await headerSearch.press("Enter"); await combined
+  await grid.locator('[data-entity-count="1"]').waitFor()
+  assert(await headerSearch.evaluate(element => element === document.activeElement), "search retains focus after application")
+  const displayBounds = await page.locator('[data-slot="header-display"]').boundingBox()
+  assert(displayBounds && Math.abs(displayBounds.x + displayBounds.width / 2 - 600) < 1, "page status is centered in the global header")
+  assert.equal(await page.locator('[data-slot="entity-page-header"]').getByRole("heading").count(), 0)
+  await open(); assert.equal(await source.inputValue(), "entity_id:*"); await page.keyboard.press("Escape")
+  await page.getByRole("button", { name: "Clear search", exact: true }).click()
+  await grid.locator('[data-entity-count="2"]').waitFor()
+  await open(); await source.fill(""); await apply()
+  await headerSearch.fill(single); await headerSearch.press("Enter")
+  await grid.locator('[data-entity-count="1"]').waitFor()
+  assert.equal(await filter.innerText(), "Filter")
+  await headerSearch.fill("unknown_field:value"); await headerSearch.press("Enter")
+  await page.getByText("Search could not be applied", { exact: true }).waitFor()
+  assert.equal(await grid.locator('[data-entity-count]').getAttribute("data-entity-count"), "1")
+  assert.equal(await headerSearch.inputValue(), "unknown_field:value")
+  await page.getByRole("button", { name: "Clear search", exact: true }).click()
+  await page.getByText("Search could not be applied", { exact: true }).waitFor({ state: "hidden" })
+  await page.screenshot({ path: join(output, "header-search.png") })
   assert.deepEqual(errors, [])
   await writeFile(
     join(output, "result.json"),

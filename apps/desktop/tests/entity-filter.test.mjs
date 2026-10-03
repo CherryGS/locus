@@ -97,6 +97,71 @@ function fixture(overrides = {}) {
   const coordinator = new FilterCoordinator(api)
   return { api, c: coordinator, released, observation }
 }
+
+test("header search composes with applied Filter, preserves OR scope and saves only the Filter", async t => {
+  const queries = [], writes = []
+  const f = fixture()
+  t.after(() => f.c.dispose())
+  f.api.search = async source => { queries.push(source.text); return f.observation(["a"]) }
+  const write = f.api.filterWrite
+  f.api.filterWrite = async value => { writes.push(value.change); return write(value) }
+  await f.c.refresh()
+  f.c.show(); f.c.edit(draft("red OR blue")); await f.c.apply()
+  f.c.show(); f.c.edit(draft("unapplied")); f.c.close()
+  f.c.editSearch("portrait"); await f.c.applySearch()
+  assert.equal(queries.at(-1), "(portrait) AND (red OR blue)")
+  assert.equal(f.c.draft.source.text, "unapplied", "search does not apply or overwrite a modal draft")
+  assert.equal(f.c.appliedFilter.text, "red OR blue")
+  f.c.show(); f.c.edit(draft("green", "Green")); await f.c.save("Green")
+  assert.equal(writes[0].source.text, "green")
+  assert.equal(queries.at(-1), "(portrait) AND (green)")
+  await f.c.refresh()
+  assert.equal(queries.at(-1), "(portrait) AND (green)")
+  f.c.editSearch(""); await f.c.applySearch()
+  assert.equal(queries.at(-1), "green")
+  assert.equal(f.c.appliedSearch, "")
+  f.c.show(); f.c.clear(); await f.c.apply()
+  assert.equal(f.c.filtered, false)
+  assert.equal(f.c.sequence.length, 2)
+})
+
+test("clearing Filter keeps search; failed and late searches retain correctly attributed results", async t => {
+  const f = fixture(), held = deferred(), queries = []
+  t.after(() => f.c.dispose())
+  f.api.search = async source => { assert.deepEqual(Object.keys(source).sort(), ["format", "text", "version"], "help metadata is not query input"); queries.push(source.text); if (source.text === "old") return held.promise; if (source.text === "broken") throw Error("Search read failed"); return f.observation([source.text]) }
+  f.c.editSearch("first"); await f.c.applySearch()
+  f.c.show(); f.c.edit(draft("kind:image")); await f.c.apply()
+  f.c.show(); f.c.clear(); await f.c.apply()
+  assert.equal(queries.at(-1), "first")
+  assert.equal(f.c.filterApplied, false)
+  f.c.editSearch("old"); const previous = f.c.applySearch()
+  f.c.editSearch("new"); await f.c.applySearch()
+  held.resolve(f.observation(["old"], "obsolete")); await previous
+  assert.equal(f.c.sequence.at(0), "new")
+  assert(f.released.includes("obsolete"))
+  f.c.editSearch("broken"); await f.c.applySearch()
+  assert.equal(f.c.sequence.at(0), "new")
+  assert.equal(f.c.appliedSearch, "new")
+  assert.equal(f.c.searchDraft, "broken")
+  assert.match(f.c.searchError, /Search read failed/)
+})
+
+test("host close abandons pending header search and cancellation permits retry", async t => {
+  const held = deferred(), requested = deferred(), f = fixture()
+  t.after(() => f.c.dispose())
+  await f.c.refresh()
+  f.api.search = () => { requested.resolve(); return held.promise }
+  f.c.editSearch("portrait"); const work = f.c.applySearch()
+  await requested.promise
+  f.c.host(true)
+  held.resolve(f.observation(["late"], "closed-search")); await work
+  assert.equal(f.c.pending, undefined)
+  assert.equal(f.c.sequence.length, 2)
+  assert(f.released.includes("closed-search"))
+  f.c.host(false); f.api.search = async () => f.observation(["retry"])
+  assert.equal(await f.c.applySearch(), true)
+  assert.equal(f.c.sequence.at(0), "retry")
+})
 test("pending helper submission protects its source and rejects a later visit", async () => {
   const lexical = deferred()
   let writes = 0

@@ -6,8 +6,14 @@ grid/inspection mode, collection identity and lightweight source destination.
 History stores those identities, never Entity payloads or media bytes. Card and
 detail facts remain presentation projections rather than domain-write authority.
 
-The page header spans the available width. Inspection replaces the Entity heading
-with a centered strip over the full current sequence. Its 88-pixel height holds
+The list header uses its remaining width for Search. Submitted Search text and
+the applied Filter are independent and compose as `(Search) AND (Filter)`;
+unapplied Filter drafts do not participate, and presets save only Filter content.
+A pending or rejected search retains the previous result. Counts, selection and
+collection context register into the centered titlebar display, owned by the
+active page. Overview omits a redundant Component count.
+
+Inspection uses a centered strip over the full current sequence. Its 88-pixel height holds
 96 by 72-pixel thumbnail frames with 4-pixel gaps; images preserve their complete
 aspect ratio. A uniform quiet frame and full-height preview area align image and file
 items; a muted border and background mark the current item. Neighbor buttons sit

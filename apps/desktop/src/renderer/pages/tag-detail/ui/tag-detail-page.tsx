@@ -9,7 +9,7 @@ import {
 import { Button } from "@/shared/ui/button"
 import { Separator } from "@/shared/ui/separator"
 import { ScrollArea } from "@/shared/ui/scroll-area"
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/shared/ui/resizable"
+import { HeaderDisplay } from "@/shared/ui/header-display"
 import { Spinner } from "@/shared/ui/spinner"
 import { useSourceReturn } from "@/shared/source-return"
 
@@ -55,6 +55,7 @@ export function TagDetailPage({
   }, [onReturn])
   return (
     <section aria-label="Tag detail" className="flex h-full min-h-0 flex-col">
+      <HeaderDisplay><span aria-label="Browsing status" className="truncate">{state.sequence ? `${state.sequence.length.toLocaleString()} tagged ${state.sequence.length === 1 ? "item" : "items"}${state.entityId ? " · 1 selected" : ""}` : "Tag"}</span></HeaderDisplay>
       <header
         aria-label="Tag page tools"
         className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 px-3 py-1.5"
@@ -85,23 +86,17 @@ export function TagDetailPage({
         </Button>
       </header>
       <Separator />
-      <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
-        <ResizablePanel defaultSize="36%" minSize="140px">
-          <div className="h-full min-h-0 px-3 pt-3 pb-2">
-            <ScrollArea
-              data-description-frame
-              className="h-full rounded-lg border border-border bg-muted/20"
-              viewportProps={{ "aria-label": "Description area" }}
-            >
-              <TagDocument coordinator={coordinator} state={state} />
-            </ScrollArea>
-          </div>
-        </ResizablePanel>
-        <ResizableHandle withHandle aria-label="Resize description and grid" />
-        <ResizablePanel defaultSize="64%" minSize="180px">
-          {entities}
-        </ResizablePanel>
-      </ResizablePanelGroup>
+      {entities}
+      <Separator />
+      <div className="min-h-0 flex-1 px-3 pt-3 pb-2">
+        <ScrollArea
+          data-description-frame
+          className="h-full rounded-lg border border-border bg-muted/20"
+          viewportProps={{ "aria-label": "Description area" }}
+        >
+          <TagDocument coordinator={coordinator} state={state} />
+        </ScrollArea>
+      </div>
     </section>
   )
 }

@@ -101,6 +101,7 @@ try {
   // its actions to target the newly selected source.
   const stage = reading.locator('[data-slot="civitai-gallery-stage"]')
   await stage.locator("img").waitFor()
+  assert.equal(await reading.locator('[data-slot="civitai-gallery-strip"] [data-slot="scroll-area-scrollbar"]').count(), 0, "the preview strip has no visible scrollbar")
   const stageLayout = () =>
     stage.evaluate((element) => {
       const bounds = element.getBoundingClientRect()

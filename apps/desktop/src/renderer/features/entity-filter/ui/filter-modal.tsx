@@ -58,9 +58,9 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
   }
   return (
     <Dialog open={c.open} actionsRef={actions} onOpenChange={(open) => (open ? c.show() : c.close())}>
-      <DialogTrigger ref={entry} render={<Button variant={c.filtered ? "secondary" : "outline"} size="sm" />}>
+      <DialogTrigger ref={entry} render={<Button variant={c.filterApplied ? "secondary" : "outline"} size="sm" />}>
         <FilterIcon data-icon="inline-start" />
-        Filter{c.filtered ? " · applied" : ""}
+        Filter{c.filterApplied ? " · applied" : ""}
       </DialogTrigger>
       <DialogContent
         showCloseButton={false}

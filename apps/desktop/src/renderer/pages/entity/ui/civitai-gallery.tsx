@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import type { CardCoverCoordinator } from "@/features/entity-card-cover"
 import { ChevronLeftIcon, ChevronRightIcon, ImageIcon, InfoIcon, StarIcon, VideoIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
-import { cn } from "@/shared/lib/utils"
+import { PreviewStrip, PreviewStripFrame } from "@/shared/ui/preview-strip"
 import { previewFingerprint } from "@/shared/lib/preview-fingerprint"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
@@ -171,11 +171,7 @@ export function CivitaiGallery({
         </Button>
         <div className="h-24 min-w-0 flex-1" data-slot="civitai-gallery-strip">
           {!!examples.length && (
-            <ScrollArea
-              className="h-full w-full"
-              viewportProps={{ ref: strip, style: { overflowY: "hidden" } }}
-              scrollbarProps={{ orientation: "horizontal" }}
-            >
+            <PreviewStrip viewportRef={strip} className="w-full">
               <ToggleGroup
                 aria-label="Choose example"
                 variant="outline"
@@ -192,7 +188,16 @@ export function CivitaiGallery({
                   const image = example.binding.media.find(media => media.kind === "image")
                   const marked = ownVersion && isCover(example)
                   return (
-                    <div key={key} className="group/gallery-thumbnail relative flex shrink-0" data-card-cover={marked || undefined} data-cover-editable={ownVersion && !!covers && !!originEntity || undefined}>
+                    <PreviewStripFrame key={key} cover={ownVersion && covers && originEntity ? {
+                      marked, busy: opening || coverState?.pending || !!coverState?.attempt,
+                      disabled: !example.applicable || !example.binding.complete || !image,
+                      label: marked ? "Use automatic card cover" : `Set example ${exampleIndex + 1} as card cover`,
+                      title: marked ? "Card cover · click to clear" : "Set as card cover",
+                      onToggle: () => {
+                        if (marked) void covers.choose(originEntity, null)
+                        else if (image) void covers.choose(originEntity, { source_component_id: example.source.component_id, version_id: unit.version.id, target_entity_id: example.binding.entity_id, target_file_id: example.binding.file_id, image_component_id: image.component_id })
+                      },
+                    } : undefined}>
                     <ToggleGroupItem
                       data-gallery-thumbnail
                       aria-disabled={opening}
@@ -220,23 +225,11 @@ export function CivitaiGallery({
                         <ImageIcon />
                       )}
                     </ToggleGroupItem>
-                    {ownVersion && covers && originEntity && (
-                      <Button variant="frame" size="icon-xs" className={cn("absolute -top-3 left-1/2 z-10 -translate-x-1/2", !marked && "opacity-0 group-hover/gallery-thumbnail:opacity-100 group-focus-within/gallery-thumbnail:opacity-100 focus-visible:opacity-100")}
-                        aria-label={marked ? "Use automatic card cover" : `Set example ${exampleIndex + 1} as card cover`}
-                        aria-pressed={marked} aria-disabled={opening || coverState?.pending || !!coverState?.attempt}
-                        title={marked ? "Card cover · click to clear" : "Set as card cover"}
-                        disabled={!marked && (!example.applicable || !example.binding.complete || !image)}
-                        onClick={() => {
-                          if (opening || coverState?.pending || coverState?.attempt) return
-                          if (marked) void covers.choose(originEntity, null)
-                          else if (image) void covers.choose(originEntity, { source_component_id: example.source.component_id, version_id: unit.version.id, target_entity_id: example.binding.entity_id, target_file_id: example.binding.file_id, image_component_id: image.component_id })
-                        }}><StarIcon className={marked ? "fill-current" : undefined} /></Button>
-                    )}
-                    </div>
+                    </PreviewStripFrame>
                   )
                 })}
               </ToggleGroup>
-            </ScrollArea>
+            </PreviewStrip>
           )}
         </div>
 

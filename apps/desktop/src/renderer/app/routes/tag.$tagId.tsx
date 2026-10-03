@@ -1,7 +1,7 @@
 import { createFileRoute, useBlocker, useRouterState } from "@tanstack/react-router"
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react"
 import { emptySequence } from "@/entities/entity"
-import { TagDetailPage, TagEntityGrid } from "@/pages/tag-detail"
+import { TagDetailPage, TagEntityStrip } from "@/pages/tag-detail"
 import { EntityPage, entitySearch, type EntityDestination, type EntityBrowsingState } from "@/pages/entity"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 import { Button } from "@/shared/ui/button"
@@ -51,7 +51,7 @@ function TagRoute() {
   useSyncExternalStore(session?.preferences.subscribe ?? noSubscribe, session?.preferences.snapshot ?? zero)
   useSyncExternalStore(session?.civitai.subscribe ?? noSubscribe, session?.civitai.snapshot ?? zero)
   useSyncExternalStore(session?.covers.subscribe ?? noSubscribe, session?.covers.snapshot ?? zero)
-  const get = useCallback((id: string) => session!.reader.get(id), [session])
+  const get = useCallback((id: string) => session!.get(id), [session])
   const demand = useCallback((ids: string[]) => session?.demand(ids), [session])
   useEffect(() => {
     if (!c || !s) return
@@ -127,7 +127,7 @@ function TagRoute() {
         }}
         onReturn={returning}
         entities={
-          <TagEntityGrid
+          <TagEntityStrip
             source={source}
             selectedId={s.entityId}
             position={s.grid}
