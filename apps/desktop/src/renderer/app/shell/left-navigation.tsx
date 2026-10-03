@@ -6,8 +6,8 @@ import { cn } from "@/shared/lib/utils"
 import { Button, buttonVariants } from "@/shared/ui/button"
 import { useSettingsWorkspace } from "./settings-navigation"
 import { Separator } from "@/shared/ui/separator"
+import { actionRailWidth } from "@/shared/ui/action-rail-layout"
 
-const collapsedWidth = 40
 const expandedWidth = 224
 const revealDelay = 300
 const concealDelay = 150
@@ -85,14 +85,14 @@ export function LeftNavigation() {
   return (
     // Keep the global rail mounted on every page; revealing labels overlays
     // the content without changing its width.
-    <div className="relative z-10 w-10 shrink-0">
+    <div className="relative z-10 shrink-0" style={{ width: actionRailWidth }}>
       <motion.nav
         ref={nav}
         id="primary-navigation"
         aria-label="Main navigation"
         className="absolute inset-y-0 left-0 flex flex-col gap-1 overflow-hidden bg-sidebar px-1 py-2"
         initial={false}
-        animate={{ width: revealed ? expandedWidth : collapsedWidth }}
+        animate={{ width: revealed ? expandedWidth : actionRailWidth }}
         transition={transition}
         onPointerEnter={enter}
         onPointerLeave={leave}

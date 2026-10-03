@@ -6,6 +6,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/em
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/shared/ui/resizable"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Separator } from "@/shared/ui/separator"
+import { actionRailWidth } from "@/shared/ui/action-rail-layout"
 import type { EntityBrowsingState } from "../model/browsing-state"
 import { EntityGrid, minimumEntityGridWidth } from "@/entities/entity"
 import { entityPanels, type EntityPanelId } from "./entity-panels"
@@ -187,11 +188,12 @@ export function EntityWorkspace({
             </>
           )}
         </ResizablePanelGroup>
-        <Separator orientation="vertical" />
         <aside
           aria-label="Auxiliary panels"
-          className="w-10 min-h-0 shrink-0 bg-sidebar"
+          className="relative min-h-0 shrink-0 bg-sidebar"
+          style={{ width: actionRailWidth }}
         >
+          <Separator orientation="vertical" className="absolute inset-y-0 left-0 pointer-events-none" />
           <ScrollArea className="h-full" scrollbarProps={{ className: "data-vertical:w-1" }}
             viewportProps={{ className: "overscroll-contain" }}>
             <div className="flex flex-col items-center gap-1 py-2">

@@ -163,6 +163,12 @@ try {
     const box = button.getBoundingClientRect(); return { x: box.x, width: box.width }
   }))
   assert(railBox && railBox.width === 40 && railButtons.every(button => button.width === 32 && button.x - railBox.x === 4), "Both rails share 4px side insets")
+  const footprints = await page.locator('[data-slot="entity-workspace"]').evaluate(workspace => {
+    const group = workspace.querySelector('[data-slot="resizable-panel-group"]')!
+    const nav = document.getElementById("primary-navigation")!.parentElement!
+    return { left: nav.getBoundingClientRect().width, right: workspace.getBoundingClientRect().right - group.getBoundingClientRect().right }
+  })
+  assert.deepEqual(footprints, { left: 40, right: 40 }, "Rail boundaries are included in the same visual footprint")
   assert.equal(await panel.getByText("Exact size", { exact: true }).count(), 0, "formatted and exact size share one property row")
   await page.getByRole("button", { name: "Image", exact: true }).click()
   await panel.getByText("Revision", { exact: true }).waitFor()

@@ -33,7 +33,9 @@
   Tasks and notifications share this implementation; their labels remain
   available through accessible names and titles.
 - Compact vertical navigation rails are 40px wide with 32px-wide controls and
-  4px side insets. Expanded navigation overlays content without moving the
+  4px side insets. Left navigation and the Entity panel rail use one shared
+  width; draw the boundary inside that footprint instead of allocating another
+  pixel beside the rail. Expanded navigation overlays content without moving the
   icon column. Panel buttons may grow vertically to retain their text labels.
 - Entity Search and its Filter trigger share one InputGroup. Place the labeled
   Filter action in a full-height trailing segment, sharing the outer frame and
