@@ -122,10 +122,18 @@ surface adaptations of that system.
 - **Settings:** retain Raycast as the scoped reference for shared groups and
   rows: quiet grouped surfaces, aligned labels and controls, and consistent help
   and action placement across Library, External connection and Media tools.
+  Adapt columns and padding to the settings content width. Stack labels above
+  controls when two columns would constrain them, and give consequential action
+  explanations enough width before placing an adjacent button.
 - **Media cards:** emphasize the preview, with readable titles and metadata and
-  clear existing actions and selection. Inspect with representative real content.
+  clear existing actions and selection. Keep hover, selection and keyboard focus
+  distinguishable through quiet boundaries; preserve card geometry and the grid
+  spacing. Inspect with representative real content.
 - **Properties and tables:** favor stable alignment and readable values. Preserve
-  the visibility of identifiers, dates, status and other ordinary facts.
+  the visibility of identifiers, dates, status and other ordinary facts. Use
+  ordinary-case section headings, supporting labels and primary-foreground values
+  to separate hierarchy without fading the content. Reflow narrow property rows
+  while retaining directly visible fields and copy actions.
 - **Shared controls:** compare default, hover, focus, active/selected, disabled,
   pending and error states where applicable. Apply shared choices through the
   existing primitives and semantic tokens, preserving behavior.

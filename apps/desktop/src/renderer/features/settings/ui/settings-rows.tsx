@@ -54,8 +54,8 @@ export function SettingsGroup({
 
 // Read-only facts and editable fields share the same columns and responsive break.
 const rowClassName =
-  "grid min-h-14 grid-cols-1 items-start gap-x-6 gap-y-2 px-4 py-3 @min-[28rem]/settings:grid-cols-[10rem_minmax(0,1fr)]"
-const labelClassName = "text-sm font-normal @min-[28rem]/settings:pt-1.5"
+  "grid min-h-14 grid-cols-1 items-start gap-x-6 gap-y-2 px-4 py-3 @min-[32rem]/settings:grid-cols-[9rem_minmax(0,1fr)]"
+const labelClassName = "text-sm font-normal @min-[32rem]/settings:pt-1.5"
 
 export function SettingsRow({
   label,

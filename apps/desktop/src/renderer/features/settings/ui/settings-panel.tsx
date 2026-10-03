@@ -35,10 +35,10 @@ export function SettingsPanel({
   }, [settings, externalSettings, externalToken, restricted])
   return (
     <section
-      className="h-full overflow-auto bg-background [scrollbar-color:var(--border)_transparent] [scrollbar-gutter:stable] [scrollbar-width:thin]"
+      className="@container/settings-workspace h-full overflow-auto bg-background [scrollbar-color:var(--border)_transparent] [scrollbar-gutter:stable] [scrollbar-width:thin]"
       aria-label="Settings workspace"
     >
-      <div className="mx-auto flex max-w-[800px] flex-col gap-5 px-6 py-6 sm:px-8">
+      <div className="mx-auto flex max-w-[800px] flex-col gap-5 px-4 py-6 @min-[36rem]/settings-workspace:px-8">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
             <h1 className="text-xl font-semibold tracking-tight">

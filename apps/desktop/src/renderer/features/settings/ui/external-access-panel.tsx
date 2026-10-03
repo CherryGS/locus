@@ -218,13 +218,14 @@ export function ExternalAccessPanel({
                 )}
               </div>
             )}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-              <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+            <div className="grid grid-cols-1 items-center gap-3 pt-1 @min-[42rem]/settings:grid-cols-[minmax(0,1fr)_auto]">
+              <p className="min-w-0 text-xs leading-5 text-muted-foreground">
                 Reset invalidates the old Token. Update it in every connected client.
               </p>
               <Button
                 variant="outline"
                 size="sm"
+                className="justify-self-end"
                 disabled={!current || !!restricted}
                 onClick={() => {
                   setRevealedRevision(undefined)

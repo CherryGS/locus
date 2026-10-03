@@ -61,11 +61,11 @@ export function EntityCard({
           </Badge>
         )}
       </CardContent>
-      <CardHeader className="h-14 shrink-0 gap-0.5 py-1.5">
+      <CardHeader className="h-14 shrink-0 gap-0.5 rounded-none border-t border-border/50 py-1.5">
         <CardTitle id={titleId} className="truncate" title={title}>
           {title}
         </CardTitle>
-        <CardDescription className="h-5 truncate">
+        <CardDescription className="h-5 truncate tabular-nums">
           {display.summary ?? (initialLoading ? <Skeleton className="mt-1 h-3 w-20" /> : "—")}
         </CardDescription>
       </CardHeader>

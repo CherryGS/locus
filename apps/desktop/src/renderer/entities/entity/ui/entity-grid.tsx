@@ -215,7 +215,7 @@ export function EntityGrid({
         "aria-multiselectable": false,
         "aria-activedescendant": selectedIndex >= 0 && selectedId ? cellId(selectedId) : undefined,
         tabIndex: 0,
-        className: "[overflow-anchor:none]",
+        className: "group/entity-grid [overflow-anchor:none]",
         onKeyDown: navigate,
         onScroll: (event) => {
           const physical = event.currentTarget.scrollTop
@@ -262,7 +262,7 @@ export function EntityGrid({
                   aria-labelledby={`${cellId(id)}-title`}
                   aria-selected={id === selectedId}
                   aria-busy={!!entity.loading}
-                  className="relative isolate min-h-0 min-w-0 cursor-default rounded-xl select-none after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:outline-offset-[-2px] hover:after:outline-1 hover:after:outline-ring/60 aria-selected:after:outline-2 aria-selected:after:outline-primary/60"
+                  className="relative isolate min-h-0 min-w-0 cursor-default rounded-xl select-none after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:outline-offset-[-2px] hover:after:outline-1 hover:after:outline-input aria-selected:after:outline-2 aria-selected:after:outline-primary/80 group-focus-visible/entity-grid:aria-selected:after:outline-primary"
                   onClick={() => select(row * columns + column)}
                   onDoubleClick={() => onOpen(entity)}
                 >
