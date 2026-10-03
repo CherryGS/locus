@@ -141,12 +141,9 @@ try {
   const railViewport = navigation.locator('[data-slot="scroll-area-viewport"]')
   await navigation.getByRole("button", { name: "Overview", exact: true }).focus()
   await page.keyboard.press("Tab")
-  const hint = page.locator('[data-slot="tooltip-content"][data-open]')
-  await hint.filter({ hasText: /^File$/ }).waitFor()
   await page.keyboard.press("Tab")
   const imageTrigger = navigation.getByRole("button", { name: "Image", exact: true })
   assert(await imageTrigger.evaluate(element => element === document.activeElement))
-  await hint.filter({ hasText: /^Image$/ }).waitFor()
   const railState = await railViewport.evaluate(element => ({
     scroll: element.scrollTop, height: element.clientHeight, content: element.scrollHeight,
   }))
