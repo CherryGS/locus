@@ -3,7 +3,7 @@ import { cn } from "@/shared/lib/utils"
 import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
 import { Button } from "@/shared/ui/button"
 import { Field, FieldGroup, FieldLabel } from "@/shared/ui/field"
-import { InputGroup, InputGroupAddon, InputGroupTextarea } from "@/shared/ui/input-group"
+import { InputGroup, InputGroupTextarea } from "@/shared/ui/input-group"
 import { Spinner } from "@/shared/ui/spinner"
 import type { EntityNotesCoordinator } from "../model/entity-notes"
 
@@ -15,7 +15,6 @@ export function EntityNotesEditor({ entityId, coordinator: c }: {
   const s = c.get(entityId)
   const field = useId()
   const composing = useRef(false)
-  const input = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
     void c.read(s)
     return () => { if (!s.error) void c.save(s) }
@@ -44,10 +43,9 @@ export function EntityNotesEditor({ entityId, coordinator: c }: {
             </span>
           </div>
           <InputGroup className={cn(s.saved !== undefined && c.editable && "has-disabled:bg-control has-disabled:opacity-100")}>
-            <InputGroupTextarea ref={input} id={field} value={s.draft} placeholder="Add a note, an idea, a reminder…"
+            <InputGroupTextarea id={field} value={s.draft} placeholder="Add a note, an idea, a reminder…"
               className="min-h-24 resize-y disabled:opacity-100"
               disabled={s.saved === undefined || s.reading || !c.editable}
-              aria-describedby={`${field}-hint`}
               onChange={(event) => c.update(s, event.target.value, composing.current)}
               onCompositionStart={() => { composing.current = true; c.update(s, s.draft, true) }}
               onCompositionEnd={(event) => { composing.current = false; c.update(s, event.currentTarget.value) }}
@@ -58,9 +56,6 @@ export function EntityNotesEditor({ entityId, coordinator: c }: {
                   void c.save(s)
                 }
               }} />
-            <InputGroupAddon align="block-end" className="justify-end" onClick={() => input.current?.focus()}>
-              <span id={`${field}-hint`} className="text-xs font-normal">Saves automatically.</span>
-            </InputGroupAddon>
           </InputGroup>
           {s.error && <div className="flex flex-col items-start gap-2" role="alert">
             <p className="break-words text-xs text-destructive">{s.error}</p>

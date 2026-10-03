@@ -193,8 +193,8 @@ surface adaptations of that system.
   presentation, and a failed refresh remains visibly attributable.
   Notes autosave and saved view choices omit routine success labels. Keep pending,
   unsaved, failed and uncertain operation feedback visible where it belongs.
-  Keep the autosave hint inside the Notes input surface as a separate footer,
-  without covering editable text. Associate connection availability with the
+  Notes omits the permanent autosave hint and its footer; operation feedback
+  stays beside its label. Associate connection availability with the
   active HTTP endpoint.
   Group the active HTTP endpoint, editable bind address and Token in one HTTP
   surface. Keep address saving and Token operations independent inside that group.
