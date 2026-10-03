@@ -77,8 +77,21 @@ try {
       await delay(10)
     }
   }
+  // Initial read failure is recoverable, rather than an empty editable vocabulary.
+  const initialError = `Tags read failed for /${"long-path-segment".repeat(18)}`
+  await page.route("**/api/v1/tags", route => route.fulfill({ status: 500,
+    json: { code: "operation_failed", message: initialError } }))
+  await page.setViewportSize({ width: 720, height: 480 })
   await page.goto(`${preview.origin}/#/tags`)
+  await page.getByText("Tags unavailable", { exact: true }).waitFor()
+  assert.equal(await page.getByText("No tags yet", { exact: true }).count(), 0)
+  assert.equal(await page.getByRole("button", { name: "New root tag", exact: true }).count(), 0)
+  assert(await page.locator('section[aria-label="Tags"]').evaluate(element => element.scrollWidth <= element.clientWidth))
+  await page.screenshot({ path: join(output, "tags-initial-failure.png") })
+  await page.unroute("**/api/v1/tags")
+  await page.getByRole("button", { name: "Retry tags read", exact: true }).press("Enter")
   await page.getByText("No tags yet", { exact: true }).waitFor()
+  await page.setViewportSize({ width: 1200, height: 800 })
   const emptyGate = held(), emptyEntered = held()
   await page.route("**/api/v1/tags", async route => {
     emptyEntered.resolve(); await emptyGate.promise; await route.continue()
@@ -127,6 +140,8 @@ try {
   await tagRefresh.click()
   const failure = page.getByRole("alert").filter({ hasText: "isolated vocabulary read failed" })
   await failure.waitFor()
+  assert(await failure.getByRole("button", { name: "Retry tags read", exact: true }).isVisible())
+  await page.screenshot({ path: join(output, "tags-retained-failure.png") })
   await page.unrouteAll({ behavior: "wait" })
   const retryGate = held(), retryEntered = held()
   await page.route("**/api/v1/tags", async route => {

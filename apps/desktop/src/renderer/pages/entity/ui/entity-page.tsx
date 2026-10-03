@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "@tanstack/react-router"
-import { CheckIcon } from "lucide-react"
+import { CheckIcon, TriangleAlertIcon } from "lucide-react"
 import {
   componentAppearance,
   entityLabel,
@@ -707,10 +707,15 @@ export function EntityPage({
         </Alert>
       )}
       {destination.collectionId === "library" && live?.filter.resultError && !!live.filter.sequence && (
-        <Alert variant="destructive">
+        <Alert className="mx-4 mb-2 w-auto shrink-0">
+          <TriangleAlertIcon className="text-destructive" />
           <AlertTitle>Library refresh failed</AlertTitle>
-          <AlertDescription>
-            {live.filter.resultError} The previous complete list is still shown.
+          <AlertDescription className="flex min-w-0 flex-col items-start gap-2 [&_p:not(:last-child)]:mb-0">
+            <p className="text-foreground [overflow-wrap:anywhere]">{live.filter.resultError}</p>
+            <p>The previous complete list is still shown.</p>
+            <Button size="sm" variant="outline" disabled={!!live.filter.pending}
+              focusableWhenDisabled={!!live.filter.pending} aria-busy={!!live.filter.pending}
+              onClick={() => void refresh()}>Retry library read</Button>
           </AlertDescription>
         </Alert>
       )}

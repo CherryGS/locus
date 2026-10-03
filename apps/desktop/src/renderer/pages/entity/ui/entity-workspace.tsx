@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { motion, useReducedMotion } from "motion/react"
 import type { EntityItem, EntitySource } from "@/entities/entity"
 import { Button } from "@/shared/ui/button"
-import { Empty, EmptyDescription, EmptyHeader } from "@/shared/ui/empty"
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/shared/ui/resizable"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Separator } from "@/shared/ui/separator"
@@ -136,7 +136,8 @@ export function EntityWorkspace({
                 ) : (
                   <Empty className="h-full">
                     <EmptyHeader>
-                      <EmptyDescription>No entities yet.</EmptyDescription>
+                      <EmptyTitle>No entities yet.</EmptyTitle>
+                      <EmptyDescription>Use Import to add files to this library.</EmptyDescription>
                     </EmptyHeader>
                   </Empty>
                 )))}

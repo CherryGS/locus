@@ -5,6 +5,7 @@ import {
   SearchIcon,
   XIcon,
   ListFilterIcon,
+  TriangleAlertIcon,
 } from "lucide-react"
 import type { Wire } from "@/shared/api"
 import { Button } from "@/shared/ui/button"
@@ -33,7 +34,7 @@ import {
   EmptyMedia,
   EmptyContent,
 } from "@/shared/ui/empty"
-import { Alert, AlertDescription } from "@/shared/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { Separator } from "@/shared/ui/separator"
 import {
   Popover,
@@ -95,7 +96,14 @@ export function TagVocabulary({
     path = tagPath(forest, b.branchId ?? b.tagId)
   const blocked = c.hostClosing || c.pending,
     retained = !!c.readError
-  const initialLoading = c.loading && c.vocabulary === undefined
+  const initialFailure = !!c.readError && c.vocabulary === undefined
+  const initialLoading = c.loading && c.vocabulary === undefined && !initialFailure
+  const retry = (
+    <Button size="sm" variant="outline" disabled={c.loading || c.hostClosing}
+      focusableWhenDisabled={c.loading && !c.hostClosing} aria-busy={c.loading} onClick={() => void c.read()}>
+      Retry tags read
+    </Button>
+  )
   const attempts = c.attempts.filter(
     (a) => !("entity_id" in a.change) || a.state === "pending" || a.state === "unconfirmed",
   )
@@ -247,19 +255,20 @@ export function TagVocabulary({
         )}
       </div>
       <Separator />
-      {c.readError && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            Vocabulary read failed: {c.readError}.{" "}
-            {c.vocabulary
-              ? "Showing the previous forest; refresh before editing."
-              : "Retry to read your tags."}
+      {c.readError && !initialFailure && (
+        <Alert className="mx-3 mb-3 w-auto shrink-0">
+          <TriangleAlertIcon className="text-destructive" />
+          <AlertTitle>Tags refresh failed</AlertTitle>
+          <AlertDescription className="flex min-w-0 flex-col items-start gap-2 [&_p:not(:last-child)]:mb-0">
+            <p className="text-foreground [overflow-wrap:anywhere]">{c.readError}</p>
+            <p>Showing the previous forest; refresh before editing.</p>
+            {retry}
           </AlertDescription>
         </Alert>
       )}
       {b.error && (
-        <Alert variant="destructive">
-          <AlertDescription>{b.error}</AlertDescription>
+        <Alert variant="destructive" className="mx-3 mb-3 w-auto shrink-0">
+          <AlertDescription className="[overflow-wrap:anywhere]">{b.error}</AlertDescription>
         </Alert>
       )}
       {records.length ? (
@@ -286,22 +295,24 @@ export function TagVocabulary({
       ) : (
         <Empty>
           <EmptyHeader>
-            <EmptyMedia variant="icon">{initialLoading ? <Spinner /> : <FolderTreeIcon />}</EmptyMedia>
+            <EmptyMedia variant="icon">{initialLoading ? <Spinner /> : initialFailure ? <TriangleAlertIcon className="text-destructive" /> : <FolderTreeIcon />}</EmptyMedia>
             <EmptyTitle>
-              {initialLoading ? "Reading tags…" : c.readError ? "Tags unavailable" : "No tags yet"}
+              {initialLoading ? "Reading tags…" : initialFailure ? "Tags unavailable" : "No tags yet"}
             </EmptyTitle>
-            <EmptyDescription>
-              {c.readError
-                ? "Refresh to try reading the vocabulary again."
-                : "Create a root tag, then add children to organize it."}
+            <EmptyDescription className="[overflow-wrap:anywhere]">
+              {initialFailure ? c.readError : initialLoading ? undefined : "Create a root tag, then add children to organize it."}
             </EmptyDescription>
           </EmptyHeader>
-          <EmptyContent>
-            <Button disabled={blocked || retained || initialLoading} onClick={() => start("create")}>
-              <PlusIcon data-icon="inline-start" />
-              New root tag
-            </Button>
-          </EmptyContent>
+          {!initialLoading && (
+            <EmptyContent>
+              {initialFailure ? retry : (
+                <Button disabled={blocked || retained} onClick={() => start("create")}>
+                  <PlusIcon data-icon="inline-start" />
+                  New root tag
+                </Button>
+              )}
+            </EmptyContent>
+          )}
         </Empty>
       )}
       {!!attempts.length && (

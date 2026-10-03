@@ -1,11 +1,11 @@
 import { useRef, useState } from "react"
 import { Link } from "@tanstack/react-router"
-import { PlusIcon, Settings2Icon, XIcon } from "lucide-react"
+import { PlusIcon, Settings2Icon, TriangleAlertIcon, XIcon } from "lucide-react"
 import { entityLabel, type EntityItem } from "@/entities/entity"
 import { Button, buttonVariants } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
 import { Spinner } from "@/shared/ui/spinner"
-import { Alert, AlertDescription } from "@/shared/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import type { TagCoordinator } from "../model/tag-coordinator"
 import { tagPairBusy } from "../model/entity-tag-observation"
 import { TagFeedback } from "./tag-feedback"
@@ -32,10 +32,14 @@ export function EntityTagsEditor({ entity, coordinator: c, reread }: {
         </Link>
       </div>
       {waiting && <p className="flex items-center gap-2 text-xs text-muted-foreground"><Spinner />Reading tags…</p>}
-      {failed && <Alert><AlertDescription>
-        Tag metadata is unavailable{tags.length ? "; showing previous assignments" : ""}.
-        <Button size="sm" variant="outline" onClick={reread}>Reread tags</Button>
-      </AlertDescription></Alert>}
+      {failed && <Alert>
+        <TriangleAlertIcon className="text-destructive" />
+        <AlertTitle>Tags unavailable</AlertTitle>
+        <AlertDescription className="flex min-w-0 flex-col items-start gap-2 [&_p:not(:last-child)]:mb-0">
+          <p>{tags.length ? "Showing previous assignments." : "Tag assignments could not be read."}</p>
+          <Button size="sm" variant="outline" onClick={reread}>Reread tags</Button>
+        </AlertDescription>
+      </Alert>}
       <ul aria-label="Assigned tags" className="flex min-w-0 flex-wrap gap-1.5">
         {tags.map((tag) => (
           <li key={tag.id} className="min-w-0 max-w-full">

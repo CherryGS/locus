@@ -483,7 +483,7 @@ export function TagLookup({
                 <FolderTreeIcon />
               </EmptyMedia>
               <EmptyTitle>No matching tags</EmptyTitle>
-              <EmptyDescription>Try another name.</EmptyDescription>
+              <EmptyDescription>Try another name or clear the search.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         )}

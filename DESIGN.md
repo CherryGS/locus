@@ -160,6 +160,11 @@ surface adaptations of that system.
   Saved state and textarea appearance during a quick reread. Show Unsaved and
   errors immediately, and qualify a slow retained read as Refreshing. Preserve
   autosave timing, draft ownership and confirmation behavior.
+- **Empty and failed reads:** distinguish an observed empty result from a failed
+  first read and a failed refresh. Show the available next action at that state;
+  keep prior results visibly qualified during refresh recovery. In Overview,
+  separate the cause, recovery action and affected data with ordinary headings
+  and compact spacing. Let long diagnostics and retry labels wrap in narrow panels.
 
 **Open details:** the actual component variants, numerical tokens and motion
 treatments. No component is considered visually accepted solely because this

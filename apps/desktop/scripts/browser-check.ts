@@ -55,7 +55,14 @@ try {
     params: { path: { entity_id: selected! } },
   })
   assert.equal(observed.data?.status, "unset", "fallback must never save itself")
+  await page.getByRole("region", { name: "Entity problems", exact: true }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: join(output, "preference-read-failure.png") })
+  await page.setViewportSize({ width: 720, height: 480 })
+  const problems = page.getByRole("region", { name: "Entity problems", exact: true })
+  assert(await problems.evaluate(element => element.scrollWidth <= element.clientWidth))
+  await problems.scrollIntoViewIfNeeded()
+  await page.screenshot({ path: join(output, "problems-narrow.png") })
+  await page.setViewportSize({ width: 1200, height: 800 })
   preferenceReadsFail = false
   await page.getByRole("button", { name: "Retry preference read", exact: true }).click()
   await page.getByText("No saved choice", { exact: true }).waitFor()
@@ -98,25 +105,25 @@ try {
   assert.equal(page.url(), inspectionUrl)
   assert.equal(await page.locator('[data-slot="entity-inspection"]').getAttribute("data-view-id"), mainView)
   assert.equal(await panel.getByRole("button", { name: "Component ID", exact: true }).count(), 0)
-  assert.equal(await panel.getByRole("button", { name: "Copy component id", exact: true }).isVisible(), true)
+  assert.equal(await panel.getByRole("button", { name: "Copy component id", exact: true }).count(), 0)
+  const componentId = data.images.find(image => image.entityId === selected)!.componentId
+  const identity = panel.getByText(componentId, { exact: true })
+  assert(await identity.isVisible())
   await panel.getByText("Revision", { exact: true }).waitFor()
   await page.getByRole("button", { name: "File", exact: true }).click()
   await panel.getByText("Exact size", { exact: true }).waitFor()
   await page.getByRole("button", { name: "Image", exact: true }).click()
   await panel.getByText("Revision", { exact: true }).waitFor()
-  assert.equal(
-    await panel.getByRole("button", { name: "Copy component id", exact: true }).isVisible(),
-    true,
-    "all property sections remain available after switching pages",
-  )
-  await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
-  await panel.getByRole("button", { name: "Copy component id", exact: true }).click()
-  assert.equal(await panel.getByRole("button", { name: "Copy component id", exact: true }).locator("code").innerText(),
-    data.images.find((image) => image.entityId === selected)!.componentId, "Copy feedback must keep the ID visible")
-  assert.equal(
-    await page.evaluate(() => navigator.clipboard.readText()),
-    data.images.find((image) => image.entityId === selected)!.componentId,
-  )
+  assert(await identity.isVisible(), "all property sections remain available after switching pages")
+  assert.equal(await identity.evaluate(element => getComputedStyle(element).userSelect), "text")
+  const identityBox = await identity.boundingBox()
+  assert(identityBox)
+  await page.mouse.move(identityBox.x + 1, identityBox.y + identityBox.height / 4)
+  await page.mouse.down()
+  await page.mouse.move(identityBox.x + 55, identityBox.y + identityBox.height / 4, { steps: 8 })
+  await page.mouse.up()
+  const selectedIdentity = await page.evaluate(() => window.getSelection()?.toString())
+  assert(selectedIdentity && componentId.includes(selectedIdentity), selectedIdentity)
   await page.setViewportSize({ width: 720, height: 480 })
   const detailsSize = await panel
     .locator('[data-slot="scroll-area-viewport"]')
@@ -240,6 +247,31 @@ try {
     0,
   )
   await initial.close()
+  // A failed refresh retains the complete grid and offers recovery beside its error.
+  const recovery = await browser.newPage({ viewport: { width: 720, height: 480 } })
+  recovery.on("pageerror", error => errors.push(error.message))
+  await recovery.goto(`${preview.origin}/#/entity?mode=grid&collectionId=library`)
+  await recovery.getByRole("gridcell").first().waitFor()
+  const previousCount = await recovery.getByRole("gridcell").count()
+  await recovery.route("**/api/v1/entities", route => route.fulfill({ status: 500,
+    json: { code: "operation_failed", message: "Isolated library refresh failure" } }))
+  await recovery.getByRole("button", { name: "Refresh library", exact: true }).click()
+  const refreshFailure = recovery.getByRole("alert").filter({ hasText: "Library refresh failed" })
+  await refreshFailure.waitFor()
+  assert.equal(await recovery.getByRole("gridcell").count(), previousCount)
+  assert(await refreshFailure.evaluate(element => element.scrollWidth <= element.clientWidth))
+  await recovery.screenshot({ path: join(output, "library-refresh-failure.png") })
+  await recovery.unroute("**/api/v1/entities")
+  await refreshFailure.getByRole("button", { name: "Retry library read", exact: true }).press("Enter")
+  await refreshFailure.waitFor({ state: "hidden" })
+  assert.equal(await recovery.getByRole("gridcell").count(), previousCount)
+  await recovery.route("**/api/v1/entities", route => route.fulfill({ status: 200, body: Buffer.alloc(0),
+    headers: { "content-type": "application/octet-stream", "content-length": "0" } }))
+  await recovery.getByRole("button", { name: "Refresh library", exact: true }).click()
+  await recovery.getByText("No entities yet.", { exact: true }).waitFor()
+  assert(await recovery.getByRole("button", { name: "Import", exact: true }).isEnabled())
+  await recovery.screenshot({ path: join(output, "library-empty.png") })
+  await recovery.close()
   assert.deepEqual(errors, [])
   await writeFile(
     join(output, "result.json"),
@@ -251,6 +283,9 @@ try {
         preference: result.data,
         screenshots: [
           "preference-read-failure.png",
+          "problems-narrow.png",
+          "library-refresh-failure.png",
+          "library-empty.png",
           "connected-image.png",
           "component-details-720.png",
           "overview-loading.png",
