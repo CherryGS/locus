@@ -30,10 +30,10 @@ export function NotificationCenter() {
       <PopoverTrigger
         render={<Button variant="ghost" size="sm" />}
         aria-label={`Notifications${unread ? ` · ${unread} unread` : ""}`}
+        title={`Notifications${unread ? ` · ${unread} unread` : ""}`}
       >
-        <BellIcon data-icon="inline-start" />
-        Notifications
-        {unread > 0 && <Badge variant="secondary">{unread}</Badge>}
+        <BellIcon aria-hidden="true" />
+        {unread > 0 && <Badge variant="secondary" aria-hidden="true" className="tabular-nums">{unread}</Badge>}
       </PopoverTrigger>
       <PopoverContent
         ref={panel}

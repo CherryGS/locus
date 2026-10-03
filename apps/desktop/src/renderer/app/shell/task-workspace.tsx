@@ -94,6 +94,7 @@ function ConnectedWorkspace({ session, children }: { session: LibrarySession; ch
     )
   }
   const attention = all.filter((record) => record.attention).length
+  const taskLabel = `Tasks · ${all.length} records${active ? ` · ${active} active` : ""}${attention ? ` · ${attention} need attention` : ""}${problem ? " · feedback needs attention" : ""}`
   return (
     <Dialog open={open} onOpenChange={setOpen} actionsRef={dialogActions}>
       <div className="flex min-h-0 flex-1">{children}</div>
@@ -109,11 +110,9 @@ function ConnectedWorkspace({ session, children }: { session: LibrarySession; ch
         retryOutcome={(id) => void observer.outcome(id)}
       />
       <footer aria-label="Application footer" className="flex shrink-0 items-center border-t bg-sidebar px-2">
-        <DialogTrigger ref={entry} render={<Button variant="ghost" size="sm" />}>
-          <ListChecksIcon data-icon="inline-start" />
-          Tasks · {all.length} records{active ? ` · ${active} active` : ""}
-          {attention ? ` · ${attention} need attention` : ""}
-          {problem ? " · feedback needs attention" : ""}
+        <DialogTrigger ref={entry} render={<Button variant="ghost" size="sm" />} aria-label={taskLabel} title={taskLabel}>
+          <ListChecksIcon aria-hidden="true" className={attention || problem ? "text-destructive" : active ? "text-primary" : undefined} />
+          {all.length > 0 && <span aria-hidden="true" className="tabular-nums">{all.length}</span>}
         </DialogTrigger>
         <div className="ml-auto">
           <NotificationCenter />
