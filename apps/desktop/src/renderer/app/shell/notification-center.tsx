@@ -27,7 +27,7 @@ export function NotificationCenter() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        render={<Button variant="ghost" className="min-w-8 px-2" />}
+        render={<Button variant="ghost" size="xs" className="min-w-7" />}
         aria-label={`Notifications${unread ? ` · ${unread} unread` : ""}`}
         title={`Notifications${unread ? ` · ${unread} unread` : ""}`}
       >

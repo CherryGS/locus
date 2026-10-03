@@ -24,12 +24,15 @@ function aspectRatio(width: number, height: number) {
 export function EntityComponentDetails({
   component,
   showIdentity = true,
+  showFileName = true,
   showCivitaiObservation = true,
   className,
 }: {
   component: EntityComponent
-  /** The auxiliary-panel shell supplies its own Component ID. */
+  /** Non-File auxiliary panels let the shell supply their Component ID. */
   showIdentity?: boolean
+  /** The File content view already names the file in its heading. */
+  showFileName?: boolean
   /** The active Civitai reader places provenance below its source panel. */
   showCivitaiObservation?: boolean
   className?: string
@@ -62,17 +65,19 @@ export function EntityComponentDetails({
           </Alert>
         </div>
       )}
-      <ComponentDetailsContent component={component} showIdentity={showIdentity} showCivitaiObservation={showCivitaiObservation} />
+      <ComponentDetailsContent component={component} showIdentity={showIdentity} showFileName={showFileName} showCivitaiObservation={showCivitaiObservation} />
     </div>
   )
 }
 function ComponentDetailsContent({
   component,
   showIdentity,
+  showFileName,
   showCivitaiObservation,
 }: {
   component: EntityComponent
   showIdentity: boolean
+  showFileName: boolean
   showCivitaiObservation: boolean
 }) {
   if (component.kind === "tag")
@@ -203,7 +208,7 @@ function ComponentDetailsContent({
             <>
               {component.originalName && (
                 <>
-                  <Detail label="Name">{component.originalName}</Detail>
+                  {showFileName && <Detail label="Name">{component.originalName}</Detail>}
                   <Detail label="Extension">{fileExtension(component.originalName)}</Detail>
                 </>
               )}

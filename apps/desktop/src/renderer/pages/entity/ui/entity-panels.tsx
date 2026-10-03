@@ -41,9 +41,9 @@ export function entityPanels(
     ...(entity?.components.filter((component) => component.kind !== "tag").map((component) => ({
       id: component.kind === "unknown" ? component.id : component.kind,
       label: componentAppearance[component.kind].label,
-      identity: { label: "Component ID", value: component.id },
+      identity: component.kind === "file" ? undefined : { label: "Component ID", value: component.id },
       icon: componentAppearance[component.kind].icon,
-      content: <EntityComponentDetails key={`${entity.id}:${component.id}`} component={component} showIdentity={false} showCivitaiObservation={!civitaiReading} />,
+      content: <EntityComponentDetails key={`${entity.id}:${component.id}`} component={component} showIdentity={component.kind === "file"} showCivitaiObservation={!civitaiReading} />,
     })) ?? []),
   ]
 }

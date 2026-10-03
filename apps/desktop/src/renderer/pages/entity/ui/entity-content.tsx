@@ -12,7 +12,8 @@ import {
 import type { PlaybackCoordinator } from "@/features/video-playback"
 import { ModelReading } from "./model-reading"
 import { CivitaiReading } from "./civitai-reading"
-import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
+import type { CivitaiCoordinator } from "@/features/civitai"
+import { FileIcon } from "lucide-react"
 import type { CardCoverCoordinator } from "@/features/entity-card-cover"
 import type { CivitaiSelection } from "../model/navigation"
 import { LiveVideo } from "./live-video"
@@ -129,20 +130,12 @@ export function EntityContent({
         <ModelReading key={`${entity.id}:${model.id}`} component={model} />
       ) : viewId === "file.info" && file ? (
         <ScrollArea className="min-h-0 flex-1">
-          <div className="mx-auto flex max-w-4xl flex-col gap-5 p-4 sm:p-6">
-            <h2 className="text-lg font-medium">File</h2>
-            <EntityComponentDetails component={file} className="[&_[data-slot=detail-section]]:px-0 [&_[data-slot=detail-section]]:py-3" />
-            {live && !civitai && !image && !video && !twitter && !bilibili && (
-              <section aria-label="Civitai enrichment" className="flex flex-col gap-3">
-                <h3 className="text-sm font-medium">Civitai information</h3>
-                <CivitaiActions
-                  coordinator={live.civitai}
-                  entityId={entity.id}
-                  fileId={file.readStatus === "ready" ? file.id : undefined}
-                  firstOnly
-                />
-              </section>
-            )}
+          <div data-slot="file-information" className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-5 py-6 sm:px-8">
+            <header className="flex min-w-0 items-start gap-3 select-text">
+              <FileIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+              <h2 className="min-w-0 text-lg leading-6 font-medium [overflow-wrap:anywhere]">{file.originalName ?? "File information"}</h2>
+            </header>
+            <EntityComponentDetails component={file} showFileName={false} className="[&_[data-slot=detail-section]]:px-0 [&_[data-slot=detail-section]]:py-4" />
             {collections
               .filter((collection) => collection.ownerId === entity.id && collection.viewId === viewId)
               .map((collection) => (

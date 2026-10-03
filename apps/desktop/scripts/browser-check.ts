@@ -253,7 +253,7 @@ try {
     })
   })
   await initial.goto(`${preview.origin}/#/entity?entityId=${selected}&mode=inspect&collectionId=library`)
-  await initial.getByText("Reading library…", { exact: true }).waitFor()
+  await initial.locator('[data-slot="entity-workspace"]').getByText("Reading library…", { exact: true }).waitFor()
   await initial.getByText(`Requested Entity: ${selected} · Context: library`, { exact: true }).waitFor()
   await initial.keyboard.press("Escape")
   assert(initial.url().includes(selected!))

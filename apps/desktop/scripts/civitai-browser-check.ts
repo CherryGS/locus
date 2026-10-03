@@ -1,6 +1,7 @@
 import { waitForContentViewSaved, chooseContentView, hasContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
+import { setTimeout as delay } from "node:timers/promises"
 import { chromium } from "playwright"
 import { civitaiFixture } from "./civitai-fixture.ts"
 import { browserPreview } from "./browser-preview.ts"
@@ -28,8 +29,32 @@ try {
   await chooseContentView(page, "File")
   await waitForContentViewSaved(page)
   assert.equal(await hasContentView(page, "Civitai"), false)
+  assert.equal(await page.getByRole("button", { name: "Enrich this File with Civitai", exact: true }).count(), 0)
+  await page.getByRole("button", { name: "File", exact: true }).click()
+  const filePanel = page.getByRole("complementary", { name: "File", exact: true })
+  await filePanel.getByRole("region", { name: "Storage details", exact: true }).getByText(existing.fileId, { exact: true }).waitFor()
+  assert.equal(await filePanel.getByRole("region", { name: "Component ID", exact: true }).count(), 0, "File identity belongs to the storage group")
+  const footer = await page.getByRole("contentinfo", { name: "Application footer", exact: true }).boundingBox()
+  assert(footer && footer.height === 28)
   await data.phase("existing")
-  await page.getByRole("button", { name: "Enrich this File with Civitai", exact: true }).click()
+  // Seed the provider attachment through the backend while its File-page entry
+  // point is intentionally absent. The renderer still observes the new component.
+  const requestId = crypto.randomUUID()
+  const receipt = await backend.client.POST("/api/v1/civitai-operations", { body: {
+    request_id: requestId, entity_id: existing.entityId, file_id: existing.fileId, first_only: true,
+  } })
+  assert(receipt.data, JSON.stringify(receipt.error))
+  const deadline = Date.now() + 30000
+  while (true) {
+    const response = await backend.client.GET("/api/v1/civitai-operations")
+    assert(response.data)
+    const operation = response.data.operations.find(operation => operation.last_request_id === requestId)
+    if (operation && !operation.active_request_id) { assert.equal(operation.outcome.state, "complete"); break }
+    assert(Date.now() < deadline, "Fixture enrichment did not complete")
+    await delay(30)
+  }
+  await page.getByRole("button", { name: "Refresh library", exact: true }).click()
+  await page.getByRole("button", { name: "Overview", exact: true }).click()
   await page.getByRole("combobox", { name: "Default view", exact: true }).click()
   await page.getByRole("option", { name: "Use Civitai view", exact: true }).waitFor()
   await page.keyboard.press("Escape")
