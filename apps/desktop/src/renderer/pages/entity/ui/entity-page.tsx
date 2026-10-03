@@ -731,6 +731,7 @@ export function EntityPage({
         source={source}
         selectedEntity={selected}
         viewing={viewing}
+        civitaiReading={!!live && viewing && viewId === "civitai.read" && !relationshipProblem && !relationshipWaiting && !contentWaiting && !failedAvailability && selected?.membershipsStatus !== "missing"}
         onSelect={(entity) => move({ ...destination, entityId: entity.id }, true)}
         onOpen={open}
         content={content}

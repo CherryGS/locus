@@ -28,6 +28,7 @@ export function entityPanels(
     notes?: ReactNode
   },
   personalTags?: ReactNode,
+  civitaiReading = false,
 ): EntityPanel[] {
   return [
     {
@@ -42,7 +43,7 @@ export function entityPanels(
       label: componentAppearance[component.kind].label,
       identity: { label: "Component ID", value: component.id },
       icon: componentAppearance[component.kind].icon,
-      content: <EntityComponentDetails key={`${entity.id}:${component.id}`} component={component} showIdentity={false} />,
+      content: <EntityComponentDetails key={`${entity.id}:${component.id}`} component={component} showIdentity={false} showCivitaiObservation={!civitaiReading} />,
     })) ?? []),
   ]
 }

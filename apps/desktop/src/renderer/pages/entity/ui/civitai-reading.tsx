@@ -13,7 +13,7 @@ import { Separator } from "@/shared/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@/shared/ui/table"
 import type { CivitaiSelection, RelatedCollection } from "../model/navigation"
-import { Detail, DetailIdentifier, SourceLink, type EntityItem } from "@/entities/entity"
+import { Detail, DetailIdentifier, DetailSection, SourceLink, type EntityItem } from "@/entities/entity"
 import { CivitaiGallery } from "./civitai-gallery"
 import { CivitaiRichText } from "./civitai-rich-text"
 import { CivitaiPanelPortal } from "./civitai-panel-slot"
@@ -214,6 +214,7 @@ export function CivitaiReading({
     }
   }
   const file = entity.components.find((c) => c.kind === "file")
+  const originRecord = page?.origin.record ?? entity.components.find(c => c.kind === "civitai")?.record
   const model = page?.origin.record.model
   // Optional provider fields belong to their own saved model or version source.
   const creator = sourceObject(sourceObject(model?.raw_json).creator)
@@ -276,32 +277,45 @@ export function CivitaiReading({
   const libraryDetails = (
     <section
       aria-label="Library and source"
-      className="flex min-w-0 flex-col gap-4 px-4 py-4"
+      className="flex min-w-0 flex-col"
       data-slot="civitai-reading-details"
     >
-      <h2 className="text-sm font-medium">Library &amp; source</h2>
-      {maintenance}
-      {page && model && (
+      <Separator />
+      <section className="@container/detail flex min-w-0 flex-col gap-2 px-4 py-4 select-text" aria-label="Source details" data-slot="civitai-source-details">
+        <h3 className="text-sm font-medium">Local file</h3>
+        <dl>
+          {file?.relativePath && <Detail label="Managed path"><code className="text-xs">{file.relativePath}</code></Detail>}
+          <Detail label="Entity"><DetailIdentifier label="Origin Entity" value={entity.id} /></Detail>
+        </dl>
+      </section>
+      {page && model && unit && (
         <>
-          {unit && (
-            <section aria-label="Library links" className="flex min-w-0 flex-col gap-3 text-xs" data-slot="civitai-library-links">
+            <Separator />
+            <section aria-label="Library links" className="flex min-w-0 flex-col gap-3 px-4 py-4 text-xs" data-slot="civitai-library-links">
               <h3 className="text-sm font-medium">
-                Library links · {unit.version.name} · {unit.correspondences.length} recorded
+                Library · {unit.version.name}
               </h3>
-              <div className="flex flex-col gap-3 select-text [overflow-wrap:anywhere]">
+              <div className="flex flex-col divide-y select-text [overflow-wrap:anywhere]">
                 {unit.correspondences.length ? (
-                  unit.correspondences.map((correspondence) => (
-                    <div key={correspondence.source.component_id} className="flex flex-col gap-1">
-                      <p>Entity {correspondence.source.entity_id}</p>
-                      <p className="text-muted-foreground">
-                        File {correspondence.file} · {correspondence.input}
-                      </p>
+                  unit.correspondences.map(correspondence => {
+                    const own = correspondence.source.entity_id === entity.id
+                    const current = correspondence.input === "current"
+                    const StatusIcon = current ? own ? CircleDotIcon : CheckIcon : CircleDashedIcon
+                    const sourceFile = unit.version.files.find(item => item.id === correspondence.file)
+                    return (
+                      <div key={correspondence.source.component_id} className="flex min-w-0 flex-col gap-1.5 py-2.5 first:pt-0 last:pb-0">
+                      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                        {own ? <span>This Entity</span> : <span>Entity <code>{correspondence.source.entity_id}</code></span>}
+                        <Badge variant="status"><StatusIcon aria-hidden="true" />{current ? own ? "Current" : "In library" : correspondence.input}</Badge>
+                      </div>
+                      <p className="text-muted-foreground">{sourceFile?.name ?? `File ${correspondence.file}`}<code className="ml-1.5">{sourceFile && correspondence.file}</code></p>
                       {!unit.version.files.some((item) => item.id === correspondence.file) && (
                         <p>File not listed by the chosen source.</p>
                       )}
-                      {correspondence.problem && <p>{correspondence.problem}</p>}
-                    </div>
-                  ))
+                      {correspondence.problem && <p className="text-destructive">{correspondence.problem}</p>}
+                      </div>
+                    )
+                  })
                 ) : (
                   <p>
                     No recorded local correspondence in this read. This does not prove absence from the
@@ -310,48 +324,31 @@ export function CivitaiReading({
                 )}
               </div>
             </section>
-          )}
-          <Separator />
-          <section className="@container/detail flex min-w-0 flex-col gap-2 select-text" aria-label="Source details" data-slot="civitai-source-details">
-            <h3 className="text-sm font-medium">Source details</h3>
-            <div className="flex min-w-0 flex-col gap-4 [overflow-wrap:anywhere]">
-              <dl>
-                {file?.relativePath && <Detail label="Managed path"><code className="text-xs">{file.relativePath}</code></Detail>}
-                <Detail label="Origin Entity">
-                  <DetailIdentifier label="Origin Entity" value={entity.id} />
-                </Detail>
-                <Detail label="Model">
-                  {model.id} · {model.kind}
-                </Detail>
-                {unit && (
-                  <>
-                    <Detail label="Version source">{unit.in_origin ? "This entry" : `Entity ${unit.source.entity_id}`}</Detail>
-                    {!unit.in_origin && <Detail label="Observation">
-                      <DetailIdentifier label="Observation" value={unit.source.observation} />
-                    </Detail>}
-                  </>
-                )}
-              </dl>
-              {unit && (
-                <section aria-label="Provider file declarations" className="flex min-w-0 flex-col gap-3 text-xs">
-                  <h3 className="text-sm font-medium">Provider file declarations · {unit.version.name}</h3>
-                  {versionStatus && <p role="status">{versionStatus}</p>}
-                  {unit.version.files.map((item) => (
-                    <details key={item.id}>
-                      <summary className="cursor-pointer break-words">
-                        {item.name} · {item.id}
-                      </summary>
-                      <pre className="mt-2 max-h-72 overflow-auto rounded-md bg-muted p-2 whitespace-pre-wrap break-words">
-                        {item.raw_json}
-                      </pre>
-                    </details>
-                  ))}
-                </section>
-              )}
-            </div>
-          </section>
         </>
       )}
+      <Separator />
+      <DetailSection title="Snapshot">
+        <dl>
+          <Detail label="Accepted File">{originRecord?.file_id ? <DetailIdentifier label="Accepted File" value={originRecord.file_id} /> : "Not observed"}</Detail>
+          <Detail label="Observation">{originRecord?.observation ? <DetailIdentifier label="Observation" value={originRecord.observation} /> : "Not observed"}</Detail>
+          {unit && !unit.in_origin && <Detail label="Version source"><DetailIdentifier label="Source Entity" value={unit.source.entity_id} /></Detail>}
+          {unit && !unit.in_origin && <Detail label="Version observation"><DetailIdentifier label="Version observation" value={unit.source.observation} /></Detail>}
+        </dl>
+      </DetailSection>
+      {unit && <>
+        <Separator />
+        <section aria-label="Provider file declarations" className="flex min-w-0 flex-col gap-3 px-4 py-4 text-xs">
+          <h3 className="text-sm font-medium">Source data</h3>
+          {versionStatus && <p role="status">{versionStatus}</p>}
+          {unit.version.files.map(item => (
+            <details key={item.id}>
+              <summary className="cursor-pointer break-words">{item.name} · {item.id}</summary>
+              <pre className="mt-2 max-h-72 overflow-auto rounded-md bg-muted p-2 whitespace-pre-wrap break-words">{item.raw_json}</pre>
+            </details>
+          ))}
+        </section>
+      </>}
+      <div className="px-4 pb-4">{maintenance}</div>
     </section>
   )
   return (

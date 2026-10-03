@@ -29,6 +29,7 @@ export function EntityWorkspace({
   personalTags,
   notes,
   tagSummary,
+  civitaiReading,
 }: {
   componentFor: (entity: EntityItem) => EntityItem["components"][number]["kind"] | undefined
   revealEntity?: number
@@ -46,6 +47,7 @@ export function EntityWorkspace({
   personalTags?: ReactNode
   notes?: ReactNode
   tagSummary?: (onShowAll: () => void) => ReactNode
+  civitaiReading?: boolean
 }) {
   const [localBrowsing] = useState<EntityBrowsingState>({})
   const retained = browsing ?? localBrowsing
@@ -67,7 +69,7 @@ export function EntityWorkspace({
       panelTriggers.current.get(id)?.focus()
       setActivePanelId(id)
     },
-  }, personalTags)
+  }, personalTags, civitaiReading)
   const missingPanel = activePanelId !== null && !panels.some((panel) => panel.id === activePanelId)
   const activePanel =
     activePanelId === null ? null : (panels.find((panel) => panel.id === activePanelId) ?? panels[0])

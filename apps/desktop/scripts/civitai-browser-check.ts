@@ -87,7 +87,7 @@ try {
   assert.equal(await reading.getByRole("region", { name: "Library and source" }).count(), 0)
   assert.equal(await civitaiPanel.getByText("B.safetensors · 300", { exact: true }).count(), 1)
   const sourceDetails = civitaiPanel.getByRole("region", { name: "Source details", exact: true })
-  assert(await sourceDetails.getByText("Origin Entity", { exact: true }).isVisible())
+  assert(await sourceDetails.getByText("Entity", { exact: true }).isVisible())
   await page.setViewportSize({ width: 720, height: 480 })
   const narrowLayout = await Promise.all([reading, sourceDetails].map(locator => locator.evaluate(element => ({
     width: element.clientWidth, content: element.scrollWidth,
@@ -160,14 +160,14 @@ try {
     .waitFor({ state: "hidden" })
   assert.equal(await reading.getByText(/Previous version observation/).count(), 0)
   assert.equal(await civitaiPanel.getByText("B.safetensors · 300", { exact: true }).count(), 0)
-  const originSnapshot = civitaiPanel.getByRole("region", { name: "Origin Civitai snapshot" })
+  const originSnapshot = civitaiPanel.getByRole("region", { name: "Local match" })
   assert.equal(await civitaiPanel.getByText(a.componentId!, { exact: true }).count(), 1)
   const originRead = await backend.client.GET("/api/v1/civitai/{component_id}/view", {
     params: { path: { component_id: a.componentId! } },
   })
   assert(originRead.data)
   assert.equal(
-    await originSnapshot.getByText(originRead.data.record.matched_version, { exact: true }).count(),
+    await originSnapshot.getByText(`${originRead.data.record.model.versions.find(version => version.id === originRead.data.record.matched_version)?.name} · ${originRead.data.record.matched_version}`, { exact: true }).count(),
     1,
     "reading a peer version must retain the origin correspondence",
   )

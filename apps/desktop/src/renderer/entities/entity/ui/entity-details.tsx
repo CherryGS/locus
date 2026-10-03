@@ -22,10 +22,13 @@ function aspectRatio(width: number, height: number) {
 export function EntityComponentDetails({
   component,
   showIdentity = true,
+  showCivitaiObservation = true,
 }: {
   component: EntityComponent
   /** The auxiliary-panel shell supplies its own Component ID. */
   showIdentity?: boolean
+  /** The active Civitai reader places provenance below its source panel. */
+  showCivitaiObservation?: boolean
 }) {
   return (
     <div className="flex min-w-0 flex-col pb-1">
@@ -50,16 +53,18 @@ export function EntityComponentDetails({
           </Alert>
         </div>
       )}
-      <ComponentDetailsContent component={component} showIdentity={showIdentity} />
+      <ComponentDetailsContent component={component} showIdentity={showIdentity} showCivitaiObservation={showCivitaiObservation} />
     </div>
   )
 }
 function ComponentDetailsContent({
   component,
   showIdentity,
+  showCivitaiObservation,
 }: {
   component: EntityComponent
   showIdentity: boolean
+  showCivitaiObservation: boolean
 }) {
   if (component.kind === "tag")
     return (
@@ -83,20 +88,29 @@ function ComponentDetailsContent({
         )}
       </DetailSection>
     )
-  if (component.kind === "civitai")
+  if (component.kind === "civitai") {
+    const matchedVersion = component.record?.model.versions.find(version => version.id === component.record?.matched_version)
+    const matchedFile = matchedVersion?.files.find(file => file.id === component.record?.matched_file)
     return (
       <>
-        <DetailSection title="Origin Civitai snapshot">
+        <DetailSection title="Local match">
           <dl>
-            <Detail label="Model">{component.record?.model.name ?? "Not observed"}</Detail>
-            <Detail label="Matched version">
-              {component.record?.matched_version ?? "Not observed"}
+            <Detail label="Model">
+              {component.record?.model.name ?? "Not observed"}
+              {component.record && <span className="block text-xs text-muted-foreground"><code>{component.record.model.id}</code> · {component.record.model.kind}</span>}
             </Detail>
-            <Detail label="Matched file">{component.record?.matched_file ?? "Not observed"}</Detail>
-            <Detail label="Input">{component.view?.input ?? "Not observed"}</Detail>
+            <Detail label="Version">
+              {matchedVersion ? `${matchedVersion.name} · ${component.record?.matched_version}` : component.record?.matched_version ?? "Not observed"}
+            </Detail>
+            <Detail label="File">
+              {matchedFile && <span className="block text-xs">{matchedFile.name}</span>}
+              <code className="text-xs text-muted-foreground">{component.record?.matched_file ?? "Not observed"}</code>
+            </Detail>
+            <Detail label="Status">{component.view?.input ? component.view.input.replaceAll("_", " ").replace(/^./, letter => letter.toUpperCase()) : "Not observed"}</Detail>
             {component.view?.problem && <Detail label="Problem">{component.view.problem}</Detail>}
           </dl>
         </DetailSection>
+        {showCivitaiObservation && <>
         <Separator />
         <DetailSection title="Observation details">
           <dl>
@@ -121,8 +135,10 @@ function ComponentDetailsContent({
             </Detail>
           </dl>
         </DetailSection>
+        </>}
       </>
     )
+  }
   if (component.kind === "model")
     return (
       <>

@@ -200,7 +200,8 @@ export async function verifyCivitaiSamples(root: string) {
       const panel = page.getByRole("complementary", { name: "Civitai", exact: true })
       assert.equal(await panel.locator(":scope > header").count(), 0)
       const libraryLinks = panel.getByRole("region", { name: "Library links", exact: true })
-      assert(await libraryLinks.getByText(`Entity ${entry.entityId}`, { exact: true }).isVisible(), "short library correspondences are visible without a disclosure")
+      assert(await libraryLinks.getByText("This Entity", { exact: true }).isVisible(), "short library correspondences are visible without a disclosure")
+      assert(await panel.getByRole("region", { name: "Source details", exact: true }).getByText(entry.entityId, { exact: true }).isVisible(), "the full origin ID remains directly selectable without repeating it in the library list")
       assert(await panel.getByRole("region", { name: "Library maintenance", exact: true }).getByRole("button", { name: "Refresh origin Civitai information", exact: true }).isVisible(), "the ordinary maintenance action is visible without a disclosure")
       assert.equal(await reader.getByRole("button", { name: "Open library and source", exact: true }).count(), 0)
       await reader.getByRole("region", { name: "Version information", exact: true }).scrollIntoViewIfNeeded()
@@ -209,12 +210,35 @@ export async function verifyCivitaiSamples(root: string) {
       // preference or the gallery's fresh-entry default.
       const defaultView = await backend.client.GET("/api/v1/entities/{entity_id}/view-preference", { params: { path: { entity_id: entry.entityId } } })
       const gallery = reader.getByRole("region", { name: "Managed Civitai examples", exact: true })
+      const filmstripImage = page.locator('[data-slot="entity-filmstrip"] [aria-current="true"] img')
+      async function imageDigest(locator: typeof filmstripImage) {
+        await locator.waitFor()
+        return locator.evaluate(async element => {
+          const image = element as HTMLImageElement
+          await image.decode()
+          const canvas = document.createElement("canvas")
+          canvas.width = image.naturalWidth
+          canvas.height = image.naturalHeight
+          const context = canvas.getContext("2d")!
+          context.drawImage(image, 0, 0)
+          const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+          return `${canvas.width}:${canvas.height}:${Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", pixels))).join(",")}`
+        })
+      }
+      assert.equal(await imageDigest(filmstripImage), await imageDigest(gallery.locator('[data-slot="civitai-gallery-stage"] img')), "the filmstrip uses the same automatic Civitai image")
+      const initialStripSource = await filmstripImage.getAttribute("src")
       const galleryImage = await gallery.locator('[data-slot="civitai-gallery-stage"] img').getAttribute("src")
       const savedCover = page.waitForResponse(response => response.url().endsWith(`/${entry.entityId}/card-cover-preference`) && response.request().method() === "PUT")
       await gallery.getByRole("button", { name: "Set example 2 as card cover", exact: true }).click()
       assert((await savedCover).ok())
       await gallery.locator('[data-card-cover="true"]').waitFor()
       assert.equal(await gallery.locator('[data-card-cover="true"]').count(), 1)
+      await page.waitForFunction(previous => {
+        const image = document.querySelector<HTMLImageElement>('[data-slot="entity-filmstrip"] [aria-current="true"] img')
+        return image?.src && image.src !== previous
+      }, initialStripSource)
+      const selectedCoverDigest = await imageDigest(gallery.getByRole("button", { name: "Show example 2", exact: true }).locator("img"))
+      assert.equal(await imageDigest(filmstripImage), selectedCoverDigest, "a saved cover updates the filmstrip without navigating")
       assert.equal(await gallery.getByRole("button", { name: "Show example 1", exact: true }).getAttribute("aria-pressed"), "true", "cover controls do not change gallery browsing")
       assert.equal(await gallery.locator('[data-slot="civitai-gallery-stage"] img').getAttribute("src"), galleryImage)
       assert(await gallery.getByRole("button", { name: "Use automatic card cover", exact: true }).evaluate(element => element === document.activeElement), "cover save retains focus on its thumbnail marker")
@@ -282,10 +306,12 @@ export async function verifyCivitaiSamples(root: string) {
       await reader.getByRole("button", { name: "Use automatic card cover", exact: true }).waitFor()
       await reader.getByRole("button", { name: "Show example 1", exact: true }).waitFor()
       assert.equal(await reader.getByRole("button", { name: "Show example 1", exact: true }).getAttribute("aria-pressed"), "true")
+      assert.equal(await imageDigest(filmstripImage), selectedCoverDigest, "the filmstrip reuses the saved cover after reload")
       await page.goto(`${preview.origin}/#/entity?mode=grid&collectionId=library&entityId=${entry.entityId}`)
       const grid = page.getByRole("grid", { name: "Entities", exact: true })
       const card = grid.locator(`[data-entity-id="${entry.entityId}"]`)
       await card.locator("img").waitFor()
+      assert.equal(await imageDigest(card.locator("img")), selectedCoverDigest, "the grid and filmstrip display the same saved image")
       await grid.evaluate(element => { element.scrollTop = 0 })
       await page.getByRole("button", { name: "Locate selected Entity", exact: true }).click()
       await page.waitForFunction(entityId => {

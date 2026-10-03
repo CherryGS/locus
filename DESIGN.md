@@ -193,13 +193,19 @@ surface adaptations of that system.
   correspondences rather than claiming unlinked Files do not exist. Stack each
   complete trigger phrase in its own block, preserving newlines inside that phrase.
   Show short local-correspondence lists directly in the source panel.
+  Keep local model/version/file names beside their identifiers, then the managed
+  path and selected-version library records. Display the origin Entity ID once;
+  identify its correspondence as "This Entity". Put snapshot provenance after
+  ordinary facts, followed by raw source data and the explicit maintenance action.
 - **Grid location and covers:** Locate selected Entity reveals the same identity
   and restores grid keyboard focus without changing selection, query or context.
-  Civitai grid cards can use an applicable saved gallery Image automatically or
-  retain a user-selected cover. Save this presentation choice separately from the
+  Civitai grid cards and the nearby-Entity filmstrip share an applicable saved
+  gallery Image automatically or retain a user-selected cover. Save this
+  presentation choice separately from the
   default content view, retaining managed source/version/Entity/File/Image IDs,
   not preview URLs. Qualify relationships, memberships and preview input before
-  displaying bytes. Keep the filmstrip and gallery's fresh-entry default unchanged.
+  displaying bytes. Cover changes update both surfaces without changing the
+  default content view, filmstrip navigation or gallery's fresh-entry selection.
   Unavailable choices remain stored and offer ordinary preview fallback; display
   save/recovery errors beside the cover action. Preserve native close/restart
   preparation for pending or unconfirmed choices.

@@ -112,7 +112,7 @@ export type EntityItem = {
   refreshing?: boolean
   membershipsStatus?: "unread" | "loading" | "present" | "missing" | "failed"
   problems?: readonly ReadProblem[]
-  // Qualified presentation resource consumed only by grid cards.
+  // Qualified presentation resource shared by grid cards and the filmstrip.
   gridPreview?: string
 }
 
