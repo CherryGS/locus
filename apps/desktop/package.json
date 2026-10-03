@@ -21,6 +21,7 @@
     "sample:verify": "tsx scripts/sample-library.ts verify",
     "sample:preview": "tsx scripts/sample-library.ts preview",
     "preview:tasks": "tsx scripts/task-panel-preview.ts",
+    "preview:import-native": "tsx scripts/import-task-preview.ts",
     "preview:notifications": "tsx scripts/task-panel-preview.ts --notifications",
     "verify:import-browser": "tsx scripts/import-browser-check.ts",
     "verify:import-native": "tsx scripts/import-electron-check.ts",

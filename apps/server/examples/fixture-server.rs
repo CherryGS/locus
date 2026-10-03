@@ -6,7 +6,7 @@ use locus_civitai::api::{
 };
 use locus_server::api::{Bootstrap, Server};
 use serde::Deserialize;
-use std::{collections::BTreeMap, io::Write, path::PathBuf, sync::Arc};
+use std::{collections::BTreeMap, io::Write, path::PathBuf, sync::Arc, time::Duration};
 #[derive(Deserialize, Default)]
 struct Fixture {
     #[serde(default)]
@@ -18,6 +18,7 @@ struct Fixture {
 }
 struct Controlled {
     path: Option<PathBuf>,
+    lookup_delay: Duration,
 }
 impl Controlled {
     fn read(&self) -> Result<Fixture, CivitaiError> {
@@ -31,6 +32,7 @@ impl Controlled {
 impl Upstream for Controlled {
     fn by_hash(&self, hash: [u8; 32]) -> ProviderFuture<'_, Option<ModelVersion>> {
         Box::pin(async move {
+            tokio::time::sleep(self.lookup_delay).await;
             let key = hash.iter().map(|b| format!("{b:02x}")).collect::<String>();
             Ok(self.read()?.lookups.remove(&key))
         })
@@ -63,6 +65,14 @@ async fn main() -> anyhow::Result<()> {
     }
     config.civitai_upstream = Some(Arc::new(Controlled {
         path: std::env::var_os("LOCUS_CIVITAI_FIXTURE").map(PathBuf::from),
+        // Verification-only delay keeps a real import waiting on its provider.
+        lookup_delay: Duration::from_millis(
+            std::env::var("LOCUS_FIXTURE_LOOKUP_DELAY_MS")
+                .ok()
+                .map(|value| value.parse())
+                .transpose()?
+                .unwrap_or(0),
+        ),
     }));
     let server = Server::bind(config)
         .await

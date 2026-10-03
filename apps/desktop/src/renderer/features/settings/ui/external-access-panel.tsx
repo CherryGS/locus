@@ -47,13 +47,55 @@ export function ExternalAccessPanel({
   return (
     <section role="region" aria-label="External connection" className="flex flex-col gap-5">
       <SettingsGroup
-        name="Connection details"
+        name="HTTP"
         help={{
           label: "About external connection",
-          content: <p>Use this address and shared Token in your connected clients.</p>,
+          content: (
+            <p>
+              Use the HTTP endpoint and shared Token in connected clients. Bind address sets
+              the local IP and port after restart; startup overrides take priority.
+              Resetting the address leaves the Token unchanged.
+            </p>
+          ),
         }}
+        action={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label="Restore default address"
+              title="Restores only the address; the shared Token is unchanged."
+              disabled={
+                !settings.resetRevision ||
+                settings.busy ||
+                !!settings.attempt ||
+                settings.needsEvidence
+              }
+              onClick={() => void settings.reset()}
+            >
+              <RotateCcwIcon data-icon="inline-start" />
+              Reset address
+            </Button>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label="Reload / recover address"
+              title="Reload / recover address"
+              disabled={settings.busy || settings.readPending}
+              onClick={() =>
+                void (settings.attempt || settings.needsEvidence
+                  ? settings.recover()
+                  : settings.load())
+              }
+            >
+              <RefreshCwIcon data-icon="inline-start" />
+            </Button>
+          </>
+        }
       >
-        <SettingsRow label="Connect at">
+        <SettingsRow label="HTTP endpoint">
           {runtime?.active_address && !settings.runtimeError ? (
             <div className="flex min-h-8 min-w-0 flex-wrap items-center gap-2">
               <code className="break-all">{`http://${runtime.active_address}`}</code>
@@ -91,6 +133,51 @@ export function ExternalAccessPanel({
         )}
 
         <Separator />
+        <form onSubmit={(event) => { event.preventDefault(); void settings.save() }}>
+          <FieldGroup className="gap-0">
+            <SettingsEditRow
+              label="Bind address"
+              id="external-address"
+              value={settings.draft?.address ?? ""}
+              placeholder={settings.defaults.address}
+              disabled={!settings.editable}
+              error={addressEmpty ? "Enter a loopback address and port." : undefined}
+              onChange={(event) => settings.edit("address", event.target.value)}
+            />
+          </FieldGroup>
+          {(showActions || pending) && <div className="px-4 pb-3">
+            <SettingsActions
+              notice={settings.dirty ? "Unsaved edits · applies after restart" : undefined}
+              status={pending && <Badge variant="secondary">Saved · restart required</Badge>}
+            >
+              {showActions && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      !saved ||
+                      settings.busy ||
+                      !!settings.attempt ||
+                      settings.needsEvidence ||
+                      (!settings.dirty && settings.status !== "failed")
+                    }
+                    onClick={() => settings.discard()}
+                  >
+                    Discard address edits
+                  </Button>
+                  <Button type="submit" size="sm" disabled={!settings.canSave || addressEmpty}>
+                    <SaveIcon data-icon="inline-start" />
+                    Save address
+                  </Button>
+                </>
+              )}
+            </SettingsActions>
+          </div>}
+        </form>
+
+        <Separator />
         <section role="region" aria-label="Shared Token">
           <SettingsRow label="Current Token" htmlFor="external-token">
             <div className="flex min-w-0 items-center gap-1">
@@ -107,6 +194,7 @@ export function ExternalAccessPanel({
                 }
               />
               <Button
+                type="button"
                 variant="ghost"
                 size="icon-sm"
                 aria-label={reveal ? "Hide Token" : "Reveal Token"}
@@ -123,6 +211,7 @@ export function ExternalAccessPanel({
                 )}
               </Button>
               <Button
+                type="button"
                 variant="ghost"
                 size="icon-sm"
                 aria-label={token.attempt ? "Recover Token reset" : "Read current Token"}
@@ -163,6 +252,7 @@ export function ExternalAccessPanel({
               Reset invalidates the old Token. Update it in every connected client.
             </p>
             <Button
+              type="button"
               variant="outline"
               size="sm"
               disabled={!current || !!restricted}
@@ -177,104 +267,7 @@ export function ExternalAccessPanel({
           </div>
         </section>
       </SettingsGroup>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          void settings.save()
-        }}
-      >
-        <SettingsGroup
-          name="Connection settings"
-          help={{
-            label: "About connection settings",
-            content: (
-              <p>
-                Enter a loopback IP and port. Changes apply after restart unless a startup
-                address override takes priority. Use Connect at for connected clients.
-                Restoring the default address leaves the shared Token unchanged.
-              </p>
-            ),
-          }}
-          action={
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="Restore default address"
-                title="Restores only the address; the shared Token is unchanged."
-                disabled={
-                  !settings.resetRevision ||
-                  settings.busy ||
-                  !!settings.attempt ||
-                  settings.needsEvidence
-                }
-                onClick={() => void settings.reset()}
-              >
-                <RotateCcwIcon data-icon="inline-start" />
-                Restore defaults
-              </Button>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                aria-label="Reload / recover address"
-                title="Reload / recover address"
-                disabled={settings.busy || settings.readPending}
-                onClick={() =>
-                  void (settings.attempt || settings.needsEvidence
-                    ? settings.recover()
-                    : settings.load())
-                }
-              >
-                <RefreshCwIcon data-icon="inline-start" />
-              </Button>
-            </>
-          }
-        >
-          <FieldGroup className="gap-0">
-            <SettingsEditRow
-              label="Configured address"
-              id="external-address"
-              value={settings.draft?.address ?? ""}
-              placeholder={settings.defaults.address}
-              disabled={!settings.editable}
-              error={addressEmpty ? "Enter a loopback address and port." : undefined}
-              onChange={(event) => settings.edit("address", event.target.value)}
-            />
-          </FieldGroup>
-        </SettingsGroup>
-        {(showActions || pending) && (
-          <SettingsActions
-            notice={settings.dirty ? "Unsaved edits · applies after restart" : undefined}
-            status={pending && <Badge variant="secondary">Saved · restart required</Badge>}
-          >
-            {showActions && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={
-                    !saved ||
-                    settings.busy ||
-                    !!settings.attempt ||
-                    settings.needsEvidence ||
-                    (!settings.dirty && settings.status !== "failed")
-                  }
-                  onClick={() => settings.discard()}
-                >
-                  Discard address edits
-                </Button>
-                <Button type="submit" size="sm" disabled={!settings.canSave || addressEmpty}>
-                  <SaveIcon data-icon="inline-start" />
-                  Save address
-                </Button>
-              </>
-            )}
-          </SettingsActions>
-        )}
-      </form>
+
       {(settings.busy || settings.readPending) && (
         <p role="status" className="text-sm text-muted-foreground">
           {settings.busy ? "Saving address…" : "Reading saved address…"}

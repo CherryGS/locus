@@ -74,13 +74,23 @@ try {
   await enter()
   await page.keyboard.press("Alt+ArrowLeft")
   assert.equal(page.url(), selectedUrl, "background navigation shortcuts cannot run inside Settings")
-  await page.getByLabel("Configured address", { exact: true }).fill("127.0.0.1:46323")
+  await page.getByLabel("Bind address", { exact: true }).fill("127.0.0.1:46323")
+  let implicitAddressWrites = 0
+  const observeAddressWrite = (request: import("playwright").Request) => {
+    if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/v1/settings/groups/")) implicitAddressWrites++
+  }
+  page.on("request", observeAddressWrite)
+  await page.getByLabel("Current Token", { exact: true }).press("Enter")
+  await page.getByRole("button", { name: "Reveal Token", exact: true }).click()
+  await page.getByRole("button", { name: "Hide Token", exact: true }).click()
+  assert.equal(implicitAddressWrites, 0, "Token controls cannot submit dirty address settings")
+  page.off("request", observeAddressWrite)
   await category("Media tools")
   assert(await restart.isVisible())
   await page.getByLabel("ffprobe", { exact: true }).fill("workspace-probe")
   await category("External connection")
   assert.deepEqual(await visit(), settingsVisit, "categories cannot add/replace visits")
-  assert.equal(await page.getByLabel("Configured address", { exact: true }).inputValue(), "127.0.0.1:46323")
+  assert.equal(await page.getByLabel("Bind address", { exact: true }).inputValue(), "127.0.0.1:46323")
   await page.mouse.click(4, 4)
   await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor({ state: "hidden" })
   await grid.waitFor()
@@ -172,7 +182,7 @@ try {
   const afterToken = (await backend.client.GET("/api/v1/external-access/token")).data!
   assert(beforeToken.status === "current" && afterToken.status === "current")
   assert.notEqual(beforeToken.revision, afterToken.revision)
-  assert.equal(await page.getByLabel("Configured address", { exact: true }).inputValue(), "127.0.0.1:46323")
+  assert.equal(await page.getByLabel("Bind address", { exact: true }).inputValue(), "127.0.0.1:46323")
   await category("Media tools")
   await page.getByText("Workspace rejected save", { exact: false }).waitFor()
   assert.equal(await page.getByLabel("ffprobe", { exact: true }).inputValue(), "newer-workspace-probe")

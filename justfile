@@ -228,6 +228,10 @@ desktop-import-browser: server-fixture-build desktop-build
 desktop-import-native: server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:import-native
 
+# Interactive native import review; uses a fresh isolated library and real picker.
+desktop-import-preview: server-fixture-build server-civitai-inputs-build desktop-build
+    {{ npm }} --prefix apps/desktop run preview:import-native
+
 desktop-shared-tasks: server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:shared-tasks
 

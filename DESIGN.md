@@ -189,7 +189,9 @@ surface adaptations of that system.
   unsaved, failed and uncertain operation feedback visible where it belongs.
   Keep the autosave hint inside the Notes input surface as a separate footer,
   without covering editable text. Associate connection availability with the
-  current address and name its editable group Connection settings.
+  active HTTP endpoint.
+  Group the active HTTP endpoint, editable bind address and Token in one HTTP
+  surface. Keep address saving and Token operations independent inside that group.
 - **Task feedback:** use a compact title row with search and state filters below.
   Give record names priority in the list, with compact accessible status icons;
   active work and attention may coexist. Keep progress scoped to its execution

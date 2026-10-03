@@ -157,7 +157,7 @@ try {
   const savedAddress = `127.0.0.1:${addressInfo.port}`
   await new Promise<void>((resolve) => addressReservation.close(() => resolve()))
   await page.getByRole("button", { name: "External connection", exact: true }).click()
-  await page.getByLabel("Configured address", { exact: true }).fill(savedAddress)
+  await page.getByLabel("Bind address", { exact: true }).fill(savedAddress)
   await page.getByRole("button", { name: "Save address", exact: true }).click()
   await page
     .getByRole("region", { name: "External connection", exact: true })
@@ -166,7 +166,7 @@ try {
   await page.getByRole("button", { name: "Media tools", exact: true }).click()
   await page.getByLabel("ffmpeg", { exact: true }).fill("discard-me")
   await page.getByRole("button", { name: "External connection", exact: true }).click()
-  await page.getByLabel("Configured address", { exact: true }).fill("127.0.0.1:1")
+  await page.getByLabel("Bind address", { exact: true }).fill("127.0.0.1:1")
   await page.getByRole("button", { name: "Restart application", exact: true }).click()
   await page.getByRole("button", { name: "Discard draft and restart", exact: true }).waitFor()
   const first = await page.evaluate(() => window.locusDesktop!.state())
@@ -175,7 +175,7 @@ try {
   await page.getByRole("button", { name: "Media tools", exact: true }).click()
   assert.equal(await page.getByLabel("ffmpeg", { exact: true }).inputValue(), "discard-me")
   await page.getByRole("button", { name: "External connection", exact: true }).click()
-  assert.equal(await page.getByLabel("Configured address", { exact: true }).inputValue(), "127.0.0.1:1")
+  assert.equal(await page.getByLabel("Bind address", { exact: true }).inputValue(), "127.0.0.1:1")
   await page.evaluate(
     (state) =>
       window.locusDesktop!.commitClose({
@@ -264,7 +264,7 @@ try {
   await page.waitForFunction(
     () => !(document.querySelector("#external-address") as HTMLInputElement)?.disabled,
   )
-  await page.getByLabel("Configured address", { exact: true }).fill("127.0.0.1:46322")
+  await page.getByLabel("Bind address", { exact: true }).fill("127.0.0.1:46322")
   await page.getByRole("button", { name: "Save address", exact: true }).click()
   await page.waitForFunction(() => !!(window as any).__releaseSettings)
   await page.getByRole("button", { name: "Restart application", exact: true }).click()

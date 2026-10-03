@@ -73,6 +73,15 @@ and foreign contexts never acquire the grant.
 
 ## Isolated verification
 
+`just desktop-import-preview` opens a production Electron window with a fresh
+isolated library under `.local/native-import-preview-*`. Its real native Import
+picker remains available. Tasks is populated with successful and failed imports,
+plus a real model import waiting 60 seconds on the fixture provider's hash lookup.
+The provider responses are local fixtures; task scheduling and import execution
+are real. Closing this window follows normal preparation and accepted-work drain.
+Use `npm --prefix apps/desktop run preview:import-native -- --hidden` after building
+to verify the same scenarios without showing a window, with a shorter delay.
+
 `LOCUS_PREVIEW_PROFILE=civitai` selects the connected Civitai A/B/C fixture for
 `just desktop-ui`; `just desktop-civitai-browser` runs its headless checks.
 Automatic Model matching in browser fixtures uses the isolated `fixture-server`
