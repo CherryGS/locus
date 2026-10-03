@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { CardCoverCoordinator } from "@/features/entity-card-cover"
-import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon, ImageIcon, InfoIcon, VideoIcon } from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon, ImageIcon, InfoIcon, StarIcon, VideoIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
@@ -39,6 +39,8 @@ export function CivitaiGallery({
 }) {
   useSyncExternalStore(covers?.subscribe ?? noSubscribe, covers?.snapshot ?? zero)
   const coverState = originEntity && covers ? covers.get(originEntity) : undefined
+  const savedCover = coverState?.observed?.status === "saved" ? coverState.observed.cover : null
+  const isCover = (example: Wire<"CivitaiManagedExample">) => !!savedCover && savedCover.version_id === unit.version.id && savedCover.target_entity_id === example.binding.entity_id && savedCover.target_file_id === example.binding.file_id && example.binding.media.some(media => media.kind === "image" && media.component_id === savedCover.image_component_id)
   const groups = new Map<string, Wire<"CivitaiManagedExample">[]>()
   for (const example of unit.examples) {
     const key = exampleKey(example)
@@ -51,9 +53,11 @@ export function CivitaiGallery({
       contributors[0],
     contributors,
   }))
+  const outsideCover = savedCover && !examples.some(({ representative }) => isCover(representative))
   const [selected, setSelected] = useState<string>()
   const [previews, setPreviews] = useState<Record<string, Preview | undefined>>({})
   const strip = useRef<HTMLDivElement>(null)
+  const count = useRef<HTMLSpanElement>(null)
   const buttons = useRef(new Map<string, HTMLButtonElement>())
   const index = Math.max(
     0,
@@ -150,21 +154,6 @@ export function CivitaiGallery({
           </p>
         )}
       </div>
-      {covers && originEntity && (
-        <div className="flex flex-wrap items-center gap-2" aria-label="Grid card cover">
-          <Button size="sm" variant="outline" disabled={!usable || opening || coverState?.pending || !!coverState?.attempt || !active?.binding.media.some(media => media.kind === "image")}
-            onClick={() => {
-              const image = active?.binding.media.find(media => media.kind === "image")
-              if (active && image) void covers.choose(originEntity, { source_component_id: active.source.component_id, version_id: unit.version.id, target_entity_id: active.binding.entity_id, target_file_id: active.binding.file_id, image_component_id: image.component_id })
-            }}>Use as card cover</Button>
-          {coverState?.observed?.status === "saved" && coverState.observed.cover && (
-            <Button size="sm" variant="ghost" disabled={coverState.pending || !!coverState.attempt} onClick={() => void covers.choose(originEntity, null)}>Automatic cover</Button>
-          )}
-          {(coverState?.problem || coverState?.unavailable) && <p role="alert" className="basis-full text-xs text-destructive">{coverState.problem ?? coverState.unavailable}
-            {coverState.problem && <Button size="sm" variant="ghost" disabled={coverState.pending} onClick={() => void covers.retry(originEntity)}>Check cover</Button>}
-          </p>}
-        </div>
-      )}
       <div className="flex min-w-0 items-center gap-2" data-slot="civitai-gallery-controls">
         <Button
           variant="outline"
@@ -195,9 +184,11 @@ export function CivitaiGallery({
                 {examples.map(({ representative: example }, exampleIndex) => {
                   const key = exampleKey(example)
                   const isVideo = example.binding.media.some((media) => media.kind === "video")
+                  const image = example.binding.media.find(media => media.kind === "image")
+                  const marked = isCover(example)
                   return (
+                    <div key={key} className="group/gallery-thumbnail relative shrink-0" data-card-cover={marked || undefined}>
                     <ToggleGroupItem
-                      key={key}
                       value={key}
                       className="h-14 w-20 overflow-hidden p-1"
                       aria-label={`Show example ${exampleIndex + 1}`}
@@ -221,6 +212,19 @@ export function CivitaiGallery({
                         <ImageIcon />
                       )}
                     </ToggleGroupItem>
+                    {covers && originEntity && (
+                      <Button variant="secondary" size="icon-xs" className={`absolute right-1 bottom-2 z-10 rounded-sm aria-disabled:opacity-50 ${marked ? "" : "opacity-0 group-hover/gallery-thumbnail:opacity-100 group-focus-within/gallery-thumbnail:opacity-100 focus-visible:opacity-100"}`}
+                        aria-label={marked ? "Use automatic card cover" : `Set example ${exampleIndex + 1} as card cover`}
+                        aria-pressed={marked} aria-disabled={coverState?.pending || !!coverState?.attempt}
+                        title={marked ? "Card cover · click to clear" : "Set as card cover"}
+                        disabled={opening || !marked && (!example.applicable || !example.binding.complete || !image)}
+                        onClick={() => {
+                          if (coverState?.pending || coverState?.attempt) return
+                          if (marked) void covers.choose(originEntity, null)
+                          else if (image) void covers.choose(originEntity, { source_component_id: example.source.component_id, version_id: unit.version.id, target_entity_id: example.binding.entity_id, target_file_id: example.binding.file_id, image_component_id: image.component_id })
+                        }}><StarIcon className={marked ? "fill-current" : undefined} /></Button>
+                    )}
+                    </div>
                   )
                 })}
               </ToggleGroup>
@@ -239,12 +243,27 @@ export function CivitaiGallery({
         </Button>
         <div className="flex shrink-0 flex-col items-center gap-1">
           <span
+            ref={count}
+            tabIndex={-1}
             className="min-w-12 text-center text-xs tabular-nums text-muted-foreground"
             aria-live="polite"
             data-slot="civitai-gallery-count"
           >
             {examples.length ? `${index + 1} / ${examples.length}` : "0 saved"}
           </span>
+          <div className="flex items-center gap-0.5">
+          {outsideCover && covers && originEntity && (
+            <Button variant="ghost" size="icon-sm" aria-label="Use automatic card cover" title={`Card cover from version ${savedCover.version_id} · click to clear`}
+              aria-pressed="true" aria-disabled={coverState?.pending || !!coverState?.attempt}
+              onClick={event => {
+                if (coverState?.pending || coverState?.attempt) return
+                const trigger = event.currentTarget
+                void covers.choose(originEntity, null).then(() => {
+                  const observed = covers.get(originEntity).observed
+                  if (observed?.status === "saved" && !observed.cover && (document.activeElement === trigger || document.activeElement === document.body)) count.current?.focus({ preventScroll: true })
+                })
+              }}><StarIcon className="fill-current" /></Button>
+          )}
           {active && (
             <Dialog>
               <DialogTrigger
@@ -295,8 +314,14 @@ export function CivitaiGallery({
               </DialogContent>
             </Dialog>
           )}
+          </div>
         </div>
       </div>
+      {covers && originEntity && (coverState?.problem || coverState?.unavailable) && (
+        <p role="alert" className="text-xs text-destructive">{coverState.problem ?? coverState.unavailable}
+          {coverState.problem && <Button size="sm" variant="ghost" disabled={coverState.pending} onClick={() => void covers.retry(originEntity)}>Check cover</Button>}
+        </p>
+      )}
     </section>
   )
 }

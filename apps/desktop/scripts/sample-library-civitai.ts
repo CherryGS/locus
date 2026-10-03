@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { createHash } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { basename, join, relative, resolve } from "node:path"
 import { chromium } from "playwright"
@@ -7,6 +7,7 @@ import { browserPreview } from "./browser-preview.ts"
 import { startServer } from "./fixture.ts"
 import type { ProviderConfig, ProviderModel, ProviderVersion } from "./sample-library-assets.ts"
 import { sampleSession, type Manifest } from "./sample-library-session.ts"
+import type { components } from "@locus/client"
 
 type PublicVersion = Omit<ProviderVersion, "files" | "images"> & {
   trainedWords?: string[]
@@ -129,6 +130,7 @@ export async function verifyCivitaiSamples(root: string) {
   const output = join(root, "verification", "civitai-public")
   await mkdir(output, { recursive: true })
   const evidence: unknown[] = []
+  const originalCovers = new Map<string, components["schemas"]["CardCoverSelection"] | null>()
   try {
     for (const entry of entries) {
       const page = await browser.newPage({ viewport: { width: 1200, height: 800 } })
@@ -150,6 +152,14 @@ export async function verifyCivitaiSamples(root: string) {
       assert.equal(version.data.version.files.length, model.id === "522077" ? 1 : 2)
       assert.equal(version.data.examples.length, 2)
       assert(version.data.examples.every(example => example.applicable && example.binding.complete))
+      const original = await backend.client.GET("/api/v1/entities/{entity_id}/card-cover-preference", { params: { path: { entity_id: entry.entityId } } })
+      assert(original.data && original.data.status !== "missing")
+      const originalCover = original.data.status === "saved" ? original.data.cover : null
+      originalCovers.set(entry.entityId, originalCover)
+      if (original.data.status === "saved" && originalCover) {
+        const cleared = await backend.client.PUT("/api/v1/entities/{entity_id}/card-cover-preference", { params: { path: { entity_id: entry.entityId } }, body: { request_id: randomUUID(), expected_revision: original.data.revision, cover: null } })
+        assert.equal(cleared.data?.status, "card_cover_preference_saved")
+      }
       await page.goto(`${preview.origin}/#/entity?mode=inspect&entityId=${entry.entityId}`)
       const reader = page.locator('[data-slot="civitai-page"]')
       await reader.getByRole("row", { name: /^Trigger words/ }).waitFor()
@@ -163,16 +173,29 @@ export async function verifyCivitaiSamples(root: string) {
       // preference or the gallery's fresh-entry default.
       const defaultView = await backend.client.GET("/api/v1/entities/{entity_id}/view-preference", { params: { path: { entity_id: entry.entityId } } })
       const gallery = reader.getByRole("region", { name: "Managed Civitai examples", exact: true })
-      await gallery.getByRole("button", { name: "Show example 2", exact: true }).click()
+      const galleryImage = await gallery.locator('[data-slot="civitai-gallery-stage"] img').getAttribute("src")
       const savedCover = page.waitForResponse(response => response.url().endsWith(`/${entry.entityId}/card-cover-preference`) && response.request().method() === "PUT")
-      await gallery.getByRole("button", { name: "Use as card cover", exact: true }).click()
+      await gallery.getByRole("button", { name: "Set example 2 as card cover", exact: true }).click()
       assert((await savedCover).ok())
+      await gallery.locator('[data-card-cover="true"]').waitFor()
+      assert.equal(await gallery.locator('[data-card-cover="true"]').count(), 1)
+      assert.equal(await gallery.getByRole("button", { name: "Show example 1", exact: true }).getAttribute("aria-pressed"), "true", "cover controls do not change gallery browsing")
+      assert.equal(await gallery.locator('[data-slot="civitai-gallery-stage"] img').getAttribute("src"), galleryImage)
+      assert(await gallery.getByRole("button", { name: "Use automatic card cover", exact: true }).evaluate(element => element === document.activeElement), "cover save retains focus on its thumbnail marker")
+      if (model.id === "4629") {
+        await reader.getByRole("button", { name: "V1 64T · Version 5638", exact: true }).click()
+        await gallery.getByText("No saved examples for this version", { exact: true }).waitFor()
+        assert.equal(await gallery.locator('[data-card-cover="true"]').count(), 0)
+        assert.equal(await gallery.getByRole("button", { name: "Use automatic card cover", exact: true }).count(), 1, "a cover from another version remains visible in existing gallery controls")
+        await reader.getByRole("button", { name: "V1 75T · Version 5637", exact: true }).click()
+        await gallery.locator('[data-card-cover="true"]').waitFor()
+      }
       const preference = await backend.client.GET("/api/v1/entities/{entity_id}/card-cover-preference", { params: { path: { entity_id: entry.entityId } } })
       assert(preference.data?.status === "saved" && preference.data.cover)
       assert.deepEqual((await backend.client.GET("/api/v1/entities/{entity_id}/view-preference", { params: { path: { entity_id: entry.entityId } } })).data, defaultView.data)
       await page.reload()
       await reader.waitFor()
-      await reader.getByRole("button", { name: "Automatic cover", exact: true }).waitFor()
+      await reader.getByRole("button", { name: "Use automatic card cover", exact: true }).waitFor()
       await reader.getByRole("button", { name: "Show example 1", exact: true }).waitFor()
       assert.equal(await reader.getByRole("button", { name: "Show example 1", exact: true }).getAttribute("aria-pressed"), "true")
       await page.goto(`${preview.origin}/#/entity?mode=grid&collectionId=library&entityId=${entry.entityId}`)
@@ -188,9 +211,9 @@ export async function verifyCivitaiSamples(root: string) {
       assert(located, "locate reveals and focuses the current Entity without changing selection")
       await page.screenshot({ path: join(output, `${model.id}-grid-cover.png`) })
       await page.goto(`${preview.origin}/#/entity?mode=inspect&entityId=${entry.entityId}`)
-      await reader.getByRole("button", { name: "Automatic cover", exact: true }).waitFor()
+      await reader.getByRole("button", { name: "Use automatic card cover", exact: true }).waitFor()
       const reset = page.waitForResponse(response => response.url().endsWith(`/${entry.entityId}/card-cover-preference`) && response.request().method() === "PUT")
-      await reader.getByRole("button", { name: "Automatic cover", exact: true }).click()
+      await reader.getByRole("button", { name: "Use automatic card cover", exact: true }).click()
       assert((await reset).ok())
       await page.getByRole("button", { name: "Civitai", exact: true }).click()
       await page.setViewportSize({ width: 720, height: 480 })
@@ -207,8 +230,19 @@ export async function verifyCivitaiSamples(root: string) {
     await writeFile(join(output, "result.json"), JSON.stringify({ status: "PASS", cases: evidence }, null, 2))
     console.log(JSON.stringify({ status: "PASS", output, cases: evidence }))
   } finally {
-    await browser.close()
-    await preview.close()
-    await backend.stop()
+    try {
+      for (const [entity_id, cover] of originalCovers) {
+        const current = await backend.client.GET("/api/v1/entities/{entity_id}/card-cover-preference", { params: { path: { entity_id } } })
+        assert(current.data && current.data.status !== "missing")
+        const currentCover = current.data.status === "saved" ? current.data.cover : null
+        if (JSON.stringify(currentCover) === JSON.stringify(cover)) continue
+        const restored = await backend.client.PUT("/api/v1/entities/{entity_id}/card-cover-preference", { params: { path: { entity_id } }, body: { request_id: randomUUID(), expected_revision: current.data.status === "saved" ? current.data.revision : null, cover } })
+        assert.equal(restored.data?.status, "card_cover_preference_saved", "restore the preview user's original cover choice")
+      }
+    } finally {
+      await browser.close()
+      await preview.close()
+      await backend.stop()
+    }
   }
 }

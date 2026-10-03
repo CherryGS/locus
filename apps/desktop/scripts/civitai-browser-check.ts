@@ -60,10 +60,16 @@ try {
   }
   await reading.getByText("A independent model description", { exact: true }).waitFor()
   assert(await reading.getByRole("list", { name: "Model tags", exact: true }).isVisible())
-  assert(await reading.getByRole("region", { name: "Current local file", exact: true }).getByText("A.safetensors", { exact: true }).isVisible())
+  assert.equal(await reading.getByRole("region", { name: "Current local file", exact: true }).count(), 0)
+  assert(await reading.getByRole("region", { name: "Version files" }).getByText("A.safetensors", { exact: true }).isVisible())
   assert.equal(await reading.locator('[data-current-file="true"]').count(), 1)
   const triggerWords = reading.getByRole("row", { name: /^Trigger words/ })
   assert.equal(await triggerWords.getByRole("listitem").count(), 12)
+  const triggerBounds = await triggerWords.getByRole("listitem").evaluateAll(items => items.map(item => {
+    const rect = item.getBoundingClientRect(); return { x: rect.x, top: rect.top, bottom: rect.bottom }
+  }))
+  assert(triggerBounds.every((item, index) => index === 0 || item.x === triggerBounds[0].x && item.top >= triggerBounds[index - 1].bottom), "trigger groups stay vertically separated at wide widths")
+  assert.equal(await reading.getByRole("region", { name: "Model description", exact: true }).getByRole("heading", { name: "Model description", exact: true }).count(), 0)
   assert.equal(await reading.getByRole("region", { name: "Version files" }).getByRole("listitem").count(), 4)
   assert.equal(await reading.getByText("Version 40", { exact: false }).count(), 0)
   await reading

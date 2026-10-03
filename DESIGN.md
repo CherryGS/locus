@@ -176,16 +176,18 @@ surface adaptations of that system.
   file/version/observation in the provider source group.
 - **Model and provider reading:** show file statistics as ordinary property rows,
   using the inspector's label/value typography. Let section actions wrap in narrow
-  readers and long declarations break within their column. Give version notes and
-  model descriptions the same unboxed heading/content structure; omit repeated
-  version subtitles. Show source properties directly, while keeping long raw
+  readers and long declarations break within their column. Enclose version notes
+  in one bordered section with a divider between its header and body; follow it
+  with the model description's own content without an extra visible title.
+  Show source properties directly, while keeping long raw
   provider declarations and optional maintenance in their existing disclosures.
   Keep model tags beside the title, with source-link/reread actions in an
   independent column that a long title cannot push onto an unrelated row.
-  Show the origin's matched version/file and current managed path together;
-  mark current local correspondences on version/file items without treating
-  changed or merely listed inputs as available local files. Give each complete
-  trigger phrase its own cell, preserving newlines inside that phrase.
+  Omit the top-level version/file breadcrumb; keep the managed path in the source
+  sidebar. Version names use compact current/local/unlinked icons and source-file
+  rows show only the filename and one matching status. Use qualified recorded
+  correspondences rather than claiming unlinked Files do not exist. Stack each
+  complete trigger phrase in its own block, preserving newlines inside that phrase.
 - **Grid location and covers:** Locate selected Entity reveals the same identity
   and restores grid keyboard focus without changing selection, query or context.
   Civitai grid cards can use an applicable saved gallery Image automatically or
@@ -196,6 +198,11 @@ surface adaptations of that system.
   Unavailable choices remain stored and offer ordinary preview fallback; display
   save/recovery errors beside the cover action. Preserve native close/restart
   preparation for pending or unconfirmed choices.
+  Put cover selection on the existing gallery thumbnail as a star; a filled star
+  marks the saved image and clears its choice when activated again. Unmarked
+  thumbnails expose their setting action on hover or keyboard focus. With no
+  saved choice, use automatic cover selection. If the saved image lies outside
+  the viewed version, show its clearable star in the existing gallery controls.
 - **Filter workspace:** keep presets secondary to the raw query. Use the darker
   control surface and monospace text for source, with compact query actions and
   directly visible, clickable diagnostics. Separate the optional field reference

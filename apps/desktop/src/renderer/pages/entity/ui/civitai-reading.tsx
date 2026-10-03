@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import { ArrowUpRightIcon, CheckIcon, FileIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
+import { ArrowUpRightIcon, CheckIcon, CircleDashedIcon, CircleDotIcon, FileIcon, RefreshCwIcon, UserRoundIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
 import type { CardCoverCoordinator } from "@/features/entity-card-cover"
@@ -277,25 +277,18 @@ export function CivitaiReading({
     <section aria-label="Version files" className="flex min-w-0 flex-col gap-2">
       <h3 className="text-xs text-muted-foreground">Source files</h3>
       <ul className="flex min-w-0 flex-col divide-y rounded-lg border">
-        {unit.version.files.map((item) => (
-          <li key={item.id} className="flex min-w-0 items-start gap-3 px-3 py-2.5" data-current-file={unit.version.id === page?.origin.record.matched_version && item.id === page?.origin.record.matched_file || undefined}>
-            <FileIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            <span className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="text-sm font-medium [overflow-wrap:anywhere]">
-                {item.name}
-              </span>
-              {unit.version.id === page?.origin.record.matched_version && item.id === page?.origin.record.matched_file && (
-                <span className="text-xs text-primary">{page.origin.input === "current" ? "This entry’s file" : "This entry’s saved match"}</span>
-              )}
-              {unit.correspondences.filter(match => match.file === item.id && match.input === "current").length > 0 && (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><CheckIcon className="size-3" />In library · {unit.correspondences.filter(match => match.file === item.id && match.input === "current").length}</span>
-              )}
-              <span className="text-xs font-normal whitespace-normal text-muted-foreground [overflow-wrap:anywhere]">
-                {sourceFileSummary(item)}
-              </span>
-            </span>
-          </li>
-        ))}
+        {unit.version.files.map(item => {
+          const current = page?.origin.input === "current" && unit.version.id === page.origin.record.matched_version && item.id === page.origin.record.matched_file
+          const local = unit.correspondences.some(match => match.file === item.id && match.input === "current")
+          const label = current ? "Current" : local ? "In library" : "Unlinked"
+          return (
+            <li key={item.id} className="flex min-w-0 items-start gap-3 px-3 py-2.5" data-current-file={current || undefined} data-file-state={current ? "current" : local ? "local" : "unlinked"}>
+              <FileIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]">{item.name}</span>
+              <Badge variant={current ? "secondary" : "outline"} className="shrink-0" title={current ? "File matched to this Entity" : local ? "Current local correspondence recorded" : "No current local correspondence recorded"}>{label}</Badge>
+            </li>
+          )
+        })}
       </ul>
       {!unit.version.files.length && (
         <p className="text-xs text-muted-foreground">No files listed in this observation.</p>
@@ -346,6 +339,7 @@ export function CivitaiReading({
             <h3 className="text-sm font-medium">Source details</h3>
             <div className="flex min-w-0 flex-col gap-4 [overflow-wrap:anywhere]">
               <dl>
+                {file?.relativePath && <Detail label="Managed path"><code className="text-xs">{file.relativePath}</code></Detail>}
                 <Detail label="Origin Entity">
                   <DetailIdentifier label="Origin Entity" value={entity.id} />
                 </Detail>
@@ -436,17 +430,6 @@ export function CivitaiReading({
             </Button>
           </div>
         </header>
-        {page && model && (
-          <section aria-label="Current local file" className="flex min-w-0 flex-col gap-1.5 rounded-md bg-secondary/40 px-3 py-2.5 select-text">
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
-              <span className="text-xs text-muted-foreground">{page.origin.input === "current" ? "This entry" : "Saved match"}</span>
-              <span className="font-medium">{model.versions.find(version => version.id === page.origin.record.matched_version)?.name ?? `Version ${page.origin.record.matched_version}`}</span>
-              <span className="text-muted-foreground">/</span>
-              <span className="min-w-0 [overflow-wrap:anywhere]">{model.versions.find(version => version.id === page.origin.record.matched_version)?.files.find(item => item.id === page.origin.record.matched_file)?.name ?? `File ${page.origin.record.matched_file}`}</span>
-            </div>
-            {file?.relativePath && <code className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{file.relativePath}</code>}
-          </section>
-        )}
         {problem && (
           <Alert variant="destructive">
             <AlertTitle>Page read failed</AlertTitle>
@@ -505,18 +488,20 @@ export function CivitaiReading({
                     {page.versions.map((version) => {
                       const versionName = model.versions.find((item) => item.id === version.id)?.name
                       const name = versionName ?? `Version ${version.id}`
+                      const current = page.origin.input === "current" && version.id === page.origin.record.matched_version
+                      const local = page.correspondences.some(match => match.version === version.id && match.input === "current")
+                      const StatusIcon = current ? CircleDotIcon : local ? CheckIcon : CircleDashedIcon
                       return (
                         <ToggleGroupItem
                           key={version.id}
                           value={version.id}
                           className="min-w-0 max-w-full"
                           aria-label={`${versionName ? `${versionName} · ` : ""}Version ${version.id}${version.in_origin ? "" : " · not recorded in this snapshot"}`}
-                          title={`Version ${version.id}${version.id === page.origin.record.matched_version ? " · matched to this entry" : ""}`}
+                          title={`${current ? "Current Entity version" : local ? "Local file matched" : "No local file match recorded"} · Version ${version.id}`}
+                          data-version-state={current ? "current" : local ? "local" : "unlinked"}
                         >
+                          <StatusIcon aria-hidden="true" className={`size-3.5 shrink-0 ${current ? "text-primary" : "text-muted-foreground"}`} />
                           <span className="truncate">{name}</span>
-                          {version.id === page.origin.record.matched_version && <span className="text-xs">· this entry</span>}
-                          {version.id !== page.origin.record.matched_version && page.correspondences.some(match => match.version === version.id && match.input === "current") && <CheckIcon className="size-3.5 shrink-0" aria-label="Version in library" />}
-                          {!version.in_origin && <span>· not recorded in this snapshot</span>}
                         </ToggleGroupItem>
                       )
                     })}
@@ -681,7 +666,7 @@ export function CivitaiReading({
                           </TableHead>
                           <TableCell className="px-3 whitespace-normal [overflow-wrap:anywhere]">
                             {trainedWords.length ? (
-                              <ul className="grid min-w-0 grid-cols-1 gap-2 @lg:grid-cols-2">
+                              <ul className="flex min-w-0 flex-col gap-2">
                                 {trainedWords.map((word, index) => (
                                   <li key={index} className="min-w-0 rounded-md bg-control p-2.5">
                                     <code className="block select-text text-xs leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{word}</code>
@@ -700,20 +685,19 @@ export function CivitaiReading({
                   </div>
                   {versionFiles}
                 </section>
-                <section aria-label="Version notes" data-slot="civitai-version-notes" className="flex min-w-0 flex-col gap-3">
-                  <h2 className="text-sm font-medium">Version notes</h2>
-                  <CivitaiRichText
-                    html={unit.version.description}
-                    baseUrl={`https://civitai.com/models/${model.id}?modelVersionId=${unit.version.id}`}
-                    empty="No version notes saved."
-                  />
+                <section aria-label="Version notes" data-slot="civitai-version-notes" className="min-w-0 overflow-hidden rounded-lg border">
+                  <header className="border-b px-4 py-3"><h2 className="text-sm font-medium">Version notes</h2></header>
+                  <div className="p-4">
+                    <CivitaiRichText
+                      html={unit.version.description}
+                      baseUrl={`https://civitai.com/models/${model.id}?modelVersionId=${unit.version.id}`}
+                      empty="No version notes saved."
+                    />
+                  </div>
                 </section>
               </>
             )}
-            <section aria-label="Model description" className="flex min-w-0 flex-col gap-3 border-t pt-5">
-              <header className="flex flex-col gap-3">
-                <h2 className="text-sm font-medium">Model description</h2>
-              </header>
+            <section aria-label="Model description" className="min-w-0 pt-2">
               <CivitaiRichText
                 html={model.description}
                 baseUrl={`https://civitai.com/models/${model.id}`}
@@ -725,20 +709,6 @@ export function CivitaiReading({
       </article>
     </ScrollArea>
   )
-}
-
-function sourceFileSummary(file: Wire<"CivitaiFile">): string {
-  const fields = sourceObject(file.raw_json)
-  const metadata = sourceObject(fields.metadata)
-  return [
-    typeof metadata.format === "string" ? metadata.format : file.kind,
-    typeof metadata.fp === "string" ? metadata.fp : undefined,
-    typeof fields.sizeKB === "number" && Number.isFinite(fields.sizeKB)
-      ? `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(fields.sizeKB)} KB`
-      : undefined,
-  ]
-    .filter(Boolean)
-    .join(" · ")
 }
 
 function sourceObject(value: unknown): Record<string, unknown> {
