@@ -187,6 +187,9 @@ surface adaptations of that system.
   presentation, and a failed refresh remains visibly attributable.
   Notes autosave and saved view choices omit routine success labels. Keep pending,
   unsaved, failed and uncertain operation feedback visible where it belongs.
+  Keep the autosave hint inside the Notes input surface as a separate footer,
+  without covering editable text. Associate connection availability with the
+  current address and name its editable group Connection settings.
 - **Notes feedback:** keep the status and icon footprint fixed. Defer short-lived
   Saving/Loading feedback using the shared pending threshold; retain the observed
   Saved state and textarea appearance during a quick reread. Show Unsaved and

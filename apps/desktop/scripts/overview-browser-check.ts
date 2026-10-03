@@ -60,6 +60,11 @@ try {
   await backend.client.POST("/api/v1/tags", { body: { request_id: crypto.randomUUID(), change: { operation: "create", name: "Color studies", parent: inspiration } } })
   await open()
   assert.equal(await notes.inputValue(), "")
+  await overview.getByText("Saves automatically.", { exact: true }).click()
+  assert(await notes.evaluate(element => element === document.activeElement), "The notes footer focuses its own editor")
+  const noteBounds = await notes.boundingBox()
+  const hintBounds = await overview.getByText("Saves automatically.", { exact: true }).boundingBox()
+  assert(noteBounds && hintBounds && hintBounds.y >= noteBounds.y + noteBounds.height, "The notes footer cannot cover typed content")
   assert.equal(await page.getByRole("button", { name: "Tags", exact: true }).count(), 0)
   const text = "留意画面里的光影层次。\nA reference for the next collection.\nhttps://example.com/reference"
   let saved = saveResponse()

@@ -52,23 +52,19 @@ export function ExternalAccessPanel({
           label: "About external connection",
           content: <p>Use this address and shared Token in your connected clients.</p>,
         }}
-        status={
-          runtime?.active_address && !settings.runtimeError && !runtime.problem ? (
-            <Badge variant="outline">Listening</Badge>
-          ) : undefined
-        }
       >
         <SettingsRow label="Current address">
           {runtime?.active_address && !settings.runtimeError ? (
-            <div className="flex min-h-8 min-w-0 flex-wrap items-center justify-between gap-1">
+            <div className="flex min-h-8 min-w-0 flex-wrap items-center gap-2">
               <code className="break-all">{`http://${runtime.active_address}`}</code>
+              {!runtime.problem && <Badge variant="outline">Listening</Badge>}
             </div>
           ) : (
             <p className="text-muted-foreground">
               {settings.runtimeError ??
                 (runtime?.problem
-                  ? "The configured address is not listening."
-                  : "Reading the external listener state…")}
+                  ? "The configured address is unavailable."
+                  : "Reading the connection status…")}
             </p>
           )}
         </SettingsRow>
@@ -188,9 +184,9 @@ export function ExternalAccessPanel({
         }}
       >
         <SettingsGroup
-          name="Listener settings"
+          name="Connection settings"
           help={{
-            label: "About listener settings",
+            label: "About connection settings",
             content: (
               <p>
                 Enter a loopback IP and port. Saved changes apply after restart. Restoring the
