@@ -33,9 +33,14 @@ try {
         const box = line.getBoundingClientRect(); return { x: box.x, width: box.width, height: box.height }
       })
       const tags = element.querySelector('[aria-label="Personal tag summary"]')
-      return { x: page.x, width: page.width, lines, tagsBorder: tags ? getComputedStyle(tags).borderBottomWidth : undefined }
+      const divider = element.querySelector(':scope > [data-boundary="page"]')!
+      const stroke = getComputedStyle(divider)
+      return { x: page.x, width: page.width, lines, tagsBorder: tags ? getComputedStyle(tags).borderBottomWidth : undefined,
+        stroke: stroke.borderTopWidth, background: stroke.backgroundColor }
     })
     assert.deepEqual(geometry.lines, [{ x: geometry.x, width: geometry.width, height: 1 }], "Grid and inspection share one full page boundary")
+    assert.equal(geometry.stroke, "1px", "The header divider uses a native stroke")
+    assert.equal(geometry.background, "rgba(0, 0, 0, 0)", "A background fill must not compound the header stroke")
     if (geometry.tagsBorder) assert.equal(geometry.tagsBorder, "0px", "The tag summary does not add a shorter header boundary")
   }
   await checkPageBoundary()

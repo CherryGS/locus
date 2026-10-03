@@ -16,6 +16,10 @@
   width-constrained header content. Draw one 1px divider across that container
   with the shared Separator and border token. A child summary strip must not
   add another competing page boundary.
+- Render separator strokes with native 1px borders, rather than a 1px filled
+  background rectangle. Check grid and inspection headers at fractional
+  browser zoom as well as 100%; equal CSS heights alone do not verify stroke
+  consistency after rasterization.
 - Property-group dividers follow the full width of their owning panel or
   reading column. Use the same width and alignment for sibling groups. A
   reading column may be narrower than the page; that is a different layer,
