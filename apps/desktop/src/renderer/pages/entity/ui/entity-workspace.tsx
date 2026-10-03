@@ -144,7 +144,7 @@ export function EntityWorkspace({
             <>
               <ResizableHandle
                 aria-label="Resize auxiliary panel"
-                className="w-2.5 border-l bg-sidebar after:hidden [@media(pointer:coarse)]:w-5"
+                className="w-2.5 border-t border-l bg-sidebar after:hidden [@media(pointer:coarse)]:w-5"
               />
               <ResizablePanel
                 id="auxiliary-content"
@@ -160,7 +160,7 @@ export function EntityWorkspace({
                   ref={panelContent}
                   id="auxiliary-panel"
                   aria-label={activePanel.label}
-                  className="flex h-full min-h-0 flex-col bg-sidebar"
+                  className="flex h-full min-h-0 flex-col border-t bg-sidebar"
                   initial={{ opacity: reduceMotion ? 1 : 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.12 }}
@@ -190,7 +190,7 @@ export function EntityWorkspace({
         <Separator orientation="vertical" />
         <aside
           aria-label="Auxiliary panels"
-          className="w-12 min-h-0 shrink-0 bg-sidebar"
+          className="w-12 min-h-0 shrink-0 border-t bg-sidebar"
         >
           <ScrollArea className="h-full" scrollbarProps={{ className: "data-vertical:w-1" }}
             viewportProps={{ className: "overscroll-contain" }}>

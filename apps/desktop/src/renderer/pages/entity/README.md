@@ -13,7 +13,8 @@ A pending or rejected search retains the previous result. Counts, selection and
 collection context register into the centered titlebar display, owned by the
 active page. Overview omits a redundant Component count.
 The toolbar shares the main canvas without a horizontal divider; auxiliary
-panels retain their resize boundary and separate surface.
+panels, their rail and the grid scrollbar retain a top border as well as their
+resize boundary and separate surface.
 
 Inspection uses a centered strip over the full current sequence. Its 88-pixel height holds
 96 by 72-pixel thumbnail frames with 4-pixel gaps; images preserve their complete

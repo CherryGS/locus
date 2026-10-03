@@ -218,7 +218,7 @@ export function EntityGrid({
   return (
     <ScrollArea
       className="h-full min-h-0"
-      scrollbarProps={{ className: "data-vertical:border-l-border" }}
+      scrollbarProps={{ className: "data-vertical:border-t data-vertical:border-t-border data-vertical:border-l-border" }}
       viewportProps={{
         ref: viewport,
         role: "grid",
