@@ -63,7 +63,7 @@ export function FilterModal({ coordinator: c, embedded = false }: { coordinator:
         aria-label={c.filterApplied ? "Filter · applied" : "Filter"}
         title={c.filterApplied ? "Filter · applied" : "Filter"}
         render={embedded
-          ? <InputGroupButton size="xs" variant={c.filterApplied ? "secondary" : "ghost"} />
+          ? <InputGroupButton size="segment" variant={c.filterApplied ? "secondary" : "ghost"} />
           : <Button variant={c.filterApplied ? "secondary" : "outline"} size="sm" />}>
         <FilterIcon data-icon="inline-start" />
         Filter{!embedded && c.filterApplied ? " · applied" : ""}

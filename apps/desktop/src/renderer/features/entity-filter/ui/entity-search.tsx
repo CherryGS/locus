@@ -27,10 +27,12 @@ export function EntitySearch({ coordinator: c }: { coordinator: FilterCoordinato
           </InputGroupAddon>
           <InputGroupInput ref={input} id={inputId} placeholder="Search entities…" value={c.searchDraft}
             aria-invalid={!!c.searchError} aria-describedby={statusId} onChange={event => c.editSearch(event.target.value)} />
-          <InputGroupAddon align="inline-end" className="gap-1 py-0">
-            {!!c.searchDraft && <InputGroupButton size="icon-xs" aria-label="Clear search" title="Clear search" disabled={c.busy}
-              onClick={() => { c.editSearch(""); input.current?.focus({ preventScroll: true }); void c.applySearch() }}><XIcon /></InputGroupButton>}
-            <Separator orientation="vertical" className="mx-1 h-4 data-vertical:self-center" aria-hidden="true" />
+          {!!c.searchDraft && <InputGroupAddon align="inline-end" className="py-0">
+            <InputGroupButton size="icon-xs" aria-label="Clear search" title="Clear search" disabled={c.busy}
+              onClick={() => { c.editSearch(""); input.current?.focus({ preventScroll: true }); void c.applySearch() }}><XIcon /></InputGroupButton>
+          </InputGroupAddon>}
+          <InputGroupAddon align="inline-end" className="gap-0 self-stretch py-0 pr-0 has-[>button]:mr-0">
+            <Separator orientation="vertical" aria-hidden="true" />
             <FilterModal coordinator={c} embedded />
           </InputGroupAddon>
         </InputGroup>

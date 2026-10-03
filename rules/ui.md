@@ -36,8 +36,10 @@
   4px side insets. Expanded navigation overlays content without moving the
   icon column. Panel buttons may grow vertically to retain their text labels.
 - Entity Search and its Filter trigger share one InputGroup. Place the labeled
-  Filter action at the inline end, separated from the input by a short vertical
-  divider, and show its applied state. Keep their inputs independent and
+  Filter action in a full-height trailing segment, sharing the outer frame and
+  corner radius with the input. Use the shared segment button size and a full-height
+  divider; show its applied state without adding an inset miniature button.
+  Keep their inputs independent and
   combine only applied criteria with AND. Buttons must fit inside the frame.
 - Keep the Entity locate action mounted in the toolbar; disable it when there
   is no selected item in the current grid, or when the grid is not displayed.

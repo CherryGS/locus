@@ -51,10 +51,13 @@ try {
     const frame = group!.getBoundingClientRect()
     const controls = [...group!.querySelectorAll("button")].map(control => control.getBoundingClientRect())
     return { search: group?.querySelector('input')?.getAttribute("placeholder"), width: box.width, height: box.height,
+      frameHeight: frame.height, topInset: box.top - frame.top, rightInset: frame.right - box.right,
       contained: controls.every(control => control.top >= frame.top && control.bottom <= frame.bottom), label: button.textContent?.trim() }
   })
   assert.equal(embeddedTrigger.search, "Search entities…")
-  assert.equal(embeddedTrigger.height, 24)
+  assert.equal(embeddedTrigger.height, embeddedTrigger.frameHeight - 2)
+  assert.equal(embeddedTrigger.topInset, 1)
+  assert.equal(embeddedTrigger.rightInset, 1)
   assert(embeddedTrigger.width > 24 && embeddedTrigger.contained && embeddedTrigger.label === "Filter", "The labeled Filter action and search controls fit within their shared frame")
   const dialog = page.getByRole("dialog", { name: "Filter Entities" })
   const open = async () => {
