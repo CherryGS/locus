@@ -32,14 +32,14 @@ export function EntityProblems({
             <AlertTitle>{title}</AlertTitle>
             <AlertDescription className="flex min-w-0 flex-col gap-3 [&_p:not(:last-child)]:mb-0">
               <p className="text-foreground [overflow-wrap:anywhere]">{problem.message}</p>
-              {problem.previous && <p>Displayed facts are from the previous successful observation.</p>}
+              {problem.previous && <p>Showing previously read facts.</p>}
               <Button variant="outline" size="xs" className="h-auto min-h-7 max-w-full self-start whitespace-normal py-1 text-left" onClick={() => recover(problem)}>
                 {action}
               </Button>
-              <div className="flex min-w-0 flex-col gap-1 border-t pt-3 text-xs">
-                <p className="font-medium">Affected data</p>
-                <p className="break-all select-text">{problem.subject}</p>
-              </div>
+              <dl className="flex min-w-0 flex-col gap-1 text-xs">
+                <dt>Affected data</dt>
+                <dd className="break-all select-text">{problem.subject}</dd>
+              </dl>
             </AlertDescription>
           </Alert>
         )

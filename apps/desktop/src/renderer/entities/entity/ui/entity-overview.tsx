@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { BoxIcon, ChevronRightIcon, MousePointer2Icon, RefreshCwIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 import { Separator } from "@/shared/ui/separator"
 import { Skeleton } from "@/shared/ui/skeleton"
 import { Spinner } from "@/shared/ui/spinner"
@@ -74,8 +74,7 @@ export function EntityOverview({
           <EmptyMedia variant="icon">
             <MousePointer2Icon />
           </EmptyMedia>
-          <EmptyTitle>No entity selected</EmptyTitle>
-          <EmptyDescription>Select an entity to see its details.</EmptyDescription>
+          <EmptyTitle>Select an Entity</EmptyTitle>
         </EmptyHeader>
       </Empty>
     )

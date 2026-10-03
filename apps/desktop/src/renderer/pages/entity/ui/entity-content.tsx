@@ -16,7 +16,7 @@ import { CivitaiActions, type CivitaiCoordinator } from "@/features/civitai"
 import type { CivitaiSelection } from "../model/navigation"
 import { LiveVideo } from "./live-video"
 import type { BackendApi } from "@/shared/api"
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
+import { Empty, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
 import { Button } from "@/shared/ui/button"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import type { ContentViewId } from "../model/content-views"
@@ -181,7 +181,6 @@ export function EntityContent({
         <Empty className="h-full">
           <EmptyHeader>
             <EmptyTitle>No preview available</EmptyTitle>
-            <EmptyDescription>This Entity has no available content view.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}

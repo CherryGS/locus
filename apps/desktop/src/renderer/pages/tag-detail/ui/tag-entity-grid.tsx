@@ -55,10 +55,10 @@ export function TagEntityGrid({
             </EmptyTitle>
             <EmptyDescription>
               {pending
-                ? established ? "Refreshing; showing the previous empty result." : "Reading associated content."
+                ? established ? "Refreshing the previous empty result." : undefined
                 : error && !established
                   ? "Refresh to try again."
-                  : "This tag has no matching items. Assign tags to content, then refresh."}
+                  : "Assign tags from an item's details, then refresh."}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

@@ -522,8 +522,7 @@ export function EntityPage({
               : "Entity unavailable in this list"}
         </EmptyTitle>
         <EmptyDescription>
-          {(context && destination.collectionId === context.id ? context.error : destination.collectionId === "library" ? live?.filter.resultError : undefined) ??
-            "This history visit still refers to its requested Entity and context. Continue through history or return to the source."}
+          {context && destination.collectionId === context.id ? context.error : destination.collectionId === "library" ? live?.filter.resultError : undefined}
           <span className="block break-all">
             Requested Entity: {destination.entityId ?? "none"} · Context: {destination.collectionId}
           </span>
@@ -569,7 +568,7 @@ export function EntityPage({
         <EmptyHeader>
           <EmptyTitle>Entity content unavailable</EmptyTitle>
           <EmptyDescription>
-            See Overview for the actual read outcome. You can continue browsing or reread this Entity.
+            Read details and recovery options are in Overview.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -602,7 +601,7 @@ export function EntityPage({
   )
   const gridFeedback = context && destination.collectionId === context.id && sequence?.length === 0 ? (
     <Empty className="h-full"><EmptyHeader><EmptyTitle>No tagged content</EmptyTitle>
-      <EmptyDescription>This tag has no matching items in the complete result. Assign it from an item's details, then refresh this list.</EmptyDescription>
+      <EmptyDescription>Assign tags from an item's details, then refresh.</EmptyDescription>
     </EmptyHeader></Empty>
   ) : !sequence ? (
     unavailable
@@ -620,7 +619,7 @@ export function EntityPage({
         <EmptyDescription>
           {live.filter.resultError ??
             (!live.filter.pending
-              ? "The previous read was superseded. Retry the library read or apply a Filter to begin browsing."
+              ? "The previous read was superseded."
               : undefined)}
         </EmptyDescription>
       </EmptyHeader>
@@ -631,8 +630,7 @@ export function EntityPage({
       <EmptyHeader>
         <EmptyTitle>No matches</EmptyTitle>
         <EmptyDescription>
-          This complete Filter result has no matching Entities. Open Filter to adjust the draft or Clear and
-          Apply to return to the library.
+          Adjust the query in Filter, or Clear and Apply to show the library.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
@@ -710,7 +708,7 @@ export function EntityPage({
           <AlertTitle>Library refresh failed</AlertTitle>
           <AlertDescription className="flex min-w-0 flex-col items-start gap-2 [&_p:not(:last-child)]:mb-0">
             <p className="text-foreground [overflow-wrap:anywhere]">{live.filter.resultError}</p>
-            <p>The previous complete list is still shown.</p>
+            <p>Showing the previous complete list.</p>
             <Button size="sm" variant="outline" disabled={!!live.filter.pending}
               focusableWhenDisabled={!!live.filter.pending} aria-busy={!!live.filter.pending}
               onClick={() => void refresh()}>Retry library read</Button>

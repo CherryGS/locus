@@ -219,6 +219,9 @@ surface adaptations of that system.
   keep prior results visibly qualified during refresh recovery. In Overview,
   separate the cause, recovery action and affected data with ordinary headings
   and compact spacing. Let long diagnostics and retry labels wrap in narrow panels.
+  Empty states state the missing content or next action once. Omit descriptions
+  that repeat their title or adjacent action. Keep diagnostic text, affected
+  identities and qualification of retained data visible during read failures.
 
 **Open details:** the actual component variants, numerical tokens and motion
 treatments. No component is considered visually accepted solely because this

@@ -299,9 +299,9 @@ export function TagVocabulary({
             <EmptyTitle>
               {initialLoading ? "Reading tags…" : initialFailure ? "Tags unavailable" : "No tags yet"}
             </EmptyTitle>
-            <EmptyDescription className="[overflow-wrap:anywhere]">
-              {initialFailure ? c.readError : initialLoading ? undefined : "Create a root tag, then add children to organize it."}
-            </EmptyDescription>
+            {initialFailure && <EmptyDescription className="[overflow-wrap:anywhere]">
+              {c.readError}
+            </EmptyDescription>}
           </EmptyHeader>
           {!initialLoading && (
             <EmptyContent>
