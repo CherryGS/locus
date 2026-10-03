@@ -28,7 +28,6 @@ export function ExternalAccessPanel({
   useSyncExternalStore(settings.subscribe, settings.snapshot)
   useSyncExternalStore(token.subscribe, token.snapshot)
   const [revealedRevision, setRevealedRevision] = useState<string>()
-  const [tokenFeedback, setTokenFeedback] = useState<string>()
   const saved = settings.observation?.status === "current" ? settings.observation.saved : undefined
   const runtime = settings.runtime
   const pending =
@@ -44,10 +43,9 @@ export function ExternalAccessPanel({
     settings.status === "failed"
   useEffect(() => {
     setRevealedRevision(undefined)
-    setTokenFeedback(undefined)
   }, [current?.revision])
   return (
-    <section role="region" aria-label="External connection" className="flex flex-col gap-6">
+    <section role="region" aria-label="External connection" className="flex flex-col gap-5">
       <SettingsGroup
         name="Connection details"
         help={{
@@ -120,7 +118,6 @@ export function ExternalAccessPanel({
                 disabled={!current || !!restricted}
                 onClick={() => {
                   setRevealedRevision(reveal ? undefined : current?.revision)
-                  setTokenFeedback(reveal ? "Token hidden." : "Token revealed locally.")
                 }}
               >
                 {reveal ? (
@@ -140,7 +137,7 @@ export function ExternalAccessPanel({
                 <RefreshCwIcon data-icon="inline-start" />
               </Button>
             </div>
-            {(token.problem || restricted || token.pending || token.feedback || tokenFeedback) && (
+            {(token.problem || restricted || token.pending || token.feedback) && (
               <div className="flex flex-col gap-3">
                 {token.problem && (
                   <Alert variant="destructive">
@@ -162,33 +159,26 @@ export function ExternalAccessPanel({
                     {token.pending ? "Waiting for the access operation…" : token.feedback}
                   </p>
                 )}
-                {tokenFeedback && (
-                  <p role="status" className="text-sm text-muted-foreground">
-                    {tokenFeedback}
-                  </p>
-                )}
               </div>
             )}
-            <div className="grid grid-cols-1 items-center gap-3 pt-1 @min-[42rem]/settings:grid-cols-[minmax(0,1fr)_auto]">
-              <p className="min-w-0 text-xs leading-5 text-muted-foreground">
-                Reset invalidates the old Token. Update it in every connected client.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="justify-self-end"
-                disabled={!current || !!restricted}
-                onClick={() => {
-                  setRevealedRevision(undefined)
-                  setTokenFeedback(undefined)
-                  void token.reset()
-                }}
-              >
-                <KeyRoundIcon data-icon="inline-start" />
-                Reset shared Token
-              </Button>
-            </div>
           </SettingsRow>
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-3">
+            <p className="min-w-48 flex-1 text-xs leading-5 text-muted-foreground">
+              Reset invalidates the old Token. Update it in every connected client.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!current || !!restricted}
+              onClick={() => {
+                setRevealedRevision(undefined)
+                void token.reset()
+              }}
+            >
+              <KeyRoundIcon data-icon="inline-start" />
+              Reset shared Token
+            </Button>
+          </div>
         </section>
       </SettingsGroup>
       <form

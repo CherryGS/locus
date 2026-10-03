@@ -268,6 +268,12 @@ impl Worker {
     }
     pub(super) fn publish(&self, publication: Publication) {
         let checkpoint = publication.checkpoint.clone();
+        let searcher = publication.reader.searcher();
+        let document_count = searcher.num_docs().to_string();
+        let segment_bytes = searcher
+            .space_usage()
+            .ok()
+            .map(|usage| usage.total().get_bytes().to_string());
         *self
             .shared
             .publication
@@ -280,6 +286,8 @@ impl Worker {
             s.covered_sequence = checkpoint.covered.to_string();
             s.failure = None;
             s.total = None;
+            s.document_count = Some(document_count);
+            s.segment_bytes = segment_bytes;
         });
     }
 }

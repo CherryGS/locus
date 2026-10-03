@@ -1,4 +1,4 @@
-import { chooseContentView } from "./content-view-choice.ts"
+import { waitForContentViewSaved, chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { writeFile } from "node:fs/promises"
@@ -74,9 +74,10 @@ try {
   await page.getByRole("listbox").waitFor({ state: "hidden" })
   assert.equal(await page.locator('[data-slot="entity-inspection"]').getAttribute("data-entity-id"), selected)
   await chooseContentView(page, "Image")
-  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
+  await waitForContentViewSaved(page)
   await chooseContentView(page, "File")
-  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
+  await waitForContentViewSaved(page)
+  assert.equal(await page.getByText("Saved", { exact: true }).count(), 0)
   await page.getByRole("button", { name: "Next entity", exact: true }).click()
   await page.getByRole("button", { name: "Previous entity", exact: true }).click()
   await page.locator('[data-slot="entity-inspection"][data-view-id="file.info"]').waitFor()
@@ -94,7 +95,7 @@ try {
 
   await chooseContentView(page, "Image")
   await page.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
-  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
+  await waitForContentViewSaved(page)
   await page.screenshot({ path: join(output, "connected-image.png") })
   // Component inspection is separate from choosing (and saving) a main view.
   const inspectionUrl = page.url()

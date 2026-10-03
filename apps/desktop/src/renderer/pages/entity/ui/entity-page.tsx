@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "@tanstack/react-router"
-import { CheckIcon, TriangleAlertIcon } from "lucide-react"
+import { TriangleAlertIcon } from "lucide-react"
 import {
   componentAppearance,
   entityLabel,
@@ -388,18 +388,17 @@ export function EntityPage({
       : preference.status === "saving"
         ? "Saving choice…"
         : preference.status === "saved"
-          ? "Choice saved"
+          ? undefined
           : preference.status === "unsaved"
             ? "Choice not saved"
             : preference.status === "unconfirmed"
               ? "Saving not confirmed"
               : preference.observation?.status === "saved"
-                ? "Saved view observed"
+                ? undefined
                 : preference.observation?.status === "unset"
                   ? "No saved choice"
                   : "Preference unavailable"
     : undefined
-  const savedPreference = preferenceStatus === "Choice saved" || preferenceStatus === "Saved view observed"
   const preferenceFeedback = preferenceStatus && (
     <span
       role="status"
@@ -408,12 +407,11 @@ export function EntityPage({
       className="flex min-w-0 max-w-[55%] items-center gap-1 text-xs font-normal text-muted-foreground"
     >
       {(preference?.readPending || preference?.status === "saving") && <Spinner />}
-      {savedPreference && <CheckIcon />}
-      <span className="truncate">{savedPreference ? "Saved" : preferenceStatus}</span>
+      <span className="truncate">{preferenceStatus}</span>
     </span>
   )
   const viewSelection = selected ? (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" data-slot="entity-view-choice" data-save-state={preference?.status ?? "idle"}>
       {!!views.length && (
         <Select
           items={views.map((view) => ({ value: view.id, label: view.label }))}

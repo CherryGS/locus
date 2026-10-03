@@ -1,4 +1,4 @@
-import { chooseContentView } from "./content-view-choice.ts"
+import { waitForContentViewSaved, chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { writeFile } from "node:fs/promises"
@@ -44,7 +44,7 @@ try {
   await chooseContentView(page, "File")
   await page.locator('[data-view-id="file.info"]').waitFor()
   await chooseContentView(page, "Model")
-  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
+  await waitForContentViewSaved(page)
   const preference = await backend.client.GET("/api/v1/entities/{entity_id}/view-preference", {
     params: { path: { entity_id: entry.entityId } },
   })

@@ -67,10 +67,11 @@ try {
   await watchFeedback()
   await notes.fill(text)
   await saved
-  await notesStatus.getByText("Saved", { exact: true }).waitFor()
+  await page.waitForFunction(() => document.querySelector('section[aria-label="Entity notes"] [role="status"]')?.textContent?.trim() === "")
   const fast = await feedback()
   assert.deepEqual(fast.failures, [])
   assert(!fast.states.includes("Saving…"), JSON.stringify(fast))
+  assert(!fast.states.includes("Saved"), JSON.stringify(fast))
   assert(await notes.evaluate(element => element === document.activeElement))
   assert.equal(await read(), text)
   await page.screenshot({ path: join(output, "overview.png"), animations: "disabled" })
@@ -125,7 +126,7 @@ try {
   assert.deepEqual(retained.failures, [])
   assert(!retained.states.includes("Loading…"), JSON.stringify(retained))
   releaseRead()
-  await notesStatus.getByText("Saved", { exact: true }).waitFor()
+  await page.waitForFunction(() => document.querySelector('section[aria-label="Entity notes"] [role="status"]')?.textContent?.trim() === "")
   await page.unrouteAll({ behavior: "wait" })
 
   await page.route(`**${path}`, (route) => route.request().method() === "PUT"

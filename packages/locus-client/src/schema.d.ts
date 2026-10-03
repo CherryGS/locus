@@ -2533,9 +2533,13 @@ export interface components {
         SearchStatusData: {
             completed: string;
             covered_sequence: string;
+            /** @description Live documents in the published searchable generation, not build progress. */
+            document_count?: string | null;
             failure?: string | null;
             generation?: string | null;
             journal_head: string;
+            /** @description Searchable segment data bytes; excludes metadata and retained older generations. */
+            segment_bytes?: string | null;
             state: string;
             total?: string | null;
             usable: boolean;

@@ -133,6 +133,11 @@ surface adaptations of that system.
   Put application restart in the persistent Settings dialog header, shared by
   all categories. Present search index status and maintenance actions in one row;
   normal status updates automatically, with explicit reread only after failure.
+  Show published document count and searchable segment data size in the index
+  row, keeping progress and failure separate from these retained statistics.
+  Settings rows use aligned labels and values at ordinary desktop content widths,
+  stacking at narrow widths. Keep Token reset consequences beside its action in
+  the full group width; reveal/hide does not need a separate success message.
 - **Media cards:** emphasize the preview, with readable titles and metadata and
   clear existing actions and selection. Keep hover, selection and keyboard focus
   distinguishable through quiet boundaries; preserve card geometry and the grid
@@ -180,6 +185,8 @@ surface adaptations of that system.
   read lasts long enough to warrant it. Retained previews remain qualified by
   their actual input and observed bytes; a changed or removed input updates the
   presentation, and a failed refresh remains visibly attributable.
+  Notes autosave and saved view choices omit routine success labels. Keep pending,
+  unsaved, failed and uncertain operation feedback visible where it belongs.
 - **Notes feedback:** keep the status and icon footprint fixed. Defer short-lived
   Saving/Loading feedback using the shared pending threshold; retain the observed
   Saved state and textarea appearance during a quick reread. Show Unsaved and

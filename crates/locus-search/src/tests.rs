@@ -203,6 +203,17 @@ async fn native_structured_complete_evidence_replay_and_failure() {
     };
     let search = start();
     ready(&search).await;
+    assert_eq!(search.status().document_count.as_deref(), Some("3"));
+    assert!(
+        search
+            .status()
+            .segment_bytes
+            .as_ref()
+            .unwrap()
+            .parse::<u64>()
+            .unwrap()
+            > 0
+    );
     assert_eq!(query(&search, "", None).await, vec![a, b, empty]);
     assert_eq!(
         query(&search, "title_exact:\"beta alpha\"", None).await,
@@ -465,6 +476,8 @@ async fn native_structured_complete_evidence_replay_and_failure() {
     let (entered, release) = search.pause_next_build();
     search.rebuild().unwrap();
     entered.notified().await;
+    assert_eq!(search.status().document_count.as_deref(), Some("2"));
+    assert!(search.status().segment_bytes.is_some());
     let during = EntityId::new();
     sql(
         &mut session,
@@ -484,6 +497,7 @@ async fn native_structured_complete_evidence_replay_and_failure() {
     .unwrap();
     ready(&search).await;
     assert_eq!(query(&search, "", None).await, vec![b, empty, during]);
+    assert_eq!(search.status().document_count.as_deref(), Some("3"));
     assert!(old_path.exists());
     assert!(search.evidence(&retained.context, &[b]).is_ok());
     search.expire_contexts();

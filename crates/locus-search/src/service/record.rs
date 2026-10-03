@@ -19,6 +19,10 @@ pub struct SearchStatus {
     pub completed: String,
     pub total: Option<String>,
     pub failure: Option<String>,
+    /// Live documents in the published searchable generation, not build progress.
+    pub document_count: Option<String>,
+    /// Searchable segment data bytes; excludes metadata and retained older generations.
+    pub segment_bytes: Option<String>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Checkpoint {

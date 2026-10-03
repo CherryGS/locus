@@ -1,4 +1,4 @@
-import { chooseContentView } from "./content-view-choice.ts"
+import { waitForContentViewSaved, chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { createRequire } from "node:module"
@@ -408,9 +408,7 @@ try {
   releaseSave()
   const overview = page.getByRole("button", { name: "Overview", exact: true })
   if ((await overview.getAttribute("aria-expanded")) !== "true") await overview.click()
-  await page
-    .getByRole("status", { name: "Choice saved", exact: true })
-    .waitFor()
+  await waitForContentViewSaved(page)
     .catch(async (error) => {
       console.log(await page.locator("body").innerText())
       throw error

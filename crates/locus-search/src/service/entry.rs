@@ -57,6 +57,8 @@ impl SearchService {
                 completed: "0".into(),
                 total: None,
                 failure: None,
+                document_count: None,
+                segment_bytes: None,
             }),
             contexts: Mutex::new(HashMap::new()),
             discoveries: Mutex::new(HashMap::new()),

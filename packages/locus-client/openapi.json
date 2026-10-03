@@ -15342,6 +15342,13 @@
           "covered_sequence": {
             "type": "string"
           },
+          "document_count": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Live documents in the published searchable generation, not build progress."
+          },
           "failure": {
             "type": [
               "string",
@@ -15356,6 +15363,13 @@
           },
           "journal_head": {
             "type": "string"
+          },
+          "segment_bytes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Searchable segment data bytes; excludes metadata and retained older generations."
           },
           "state": {
             "type": "string"

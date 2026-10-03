@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef, useSyncExternalStore } from "react"
-import { CheckIcon } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
 import { Button } from "@/shared/ui/button"
@@ -29,7 +28,7 @@ export function EntityNotesEditor({ entityId, coordinator: c }: {
     : saving ? "Saving…"
     : reading ? s.saved === undefined ? "Loading…" : "Refreshing…"
     : dirty ? "Unsaved"
-    : s.saved !== undefined ? "Saved" : ""
+    : ""
   return (
     <section aria-label="Entity notes" className="px-4 py-4">
       <FieldGroup>
@@ -38,7 +37,6 @@ export function EntityNotesEditor({ entityId, coordinator: c }: {
             <FieldLabel htmlFor={field}>Notes</FieldLabel>
             <span role="status" className="flex h-4 w-24 shrink-0 items-center justify-end gap-1 whitespace-nowrap text-xs text-muted-foreground">
               <span aria-hidden="true" className="relative size-3 shrink-0">
-                <CheckIcon className={cn("absolute inset-0 size-3", status !== "Saved" && "invisible")} />
                 <Spinner aria-hidden="true" role={undefined} className={cn("absolute inset-0 size-3 motion-reduce:animate-none", !busy && "invisible")} />
               </span>
               <span>{status}</span>

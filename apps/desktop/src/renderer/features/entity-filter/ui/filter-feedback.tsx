@@ -13,6 +13,13 @@ function indexLabel(c: FilterCoordinator, prefix = "Index ") {
   return `${prefix}${state.charAt(0).toUpperCase()}${state.slice(1)}${status.total ? ` · ${status.completed} / ${status.total} Entities` : ""}`
 }
 
+function indexDataSize(bytes: string) {
+  let value = Number(bytes), unit = 0
+  const units = ["bytes", "KiB", "MiB", "GiB", "TiB"]
+  while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++ }
+  return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${units[unit]}`
+}
+
 function IndexActions({ coordinator: c, rebuild = false, onAction }: {
   coordinator: FilterCoordinator
   rebuild?: boolean
@@ -47,9 +54,18 @@ function IndexActions({ coordinator: c, rebuild = false, onAction }: {
 }
 
 export function IndexMaintenance({ coordinator: c, onAction }: { coordinator: FilterCoordinator; onAction?: () => void }) {
+  const status = !c.statusError ? c.status : undefined
   return (
     <div className="flex flex-wrap items-center justify-between gap-3" aria-label="Search index maintenance">
-      <p role="status" className="min-w-0 flex-1 text-sm">{indexLabel(c, "")}</p>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        {status?.document_count != null ? <p className="text-sm tabular-nums select-text" aria-label="Published index statistics">
+          {BigInt(status.document_count).toLocaleString()} documents
+          {status.segment_bytes != null && ` · ${indexDataSize(status.segment_bytes)}`}
+        </p> : null}
+        {(!status || status.document_count == null || status.state !== "ready" || status.failure || status.covered_sequence !== status.journal_head) &&
+          <p role="status" className="text-xs text-muted-foreground">{status?.state === "ready" && status.covered_sequence !== status.journal_head
+            ? "Index updates pending" : indexLabel(c, "")}</p>}
+      </div>
       <IndexActions coordinator={c} rebuild onAction={onAction} />
     </div>
   )

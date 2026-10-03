@@ -1,4 +1,4 @@
-import { chooseContentView } from "./content-view-choice.ts"
+import { waitForContentViewSaved, chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
 import { join } from "node:path"
@@ -30,7 +30,7 @@ try {
   await page.locator('[data-slot="entity-inspection"]').waitFor()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   await chooseContentView(page, "File")
-  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
+  await waitForContentViewSaved(page)
   const entity = await page.locator('[data-slot="entity-inspection"]').getAttribute("data-entity-id")
   await page.screenshot({ path: join(output, "connected-file.png") })
   assert.deepEqual(errors, [])

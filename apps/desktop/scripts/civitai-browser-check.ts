@@ -1,4 +1,4 @@
-import { chooseContentView, hasContentView } from "./content-view-choice.ts"
+import { waitForContentViewSaved, chooseContentView, hasContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { chromium } from "playwright"
@@ -26,7 +26,7 @@ try {
   await page.locator(`[role="gridcell"][id$="-${existing.entityId}"]`).dblclick()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   await chooseContentView(page, "File")
-  await page.getByRole("status", { name: "Choice saved", exact: true }).waitFor()
+  await waitForContentViewSaved(page)
   assert.equal(await hasContentView(page, "Civitai"), false)
   await data.phase("existing")
   await page.getByRole("button", { name: "Enrich this File with Civitai", exact: true }).click()
