@@ -13,7 +13,7 @@ import { Separator } from "@/shared/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@/shared/ui/table"
 import type { CivitaiSelection, RelatedCollection } from "../model/navigation"
-import { Detail, DetailIdentifier, DetailSection, SourceLink, type EntityItem } from "@/entities/entity"
+import { CivitaiLocalMatch, Detail, DetailIdentifier, DetailSection, SourceLink, type EntityItem } from "@/entities/entity"
 import { CivitaiGallery } from "./civitai-gallery"
 import { CivitaiRichText } from "./civitai-rich-text"
 import { CivitaiPanelPortal } from "./civitai-panel-slot"
@@ -50,6 +50,17 @@ export function CivitaiReading({
   const [unitPending, setUnitPending] = useState(false)
   const [retry, setRetry] = useState(0)
   const [opening, setOpening] = useState(false)
+  const providerRefreshing = coordinator.blocked(entity.id)
+  const [awaitingGalleryRead, setAwaitingGalleryRead] = useState(false)
+  useEffect(() => { if (providerRefreshing) setAwaitingGalleryRead(true) }, [providerRefreshing])
+  const originVersion = entity.components.find(component => component.kind === "civitai")?.record?.matched_version
+  const retainingGallery = unit?.version.id === originVersion && (providerRefreshing || awaitingGalleryRead)
+  const galleryObservation = useRef<Wire<"CivitaiVersionView">>(undefined)
+  const gallerySubjectMatches = !!unit && !!galleryObservation.current && unit.model === galleryObservation.current.model && unit.version.id === galleryObservation.current.version.id && unit.source.component_id === galleryObservation.current.source.component_id
+  // Metadata and example admission settle separately. Preserve the last gallery
+  // during origin work, without carrying it into a different reading subject.
+  if (unit && (!retainingGallery || !gallerySubjectMatches)) galleryObservation.current = unit
+  const galleryUnit = unit && retainingGallery && gallerySubjectMatches ? galleryObservation.current : unit
   const showPending = useDelayedPending(pending || unitPending)
   const selected = useRef(selection)
   selected.current = selection
@@ -138,6 +149,7 @@ export function CivitaiReading({
         )
           throw new Error("Selected model/version/source attribution did not match")
         setUnit(value)
+        if (!providerRefreshing) setAwaitingGalleryRead(false)
         if (!value.in_origin && !selection.source)
           setSelection((previous) =>
             previous ? { ...previous, source: value.source.component_id } : previous,
@@ -163,7 +175,7 @@ export function CivitaiReading({
     return () => {
       current = false
     }
-  }, [api, component, page, selection?.version, selection?.source, changedModel, eligible, member])
+  }, [api, component, page, selection?.version, selection?.source, changedModel, eligible, member, providerRefreshing])
   function choose(next: CivitaiSelection) {
     changedSource.current = next.source !== selection?.source
     setUnitPending(true)
@@ -217,6 +229,8 @@ export function CivitaiReading({
   }
   const file = entity.components.find((c) => c.kind === "file")
   const originRecord = page?.origin.record ?? entity.components.find(c => c.kind === "civitai")?.record
+  const originComponent = entity.components.find(c => c.kind === "civitai")
+  const showLocalMatch = !!originComponent && (selection?.version !== originRecord?.matched_version || changedModel || originComponent.view?.input !== "current" || originComponent.previous || originComponent.readStatus === "failed" || !!unit && !unit.version.files.some(file => file.id === originRecord?.matched_file))
   const model = page?.origin.record.model
   // Current-self correspondence is already shown by Local match and file state.
   const additionalMatches = unit?.correspondences.filter(match => match.source.entity_id !== entity.id || match.input !== "current" || !!match.problem || !unit.version.files.some(file => file.id === match.file)) ?? []
@@ -242,7 +256,11 @@ export function CivitaiReading({
     </section>
   )
   const versionStatus =
-    unit && (unitPending || pending)
+    retainingGallery && galleryUnit
+      ? unitProblem ? "Previous examples · the latest version read failed."
+        : providerRefreshing ? "Refreshing origin · showing previous examples."
+        : "Reading refreshed origin · showing previous examples."
+      : unit && (unitPending || pending)
       ? unitMatchesSelection
         ? "Previous version observation · rereading selected source."
         : `Loading version… Showing ${unit.version.name}.`
@@ -284,7 +302,7 @@ export function CivitaiReading({
       className="flex min-w-0 flex-col"
       data-slot="civitai-reading-details"
     >
-      <Separator />
+      {showLocalMatch && originComponent && <><CivitaiLocalMatch component={originComponent} /><Separator /></>}
       <section className="@container/detail flex min-w-0 flex-col gap-2 px-4 py-4 select-text" aria-label="Source details" data-slot="civitai-source-details">
         <h3 className="text-sm font-medium">Local file</h3>
         <dl>
@@ -478,7 +496,7 @@ export function CivitaiReading({
                     className="flex h-5 min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground"
                   >
                     {showPending && <Spinner />}
-                    <span className="truncate">{showPending || unitProblem ? versionStatus : undefined}</span>
+                    <span className="truncate">{showPending || unitProblem || providerRefreshing ? versionStatus : undefined}</span>
                   </div>
                 </section>
                 {!member && (
@@ -549,15 +567,15 @@ export function CivitaiReading({
               </Alert>
             )}
             <Separator />
-            {unit ? (
+            {galleryUnit ? (
               <CivitaiGallery
                 covers={covers}
                 originEntity={entity.id}
                 originVersion={page.origin.input === "current" ? page.origin.record.matched_version : undefined}
-                key={`${unit.model}:${unit.version.id}:${unit.source.component_id}`}
+                key={`${galleryUnit.model}:${galleryUnit.version.id}:${galleryUnit.source.component_id}`}
                 api={api}
-                unit={unit}
-                opening={opening || unitPending || !unitMatchesSelection}
+                unit={galleryUnit}
+                opening={opening || !!retainingGallery || unitPending || !unitMatchesSelection}
                 revision={`${retry}:${coordinator.projectionRevision}`}
                 onOpen={(target) => void openExample(target)}
               />

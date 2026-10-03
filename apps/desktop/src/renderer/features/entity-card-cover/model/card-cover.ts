@@ -1,6 +1,7 @@
 import type { EntityItem } from "@/entities/entity"
 import { ApiFailure, errorText, type BackendApi, type Wire } from "@/shared/api"
 import type { SettingsReadiness } from "../../../../shared/desktop-bridge"
+import { previewFingerprint } from "@/shared/lib/preview-fingerprint"
 
 export type CardCover = Wire<"CardCoverSelection">
 type Entry = {
@@ -11,6 +12,7 @@ type Entry = {
   unavailable?: string
   attempt?: Wire<"UpdateCardCoverPreference">
   preview?: string
+  fingerprint?: string
   key?: string
   presentationKey?: string
   generation: number
@@ -20,6 +22,7 @@ type Entry = {
   intent?: boolean
   target?: string
   targetStamp?: string
+  targetBasis?: string
 }
 
 // Presentation intent is independent of view choice and provider relationships.
@@ -33,7 +36,7 @@ export class CardCoverCoordinator {
   private closing = false
   readonly subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener) }
   readonly snapshot = () => this.revision
-  constructor(private api: BackendApi, private entity: (id: string) => EntityItem) {}
+  constructor(private api: BackendApi, private entity: (id: string) => EntityItem, private refreshingOrigin: (id: string) => boolean = () => false) {}
   get(id: string) {
     let entry = this.entries.get(id)
     if (!entry) { entry = { read: false, pending: false, generation: 0, observationVersion: 0 }; this.entries.set(id, entry) }
@@ -87,7 +90,9 @@ export class CardCoverCoordinator {
       if (!entry.observed) continue
       const targetStamp = entry.target && this.targetStamp(entry.target)
       if (targetStamp !== undefined && entry.targetStamp !== targetStamp) {
-        this.clearPreview(entry)
+        const basis = this.targetStamp(entry.target!, false)
+        if (entry.targetBasis !== basis) this.clearPreview(entry)
+        entry.targetBasis = basis
         entry.key = undefined; entry.targetStamp = targetStamp
       }
       const cover = entry.observed.status === "saved" ? entry.observed.cover : null
@@ -96,25 +101,34 @@ export class CardCoverCoordinator {
         this.clearPreview(entry)
         entry.presentationKey = presentationKey
       }
+      if (!origin?.record || origin.view?.input !== "current" || origin.previous) {
+        entry.controller?.abort()
+        entry.generation++
+        entry.key = undefined
+        this.clearPreview(entry)
+        entry.unavailable = cover ? "The selected cover's Civitai origin is unavailable." : undefined
+        continue
+      }
+      if (this.refreshingOrigin(id)) {
+        entry.controller?.abort()
+        entry.key = undefined
+        entry.generation++
+        continue
+      }
       const key = JSON.stringify([origin?.id, origin?.record?.observation, origin?.view?.input, origin?.readStatus, origin?.previous, cover])
       if (key === entry.key) continue
       entry.key = key
       entry.controller?.abort()
       entry.controller = new AbortController()
       const generation = ++entry.generation
-      if (!origin?.record || origin.view?.input !== "current" || origin.previous) {
-        this.clearPreview(entry)
-        entry.unavailable = cover ? "The selected cover's Civitai origin is unavailable." : undefined
-        continue
-      }
       void this.resolve(id, entry, origin.id, origin.record.matched_version, cover, generation, entry.controller.signal)
     }
   }
-  private clearPreview(entry: Entry) { if (entry.preview) URL.revokeObjectURL(entry.preview); entry.preview = undefined }
-  private targetStamp(id: string) {
+  private clearPreview(entry: Entry) { if (entry.preview) URL.revokeObjectURL(entry.preview); entry.preview = undefined; entry.fingerprint = undefined }
+  private targetStamp(id: string, revision = true) {
     const entity = this.entity(id)
     if (entity.loading || entity.refreshing || entity.membershipsStatus === "unread") return undefined
-    return JSON.stringify([entity.membershipsStatus, entity.components.filter(component => component.kind === "file" || component.kind === "image").map(component => [component.kind, component.id, component.kind === "image" ? component.inputFileId : undefined, component.kind === "image" ? component.record?.revision : undefined])])
+    return JSON.stringify([entity.membershipsStatus, entity.components.filter(component => component.kind === "file" || component.kind === "image").map(component => [component.kind, component.id, component.kind === "image" ? component.inputFileId : undefined, revision && component.kind === "image" ? component.record?.revision : undefined])])
   }
   private async resolve(id: string, entry: Entry, origin: string, matched: string, cover: CardCover | null, generation: number, signal: AbortSignal) {
     const current = () => this.live && this.entries.get(id) === entry && entry.generation === generation && !signal.aborted
@@ -138,6 +152,7 @@ export class CardCoverCoordinator {
       const preview = await this.api.savedPreview("image", image.component_id)
       if (!preview || preview.kind !== "image" || preview.file_id !== example.binding.file_id) throw new Error("No existing preview matches this cover's File.")
       const bytes = await this.api.previewBytes(preview.locator, signal)
+      const fingerprint = await previewFingerprint(bytes)
       if (typeof createImageBitmap === "function") { const bitmap = await createImageBitmap(bytes); bitmap.close() }
       await verify()
       const latest = await this.api.civitaiVersion(origin, unit.version.id, unit.source.component_id)
@@ -148,8 +163,12 @@ export class CardCoverCoordinator {
       if (originView.input !== "current" || originView.host !== id || originView.record.component_id !== origin || originView.record.model.id !== unit.model) throw new Error("Cover origin input or model changed while loading.")
       if (!current()) return
       entry.target = example.binding.entity_id; entry.targetStamp = this.targetStamp(entry.target)
-      this.clearPreview(entry)
-      entry.preview = URL.createObjectURL(bytes)
+      entry.targetBasis = this.targetStamp(entry.target, false)
+      if (!entry.preview || entry.fingerprint !== fingerprint) {
+        this.clearPreview(entry)
+        entry.preview = URL.createObjectURL(bytes)
+        entry.fingerprint = fingerprint
+      }
     } catch (error) {
       if (current()) { this.clearPreview(entry); entry.unavailable = errorText(error) }
     } finally { if (current()) this.changed() }

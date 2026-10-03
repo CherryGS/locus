@@ -14,6 +14,7 @@ export { EntityThumbnail } from "./ui/entity-thumbnail"
 export { componentAppearance } from "./ui/component-appearance"
 export { TwitterPost } from "./ui/twitter-post"
 export { EntityComponentDetails } from "./ui/entity-details"
+export { CivitaiLocalMatch } from "./ui/civitai-local-match"
 export { EntityOverview } from "./ui/entity-overview"
 export { Detail, DetailIdentifier, DetailSection } from "./ui/detail-fields"
 

@@ -3,6 +3,7 @@ import type { CardCoverCoordinator } from "@/features/entity-card-cover"
 import { ChevronLeftIcon, ChevronRightIcon, ImageIcon, InfoIcon, StarIcon, VideoIcon } from "lucide-react"
 import { errorText, type BackendApi, type Wire } from "@/shared/api"
 import { cn } from "@/shared/lib/utils"
+import { previewFingerprint } from "@/shared/lib/preview-fingerprint"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/ui/empty"
 import { ScrollArea } from "@/shared/ui/scroll-area"
@@ -365,6 +366,7 @@ function ManagedThumbnail({
   const [url, setUrl] = useState<string>()
   const [problem, setProblem] = useState<string>()
   const retainedUrl = useRef<string>(undefined)
+  const fingerprint = useRef<string>(undefined)
   const key = exampleKey(example)
   useEffect(() => {
     return () => {
@@ -400,19 +402,22 @@ function ManagedThumbnail({
       if (!preview || preview.kind !== target.kind || preview.file_id !== example.binding.file_id)
         throw new PreviewQualificationError("The already-produced preview is unavailable; rereading does not generate it")
       const bytes = await api.previewBytes(preview.locator, controller.signal)
+      const nextFingerprint = await previewFingerprint(bytes)
       if (typeof createImageBitmap === "function") { const bitmap = await createImageBitmap(bytes); bitmap.close() }
       const currentMembers = await api.memberships([example.binding.entity_id])
       const currentMember = currentMembers.find(member => member.entity_id === example.binding.entity_id)
       if (currentMember?.status !== "present" || !currentMember.memberships.some(member => member.component_id === example.binding.file_id && member.kind_id === "9fd73d3d-d35d-41bc-8b73-402e12f5c017") || !currentMember.memberships.some(member => member.kind_id === mediaKind && member.component_id === target.component_id))
         throw new PreviewQualificationError("Example membership changed while loading")
       if (!current) return
-      const objectUrl = URL.createObjectURL(bytes)
       if (current) {
-        if (retainedUrl.current) URL.revokeObjectURL(retainedUrl.current)
-        retainedUrl.current = objectUrl
+        if (!retainedUrl.current || fingerprint.current !== nextFingerprint) {
+          if (retainedUrl.current) URL.revokeObjectURL(retainedUrl.current)
+          retainedUrl.current = URL.createObjectURL(bytes)
+          fingerprint.current = nextFingerprint
+        }
         setProblem(undefined)
-        setUrl(objectUrl)
-        onPreview(key, { url: objectUrl })
+        setUrl(retainedUrl.current)
+        onPreview(key, { url: retainedUrl.current })
       }
     })().catch((error) => {
       if (current) {

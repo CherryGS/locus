@@ -8,6 +8,8 @@ import { formatDuration } from "../lib/format-duration"
 import { Detail, DetailFileSize, DetailIdentifier, DetailSection, DetailTime } from "./detail-fields"
 import { TwitterDetails } from "./twitter-details"
 import { cn } from "@/shared/lib/utils"
+import { CivitaiLocalMatch } from "./civitai-local-match"
+import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
 
 function fileExtension(name: string) {
   const dot = name.lastIndexOf(".")
@@ -32,14 +34,19 @@ export function EntityComponentDetails({
   showCivitaiObservation?: boolean
   className?: string
 }) {
+  const loading = useDelayedPending(component.readStatus === "loading")
+  const retained = "record" in component ? !!component.record : component.kind === "file" && component.bytes !== undefined
+  // The active Civitai reader owns contextual correspondence and provenance.
+  if (component.kind === "civitai" && !showCivitaiObservation) return null
   return (
     <div className={cn("flex min-w-0 flex-col pb-1", className)}>
-      {component.readStatus === "loading" && (
+      {loading && !retained && (
         <p className="flex items-center gap-2 px-4 pt-4 text-xs text-muted-foreground">
           <Spinner />
           Reading metadata…
         </p>
       )}
+      <span role="status" className="sr-only">{loading && retained ? "Refreshing metadata" : undefined}</span>
       {(component.previous || component.readStatus === "failed") && (
         <div className="px-4 pt-4">
           <Alert>
@@ -91,27 +98,9 @@ function ComponentDetailsContent({
       </DetailSection>
     )
   if (component.kind === "civitai") {
-    const matchedVersion = component.record?.model.versions.find(version => version.id === component.record?.matched_version)
-    const matchedFile = matchedVersion?.files.find(file => file.id === component.record?.matched_file)
     return (
       <>
-        <DetailSection title="Local match">
-          <dl>
-            <Detail label="Model">
-              {component.record?.model.name ?? "Not observed"}
-              {component.record && <span className="block text-xs text-muted-foreground"><code>{component.record.model.id}</code> · {component.record.model.kind}</span>}
-            </Detail>
-            <Detail label="Version">
-              {matchedVersion ? `${matchedVersion.name} · ${component.record?.matched_version}` : component.record?.matched_version ?? "Not observed"}
-            </Detail>
-            <Detail label="File">
-              {matchedFile && <span className="block text-xs">{matchedFile.name}</span>}
-              <code className="text-xs text-muted-foreground">{component.record?.matched_file ?? "Not observed"}</code>
-            </Detail>
-            <Detail label="Status">{component.view?.input ? component.view.input.replaceAll("_", " ").replace(/^./, letter => letter.toUpperCase()) : "Not observed"}</Detail>
-            {component.view?.problem && <Detail label="Problem">{component.view.problem}</Detail>}
-          </dl>
-        </DetailSection>
+        <CivitaiLocalMatch component={component} />
         {showCivitaiObservation && <>
         <Separator />
         <DetailSection title="Observation details">

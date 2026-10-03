@@ -9,7 +9,11 @@ const members = () => [{ entity_id: target, status: "present", memberships: [
   { kind_id: "9fd73d3d-d35d-41bc-8b73-402e12f5c017", component_id: file },
   { kind_id: "aadf84d2-0dc0-4a81-8cdb-901162c78321", component_id: image },
 ] }]
-function fixture(overrides = {}, entityProjection) {
+async function until(predicate) {
+  const deadline = Date.now() + 2000
+  while (!predicate()) { assert(Date.now() < deadline, "cover observation did not settle"); await delay(1) }
+}
+function fixture(overrides = {}, entityProjection, refreshingOrigin) {
   let observed = { status: "unset", entity_id: origin }
   const calls = []
   const api = {
@@ -21,12 +25,12 @@ function fixture(overrides = {}, entityProjection) {
     changeCardCoverPreference: async (id, body) => { calls.push(body); observed = { status: "saved", entity_id: id, revision: "1", cover: body.cover }; return { status: "card_cover_preference_saved", preference: observed } },
     ...overrides,
   }
-  const c = new CardCoverCoordinator(api, entityProjection ?? (id => ({ id, components: [{ id: source, kind: "civitai", readStatus: "ready", record: { matched_version: "10", observation: "observation" }, view: { input: "current" } }] })))
+  const c = new CardCoverCoordinator(api, entityProjection ?? (id => ({ id, components: [{ id: source, kind: "civitai", readStatus: "ready", record: { matched_version: "10", observation: "observation" }, view: { input: "current" } }] })), refreshingOrigin)
   return { c, api, calls }
 }
 test("automatic saved example and explicit cover stay independent of viewer choices", async t => {
   const f = fixture(); t.after(() => f.c.dispose())
-  f.c.demand([origin]); await delay(0)
+  f.c.demand([origin]); await until(() => f.c.get(origin).preview)
   assert(f.c.get(origin).preview?.startsWith("blob:"))
   await f.c.choose(origin, selection); await delay(0)
   assert.deepEqual(f.calls[0].cover, selection)
@@ -41,7 +45,7 @@ test("same cover survives a delayed observation refresh and failed requalificati
   let observation = "one", fail = false, release
   const f = fixture({}, id => ({ id, components: [{ id: source, kind: "civitai", readStatus: "ready", record: { matched_version: "10", observation }, view: { input: "current" } }] }))
   t.after(() => f.c.dispose())
-  f.c.demand([origin]); await delay(0)
+  f.c.demand([origin]); await until(() => f.c.get(origin).preview)
   const preview = f.c.get(origin).preview
   assert(preview)
   const version = f.api.civitaiVersion
@@ -52,13 +56,32 @@ test("same cover survives a delayed observation refresh and failed requalificati
   assert.equal(f.c.get(origin).preview, undefined)
   assert.match(f.c.get(origin).unavailable, /relationship unavailable/)
 })
+
+test("origin refresh retains a cover through intermediate example admission and reuses identical bytes", async t => {
+  let busy = false, observation = "old", mediaRevision = "1", versionReads = 0
+  const f = fixture({}, id => id === target
+    ? { id, membershipsStatus: "present", components: [{ kind: "file", id: file }, { kind: "image", id: image, inputFileId: file, record: { revision: mediaRevision } }] }
+    : { id, components: [{ id: source, kind: "civitai", readStatus: "ready", record: { matched_version: "10", observation }, view: { input: "current" } }] }, () => busy)
+  t.after(() => f.c.dispose())
+  const version = f.api.civitaiVersion
+  f.api.civitaiVersion = async () => { versionReads++; return busy ? { ...(await version()), examples: [] } : version() }
+  f.c.demand([origin]); await until(() => f.c.get(origin).preview)
+  const preview = f.c.get(origin).preview, reads = versionReads
+  busy = true; observation = "new"; mediaRevision = "2"; f.c.observe()
+  assert.equal(f.c.get(origin).preview, preview)
+  assert.equal(versionReads, reads, "active origin work must not replace an established cover with an intermediate empty example roster")
+  busy = false
+  const revision = f.c.snapshot()
+  f.c.observe(); await until(() => f.c.snapshot() > revision)
+  assert.equal(f.c.get(origin).preview, preview, "unchanged qualified bytes preserve their display URL")
+})
 test("late membership replacement rejects bytes while retaining explicit intent", async t => {
   let replaced = false
   const f = fixture({ cardCoverPreferences: async () => [{ status: "saved", entity_id: origin, revision: "1", cover: selection }],
     previewBytes: async () => { replaced = true; return new Blob(["old bytes"]) },
     memberships: async ids => ids[0] === origin ? [{ entity_id: origin, status: "present", memberships: [{ component_id: source }] }] : replaced ? [{ ...members()[0], memberships: [] }] : members(),
   })
-  t.after(() => f.c.dispose()); f.c.demand([origin]); await delay(0)
+  t.after(() => f.c.dispose()); f.c.demand([origin]); await until(() => f.c.get(origin).unavailable)
   assert.equal(f.c.get(origin).preview, undefined)
   assert.match(f.c.get(origin).unavailable, /membership changed/)
   assert.deepEqual(f.c.get(origin).observed.cover, selection)
@@ -68,7 +91,7 @@ test("unconfirmed saves block new work and recover the original request", async 
   const f = fixture({ changeCardCoverPreference: async (_, request) => { body = request; writes++; throw new Error("lost response") },
     submission: async request => { assert.equal(request, body.request_id); return { status: "direct_complete", outcome: { status: "card_cover_preference_saved", preference: { entity_id: origin, revision: "1", cover: body.cover } } } },
   })
-  t.after(() => f.c.dispose()); f.c.demand([origin]); await delay(0)
+  t.after(() => f.c.dispose()); f.c.demand([origin]); await until(() => f.c.get(origin).preview)
   await f.c.choose(origin, selection); await f.c.choose(origin, null)
   assert.equal(writes, 1)
   assert.match(f.c.preparation().blocked, /unconfirmed/)
@@ -93,7 +116,7 @@ test("observed target membership changes invalidate an already displayed cover",
   const f = fixture({ memberships: async ids => ids[0] === origin ? [{ entity_id: origin, status: "present", memberships: [{ component_id: source }] }] : changed ? [{ ...members()[0], memberships: [] }] : members() }, id => id === target
     ? { id, membershipsStatus: "present", components: changed ? [] : [{ id: file, kind: "file" }, { id: image, kind: "image" }] }
     : { id, components: [{ id: source, kind: "civitai", readStatus: "ready", record: { matched_version: "10", observation: "observation" }, view: { input: "current" } }] })
-  t.after(() => f.c.dispose()); f.c.demand([origin]); await delay(0)
+  t.after(() => f.c.dispose()); f.c.demand([origin]); await until(() => f.c.get(origin).preview)
   assert(f.c.get(origin).preview)
   changed = true; f.c.observe(); await delay(0)
   assert.equal(f.c.get(origin).preview, undefined)

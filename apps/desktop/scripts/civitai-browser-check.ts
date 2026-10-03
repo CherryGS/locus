@@ -249,9 +249,11 @@ try {
   await reading.getByText(/Controlled page read failure/).waitFor({ state: "hidden" })
   await data.phase("A")
   await page.getByRole("button", { name: "Civitai", exact: true }).click()
+  assert.equal(await civitaiPanel.getByRole("region", { name: "Local match", exact: true }).count(), 0, "own-version reading already identifies the current local correspondence")
   const refresh = civitaiPanel.getByRole("button", { name: "Refresh origin Civitai information", exact: true })
   await stage.locator("img").waitFor()
   const retainedStage = await stage.locator("img").elementHandle()
+  const retainedStageUrl = await stage.locator("img").getAttribute("src")
   const retainedThumbnail = await reading.locator('[data-gallery-thumbnail][aria-pressed="true"] img').elementHandle()
   assert(retainedStage && retainedThumbnail)
   await page.evaluate(() => {
@@ -278,6 +280,28 @@ try {
   })
   const refreshBounds = await stageLayout()
   const refreshScroll = await readerViewport.evaluate(element => element.scrollTop)
+  // Exercise the interval after metadata acceptance but before the origin's
+  // examples settle. The operation and version reads have independent timing.
+  let intermediate = true, emptyRosterRead!: () => void
+  const sawEmptyRoster = new Promise<void>(resolve => { emptyRosterRead = resolve })
+  await page.route("**/api/v1/civitai-operations", async route => {
+    if (route.request().method() !== "GET") { await route.continue(); return }
+    const response = await route.fetch()
+    const value = await response.json()
+    if (intermediate) for (const operation of value.operations) {
+      if (operation.outcome.entity_id === a.entityId) {
+        operation.active_request_id = operation.last_request_id
+        operation.outcome.state = "running"
+      }
+    }
+    await route.fulfill({ response, json: value })
+  })
+  await page.route(`**/civitai/${a.componentId}/version?*`, async route => {
+    const response = await route.fetch()
+    const value = await response.json()
+    if (intermediate) { value.examples = []; emptyRosterRead() }
+    await route.fulfill({ response, json: value })
+  })
   for (let revision = 1; revision <= 3; revision++) {
     await refresh.click()
     if (revision === 1) {
@@ -286,6 +310,11 @@ try {
       assert.deepEqual(await stageLayout(), refreshBounds)
       assert.equal(await readerViewport.evaluate(element => element.scrollTop), refreshScroll)
       releaseRefresh()
+      await sawEmptyRoster
+      await reading.getByText("Refreshing origin · showing previous examples.", { exact: true }).waitFor()
+      assert.equal(await stage.locator("img").getAttribute("src"), retainedStageUrl, "intermediate empty rosters keep the previous origin gallery visible")
+      assert(await retainedThumbnail!.evaluate(element => element.isConnected))
+      intermediate = false
     }
     const deadline = Date.now() + 30_000
     while (true) {
@@ -297,7 +326,9 @@ try {
     await page.waitForFunction(() => !document.querySelector('[aria-label="Origin Civitai operations"] button')?.hasAttribute("disabled"))
     assert.equal(await civitaiPanel.getByText("Origin operation · complete", { exact: true }).count(), 0)
   }
-  await page.unroute(`**/civitai/${a.componentId}/page`)
+  await reading.getByRole("button", { name: "Inspect managed example", exact: true }).waitFor()
+  await page.waitForFunction(() => document.querySelector('[aria-label="Inspect managed example"]')?.getAttribute("aria-disabled") !== "true")
+  await page.unrouteAll({ behavior: "wait" })
   assert(await retainedStage!.evaluate(element => element.isConnected), "refresh retains the gallery image node")
   assert(await retainedThumbnail!.evaluate(element => element.isConnected), "refresh retains the selected thumbnail node")
   const stability = await page.evaluate(() => {
@@ -306,12 +337,26 @@ try {
     return { removed: state.removed, moved: state.moved }
   })
   assert.deepEqual(stability, { removed: false, moved: false })
+  assert.equal(await stage.locator("img").getAttribute("src"), retainedStageUrl, "unchanged image bytes retain their display URL across repeated provider refreshes")
   const view = await backend.client.GET("/api/v1/civitai/{component_id}/view", {
     params: { path: { component_id: a.componentId! } },
   })
   assert.equal(view.data?.host, a.entityId)
   assert.equal(view.data?.record.revision, "3")
   await page.screenshot({ path: join(output, "refreshed-origin.png") })
+  await reading.getByRole("button", { name: "Version 30 · not recorded in this snapshot", exact: true }).click()
+  await reading.getByRole("button", { name: `Source Entity ${b.entityId.slice(-8)}`, exact: true }).click()
+  await versionDescription("B version description")
+  assert(await civitaiPanel.getByRole("region", { name: "Local match", exact: true }).isVisible(), "other-version reading keeps the origin correspondence explicit")
+  await stage.locator("img").waitFor()
+  const peerImage = await stage.locator("img").elementHandle()
+  const peerUrl = await stage.locator("img").getAttribute("src")
+  await refresh.click()
+  await page.waitForFunction(() => document.querySelector('[aria-label="Origin Civitai operations"] button')?.hasAttribute("disabled"))
+  await page.waitForFunction(() => !document.querySelector('[aria-label="Origin Civitai operations"] button')?.hasAttribute("disabled"))
+  await page.waitForFunction(() => document.querySelector('[aria-label="Inspect managed example"]')?.getAttribute("aria-disabled") !== "true")
+  assert(await peerImage!.evaluate(element => element.isConnected), "refresh also retains a peer-version gallery")
+  assert.equal(await stage.locator("img").getAttribute("src"), peerUrl)
   // Saved provider HTML retains useful structure, without giving the provider
   // access to the trusted renderer or loading remote resources on presentation.
   const richDescription = `<h3>Rich heading</h3>
@@ -385,6 +430,7 @@ try {
   assert.deepEqual(errors, [])
   console.log(JSON.stringify({ result: "passed", output, entities: data.entries }))
 } finally {
+  await Promise.all(browser.contexts().flatMap(context => context.pages().map(page => page.unrouteAll({ behavior: "ignoreErrors" }))))
   await browser.close()
   await preview.close()
   await data.dispose()

@@ -49,6 +49,7 @@ export class DesktopSession {
 export class LibrarySession extends DesktopSession {
   readonly covers: CardCoverCoordinator
   private unobserveCovers: () => void
+  private unobserveCivitaiCovers: () => void
   readonly settingsNavigation = new SettingsNavigation()
   readonly browsing = new Map<string, import("@/pages/entity").EntityBrowsingState>()
   readonly relatedCollections = new Map<string, RelatedCollection>()
@@ -71,9 +72,12 @@ export class LibrarySession extends DesktopSession {
     this.reader = new EntityReader(this.api, 256, (entityId, fileId) =>
       this.playback.observe(entityId, fileId),
     )
-    this.covers = new CardCoverCoordinator(this.api, id => this.reader.get(id))
+    this.civitai = new CivitaiCoordinator(this.api, (ids) => this.reader.knownEffects(ids))
+    this.civitai.host(initial)
+    this.covers = new CardCoverCoordinator(this.api, id => this.reader.get(id), id => this.civitai.blocked(id))
     this.draftPreparation.add(this.covers)
     this.unobserveCovers = this.reader.subscribe(() => this.covers.observe())
+    this.unobserveCivitaiCovers = this.civitai.subscribe(() => this.covers.observe())
     this.tags = new TagCoordinator(this.api, this.api.context.runId, (ids) =>
       this.reader.tagEffects(ids),
     )
@@ -85,8 +89,6 @@ export class LibrarySession extends DesktopSession {
     this.notes.host(initial.close.phase !== "idle")
     this.draftPreparation.add(this.notes)
     this.filter = new FilterCoordinator(this.api, () => this.reader.resultReplaced())
-    this.civitai = new CivitaiCoordinator(this.api, (ids) => this.reader.knownEffects(ids))
-    this.civitai.host(initial)
     this.imports = new ImportCoordinator(this.api, bridge, (items) => {
       this.reader.importEffects(items)
       this.civitai.invalidate()
@@ -140,6 +142,7 @@ export class LibrarySession extends DesktopSession {
     this.unobserveImports()
     this.civitai.dispose()
     this.unobserveCovers()
+    this.unobserveCivitaiCovers()
     this.covers.dispose()
     window.removeEventListener("pagehide", this.dispose)
   }

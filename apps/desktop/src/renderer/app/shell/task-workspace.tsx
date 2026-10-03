@@ -20,7 +20,7 @@ export function TaskWorkspace({ children }: { children: ReactNode }) {
     <>
       <div className="flex min-h-0 flex-1">{children}</div>
       <footer aria-label="Application footer" className="flex h-9 shrink-0 items-center justify-end gap-1 border-t bg-sidebar px-2">
-        <NotificationCenter />
+        <div className="ml-auto"><NotificationCenter /></div>
       </footer>
     </>
   )
@@ -114,7 +114,7 @@ function ConnectedWorkspace({ session, children }: { session: LibrarySession; ch
           <ListChecksIcon aria-hidden="true" className={`size-4 ${attention || problem ? "text-destructive" : active ? "text-primary" : ""}`} />
           {all.length > 0 && <span aria-hidden="true" className="tabular-nums">{all.length}</span>}
         </DialogTrigger>
-        <NotificationCenter />
+        <div className="ml-auto"><NotificationCenter /></div>
       </footer>
     </Dialog>
   )
