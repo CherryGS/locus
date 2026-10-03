@@ -100,7 +100,7 @@ try {
   const failedItem = importSnapshot.batches.flatMap(batch => batch.items).find(item => item.source_path === missing)!
   const failureReason = failedItem.current.copy.reason ?? failedItem.current.base.reason
   assert(failureReason)
-  await page.locator("article").filter({ hasText: missing }).getByText(failureReason, { exact: true }).waitFor()
+  await page.locator("article").filter({ hasText: missing }).getByRole("alert").getByText(failureReason, { exact: true }).waitFor()
   assert.equal(page.url(), destination)
   assert.equal(lists, initialLists)
   assert.equal(submissions, 2)

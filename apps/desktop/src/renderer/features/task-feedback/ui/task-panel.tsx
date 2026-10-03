@@ -168,7 +168,7 @@ function RecordDetails({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-5 p-4">
-      <header className="flex flex-col gap-3">
+      <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="min-w-0 flex-1 break-words text-base font-medium">{record.label}</h2>
           {record.active && (
@@ -181,12 +181,6 @@ function RecordDetails({
             <Badge variant="destructive">
               <TriangleAlertIcon data-icon="inline-start" />
               Needs attention
-            </Badge>
-          )}
-          {!record.active && !record.attention && (
-            <Badge variant="outline">
-              <CheckIcon data-icon="inline-start" />
-              Finished
             </Badge>
           )}
         </div>
@@ -241,13 +235,13 @@ function RecordDetails({
       ) : (
         record.attempts.map((attempt) => (
           <div key={attempt.task.task_id} className="flex min-w-0 flex-col gap-6">
-            <div className="flex flex-col gap-1">
+            {record.attempts.length > 1 && <div className="flex flex-col gap-1">
               <h3 className="text-sm font-medium">
                 {attempt.task.operation.kind === "upload_recovery"
                   ? "Recovery execution"
                   : "Original execution"}
               </h3>
-            </div>
+            </div>}
             <ExecutionDetails attempt={attempt} retryOutcome={retryOutcome} />
             <Separator />
             <RetainedResult attempt={attempt} />

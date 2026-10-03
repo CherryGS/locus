@@ -19,6 +19,21 @@ import type { ImportCoordinator } from "../model/import-coordinator"
 type RenderCivitaiOutcome = (outcome: NonNullable<Wire<"ImportResult">["civitai"]>) => ReactNode
 
 const readable = (value: string) => value.replaceAll("_", " ")
+function Steps({ rows }: { rows: readonly (readonly [string, Wire<"ImportStep">])[] }) {
+  return (
+    <dl className="flex min-w-0 flex-col gap-2">
+      {rows.map(([name, step]) => (
+        <div key={name} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-x-4">
+          <dt className="text-muted-foreground">{name}</dt>
+          <dd className="min-w-0 break-words">
+            {readable(step.state)}
+            {step.reason && <p className="mt-1 text-muted-foreground">{step.reason}</p>}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
 function label(item: Wire<"ImportItem">) {
   if (item.active_request_id) return "Processing"
   if (item.current.complete) return "Complete"
@@ -41,12 +56,7 @@ function Details({ result, renderCivitaiOutcome }: { result: Wire<"ImportResult"
     <div className="flex flex-col gap-2 text-xs">
       {result.overall && <p>Overall result: {result.overall}</p>}
       {result.observation_problem && <p>Result observation: {result.observation_problem}</p>}
-      {rows.map(([name, step]) => (
-        <p key={name}>
-          {name}: {readable(step.state)}
-          {step.reason ? ` - ${step.reason}` : ""}
-        </p>
-      ))}
+      <Steps rows={rows} />
       {result.file_id && (
         <p className="break-all">
           {result.confirmed_file_id ? "Registered" : "Candidate"} File: {result.file_id}
@@ -70,12 +80,8 @@ function Details({ result, renderCivitaiOutcome }: { result: Wire<"ImportResult"
           Model
           {result.model.component_id ? ` / ${result.model.component_id}` : ""}
         </p>
-        {(["recognition", "establishment", "inspection"] as const).map((name) => (
-          <p key={name}>
-            {readable(name)}: {readable(result.model[name].state)}
-            {result.model[name].reason ? ` - ${result.model[name].reason}` : ""}
-          </p>
-        ))}
+        <Steps rows={(["recognition", "establishment", "inspection"] as const)
+          .map((name) => [readable(name), result.model[name]] as const)} />
       </div>
       {result.kinds.map((kind) => (
         <div key={kind.kind} className="flex flex-col gap-1">
@@ -83,12 +89,8 @@ function Details({ result, renderCivitaiOutcome }: { result: Wire<"ImportResult"
             {kind.kind === "image" ? "Image" : "Video"}
             {kind.component_id ? ` / ${kind.component_id}` : ""}
           </p>
-          {(["recognition", "establishment", "interpretation", "preview"] as const).map((name) => (
-            <p key={name}>
-              {readable(name)}: {readable(kind[name].state)}
-              {kind[name].reason ? ` - ${kind[name].reason}` : ""}
-            </p>
-          ))}
+          <Steps rows={(["recognition", "establishment", "interpretation", "preview"] as const)
+            .map((name) => [readable(name), kind[name]] as const)} />
         </div>
       ))}
       {result.bilibili && (
@@ -136,8 +138,7 @@ function Details({ result, renderCivitaiOutcome }: { result: Wire<"ImportResult"
           <p className="font-medium">Civitai · original weight enrichment</p>
           {renderCivitaiOutcome(result.civitai)}
           <p>
-            Continue unfinished provider work through this item’s whole-import recovery action. Page refresh
-            is a separate operation.
+            Use this item’s recovery action for unfinished provider work. Page refresh starts a separate operation.
           </p>
         </div>
       )}
@@ -210,7 +211,7 @@ export function ImportDetails({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-medium">
-          Items <span className="ml-1 text-muted-foreground">{items.length}</span>
+          Results
         </h3>
         <Button
           size="icon-sm"
@@ -355,13 +356,11 @@ export function ImportDetails({
                   </p>
                 )}
                 {batch.access_context === "desktop" && item.actions.includes("recopy") && (
-                  <Alert>
-                    <AlertTitle>New copy required</AlertTitle>
+                  <Alert className="ml-7 w-auto rounded-none border-0 p-0">
                     <AlertDescription className="flex flex-col gap-2 [&_p:not(:last-child)]:mb-0">
                       <p className="break-words text-xs">{item.current.copy.reason ?? item.current.base.reason}</p>
                       <p>
-                        The source is read again and its bytes may have changed. Earlier managed effects are
-                        retained.
+                        Reads the source again; it may have changed. Previous import effects remain.
                       </p>
                       <Button
                         className="self-start"
@@ -387,7 +386,7 @@ export function ImportDetails({
                         : item.source_path}
                     </p>
                     <div className="flex min-w-0 flex-col gap-2">
-                      <h4 className="text-xs font-medium">Current processing details</h4>
+                      <h4 className="text-xs font-medium">Current result</h4>
                       <Details result={item.current} renderCivitaiOutcome={renderCivitaiOutcome} />
                     </div>
                     <details className="group/attempts">

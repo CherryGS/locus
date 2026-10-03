@@ -202,6 +202,9 @@ surface adaptations of that system.
   stage and preserve business-result wording independently of execution ending.
   Show import failure causes beside recovery actions. Flatten the details surface
   within each item and keep its history and disclosure state during updates.
+  Avoid a second boxed recovery warning inside an item; keep the cause, concise
+  recopy consequence and action together. Align processing step names with their
+  observed states and reasons. Omit the redundant Finished badge in record details.
   Preserve the result-refresh icon, bounds and focus through rereads, deferring
   visual activity for brief requests and blocking duplicate activation.
 - **Notes feedback:** keep the status and icon footprint fixed. Defer short-lived
