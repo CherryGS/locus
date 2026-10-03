@@ -62,7 +62,7 @@ export function FieldReference({ coordinator: c }: { coordinator: FilterCoordina
         viewportProps={{ "aria-label": "Field list", className: "overscroll-contain" }}
         scrollbarProps={{ className: "data-vertical:w-1.5" }}
       >
-        <div className="grid grid-cols-1 gap-x-6 gap-y-3 pr-3 pb-1 @xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 pr-3 pb-1 @xl:grid-cols-2">
           {c.cataloguePending && <p role="status" className="text-xs text-muted-foreground">Loading fields…</p>}
           {c.catalogueError && (
             <Alert variant="destructive">
@@ -72,10 +72,10 @@ export function FieldReference({ coordinator: c }: { coordinator: FilterCoordina
               </AlertDescription>
             </Alert>
           )}
-          {(c.catalogue?.references ?? []).filter((r) => `${r.owner} ${r.id}`.toLocaleLowerCase().includes(query)).map((r) => <section key={r.id} className="flex flex-col"><h4 className="mb-1 text-xs font-medium text-muted-foreground">{r.owner} · query reference</h4><FieldReferenceRow label={`${r.id} query reference`} value={r.id} type="UUID" description="Inclusive subtree membership; one required root identity, zero relevance" /></section>)}
+          {(c.catalogue?.references ?? []).filter((r) => `${r.owner} ${r.id}`.toLocaleLowerCase().includes(query)).map((r) => <section key={r.id} className="flex flex-col"><h4 className="mb-1 text-[13px] font-medium">{r.owner} · query reference</h4><FieldReferenceRow label={`${r.id} query reference`} value={r.id} type="UUID" description="Inclusive subtree membership; one required root identity, zero relevance" /></section>)}
           {[...groups].map(([owner, fields]) => (
             <section key={owner} className="flex flex-col">
-              <h4 className="mb-1 text-xs font-medium text-muted-foreground">{owner}</h4>
+              <h4 className="mb-1 text-[13px] font-medium">{owner}</h4>
               {fields.map((field) => (
                 <div key={field.id} data-field-id={field.id}>
                   <FieldReferenceRow

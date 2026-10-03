@@ -78,7 +78,7 @@ export function PresetPicker({
         }
       }}
     >
-      <Field className="min-w-48 flex-1">
+    <Field className="min-w-0 flex-1">
         <FieldLabel htmlFor="filter-preset" className="sr-only">Load preset</FieldLabel>
         <DialogTrigger
           ref={entry}

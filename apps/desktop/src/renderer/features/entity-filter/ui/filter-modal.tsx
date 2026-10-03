@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { DialogRootActions } from "@base-ui/react/dialog"
-import { BookOpenIcon, FilterIcon } from "lucide-react"
+import { BookOpenIcon, FilterIcon, TriangleAlertIcon } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/shared/ui/button"
 import {
@@ -84,10 +84,10 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
         }}
         onPointerLeave={() => setResizeHint(false)}
       >
-        <DialogHeader className="pr-8">
+        <DialogHeader className="border-b pb-4 pr-8 [@media(max-height:600px)]:pb-2">
           <div className="flex flex-wrap items-center gap-3">
             <DialogTitle>Filter Entities</DialogTitle>
-            <Badge variant="secondary">
+            <Badge variant="outline" className="text-muted-foreground">
               {c.dirty ? "Unsaved draft" : c.saved ? "Saved preset" : "New draft"}
             </Badge>
           </div>
@@ -105,8 +105,8 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
             scrollbarProps={{ className: "data-vertical:w-1.5" }}
           >
             <div className="flex flex-col gap-3 px-1 pr-3 pb-1">
-              <FieldGroup>
-                <div className="flex flex-wrap items-center gap-2">
+              <FieldGroup className="gap-4">
+                <div className="flex min-w-0 items-center gap-2">
                   <PresetPicker
                     presets={c.presets}
                     selected={c.saved}
@@ -117,7 +117,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                     onRetry={() => void c.readPresets()}
                     onSelect={(id) => c.requestSwitch(id)}
                   />
-                  <Button variant="outline" disabled={c.busy} onClick={() => c.requestSwitch(null)}>
+                  <Button variant="ghost" disabled={c.busy} onClick={() => c.requestSwitch(null)}>
                     New
                   </Button>
                   <PresetOptions
@@ -128,7 +128,7 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                     }}
                   />
                 </div>
-                <Field data-invalid={analysis?.state === "invalid"}>
+                <Field className="gap-2" data-invalid={analysis?.state === "invalid"}>
                   <div className="flex items-center justify-between gap-2">
                     <FieldLabel htmlFor="filter-source">Query</FieldLabel>
                     <div className="flex items-center gap-1">
@@ -165,13 +165,14 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
                   <Button
                     key={i}
                     variant="ghost"
-                    className="h-auto justify-start whitespace-normal text-left"
+                    className="h-auto items-start justify-start rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 whitespace-normal text-left text-xs leading-5 text-foreground hover:bg-destructive/15"
                     onClick={() => {
                       setReveal(undefined)
                       queueMicrotask(() => setReveal(d.start))
                     }}
                   >
-                    {d.message}
+                    <TriangleAlertIcon className="mt-0.5 shrink-0 text-destructive" data-icon="inline-start" />
+                    <span>{d.message}</span>
                   </Button>
                 ))}
                 {!c.assistance.active && (c.analysisError || analysis?.state === "unavailable") && (
@@ -215,8 +216,8 @@ export function FilterModal({ coordinator: c }: { coordinator: FilterCoordinator
             <FieldReference coordinator={c} />
           )}
         </div>
-        <DialogFooter className="flex-row flex-wrap items-center">
-          <span className="mr-auto text-xs text-muted-foreground">
+        <DialogFooter className="shrink-0 flex-row flex-wrap items-center bg-background/50 [@media(max-height:600px)]:py-3">
+          <span className="mr-auto text-xs text-muted-foreground tabular-nums">
             {c.established
               ? `${c.filtered ? "Filtered" : "Library"} · ${c.sequence!.length.toLocaleString()} Entities`
               : "No complete result"}

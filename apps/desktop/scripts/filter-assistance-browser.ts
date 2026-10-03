@@ -256,6 +256,8 @@ export async function checkFilterAssistance(page: Page, dialog: Locator, source:
 
   // Type fields offer observations only; formats expose genuine declared choices.
   await type("@image_format:Jpeg")
+  // Let the source owner's new value context settle before editing its lookup.
+  await observedValuesReady()
   await lookup.fill("Jpeg")
   const jpeg = panel.getByRole("button", { name: "Use value Jpeg", exact: true })
   await jpeg.waitFor()

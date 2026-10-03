@@ -133,9 +133,10 @@ surface adaptations of that system.
   the visibility of identifiers, dates, status and other ordinary facts. Use
   ordinary-case section headings, supporting labels and primary-foreground values
   to separate hierarchy without fading the content. Reflow narrow property rows
-  while retaining directly visible fields and copy actions.
+  while retaining directly visible, selectable fields.
 - **Native text selection (selected):** identifiers and other read-only inspector
-  and Settings values remain ordinary selectable text. Provide no dedicated copy
+  and Settings values, including Filter field references, remain ordinary
+  selectable text. Provide no dedicated copy
   button or click/keyboard clipboard handler. Users select text and copy through
   the platform's Ctrl+C or context menu. Preserve normal input editing, Token
   masking/reveal and existing link navigation. Do not add hover/focus copy states,
@@ -143,6 +144,11 @@ surface adaptations of that system.
 - **Shared controls:** compare default, hover, focus, active/selected, disabled,
   pending and error states where applicable. Apply shared choices through the
   existing primitives and semantic tokens, preserving behavior.
+- **Filter workspace:** keep presets secondary to the raw query. Use the darker
+  control surface and monospace text for source, with compact query actions and
+  directly visible, clickable diagnostics. Separate the optional field reference
+  with a heading rhythm and aligned types, without row actions. Keep the footer
+  reachable while the editor and reference scroll independently in short windows.
 - **Refresh continuity:** retain established content and empty states while
   rereading. Keep refresh controls and their icon nodes stable, preserve keyboard
   focus while blocking duplicate requests, and show visual activity only when a

@@ -47,7 +47,7 @@ export function RawSourceInput({ source, analysis, disabled, reveal, assistance:
         spellCheck={false}
         aria-invalid={analysis?.state === "invalid"}
         disabled={disabled}
-        className="filter-source min-h-32 max-h-64 resize-y"
+        className="filter-source min-h-32 max-h-64 resize-y rounded-md bg-control px-3 py-2.5 font-mono text-sm leading-6 caret-primary md:text-sm dark:bg-control"
         value={displaySource(source.text)}
         aria-describedby={a.active ? "filter-assistance-hint" : undefined}
         aria-controls={a.active ? "filter-assistance" : undefined}
