@@ -3,58 +3,81 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Locus · 模型页设计预览</title>
+  <title>Locus · 工作区交互样例</title>
   <link rel="stylesheet" href="style.css">
   <script src="app.js" defer></script>
 </head>
 <body>
   <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
-    <symbol id="box" viewBox="0 0 24 24"><path d="m21 8-9 5-9-5m9 5v9M3 7l9-5 9 5v10l-9 5-9-5z"/></symbol>
-    <symbol id="chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></symbol>
-    <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
-    <symbol id="search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
-    <symbol id="filter" viewBox="0 0 24 24"><path d="M4 5h16l-6 7v7l-4-2v-5z"/></symbol>
-    <symbol id="sliders" viewBox="0 0 24 24"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
-    <symbol id="panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
-    <symbol id="locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></symbol>
-    <symbol id="refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/></symbol>
-    <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></symbol>
-    <symbol id="file" viewBox="0 0 24 24"><path d="M13 3H5v18h14V9zM13 3v6h6"/></symbol>
-    <symbol id="image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><path d="m21 15-5-5L5 21"/></symbol>
+    <symbol id="icon-box" viewBox="0 0 24 24"><path d="m21 8-9 5-9-5m9 5v9M3 7l9-5 9 5v10l-9 5-9-5z"/></symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="icon-filter" viewBox="0 0 24 24"><path d="M4 5h16l-6 7v7l-4-2v-5z"/></symbol>
+    <symbol id="icon-sliders" viewBox="0 0 24 24"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="icon-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
+    <symbol id="icon-locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></symbol>
+    <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/></symbol>
+    <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></symbol>
+    <symbol id="icon-file" viewBox="0 0 24 24"><path d="M13 3H5v18h14V9zM13 3v6h6"/></symbol>
+    <symbol id="icon-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><path d="m21 15-5-5L5 21"/></symbol>
+    <symbol id="icon-back" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
+    <symbol id="icon-forward" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></symbol>
+    <symbol id="icon-return" viewBox="0 0 24 24"><path d="M19 5v9a3 3 0 0 1-3 3H5m5-5-5 5 5 5"/></symbol>
+    <symbol id="icon-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+    <symbol id="icon-tasks" viewBox="0 0 24 24"><path d="m3 6 2 2 3-4m-5 9 2 2 3-4M12 6h9M12 13h9M3 20h18"/></symbol>
+    <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M9 21h6"/></symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/></symbol>
+    <symbol id="icon-tag" viewBox="0 0 24 24"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7" cy="7" r="1"/></symbol>
+    <symbol id="icon-upload" viewBox="0 0 24 24"><path d="M4 15v5h16v-5M12 16V3m-5 5 5-5 5 5"/></symbol>
   </defs></svg>
   <header class="titlebar">
-    <button id="locus" class="brand" popovertarget="launcher">locus <svg class="icon"><use href="#chevron"/></svg></button>
-    <div id="tabs" class="tabs" role="tablist" aria-label="已打开的页面"></div>
+    <button id="locus" class="brand" popovertarget="launcher">locus <svg class="icon"><use href="#icon-chevron"/></svg></button>
+    <div class="tab-region"><div id="tabs" class="tabs" role="tablist" aria-label="已打开的页面"></div><button id="tab-list-trigger" class="icon-button tab-list-trigger" popovertarget="tab-list" aria-label="所有已打开的页面" title="所有已打开的页面" hidden><svg class="icon"><use href="#icon-list"/></svg></button></div>
+    <div class="window-drag" aria-hidden="true"></div>
+    <div class="window-controls" aria-label="原生窗口按钮预留区域（样例不可操作）" title="原生窗口按钮预留区域；将在 Electron 中验证"><svg viewBox="0 0 138 40" aria-hidden="true"><path d="M18 20h10M64 15h10v10H64zM110 15l10 10m0-10-10 10"/></svg></div>
   </header>
+  <div id="tab-list" class="popover tab-list" popover><div class="popover-title">已打开的页面</div><div id="tab-list-items"></div></div>
   <div id="launcher" class="popover launcher" popover>
     <div class="popover-title">打开页面</div>
-    <button id="new-model" class="menu-item"><svg class="icon"><use href="#box"/></svg><span>模型</span><span class="muted menu-note">新标签页</span></button>
+    <button data-open="media" class="menu-item"><svg class="icon"><use href="#icon-image"/></svg><span>媒体</span><span class="muted menu-note">新标签页</span></button>
+    <button id="new-model" class="menu-item"><svg class="icon"><use href="#icon-box"/></svg><span>模型</span><span class="muted menu-note">新标签页</span></button>
+    <button data-open="all" class="menu-item"><svg class="icon"><use href="#icon-list"/></svg><span>全部内容</span><span class="muted menu-note">新标签页</span></button>
+    <button data-open="tags" class="menu-item"><svg class="icon"><use href="#icon-tag"/></svg><span>标签管理</span><span class="muted menu-note">唯一标签页</span></button>
+    <hr><button id="import-demo" class="menu-item"><svg class="icon"><use href="#icon-upload"/></svg>导入示例</button><button id="settings-trigger" class="menu-item"><svg class="icon"><use href="#icon-settings"/></svg>设置</button>
   </div>
-  <main id="workspace" class="workspace">
-    <section class="collection" aria-label="模型列表">
-      <div class="toolbar">
-        <div class="search-group"><svg class="icon"><use href="#search"/></svg><input id="search-input" type="search" aria-label="搜索模型" placeholder="搜索模型…" autocomplete="off"><button id="filter-trigger" popovertarget="filter-popover"><svg class="icon"><use href="#filter"/></svg>Filter</button></div>
+      <div id="page-toolbar" class="toolbar" aria-label="当前页工具栏" hidden>
+        <nav class="history-actions" aria-label="当前页历史"><button id="back" class="icon-button" aria-label="后退" title="后退"><svg class="icon"><use href="#icon-back"/></svg></button><button id="forward" class="icon-button" aria-label="前进" title="前进"><svg class="icon"><use href="#icon-forward"/></svg></button><button id="source-return" class="icon-button" aria-label="返回来源或退出独立详情" title="返回来源"><svg class="icon"><use href="#icon-return"/></svg></button></nav>
+        <div class="search-group"><svg class="icon"><use href="#icon-search"/></svg><input id="search-input" type="search" aria-label="搜索模型" placeholder="搜索模型…" autocomplete="off"><button id="filter-trigger" popovertarget="filter-popover"><svg class="icon"><use href="#icon-filter"/></svg>Filter</button></div>
+        <div id="filmstrip" class="filmstrip" aria-label="当前结果缩略图" hidden></div><span id="page-caption" class="page-caption" hidden></span>
         <div class="toolbar-actions">
-          <button id="refresh" class="icon-button" aria-label="刷新列表" title="刷新列表"><svg class="icon"><use href="#refresh"/></svg></button>
-          <button id="locate" class="icon-button" aria-label="定位选中模型" title="定位选中模型"><svg class="icon"><use href="#locate"/></svg></button>
-          <button id="display-trigger" class="text-button" popovertarget="display-popover"><svg class="icon"><use href="#sliders"/></svg><span>显示</span></button>
-          <button id="inspector-toggle" class="icon-button" aria-label="显示或隐藏资料区" aria-pressed="true" title="资料区"><svg class="icon"><use href="#panel"/></svg></button>
+          <button id="refresh" class="icon-button" aria-label="刷新列表" title="刷新列表"><svg class="icon"><use href="#icon-refresh"/></svg></button>
+          <button id="locate" class="icon-button" aria-label="定位选中模型" title="定位选中模型"><svg class="icon"><use href="#icon-locate"/></svg></button>
+          <button id="display-trigger" class="text-button" aria-label="显示" title="显示" popovertarget="display-popover"><svg class="icon"><use href="#icon-sliders"/></svg><span>显示</span></button>
+          <button id="inspector-toggle" class="icon-button" aria-label="显示或隐藏资料区" aria-pressed="true" title="资料区"><svg class="icon"><use href="#icon-panel"/></svg></button>
         </div>
       </div>
-      <div id="grid-scroll" class="grid-scroll"><div id="grid" class="grid"></div><div id="empty" class="empty" hidden><svg class="icon"><use href="#search"/></svg><h2>没有匹配的模型</h2><p>试试其他关键词，或清除筛选。</p><button id="clear-query" class="text-button bordered">清除搜索与 Filter</button></div></div>
+  <main id="workspace" class="workspace">
+    <section id="page-panel" class="collection" role="tabpanel" aria-label="当前页面" hidden>
+      <div id="grid-scroll" class="grid-scroll"><div id="grid" class="grid"></div><div id="empty" class="empty" hidden><svg class="icon"><use href="#icon-search"/></svg><h2>没有匹配的内容</h2><p>试试其他关键词，或清除筛选。</p><button id="clear-query" class="text-button bordered">清除搜索与 Filter</button></div></div>
+      <div id="detail-view" class="detail-view" hidden></div>
+      <div id="tags-view" class="tags-view" hidden><h1>标签管理</h1><div class="tag-columns"><div><button class="tag-row" data-tag="Models">Models</button><button class="tag-row" data-tag="Reference">Reference</button></div><div id="tag-children"></div></div></div>
     </section>
     <aside id="inspector" class="inspector" aria-label="模型资料">
-      <div class="panel-header"><span>模型资料</span><button id="close-inspector" class="icon-button" aria-label="关闭资料区"><svg class="icon"><use href="#close"/></svg></button></div>
+      <div class="panel-header"><span>模型资料</span><button id="close-inspector" class="icon-button" aria-label="关闭资料区"><svg class="icon"><use href="#icon-close"/></svg></button></div>
       <div id="inspector-content" class="inspector-content"></div>
     </aside>
-    <div id="no-tabs" class="no-tabs" hidden><svg class="icon"><use href="#box"/></svg><h1>打开一个页面</h1><button id="empty-new" class="text-button bordered">打开模型页</button></div>
+    <div id="no-tabs" class="no-tabs"><svg class="icon"><use href="#icon-box"/></svg><h1>打开一个页面</h1><button id="empty-new" class="text-button bordered" popovertarget="launcher">打开页面<svg class="icon"><use href="#icon-chevron"/></svg></button></div>
   </main>
-  <footer class="statusbar"><span id="result-count"></span><span class="preview-note">设计预览 · 示例数据，仅保存在本页</span><button id="demo-trigger" popovertarget="demo-popover">交互演示</button></footer>
-  <div id="display-popover" class="popover display-popover" popover><div class="popover-title">卡片信息</div><div id="display-options"></div><hr><button id="cover-only" class="menu-item">仅显示封面</button><button id="display-default" class="menu-item">恢复默认</button></div>
+  <footer class="statusbar"><button id="tasks-trigger" class="footer-action" aria-label="任务" title="任务"><svg class="icon"><use href="#icon-tasks"/></svg><span id="task-count">1</span></button><span id="result-count" role="status"></span><span class="preview-note">交互样例 · 示例数据</span><button id="demo-trigger" popovertarget="demo-popover">演示场景</button><button id="notifications-trigger" class="footer-action" aria-label="通知" title="通知"><svg class="icon"><use href="#icon-bell"/></svg></button></footer>
+  <div id="display-popover" class="popover display-popover" popover><div class="popover-title">卡片信息</div><div id="display-options"></div><hr><label class="check-row"><input id="cover-only" type="checkbox">仅显示封面</label><button id="display-default" class="menu-item">恢复默认</button></div>
   <div id="filter-popover" class="popover filter-popover" popover>
     <label class="popover-title" for="filter-input">Filter 表达式</label><textarea id="filter-input" rows="3" spellcheck="false" placeholder="输入表达式"></textarea><p class="muted">布局预览支持文本包含匹配；完整 Filter 沿用现有编辑器。</p><p id="filter-error" class="field-error" role="status"></p><div class="popover-actions"><button id="filter-clear" class="text-button">清除</button><button id="filter-apply" class="text-button primary">应用</button></div>
   </div>
   <div id="info-popover" class="popover info-popover" popover><strong>本地值优先</strong><p>留空时使用已保存来源中的信息。没有来源值时保持为空。这里的修改会自动保存；清空字段即可恢复来源值。</p></div>
-  <div id="demo-popover" class="popover demo-popover" popover><div class="popover-title">示例交互</div><p class="muted">这些操作只影响本页的示例数据。</p><label class="check-row"><input id="slow-save" type="checkbox">延迟保存，观察编辑与切页</label><button id="fail-next" class="menu-item">让下一次保存失败</button><button id="conflict-next" class="menu-item">模拟其他标签修改版本</button><p id="demo-state" role="status" class="muted"></p></div>
+  <div id="demo-popover" class="popover demo-popover" popover><div class="popover-title">演示场景</div><p class="muted">示例数据只保存在内存，刷新即重置。</p><button id="many-tabs" class="menu-item">添加 8 个模型标签</button><button id="long-detail" class="menu-item">打开长名称详情</button><hr><label class="check-row"><input id="slow-save" type="checkbox">延迟保存，观察编辑与切页</label><button id="fail-next" class="menu-item">让下一次保存失败</button><button id="conflict-next" class="menu-item">模拟其他标签修改版本</button><p id="demo-state" role="status" class="muted"></p></div>
+  <div id="attention-popover" class="popover attention-popover" popover><div class="popover-title">需处理的修改</div><div id="attention-items"></div></div>
+  <dialog id="global-dialog" class="global-dialog" aria-labelledby="dialog-title"><header><h2 id="dialog-title"></h2><button id="dialog-close" class="icon-button" aria-label="关闭弹窗"><svg class="icon"><use href="#icon-close"/></svg></button></header><div id="dialog-content"></div></dialog>
+  <div id="card-menu" class="popover card-menu" popover><button id="card-new-tab" class="menu-item">在新标签页中打开</button></div>
 </body>
 </html>

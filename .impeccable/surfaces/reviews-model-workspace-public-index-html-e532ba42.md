@@ -27,11 +27,14 @@ STORY: Open an independent model tab, scan covers and four identifying fields,
 select a model, edit its local version/type/family, and observe source fallback
 when a local value is cleared.
 
-FIRST VIEWPORT: A 40px Locus-and-tabs row; a compact search/Filter toolbar; fixed
-240×320 cards in the remaining canvas; a 310px inspector at right. The selected
-card and its editor stay visible together. Signature interaction: clear a local
-override and watch its source value return without losing focus or moving the
-editor. No entrance animation; interaction feedback is immediate and quiet.
+FIRST VIEWPORT: Empty workspace with Locus and global feedback. Opening a page
+reveals a 40px Locus-and-tabs row above a 40px page-navigation/search row; fixed
+240×320 cards fill the remaining canvas with an optional 310px inspector.
+Preserve native-control space and the active tab's full close target when many
+tabs overflow. Browsing-tab titles stay stable while page history and content
+change. Signature interaction: switch independently between an unfiltered model
+page and a filtered one, then open/close a task result without losing either.
+The retained local-edit demonstration remains available. No entrance animation.
 
 FORM: User-selected grid plus inspector, implemented as a bounded code-led
 interactive specimen. No concept seed or image comp was requested for this

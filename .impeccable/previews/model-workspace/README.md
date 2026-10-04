@@ -1,4 +1,4 @@
-# Model workspace design specimen
+# Workspace chrome and card interaction specimen
 
 This standalone specimen makes the current design discussion inspectable. It is
 not the production Locus renderer and does not read or write any library. Values
@@ -7,10 +7,97 @@ and model/classification combinations are illustrative; reloading resets them.
 Serve only `public`, for example from the project root:
 
 ```powershell
-uv run python -m http.server 8765 --bind 127.0.0.1 --directory .impeccable/previews/model-workspace/public
+uv run python -m http.server 49861 --bind 127.0.0.1 --directory .impeccable/previews/model-workspace/public
 ```
 
-## What to inspect
+## Current chrome iteration — 2026-10-05
+
+This continues the existing specimen under the confirmed two-row workspace
+brief. It does not implement the production renderer or backend. Reload starts
+with an empty workspace; use Locus or Open page to begin. All edits, task records,
+queries and page contexts are in memory and reset on reload.
+
+- The 40px window row contains Locus, stable category-based browsing-tab names,
+  an open-tab list and a reserved native-control area. Repeated category tabs
+  receive distinguishing numbers without renaming surviving tabs. A standalone
+  task-result tab uses its content name. Tab overflow scrolls, including the
+  whole active tab's close action, while the open-tab list reaches hidden tabs.
+- The second 40px row contains current-page Back/Forward/source return and the
+  existing search/Filter, locate, refresh, Display and inspector controls.
+  Double-click/Enter opens a card inside that page; its label stays unchanged.
+  Detail uses its result's filmstrip. Independent result-root Escape closes its
+  tab. Card context-menu Open in new tab reuses the supplied mock result.
+- Private query, selection, history, display and editing state survive tab
+  switching. Active close returns to the most recently used remaining page;
+  background close preserves the foreground; final close restores empty workspace.
+- Display now keeps cover-only separate from enabled information choices.
+  Rest hides the overlays; hover or keyboard focus restores the configured
+  overlays. A no-cover card retains its icon and identifying name.
+- Simulated save failure marks the owning tab without activating it. Its marker
+  opens an entry to the original field. Failed edits block close until recovery
+  or explicit draft discard. Existing conditional-save demonstrations remain
+  approximate UI behavior, not database correctness evidence.
+- Tasks, notifications and Settings remain global modals. Task View has a
+  deliberate one-second presence-read simulation; dismissing the modal abandons
+  it. Reopening does not revive that View. Current success creates one independent
+  detail tab before dismissing the modal. Import example adds a completed mock
+  record without opening the task surface.
+- Media has two illustrative Image fixtures; All content also includes the eight
+  Model fixtures. A referenced Model cover does not make that Model a Media item.
+  Tags is a minimal singleton navigation fixture retaining its selected root.
+  It is not the complete Tag editor. Settings is a placement/lifetime sample,
+  not working library configuration. No file picker or actual import is invoked.
+
+The footer's Scenes entry creates eight tabs or a long-title result and retains
+the original latency/failure/conflict controls. Native window buttons are a
+clearly labeled noninteractive reserved region. Actual drag regions, Electron
+window operations, browser history integration and production page lifetimes
+must be verified in the real application.
+
+### Bounded verification
+
+The in-app browser exercised the actual viewport plus 1280 by 720 and 720 by 480
+CSS-pixel layouts. The browser was zoomed to 130%; temporary viewport overrides
+were calibrated against CSS layout metrics and reset afterward. Raw browser
+captures preserve that zoom without rescaling the image. Current evidence:
+
+- `chrome-current.png`: user-facing viewport, models and stable tab strip.
+- `chrome-desktop.png`: 1280 by 720 CSS pixels with the inspector open.
+- `chrome-narrow-overflow.png`: 720 by 480 CSS pixels with many tabs and a long
+  standalone title; native control space and active close target remain visible.
+- `chrome-empty.png`: final-tab-close empty workspace with global task access.
+- `chrome-attention.png`: retained failed field and blocked close with its tab marker.
+
+Observed checks: independent empty/Pony queries; grid/detail Back/Forward/source
+return without tab renaming; Task View dismiss/reopen produces only the latest
+receiver; result-root Escape returns to the MRU page; background close preserves
+the foreground; final close leaves Tasks reachable; cover-only keeps Title
+enabled, hides/restores by focus and remains private; no-cover name survives;
+failed autosave does not activate its page, explicit attention entry locates the
+field, failed close retains both tabs and retry clears the issue; Settings Escape
+closes only its modal; repeated Tags entry keeps exactly one tab and its selection.
+
+The first pass exposed preexisting SVG-symbol/button ID collisions, a cropped
+active close button, a one-pixel native-placeholder overflow and an unnamed
+icon-only Display button. These were corrected and the affected checks repeated.
+Final narrow document width is exactly 720 CSS pixels and the entire active close
+target is within the tab strip. Script syntax and unique static IDs pass; browser
+error logs were empty during the final flow checks.
+
+One design-detector pass retained warnings for the incumbent Geist family and
+the intentionally full-height search/Filter segment required by `rules/ui.md`.
+Its dialog border-plus-shadow advisory was fixed by retaining only the border.
+No new brand identity or token system is selected; DESIGN.md remains unchanged.
+Per repository UI-iteration rules, verification is bounded local inspection,
+without extra subagent acceptance gates. This does not settle production WV checks.
+
+## Historical model-only specimen
+
+The following records the preceding 2026-10-04 sample. Current behavior above
+supersedes its preopened tabs, destructive cover-only switch, icon-only missing
+artwork and global-versus-private display uncertainty.
+
+### What the preceding version demonstrated
 
 - Locus opens another independent model tab. The initial Pony tab has its own
   search. Selection, grid scroll, visibility and drafts are private to each tab;
