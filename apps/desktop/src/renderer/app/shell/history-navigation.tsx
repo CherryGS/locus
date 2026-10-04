@@ -1,10 +1,12 @@
-import { useContext, useEffect } from "react"
+import { createContext, useContext, useEffect } from "react"
 import { useRouter } from "@tanstack/react-router"
 import { ArrowLeftIcon, ArrowRightIcon, CornerDownLeftIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 
 import { usePageActivity } from "@/shared/page-activity"
 import { SourceReturnContext } from "@/shared/source-return"
+
+export const HistoryPlacementContext = createContext<HTMLDivElement | null>(null)
 
 export function HistoryNavigation() {
   const { action } = useContext(SourceReturnContext)

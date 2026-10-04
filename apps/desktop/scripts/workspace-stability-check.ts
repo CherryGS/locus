@@ -13,6 +13,23 @@ page.setDefaultTimeout(15000)
 const samples: object[] = []
 let releaseRead: (() => void) | undefined
 let releaseWrite: (() => void) | undefined
+async function checkNavigationLayout() {
+  const layout = await activeWorkspacePage(page).locator('[data-slot="entity-filmstrip"]').evaluate(strip => {
+    const thumbnails = [...strip.querySelectorAll('[aria-describedby]')].map(node => node.getBoundingClientRect())
+    const group = strip.getBoundingClientRect()
+    const header = document.querySelector('.title-bar')!
+    return { pageCenter: document.documentElement.clientWidth / 2,
+      stripCenter: (group.left + group.right) / 2,
+      thumbnailsCenter: (Math.min(...thumbnails.map(rect => rect.left)) + Math.max(...thumbnails.map(rect => rect.right))) / 2,
+      headerNavigations: header.querySelectorAll('nav[aria-label="History"]').length,
+      pageNavigations: document.querySelectorAll('[data-workspace-page] nav[aria-label="History"]').length }
+  })
+  assert(Math.abs(layout.stripCenter - layout.pageCenter) < 1)
+  assert(Math.abs(layout.thumbnailsCenter - layout.pageCenter) < 1, "Even counts must center the complete thumbnail group without an empty slot")
+  assert.equal(layout.headerNavigations, 1)
+  assert.equal(layout.pageNavigations, 0)
+  samples.push({ layout })
+}
 async function trace(label: string, action: () => Promise<unknown>) {
   await page.evaluate("window.__name = (fn) => fn")
   await page.evaluate(() => {
@@ -138,11 +155,13 @@ try {
   assert.equal(await activeWorkspacePage(page).locator('[aria-label="Browsing status"]').count(), 0)
   assert.equal(await page.getByRole("button", { name: "Why this matched", exact: true }).count(), 0)
   await page.waitForFunction(() => document.querySelector('[data-workspace-page][data-active="true"] [data-slot="entity-inspection"]')?.getAttribute('aria-busy') === "false")
+  await checkNavigationLayout()
   await page.screenshot({ path: join(output, "detail-toolbar.png"), animations: "disabled" })
   await page.setViewportSize({ width: 720, height: 480 })
+  await checkNavigationLayout()
   await page.screenshot({ path: join(output, "detail-toolbar-minimum.png"), animations: "disabled" })
   await page.setViewportSize({ width: 1280, height: 800 })
-  await activeWorkspacePage(page).getByRole("button", { name: "Return to source", exact: true }).click()
+  await page.getByRole("navigation", { name: "History", exact: true }).getByRole("button", { name: "Return to source", exact: true }).click()
   const grid = aRoot.locator('[role="grid"]'), firstCell = grid.getByRole("gridcell").first()
   await grid.waitFor()
   const cellBounds = await firstCell.boundingBox()

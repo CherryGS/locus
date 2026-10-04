@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import { RouterProvider } from "@tanstack/react-router"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator } from "@/shared/ui/dropdown-menu"
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs"
@@ -14,12 +14,14 @@ import { useSettingsWorkspace } from "./settings-navigation"
 import { TaskWorkspace } from "./task-workspace"
 import { PageSessionContext, useLibraryRun } from "../providers/library-provider"
 import type { PageCategory } from "../providers/workspace-session"
+import { HistoryPlacementContext } from "./history-navigation"
 
 export function DesktopShell() {
   const run = useLibraryRun()
   const { external, media } = useSettingsWorkspace()
   const settingsStatus = [external, media].filter(Boolean).join("; ")
   const workspace = run?.workspace
+  const [navigation, setNavigation] = useState<HTMLDivElement | null>(null)
   useSyncExternalStore(workspace?.subscribe ?? noSubscribe, workspace?.snapshot ?? zero)
   useSyncExternalStore(run?.imports.subscribe ?? noSubscribe, run?.imports.snapshot ?? zero)
   const closeWaiting = useDelayedPending(!!workspace?.close)
@@ -31,7 +33,7 @@ export function DesktopShell() {
     const page = workspace.open(entry.startsWith("/tag") ? "Tags" : "All content")
     page.router.history.replace(entry)
   }, [workspace])
-  return <div className="flex h-dvh min-w-0 flex-col overflow-hidden bg-background text-foreground">
+  return <HistoryPlacementContext value={navigation}><div className="flex h-dvh min-w-0 flex-col overflow-hidden bg-background text-foreground">
     <header className="title-bar shrink-0 bg-sidebar">
       <div className="title-bar-content flex items-center gap-2 px-2">
         <DropdownMenu>
@@ -50,6 +52,7 @@ export function DesktopShell() {
               </DropdownMenuGroup>
 </DropdownMenuContent>
         </DropdownMenu>
+        <div ref={setNavigation} data-slot="workspace-navigation" className="flex shrink-0 items-center empty:hidden" />
         <Tabs value={workspace?.activeId ?? null} onValueChange={id => { if (typeof id === "string") workspace?.activate(id) }} className="min-w-0 flex-1">
           <TabsList aria-label="Workspace tabs" className="flex min-w-0 items-center gap-1 overflow-x-auto">
             {workspace?.pages.map(page => <div key={page.id} className="flex shrink-0 items-center rounded-md bg-background/40">
@@ -91,7 +94,7 @@ export function DesktopShell() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  </div>
+  </div></HistoryPlacementContext>
 }
 const noSubscribe = () => () => {}
 const zero = () => 0

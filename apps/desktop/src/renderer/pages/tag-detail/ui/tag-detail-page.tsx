@@ -1,4 +1,4 @@
-import { PageTools, HeaderDisplayPlacement } from "@/shared/page-tools"
+import { HeaderDisplayPlacement } from "@/shared/page-tools"
 import { usePageActivity } from "@/shared/page-activity"
 import { useEffect, type ReactNode } from "react"
 import { ArrowLeftIcon, RefreshCwIcon } from "lucide-react"
@@ -64,7 +64,6 @@ export function TagDetailPage({
         aria-label="Tag page tools"
         className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 px-3 py-1.5"
       >
-        <PageTools />
         <Button
           size="icon-sm"
           variant="ghost"

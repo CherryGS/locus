@@ -45,7 +45,12 @@ visibility and stable updates. Visual changes preserve these contracts.
 
 ## Colors
 
-**Selected direction:** dark across the application in this design round.
+**Selected direction:** dark across the application in this design round. On
+2026-10-05 the user selected a SiYuan-like neutral dark-gray foundation, soft
+white text and low-emphasis tool areas, with blue reserved mainly for selection,
+links and important actions. This supersedes the trial green accent direction.
+The [SiYuan default dark theme](https://github.com/siyuan-note/siyuan/blob/master/app/appearance/themes/midnight/theme.css)
+is the reference; its palette is evidence, not an instruction to copy every value.
 
 **Working guidance:** distinguish the application background, grouped surfaces,
 controls and overlays through deliberate tonal layers. Establish legible primary,
@@ -53,12 +58,26 @@ secondary and supporting text roles. Use emphasis to clarify selection, focus an
 important actions; give operation outcomes consistent semantic treatments. Media
 retains its own colors and remains the visual subject in browsing surfaces.
 
-**Open details:** neutral hue and tonal ramp, accent hue and distribution, exact
+**Open details:** exact neutral tonal ramp, blue accent values and distribution, exact
 text/border/status values and contrast in real component states. Numeric color
 tokens will be recorded when chosen and verified; existing CSS values remain
 implementation evidence while this selection is open.
 
 ## Typography
+
+**Selected baseline (2026-10-05):** the user chose 14px ordinary interface text,
+12px supporting metadata, 28px common controls and 16px icons, with readable
+content and compact, quieter tools. SiYuan desktop's default dark appearance is
+the user's preferred reference. These are targets for the next shared style
+migration, not a claim that existing screens already implement them. Do not use
+the supporting-text role for ordinary property values simply to make them fit.
+The user clarified that the button's own box/padding is too large relative to
+the text inside it. Keep ordinary button text at the 14px baseline. The next
+geometry candidate pairs that text with a 20px line height, 28px total height
+and 8px horizontal padding (about 4px above/below the line); icon-only controls
+pair a 16px icon with a 28px square hit area. Do not shrink labels as a substitute
+for reducing excessive padding. This proposal follows the compact proportions
+of [SiYuan's button styles](https://github.com/siyuan-note/siyuan/blob/master/app/src/assets/scss/component/_button.scss).
 
 **Working guidance:** use calm, readable interface typography with coherent
 Chinese and Latin coverage. Make page titles, group headings, labels, values and
@@ -66,7 +85,7 @@ supporting text distinguishable through a small hierarchy. Compact information
 remains readable; quieter metadata still needs sufficient contrast. Use a
 monospaced role where identifiers, paths or expressions benefit from it.
 
-**Open details:** font families and fallback order, role sizes and weights, line
+**Open details:** font families and fallback order, remaining role sizes and weights, line
 heights and truncation/wrapping treatments within existing information contracts.
 The currently imported Geist face is not a confirmed replacement-system choice.
 
@@ -82,10 +101,13 @@ its width cap leaves spare space, preserving the existing inter-card gap; this
 does not center the Tag column browser. Preserve usable content bounds, reading
 space and keyboard focus. Changes in density must preserve ordinary facts and
 available actions.
+The detail filmstrip centers all visible thumbnails and its previous/next actions
+as one group across the page. Back, Forward and Return to source (Esc) live in
+the workspace header and follow only the active page's private navigation.
 The existing page composition remains functional evidence; the density direction
 alone does not authorize new navigation, information hiding or interaction flows.
 
-**Open details:** spacing scale, control/row heights, preview-to-text proportions
+**Open details:** spacing scale, row and exceptional control heights, preview-to-text proportions
 and behavior at narrow desktop window sizes. Verify shared rules using both a
 settings composition and a media card before expanding their application.
 

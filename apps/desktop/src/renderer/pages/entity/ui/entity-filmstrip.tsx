@@ -38,12 +38,11 @@ export function EntityFilmstrip({
     () => nearbyIds(source.sequence, selectedId, capacity),
     [source.sequence, selectedId, capacity]
   )
-  const neighbors = identities.map(({ id, offset }) => ({ entity: source.get(id), offset }))
+  const neighbors = identities.map(({ id }) => source.get(id))
   useEffect(() => {
     source.demand(identities.map((item) => item.id))
   }, [source.demand, identities])
-  const visibleColumns = 2 * Math.max(0, ...neighbors.map(({ offset }) => Math.abs(offset))) + 1
-  const trackWidth = visibleColumns * thumbnailWidth + (visibleColumns - 1) * gap
+  const trackWidth = neighbors.length * thumbnailWidth + Math.max(0, neighbors.length - 1) * gap
 
   useLayoutEffect(() => {
     const element = strip.current
@@ -78,7 +77,7 @@ export function EntityFilmstrip({
         className="relative h-full shrink-0 overflow-hidden"
         style={{ width: trackWidth }}
       >
-        {neighbors.map(({ entity, offset }) => {
+        {neighbors.map((entity, index) => {
           const thumbnail = entityCardDisplay(entity).preview?.src
           const name =
             entity.components.find((component) => component.kind === "file")?.originalName ?? entityLabel(entity)
@@ -90,8 +89,8 @@ export function EntityFilmstrip({
             <ContextMenu key={entity.id}><ContextMenuTrigger render={<Button
 
               variant="ghost"
-              className="absolute top-2 h-18 -translate-x-1/2 p-0"
-              style={{ left: `calc(50% + ${offset * (thumbnailWidth + gap)}px)`, width: thumbnailWidth }}
+              className="absolute top-2 h-18 p-0"
+              style={{ left: index * (thumbnailWidth + gap), width: thumbnailWidth }}
               aria-label={`View ${name}`}
               aria-describedby={componentLabelId}
               aria-current={selected ? "true" : undefined}

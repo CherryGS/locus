@@ -1,4 +1,4 @@
-import { PageTools, HeaderDisplayPlacement } from "@/shared/page-tools"
+import { HeaderDisplayPlacement } from "@/shared/page-tools"
 import { usePageActivity } from "@/shared/page-activity"
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "@tanstack/react-router"
@@ -665,7 +665,6 @@ export function EntityPage({
         </span>
       </HeaderDisplay>}
       <header data-slot="entity-page-header" className="flex shrink-0 items-center gap-2 px-3">
-        <PageTools />
         {viewing && selected ? (
           <EntityFilmstrip
             source={source}
