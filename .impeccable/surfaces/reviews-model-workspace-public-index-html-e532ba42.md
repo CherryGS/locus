@@ -20,7 +20,8 @@ model information one selection away.
 
 OWN-WORLD: Preserve Locus charcoal surfaces, Geist/CJK sans, muted mint selection,
 one-pixel boundaries, compact controls and 4–8px corners. White card text sits on
-translucent black; classification labels are small rounded rectangles.
+translucent black. Type and family are small rounded rectangles at the cover's
+top left; title and version remain in the bottom overlay.
 
 STORY: Open an independent model tab, scan covers and four identifying fields,
 select a model, edit its local version/type/family, and observe source fallback

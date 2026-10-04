@@ -16,8 +16,9 @@ uv run python -m http.server 8765 --bind 127.0.0.1 --directory .impeccable/previ
   search. Selection, grid scroll, visibility and drafts are private to each tab;
   simulated saved model values are shared.
 - Cards are 240 by 320 CSS pixels with cover cropping and 8px corners. White
-  title, version and classification text sits on 76% black. Classification
-  rectangles have 4px corners. Titles clamp to two lines; version uses one.
+  title and version text sits on a 76% black footer. Model type and family sit
+  together at the cover's top left, each on its own 76% black rectangle with
+  4px corners. Titles clamp to two lines; version uses one.
 - The 310px inspector keeps the local version, model type and family editable.
   Empty local inputs show source values as placeholders and attribute their
   origin. Saving an empty value restores the effective source value on the card.
@@ -41,6 +42,14 @@ matching solely to exercise search/Filter composition and explicit application;
 it is not a proposed replacement for Locus's existing raw Filter editor/language.
 
 ## Evidence and observations
+
+The follow-up `classification-top.png` shows the user's proposed type/family
+placement at the cover's top left, in the current 841x958 CSS-pixel viewport with
+the inspector closed. Classification labels are inset 12px and the default
+one-line-title footer is 64px tall. Card size remains 240x320. Toggling cover-only
+removes both top and bottom overlays; restoring defaults restores seven
+classification rows and eight footers without duplicate labels. The earlier
+screenshots below retain the preceding bottom-classification layout as history.
 
 Browser checks on 2026-10-04 used the Codex in-app browser at the actual 1280x720
 viewport and a temporary 900x720 desktop viewport. Both have no document-width

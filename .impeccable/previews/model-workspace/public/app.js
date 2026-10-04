@@ -42,8 +42,8 @@
     const version=v.version&&effective(m,'version')?`<div class="card-version">${escape(effective(m,'version'))}</div>`:'';
     const classifications=['type','family'].filter(f=>v[f]&&effective(m,f)).map(f=>`<span title="${fields[f]}：${escape(effective(m,f))}">${escape(effective(m,f))}</span>`).join('');
     const extra=[v.format?'SafeTensors':'',v.size?m.size:''].filter(Boolean).map(x=>`<span>${escape(x)}</span>`).join('');
-    const content=title+version+(classifications?`<div class="classification">${classifications}</div>`:'')+(extra?`<div class="card-extra">${extra}</div>`:'');
-    return content?`<div class="card-info">${content}</div>`:'';
+    const content=title+version+(extra?`<div class="card-extra">${extra}</div>`:'');
+    return (classifications?`<div class="classification">${classifications}</div>`:'')+(content?`<div class="card-info">${content}</div>`:'');
   }
   function renderGrid() {
     const s=active(); if(!s)return;
@@ -58,7 +58,7 @@
   function updateCards() {
     const s=active(); if(!s)return;
     $('grid').querySelectorAll('.model-card').forEach(card=>{
-      card.querySelector('.card-info')?.remove();
+      card.querySelectorAll('.card-info,.classification').forEach(info=>info.remove());
       card.insertAdjacentHTML('beforeend',cardInfo(model(card.dataset.model),s));
       card.setAttribute('aria-pressed',String(card.dataset.model===s.selection));
     });
