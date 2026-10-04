@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Locus · 模型页设计预览</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="box" viewBox="0 0 24 24"><path d="m21 8-9 5-9-5m9 5v9M3 7l9-5 9 5v10l-9 5-9-5z"/></symbol>
+    <symbol id="chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></symbol>
+    <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="filter" viewBox="0 0 24 24"><path d="M4 5h16l-6 7v7l-4-2v-5z"/></symbol>
+    <symbol id="sliders" viewBox="0 0 24 24"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
+    <symbol id="locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></symbol>
+    <symbol id="refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/></symbol>
+    <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></symbol>
+    <symbol id="file" viewBox="0 0 24 24"><path d="M13 3H5v18h14V9zM13 3v6h6"/></symbol>
+    <symbol id="image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><path d="m21 15-5-5L5 21"/></symbol>
+  </defs></svg>
+  <header class="titlebar">
+    <button id="locus" class="brand" popovertarget="launcher">locus <svg class="icon"><use href="#chevron"/></svg></button>
+    <div id="tabs" class="tabs" role="tablist" aria-label="已打开的页面"></div>
+  </header>
+  <div id="launcher" class="popover launcher" popover>
+    <div class="popover-title">打开页面</div>
+    <button id="new-model" class="menu-item"><svg class="icon"><use href="#box"/></svg><span>模型</span><span class="muted menu-note">新标签页</span></button>
+  </div>
+  <main id="workspace" class="workspace">
+    <section class="collection" aria-label="模型列表">
+      <div class="toolbar">
+        <div class="search-group"><svg class="icon"><use href="#search"/></svg><input id="search-input" type="search" aria-label="搜索模型" placeholder="搜索模型…" autocomplete="off"><button id="filter-trigger" popovertarget="filter-popover"><svg class="icon"><use href="#filter"/></svg>Filter</button></div>
+        <div class="toolbar-actions">
+          <button id="refresh" class="icon-button" aria-label="刷新列表" title="刷新列表"><svg class="icon"><use href="#refresh"/></svg></button>
+          <button id="locate" class="icon-button" aria-label="定位选中模型" title="定位选中模型"><svg class="icon"><use href="#locate"/></svg></button>
+          <button id="display-trigger" class="text-button" popovertarget="display-popover"><svg class="icon"><use href="#sliders"/></svg><span>显示</span></button>
+          <button id="inspector-toggle" class="icon-button" aria-label="显示或隐藏资料区" aria-pressed="true" title="资料区"><svg class="icon"><use href="#panel"/></svg></button>
+        </div>
+      </div>
+      <div id="grid-scroll" class="grid-scroll"><div id="grid" class="grid"></div><div id="empty" class="empty" hidden><svg class="icon"><use href="#search"/></svg><h2>没有匹配的模型</h2><p>试试其他关键词，或清除筛选。</p><button id="clear-query" class="text-button bordered">清除搜索与 Filter</button></div></div>
+    </section>
+    <aside id="inspector" class="inspector" aria-label="模型资料">
+      <div class="panel-header"><span>模型资料</span><button id="close-inspector" class="icon-button" aria-label="关闭资料区"><svg class="icon"><use href="#close"/></svg></button></div>
+      <div id="inspector-content" class="inspector-content"></div>
+    </aside>
+    <div id="no-tabs" class="no-tabs" hidden><svg class="icon"><use href="#box"/></svg><h1>打开一个页面</h1><button id="empty-new" class="text-button bordered">打开模型页</button></div>
+  </main>
+  <footer class="statusbar"><span id="result-count"></span><span class="preview-note">设计预览 · 示例数据，仅保存在本页</span><button id="demo-trigger" popovertarget="demo-popover">交互演示</button></footer>
+  <div id="display-popover" class="popover display-popover" popover><div class="popover-title">卡片信息</div><div id="display-options"></div><hr><button id="cover-only" class="menu-item">仅显示封面</button><button id="display-default" class="menu-item">恢复默认</button></div>
+  <div id="filter-popover" class="popover filter-popover" popover>
+    <label class="popover-title" for="filter-input">Filter 表达式</label><textarea id="filter-input" rows="3" spellcheck="false" placeholder="输入表达式"></textarea><p class="muted">布局预览支持文本包含匹配；完整 Filter 沿用现有编辑器。</p><p id="filter-error" class="field-error" role="status"></p><div class="popover-actions"><button id="filter-clear" class="text-button">清除</button><button id="filter-apply" class="text-button primary">应用</button></div>
+  </div>
+  <div id="info-popover" class="popover info-popover" popover><strong>本地值优先</strong><p>留空时使用已保存来源中的信息。没有来源值时保持为空。这里的修改会自动保存；清空字段即可恢复来源值。</p></div>
+  <div id="demo-popover" class="popover demo-popover" popover><div class="popover-title">示例交互</div><p class="muted">这些操作只影响本页的示例数据。</p><label class="check-row"><input id="slow-save" type="checkbox">延迟保存，观察编辑与切页</label><button id="fail-next" class="menu-item">让下一次保存失败</button><button id="conflict-next" class="menu-item">模拟其他标签修改版本</button><p id="demo-state" role="status" class="muted"></p></div>
+</body>
+</html>
