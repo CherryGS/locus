@@ -1,9 +1,57 @@
 ---
 name: Locus
-description: A quiet, refined dark desktop interface with media-led browsing and moderately compact information surfaces.
+description: A quiet dark desktop workspace with integrated document tabs, readable text and compact controls.
+colors:
+  workspace: "#202124"
+  shell: "#18181b"
+  surface: "#27282c"
+  panel: "#242528"
+  overlay: "#292a2f"
+  control: "#26272b"
+  foreground: "#dedfe3"
+  supporting: "#a9adb6"
+  primary: "#8ab4f8"
+  on-primary: "#13233e"
+  tab-active: "#303237"
+  border: "#36383e"
+  input-border: "#45484f"
+typography:
+  body:
+    fontFamily: "Geist Variable, Microsoft YaHei UI, PingFang SC, Noto Sans CJK SC, sans-serif"
+    fontSize: "14px"
+    lineHeight: "20px"
+    fontWeight: 400
+  supporting:
+    fontSize: "12px"
+    lineHeight: "16px"
+rounded:
+  control: "6px"
+  tab: "8px"
 components:
   entity-grid-toolbar:
     height: "40px"
+  workspace-titlebar:
+    backgroundColor: "{colors.shell}"
+    height: "40px"
+  workspace-tab-active:
+    backgroundColor: "{colors.tab-active}"
+    textColor: "{colors.foreground}"
+    height: "32px"
+    rounded: "{rounded.tab}"
+    typography: "{typography.body}"
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    height: "28px"
+    padding: "0 8px"
+    rounded: "{rounded.control}"
+    typography: "{typography.body}"
+  input:
+    backgroundColor: "{colors.control}"
+    height: "28px"
+    padding: "0 8px"
+    rounded: "{rounded.control}"
+    typography: "{typography.body}"
 ---
 
 # Design System: Locus
@@ -20,11 +68,11 @@ completed implementation. The current shadcn defaults and rejected historical
 samples do not establish the selected palette or component appearance.
 
 The [first renderer candidate](.impeccable/research/visual-foundation-v01.md)
-applies concrete palette, type and control choices to shared primitives and
-settings rows, together with the user's grid alignment, contrast and toolbar
-feedback. Palette and type choices remain trial values while those details below
-are open. The selected, verified 40px browsing toolbar is recorded in the
-frontmatter; this does not finalize the whole application's visual identity.
+is historical evidence. The 2026-10-05 shared foundation replaces its green
+palette and small button labels with the user's neutral-dark/blue direction and
+14px/28px proportions. The user's Savor integrated-titlebar screenshot is the
+primary reference for the workspace chrome. The tokens above describe this
+implemented checkpoint, not a completed migration of every content role.
 
 - **Selected direction** records explicit user choices.
 - **Working guidance** interprets that direction for the next component trials;
@@ -58,25 +106,26 @@ secondary and supporting text roles. Use emphasis to clarify selection, focus an
 important actions; give operation outcomes consistent semantic treatments. Media
 retains its own colors and remains the visual subject in browsing surfaces.
 
-**Open details:** exact neutral tonal ramp, blue accent values and distribution, exact
-text/border/status values and contrast in real component states. Numeric color
-tokens will be recorded when chosen and verified; existing CSS values remain
-implementation evidence while this selection is open.
+**Implemented foundation:** charcoal workspace and a darker titlebar, soft white
+text, quiet gray tools and light blue for actionable emphasis. The frontmatter
+records the values used by the shared styles. Existing success/error semantics
+remain; future component work must check its own contrast and state combinations.
 
 ## Typography
 
 **Selected baseline (2026-10-05):** the user chose 14px ordinary interface text,
 12px supporting metadata, 28px common controls and 16px icons, with readable
 content and compact, quieter tools. SiYuan desktop's default dark appearance is
-the user's preferred reference. These are targets for the next shared style
-migration, not a claim that existing screens already implement them. Do not use
+the user's preferred reference. Shared text defaults, buttons, inputs and selects
+now implement these proportions; older explicit per-content sizes still require
+role-by-role reconciliation. Do not use
 the supporting-text role for ordinary property values simply to make them fit.
 The user clarified that the button's own box/padding is too large relative to
-the text inside it. Keep ordinary button text at the 14px baseline. The next
-geometry candidate pairs that text with a 20px line height, 28px total height
+the text inside it. Keep ordinary button text at the 14px baseline. Shared control
+geometry pairs that text with a 20px line height, 28px total height
 and 8px horizontal padding (about 4px above/below the line); icon-only controls
 pair a 16px icon with a 28px square hit area. Do not shrink labels as a substitute
-for reducing excessive padding. This proposal follows the compact proportions
+for reducing excessive padding. This follows the compact proportions
 of [SiYuan's button styles](https://github.com/siyuan-note/siyuan/blob/master/app/src/assets/scss/component/_button.scss).
 
 **Working guidance:** use calm, readable interface typography with coherent
@@ -137,6 +186,21 @@ surface adaptations of that system.
 
 **Working guidance:**
 
+- **Integrated workspace tabs:** the application menu, history actions and tabs
+  share the 40px titlebar. A tab is one continuous 32px-high, 8px-radius surface,
+  including its type icon, 14px label and close target. Only the active tab has
+  a persistent fill; inactive tabs remain quiet. Width is content-led between
+  136px and 216px, with truncation and the full title on hover. The 24px close
+  target always keeps its space and appears on active, hovered or keyboard-focused
+  tabs (always visible for non-hover input). Attention stays visible independently.
+  New page follows the tab list; spare space remains available for native dragging.
+  Overflow scrolls within the header without squeezing the close targets.
+  Primary reference: the user-provided Savor screenshot and
+  [Savor's tab styling](https://github.com/royc01/notion-theme/blob/main/style/module/tab-bar.css).
+  [Obsidian](https://obsidian.md/help/tabs) provides the adjacent new-tab convention;
+  [VS Code](https://code.visualstudio.com/docs/editing/getting-started/userinterface)
+  provides the document-tab and overflow comparison. These references do not
+  add splitting, pinning or detachable-window behavior to Locus.
 - **Entity browsing toolbar (selected):** use a compact 40px toolbar with an
   ordinary-size page title, adjacent result/selection metadata and right-aligned
   Filter/refresh actions. Omit the duplicate grid icon. Keep the inspection

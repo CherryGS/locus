@@ -72,6 +72,10 @@ try {
   await page.getByLabel("ffprobe", { exact: true }).focus()
   await page.keyboard.press("Tab")
   assert.equal(await page.locator(":focus").getAttribute("id"), "media-ffmpeg")
+  await page.waitForFunction(() => {
+    const bounds = document.querySelector('[role="dialog"][data-open]')?.getBoundingClientRect()
+    return bounds && bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight
+  })
   await page.screenshot({ path: join(output, "narrow.png"), fullPage: true })
   await page.setViewportSize({ width: 1200, height: 800 })
   await page.getByRole("button", { name: "External connection", exact: true }).click()

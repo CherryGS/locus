@@ -1,11 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from "react"
 import { RouterProvider } from "@tanstack/react-router"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator } from "@/shared/ui/dropdown-menu"
-import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs"
-import { ChevronDownIcon, XIcon, PlusIcon, CircleAlertIcon } from "lucide-react"
+import { ChevronDownIcon, CircleAlertIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
-import { Separator } from "@/shared/ui/separator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/shared/ui/dialog"
 import { PageActivityContext } from "@/shared/page-activity"
 import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
@@ -15,6 +13,7 @@ import { TaskWorkspace } from "./task-workspace"
 import { PageSessionContext, useLibraryRun } from "../providers/library-provider"
 import type { PageCategory } from "../providers/workspace-session"
 import { HistoryPlacementContext } from "./history-navigation"
+import { WorkspaceTabs } from "./workspace-tabs"
 
 export function DesktopShell() {
   const run = useLibraryRun()
@@ -34,10 +33,10 @@ export function DesktopShell() {
     page.router.history.replace(entry)
   }, [workspace])
   return <HistoryPlacementContext value={navigation}><div className="flex h-dvh min-w-0 flex-col overflow-hidden bg-background text-foreground">
-    <header className="title-bar shrink-0 bg-sidebar">
-      <div className="title-bar-content flex items-center gap-2 px-2">
+    <header className="title-bar workspace-titlebar shrink-0">
+      <div className="title-bar-content flex items-center gap-3 px-2">
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="sm" />} aria-label="Locus" aria-description={settingsStatus ? `Settings: ${settingsStatus}` : undefined} title={settingsStatus ? `Settings: ${settingsStatus}` : "Locus"} id="locus-launcher">
+          <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="workspace-launcher" />} aria-label="Locus" aria-description={settingsStatus ? `Settings: ${settingsStatus}` : undefined} title={settingsStatus ? `Settings: ${settingsStatus}` : "Locus"} id="locus-launcher">
             Locus {settingsStatus && <CircleAlertIcon />}<ChevronDownIcon data-icon="inline-end" />
           </DropdownMenuTrigger>
           <DropdownMenuContent>
@@ -50,22 +49,13 @@ export function DesktopShell() {
                 <DropdownMenuItem disabled={!run?.imports.available || run.imports.selecting} onClick={() => void run?.imports.select()}>Import</DropdownMenuItem>
                 <DropdownMenuItem id="settings-trigger" aria-label="Settings" aria-description={settingsStatus || undefined} title={settingsStatus || undefined} className="flex-col items-start gap-1" onClick={() => run?.settingsNavigation.setOpen(true)}>Settings{settingsStatus && <span className="max-w-64 text-xs text-muted-foreground">{settingsStatus}</span>}</DropdownMenuItem>
               </DropdownMenuGroup>
-</DropdownMenuContent>
+          </DropdownMenuContent>
         </DropdownMenu>
         <div ref={setNavigation} data-slot="workspace-navigation" className="flex shrink-0 items-center empty:hidden" />
-        <Tabs value={workspace?.activeId ?? null} onValueChange={id => { if (typeof id === "string") workspace?.activate(id) }} className="min-w-0 flex-1">
-          <TabsList aria-label="Workspace tabs" className="flex min-w-0 items-center gap-1 overflow-x-auto">
-            {workspace?.pages.map(page => <div key={page.id} className="flex shrink-0 items-center rounded-md bg-background/40">
-              <TabsTrigger id={`workspace-tab-${page.id}`} aria-controls={`workspace-panel-${page.id}`} value={page.id} render={<Button variant={page.active ? "secondary" : "ghost"} size="sm" />} className="max-w-56 min-w-20 justify-start truncate" title={page.label}>{page.label}</TabsTrigger>
-              {page.attention && <Button variant="ghost" size="icon-sm" aria-label={`Resolve ${page.label} edits`} title="Edits need attention" onClick={() => workspace.resolveAttention(page)}><CircleAlertIcon /></Button>}
-              <Button variant="ghost" size="icon-sm" aria-label={`Close ${page.label}`} title={`Close ${page.label}`} onClick={() => void workspace.requestClose(page)}><XIcon /></Button>
-            </div>)}
-          </TabsList>
-        </Tabs>
-        <Button variant="ghost" size="icon-sm" aria-label="Open page" title="Open All content" onClick={() => workspace?.open("All content")}><PlusIcon /></Button>
+        <WorkspaceTabs workspace={workspace} />
+        <div className="min-w-8 flex-1 self-stretch" aria-hidden="true" />
       </div>
     </header>
-    <Separator />
     <TaskWorkspace>
       <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
         {!workspace?.pages.length && <Empty className="h-full"><EmptyHeader><EmptyTitle>Open a workspace</EmptyTitle></EmptyHeader><Button variant="outline" onClick={() => workspace?.open("Media")}>Open Media</Button></Empty>}

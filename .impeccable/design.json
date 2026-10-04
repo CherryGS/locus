@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-04T23:15:08Z",
+  "title": "Design System: Locus",
+  "extensions": {
+    "motion": [
+      {
+        "name": "tab-state",
+        "value": "background-color 120ms, color 120ms",
+        "purpose": "Hover and activation of the complete workspace tab; disabled under reduced motion."
+      },
+      {
+        "name": "control-state",
+        "value": "color/background/border 150ms",
+        "purpose": "Shared controls; no press translation or navigation entrance effect."
+      }
+    ],
+    "typographyMeta": {
+      "body": {
+        "displayName": "Desktop text",
+        "purpose": "Ordinary interface text, controls and tab labels."
+      },
+      "supporting": {
+        "displayName": "Supporting text",
+        "purpose": "Metadata and secondary explanations, not ordinary values by default."
+      }
+    }
+  },
+  "narrative": {
+    "overview": "A quiet desktop workspace. The user-selected SiYuan dark direction supplies the neutral palette and compact controls; the supplied Savor screenshot guides integrated titlebar tabs.",
+    "keyCharacteristics": [
+      "One titlebar layer for tools and document tabs",
+      "Readable text with compact control padding",
+      "Media remains the subject of the workspace"
+    ],
+    "rules": [
+      {
+        "name": "One tab surface",
+        "body": "Type icon, title and close target share the active fill. Close-target space stays reserved when its icon is hidden. New page follows the list.",
+        "section": "components"
+      },
+      {
+        "name": "Preserve content while navigating",
+        "body": "Tab appearance changes must preserve retained page geometry, focus, history and close preparation.",
+        "section": "components"
+      },
+      {
+        "name": "Compact padding, readable labels",
+        "body": "Ordinary labels retain the body size; supporting-text size is not a way to shrink a large control.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Keep keyboard focus and unresolved-edit indicators visible.",
+      "Use primary color for state and important actions."
+    ],
+    "donts": [
+      "Do not apply separate button fills to a tab title and its close target.",
+      "Do not promote historical green trial colors or unresolved per-page type sizes into new rules."
+    ]
+  }
+}

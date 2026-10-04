@@ -12,6 +12,13 @@
 
 ## Boundaries and control geometry
 
+- Workspace tabs share the titlebar as document surfaces, not separate action
+  buttons. Group title/icon and close target under one active background. Keep
+  close-target space stable on hover/focus; place new-page next to the tab list
+  and retain native window dragging space.
+- Ordinary controls use 14px text with 20px line height in a 28px control, with
+  8px horizontal padding. Keep the dense 24px variants for supporting actions;
+  do not shrink ordinary labels to compensate for excessive surrounding space.
 - Page header dividers belong to the page container, outside padded or
   width-constrained header content. Draw one 1px divider across that container
   with the shared Separator and border token. A child summary strip must not
