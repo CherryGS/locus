@@ -3,13 +3,13 @@ import { useRouter } from "@tanstack/react-router"
 import { FolderOpenIcon, PlugIcon, SlidersHorizontalIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { externalStatus, groupStatus, mediaPending } from "@/features/settings"
-import { useLibrarySession } from "../providers/library-provider"
+import { useLibrarySession, useLibraryRun } from "../providers/library-provider"
 
 const noSubscribe = () => () => {}
 const zero = () => 0
 const itemClassName = "w-full justify-start gap-2 overflow-hidden pl-0 pr-3 has-data-[icon=inline-start]:pl-0"
 export function useSettingsWorkspace() {
-  const session = useLibrarySession()
+  const session = useLibraryRun()
   useSyncExternalStore(
     session?.settingsNavigation.subscribe ?? noSubscribe,
     session?.settingsNavigation.snapshot ?? zero,

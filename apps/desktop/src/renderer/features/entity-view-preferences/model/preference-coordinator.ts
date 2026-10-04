@@ -30,6 +30,7 @@ export class PreferenceCoordinator {
   private entries = new Map<string, Entry>()
   private listeners = new Set<() => void>()
   private needed = new Set<string>()
+  private consumers = new Map<object, string[]>()
   private version = 0
   private live = true
   private sealed = false
@@ -77,7 +78,17 @@ export class PreferenceCoordinator {
     }
     return entry
   }
-  demand(ids: string[]) {
+  acquireDemand() {
+    const consumer = {}
+    let released = false
+    return {
+      update: (ids: string[]) => { if (!released) this.demand(ids, consumer) },
+      release: () => { if (released) return; released = true; this.consumers.delete(consumer); this.demand([], consumer); this.consumers.delete(consumer) },
+    }
+  }
+  demand(ids: string[], consumer: object = this) {
+    this.consumers.set(consumer, ids)
+    ids = [...new Set([...this.consumers.values()].flat())]
     this.needed = new Set(ids)
     for (const id of ids) {
       const entry = this.entries.get(id)

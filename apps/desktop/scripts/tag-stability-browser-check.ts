@@ -1,3 +1,4 @@
+import { activeWorkspacePage } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { chromium } from "playwright"
@@ -29,7 +30,7 @@ try {
   for (let i = 0; i < 35; i++) await create(`Item ${String(i).padStart(2, "0")}`, root)
   const id = data.images[0].entityId
   await page.goto(`${preview.origin}/#/entity?mode=inspect&entityId=${id}`)
-  await page.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
+  await activeWorkspacePage(page).locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   const overview = page.getByRole("complementary", { name: "Overview", exact: true })
   await overview.getByRole("button", { name: "Add tags", exact: true }).click()

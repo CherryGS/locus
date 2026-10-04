@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuGroup, ContextMenuItem } from "@/shared/ui/context-menu"
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { entityCardDisplay, entityLabel, type EntityItem, type EntitySource } from "@/entities/entity"
 import { Button } from "@/shared/ui/button"
@@ -28,6 +29,7 @@ export function EntityFilmstrip({
   onSelect,
   onNavigate,
 }: EntityFilmstripProps) {
+  const prefix = useId()
   const strip = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
   const columns = Math.max(1, Math.floor((width - navigationWidth + gap) / (thumbnailWidth + gap)))
@@ -83,10 +85,10 @@ export function EntityFilmstrip({
           const selected = entity.id === selectedId
           const viewId = viewFor(entity)
           const componentLabel = availableViews(entity).find((view) => view.id === viewId)?.label ?? "No view"
-          const componentLabelId = `filmstrip-component-${entity.id}`
+          const componentLabelId = `${prefix}-filmstrip-component-${entity.id}`
           return (
-            <Button
-              key={entity.id}
+            <ContextMenu key={entity.id}><ContextMenuTrigger render={<Button
+
               variant="ghost"
               className="absolute top-2 h-18 -translate-x-1/2 p-0"
               style={{ left: `calc(50% + ${offset * (thumbnailWidth + gap)}px)`, width: thumbnailWidth }}
@@ -96,7 +98,8 @@ export function EntityFilmstrip({
               tabIndex={selected ? 0 : -1}
               title={name}
               onClick={() => onSelect(entity)}
-            >
+            />}>
+
               <span
                 className={cn(
                   "relative flex size-full items-center justify-center overflow-hidden rounded-sm border transition-colors motion-reduce:transition-none",
@@ -120,7 +123,10 @@ export function EntityFilmstrip({
                   {componentLabel}
                 </span>
               </span>
-            </Button>
+            </ContextMenuTrigger><ContextMenuContent><ContextMenuGroup>
+              <ContextMenuItem onClick={() => onSelect(entity)}>Open</ContextMenuItem>
+              {source.openInNewTab && <ContextMenuItem onClick={() => source.openInNewTab?.(entity.id)}>Open in new tab</ContextMenuItem>}
+            </ContextMenuGroup></ContextMenuContent></ContextMenu>
           )
         })}
       </div>

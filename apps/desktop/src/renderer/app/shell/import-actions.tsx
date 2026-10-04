@@ -1,6 +1,6 @@
 import { ImportButton } from "@/features/file-import"
-import { useLibrarySession } from "../providers/library-provider"
+import { useLibraryRun } from "../providers/library-provider"
 export function ImportActions() {
-  const session = useLibrarySession()
+  const session = useLibraryRun()
   return session ? <ImportButton coordinator={session.imports} /> : null
 }

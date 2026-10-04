@@ -1,3 +1,4 @@
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuGroup, ContextMenuItem } from "@/shared/ui/context-menu"
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { EntityCard } from "./entity-card"
 import type { EntityItem } from "../model/entity-item"
@@ -279,11 +280,16 @@ export function EntityGrid({
                   onClick={() => select(row * columns + column)}
                   onDoubleClick={() => onOpen(entity)}
                 >
+                  <ContextMenu><ContextMenuTrigger render={<div className="h-full" />}>
                   <EntityCard
                     componentKind={componentFor(entity)}
                     entity={entity}
                     titleId={`${cellId(id)}-title`}
                   />
+                  </ContextMenuTrigger><ContextMenuContent><ContextMenuGroup>
+                    <ContextMenuItem onClick={() => onOpen(entity)}>Open</ContextMenuItem>
+                    {source.openInNewTab && <ContextMenuItem onClick={() => source.openInNewTab?.(id)}>Open in new tab</ContextMenuItem>}
+                  </ContextMenuGroup></ContextMenuContent></ContextMenu>
                 </div>
               )
             })}

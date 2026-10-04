@@ -56,6 +56,7 @@ export class TagCoordinator {
     this.changed()
   }
   host(closing: boolean) {
+    if (this.hostClosing === closing) return
     this.hostClosing = closing
     if (closing) this.opened = false
     this.changed()

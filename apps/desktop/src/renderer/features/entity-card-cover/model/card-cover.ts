@@ -30,6 +30,7 @@ type Entry = {
 export class CardCoverCoordinator {
   private entries = new Map<string, Entry>()
   private needed = new Set<string>()
+  private consumers = new Map<object, string[]>()
   private listeners = new Set<() => void>()
   private revision = 0
   private live = true
@@ -44,7 +45,17 @@ export class CardCoverCoordinator {
   }
   private changed() { this.revision++; this.listeners.forEach(listener => listener()) }
   host(closing: boolean, available: boolean) { this.closing = closing; if (!available) this.dispose() }
-  demand(ids: string[]) {
+  acquireDemand() {
+    const consumer = {}
+    let released = false
+    return {
+      update: (ids: string[]) => { if (!released) this.demand(ids, consumer) },
+      release: () => { if (released) return; released = true; this.consumers.delete(consumer); this.demand([], consumer); this.consumers.delete(consumer) },
+    }
+  }
+  demand(ids: string[], consumer: object = this) {
+    this.consumers.set(consumer, ids)
+    ids = [...new Set([...this.consumers.values()].flat())]
     this.needed = new Set(ids)
     const unread = ids.filter(id => !this.get(id).read)
     for (const id of unread) this.get(id).read = true

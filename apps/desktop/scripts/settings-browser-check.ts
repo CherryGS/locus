@@ -1,3 +1,4 @@
+import { openWorkspaceEntry } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
@@ -46,7 +47,7 @@ try {
   await page.getByLabel("ffprobe", { exact: true }).fill("saved-probe")
   await page.getByRole("button", { name: "Close", exact: true }).click()
   await page.getByRole("grid", { name: "Entities" }).waitFor()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   assert.equal(await page.getByLabel("ffprobe", { exact: true }).inputValue(), "saved-probe")
   await page.getByRole("button", { name: "Save", exact: true }).click()
   await page.getByText("Saved · restart required", { exact: true }).waitFor()
@@ -114,7 +115,7 @@ try {
   )
   await page.getByRole("button", { name: "Close", exact: true }).click()
   await page.getByRole("grid", { name: "Entities" }).waitFor()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   await token.getByRole("button", { name: "Recover Token reset", exact: true }).click()
   await token.getByText("Token reset completed.", { exact: true }).waitFor()
   await page.waitForFunction(() => !!(document.querySelector("#external-token") as HTMLInputElement)?.value)
@@ -150,7 +151,7 @@ try {
   const occupiedAddress = `127.0.0.1:${bound.port}`
   await page.getByLabel("Bind address", { exact: true }).fill(occupiedAddress)
   await page.getByRole("button", { name: "Close", exact: true }).click()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   assert.equal(await page.getByLabel("Bind address", { exact: true }).inputValue(), occupiedAddress)
   await external.getByRole("button", { name: "Save address", exact: true }).click()
   await external.getByText("Saved · restart required", { exact: true }).waitFor()
@@ -166,7 +167,7 @@ try {
   assert.equal(backend.availability.status, "normal")
   await page.goto(`${preview.origin}/#/entity`)
   await page.getByRole("grid", { name: "Entities" }).waitFor()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   await external.getByText("External entry unavailable", { exact: true }).waitFor()
   assert.equal(await external.getByRole("button", { name: "Copy address", exact: true }).count(), 0)
   const beforeAddressReset = (await backend.client.GET("/api/v1/external-access/token")).data!

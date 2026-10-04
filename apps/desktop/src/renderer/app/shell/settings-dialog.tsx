@@ -37,7 +37,7 @@ export function SettingsDialog() {
     >
       <DialogContent
         className="flex h-[90dvh] w-[90vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
-        finalFocus={hostClosing ? false : () => document.getElementById("settings-trigger")}
+        finalFocus={hostClosing ? false : () => document.getElementById("locus-launcher")}
         onKeyDown={(event) => event.stopPropagation()}
       >
         <header className="flex h-12 shrink-0 items-center justify-between gap-3 px-5 pr-12">

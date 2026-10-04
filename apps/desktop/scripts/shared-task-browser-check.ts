@@ -1,3 +1,4 @@
+import { workspaceLocation } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { join } from "node:path"
@@ -43,12 +44,12 @@ try {
   })
   await page.waitForFunction(() => ((window as any).__retainedGrid as HTMLElement).scrollTop > 0)
   const gridScroll = await grid.evaluate((element) => element.scrollTop)
-  const gridDestination = page.url()
+  const gridDestination = (await workspaceLocation(page))
   await page.getByRole("button", { name: /^Tasks/ }).click()
   await page.getByRole("dialog", { name: "Tasks this run" }).waitFor()
   await page.keyboard.press("Escape")
   await page.getByRole("dialog", { name: "Tasks this run" }).waitFor({ state: "hidden" })
-  assert.equal(page.url(), gridDestination)
+  assert.equal((await workspaceLocation(page)), gridDestination)
   assert.equal(
     await grid.evaluate(
       (element) =>
@@ -76,7 +77,7 @@ try {
   await page.keyboard.press("+")
   const imageTransform = await image.locator("img").evaluate((element) => element.style.transform)
   const imageBox = await image.boundingBox()
-  const initial = page.url()
+  const initial = (await workspaceLocation(page))
   let listReads = 0
   page.on("request", (request) => {
     if (new URL(request.url()).pathname === "/api/v1/entities") listReads++
@@ -136,7 +137,7 @@ try {
   assert(generated.data)
   await terminal(generated.data.task_id)
   await page.getByRole("button", { name: /Tasks.*5 records.*1 need attention/ }).waitFor()
-  assert.equal(page.url(), initial)
+  assert.equal((await workspaceLocation(page)), initial)
   assert.equal(listReads, 0)
   await page.getByRole("button", { name: /^Tasks/ }).click()
   const region = page.getByRole("dialog", { name: "Tasks this run" })
@@ -196,7 +197,7 @@ try {
   const standaloneEntry = region.locator(`[data-task-record="${success.data.task_id}"]`)
   await region.getByRole("button", { name: "Check results", exact: true }).focus()
   await page.keyboard.press("Alt+ArrowLeft")
-  assert.equal(page.url(), initial, "task focus owns history keys")
+  assert.equal((await workspaceLocation(page)), initial, "task focus owns history keys")
   for (let index = 0; index < 25; index++) {
     await page.keyboard.press("Tab")
     // Base UI's sentinel redirects focus on its queued focus frame.
@@ -214,7 +215,7 @@ try {
   assert.equal(await image.locator("img").evaluate((element) => element.style.transform), imageTransform)
   await page.keyboard.press("Escape")
   await region.waitFor({ state: "hidden" })
-  assert.equal(page.url(), initial, "task Escape must not exit inspection")
+  assert.equal((await workspaceLocation(page)), initial, "task Escape must not exit inspection")
   assert.equal(
     await page
       .getByRole("button", { name: /^Tasks/ })
@@ -223,8 +224,8 @@ try {
   )
   assert.equal(await image.locator("img").evaluate((element) => element.style.transform), imageTransform)
   await page.getByRole("button", { name: "Next entity", exact: true }).click()
-  await page.waitForURL((url) => url.href !== initial)
-  const destination = page.url()
+  await page.waitForFunction(previous => document.querySelector('[data-workspace-page][data-active="true"] [data-page-location]')?.getAttribute('data-page-location') !== previous, initial)
+  const destination = (await workspaceLocation(page))
   await page.getByRole("button", { name: /^Tasks/ }).click()
   // Explicit fault injection: a bounded target-presence failure stays at the caller.
   let releaseRefresh!: () => void
@@ -265,7 +266,7 @@ try {
     await recoveredFile.getByText("Original and recovery attempts (2)", { exact: true }).isVisible(),
     true,
   )
-  assert.equal(page.url(), destination)
+  assert.equal((await workspaceLocation(page)), destination)
   await page.unroute("**/api/v1/memberships/read")
   for (const viewport of [
     { width: 1200, height: 800 },
@@ -307,7 +308,7 @@ try {
     )
     await region.getByRole("button", { name: "Close tasks", exact: true }).click()
     await region.waitFor({ state: "hidden" })
-    assert.equal(page.url(), destination)
+    assert.equal((await workspaceLocation(page)), destination)
     await page.getByRole("button", { name: /^Tasks/ }).click()
     assert(
       await region.getByText("Original and recovery attempts (2)", { exact: true }).isVisible(),

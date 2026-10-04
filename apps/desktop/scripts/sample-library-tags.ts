@@ -1,3 +1,4 @@
+import { workspaceLocation, waitWorkspaceLocation, workspaceVisit } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { writeFile } from "node:fs/promises"
@@ -112,7 +113,7 @@ export async function verifySampleTags(client: LocusClient, manifest: Manifest, 
   const enter = async (tag: Wire<"TagRecord">) => {
     await select(tag.name)
     await row(tag.name).press("Enter")
-    await page.waitForURL(new RegExp(`#/tag/${tag.id}$`))
+    await waitWorkspaceLocation(page, new RegExp(`/tag/${tag.id}$`))
     await page.waitForFunction(() => {
       const edit = document.querySelector<HTMLButtonElement>('[aria-label="Edit description"]')
       return edit && !edit.disabled
@@ -120,7 +121,7 @@ export async function verifySampleTags(client: LocusClient, manifest: Manifest, 
   }
   const back = async () => {
     await page.keyboard.press("Escape")
-    await page.waitForURL(/#\/tags/)
+    await waitWorkspaceLocation(page, /\/tags/)
   }
   const grid = page.getByRole("grid", { name: "Entities", exact: true })
   const selectedCell = page.getByRole("gridcell", { selected: true })
@@ -149,7 +150,7 @@ export async function verifySampleTags(client: LocusClient, manifest: Manifest, 
     await row(sample.root.name).waitFor()
     await row(sample.root.name).focus()
     await row(sample.root.name).press("Enter")
-    assert.match(page.url(), /#\/tags/)
+    assert.match((await workspaceLocation(page)), /\/tags/)
     await page.getByRole("region", { name: "Children of Sample library", exact: true }).waitFor()
     assert.equal(await row(sample.root.name).getByTitle("Direct children", { exact: true }).textContent(), "Children: 11")
     assert.equal(await row(sample.root.name).getByTitle("All descendants, excluding this tag", { exact: true }).textContent(), "Descendants: 42")
@@ -157,11 +158,11 @@ export async function verifySampleTags(client: LocusClient, manifest: Manifest, 
     await row(sample.root.name).press("ArrowUp")
     assert(await candidate.evaluate((element) => element === document.activeElement))
     await candidate.press("Enter")
-    assert.match(page.url(), /#\/tags/)
+    assert.match((await workspaceLocation(page)), /\/tags/)
     assert.equal(await candidate.getAttribute("aria-selected"), "true")
     assert.equal(await page.locator("[data-tag-column]").count(), 1)
     await candidate.press("Enter")
-    await page.waitForURL(new RegExp(`#/tag/${sample.other.id}$`))
+    await waitWorkspaceLocation(page, new RegExp(`/tag/${sample.other.id}$`))
     await back()
     assertions.push("Unselected keyboard candidate locates first, then opens detail")
     await select(sample.deep.name)
@@ -180,17 +181,17 @@ export async function verifySampleTags(client: LocusClient, manifest: Manifest, 
       .evaluate((element) => { element.scrollTop = element.scrollHeight })
     await row("Sample / Sibling 24").focus()
     await row("Sample / Sibling 24").press("Enter")
-    assert.match(page.url(), /#\/tags/)
+    assert.match((await workspaceLocation(page)), /\/tags/)
     assert.equal(await columns.count(), 3)
     await page.screenshot({ path: join(output, "tags-wide.png"), animations: "disabled" })
     assertions.push("Deep horizontal scroll, wide vertical scroll, counts, and noncollapsing breadcrumb/arrow location")
     await enter(sample.root)
     await page.getByRole("region", { name: "Tag document", exact: true }).getByRole("table").waitFor()
     await expectGrid(new Set(await idsFor(sample.root.id)))
-    const historyLength = await page.evaluate(() => history.length)
+    const historyLength = (await workspaceVisit(page)).length
     await page.getByRole("button", { name: "Include descendants", exact: true }).click()
     await expectGrid(all)
-    assert.equal(await page.evaluate(() => history.length), historyLength)
+    assert.equal((await workspaceVisit(page)).length, historyLength)
     await page.screenshot({ path: join(output, "tags-all-content.png"), animations: "disabled" })
     const selectedBeforeInspect = (await selectedCell.getAttribute("data-entity-id"))!
     const scrollBeforeInspect = await grid.evaluate((element) => element.scrollTop)

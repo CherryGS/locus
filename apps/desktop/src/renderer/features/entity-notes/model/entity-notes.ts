@@ -1,4 +1,5 @@
 import { diagnosticText, errorText, type BackendApi } from "@/shared/api"
+import { EntityNotesWrites, NotesWriteBlocked } from "./notes-writes"
 
 export type NotesState = {
   id: string
@@ -16,12 +17,22 @@ export type NotesState = {
 // Entity and text; subsequent typing is serialized behind that request.
 export class EntityNotesCoordinator {
   private states = new Map<string, NotesState>()
+  private consumers = new Map<string, () => void>()
   private listeners = new Set<() => void>()
   private version = 0
   private live = true
   private sealed = false
   private closing = false
-  constructor(private api: BackendApi) {}
+  private readonly unobserve: () => void
+  constructor(private api: BackendApi, private writes = new EntityNotesWrites(api)) {
+    this.unobserve = writes.subscribe((id, notes) => {
+      const state = this.states.get(id)
+      if (!this.live || !state || state.reading || state.work || state.attempt ||
+        state.saved === undefined || state.draft !== state.saved || state.composing) return
+      state.saved = state.draft = notes
+      this.changed()
+    })
+  }
   subscribe = (listener: () => void) => {
     this.listeners.add(listener)
     return () => { this.listeners.delete(listener) }
@@ -37,6 +48,7 @@ export class EntityNotesCoordinator {
     if (!state) {
       state = { id, draft: "", reading: false }
       this.states.set(id, state)
+      this.consumers.set(id, this.writes.retain(id))
     }
     return state
   }
@@ -46,11 +58,15 @@ export class EntityNotesCoordinator {
     state.reading = true
     state.error = undefined
     this.changed()
+    const before = this.writes.observation(state.id)?.revision
     try {
       const result = await this.api.entityNotes(state.id)
       if (!this.live) return
       if (result.entity_id !== state.id) throw new Error("Notes belong to another Entity.")
-      state.saved = state.draft = result.notes
+      const observed = this.writes.observation(state.id)
+      const notes = observed && observed.revision !== before ? observed.notes : result.notes
+      this.writes.observe(state.id, notes)
+      state.saved = state.draft = notes
     } catch (error) {
       if (this.live) state.error = errorText(error)
     } finally {
@@ -77,7 +93,7 @@ export class EntityNotesCoordinator {
     // Start after work is assigned, including synchronous transport failures.
     state.work = Promise.resolve().then(async () => {
       try {
-        const result = await this.api.writeEntityNotes(state.id, attempt)
+        const result = await this.writes.submit(state.id, attempt)
         if (!this.live) return
         if (result.status === "failed") {
           state.attempt = undefined
@@ -88,6 +104,7 @@ export class EntityNotesCoordinator {
         state.saved = result.notes.notes
         state.attempt = undefined
       } catch (error) {
+        if (error instanceof NotesWriteBlocked) state.attempt = undefined
         if (this.live) state.error = errorText(error)
       } finally {
         state.work = undefined
@@ -111,6 +128,22 @@ export class EntityNotesCoordinator {
         ? "An Entity notes save is unconfirmed. Return to Overview and retry the save."
         : undefined,
     }
+  }
+  issues() {
+    return [...this.states.values()].filter(state => state.error || state.attempt ||
+      (state.saved !== undefined && state.draft !== state.saved))
+  }
+  discard() {
+    // Text discard cannot erase the only recovery owner of accepted work.
+    if ([...this.states.values()].some(state => state.work || state.attempt)) return false
+    for (const state of this.states.values()) {
+      clearTimeout(state.timer)
+      if (state.saved !== undefined) state.saved = state.draft = this.writes.observation(state.id)?.notes ?? state.saved
+      state.composing = false
+      state.error = undefined
+    }
+    this.changed()
+    return true
   }
   canSeal(revision: number, discard: boolean, restart: boolean) {
     const state = this.preparation()
@@ -136,5 +169,11 @@ export class EntityNotesCoordinator {
     }
     this.changed()
   }
-  dispose() { this.lost(); this.listeners.clear() }
+  dispose() {
+    this.unobserve()
+    this.lost()
+    for (const release of this.consumers.values()) release()
+    this.consumers.clear()
+    this.listeners.clear()
+  }
 }

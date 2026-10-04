@@ -1,5 +1,5 @@
 export { TagCoordinator } from "./model/tag-coordinator"
-export { TagBrowsing } from "./model/tag-browsing"
+export { TagBrowsing, type GeneratedDraftReceiver } from "./model/tag-browsing"
 export { TagDetails, type TagDetailState } from "./model/tag-detail"
 export { TagDocument } from "./ui/lazy-tag-document"
 export { TagDocumentActions } from "./ui/tag-document-actions"

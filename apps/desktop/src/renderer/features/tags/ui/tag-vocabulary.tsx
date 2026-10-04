@@ -1,3 +1,4 @@
+import { PageTools } from "@/shared/page-tools"
 import { useId, useMemo, useState, useSyncExternalStore } from "react"
 import {
   FolderTreeIcon,
@@ -168,6 +169,7 @@ export function TagVocabulary({
         className="flex min-h-11 shrink-0 items-center gap-2 px-3 py-1.5"
         aria-label="Tag navigation"
       >
+        <PageTools />
         {selected ? (
           <TagBreadcrumbs
             path={path}

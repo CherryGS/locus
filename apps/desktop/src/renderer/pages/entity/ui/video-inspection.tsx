@@ -1,3 +1,4 @@
+import { usePageActivity } from "@/shared/page-activity"
 import { useEffect, useRef, useState } from "react"
 import { MaximizeIcon, MinimizeIcon, RotateCcwIcon, VideoOffIcon } from "lucide-react"
 import type { PlaybackCoordinator } from "@/features/video-playback"
@@ -30,6 +31,7 @@ export function VideoInspection({
   onResult?: (message?: string) => void
   onRetry?: () => void
 }) {
+  const { active: pageActive } = usePageActivity()
   const controlGeneration = useRef(0)
   const fullscreenWanted = useRef(false)
   const mounted = useRef(true)
@@ -51,7 +53,7 @@ export function VideoInspection({
 
   useEffect(() => {
     const video = player.current
-    if (!video || !src) return
+    if (!video || !src || !pageActive) return
     const report = outcome.current
     let active = true
     let terminalFailure = false
@@ -163,12 +165,13 @@ export function VideoInspection({
       video.removeAttribute("src")
       video.load()
     }
-  }, [src, playback, entityId, fileId, componentId, attempt])
+  }, [src, playback, entityId, fileId, componentId, attempt, pageActive])
 
   useEffect(() => {
     if (pending) player.current?.pause()
   }, [pending])
   useEffect(() => {
+    if (!pageActive) return
     const changed = () => {
       const entered = document.fullscreenElement === viewport.current
       if (entered && !fullscreenWanted.current) {
@@ -193,7 +196,7 @@ export function VideoInspection({
       document.removeEventListener("fullscreenchange", changed)
       window.removeEventListener("keydown", escape, true)
     }
-  }, [])
+  }, [pageActive])
   async function toggleFullscreen() {
     const request = ++controlGeneration.current
     const target = viewport.current

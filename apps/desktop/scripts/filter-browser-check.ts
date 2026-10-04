@@ -1,3 +1,4 @@
+import { openWorkspaceEntry } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { writeFile } from "node:fs/promises"
@@ -255,11 +256,8 @@ try {
   const a = data.entries.find((entry) => entry.name === "A")!
   await page.locator(`[role="gridcell"][id$="-${a.entityId}"]`).click()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
-  await page.getByRole("button", { name: "Why this matched", exact: true }).click()
-  await page
-    .getByLabel("Original result match evidence")
-    .getByText("Query condition · required", { exact: true })
-    .waitFor()
+  assert.equal(await page.getByRole("button", { name: "Why this matched", exact: true }).count(), 0)
+  assert.equal(await page.getByLabel("Original result match evidence").count(), 0)
   await page.locator(`[role="gridcell"][id$="-${a.entityId}"]`).dblclick()
   await chooseContentView(page, "Civitai")
   const reading = page.locator('[data-slot="civitai-page"]')
@@ -290,7 +288,7 @@ try {
   assert(await dialog.isVisible())
   assert.equal(await page.locator("[data-entity-count]").getAttribute("data-entity-count"), "1")
   await dialog.getByRole("button", { name: "Close", exact: true }).click()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   await page.keyboard.press("Escape")
   await open()
   assert.equal(
@@ -428,26 +426,23 @@ try {
   await page.getByText("Direct Entity · temporary single-Entity view", { exact: true }).waitFor()
   assert.equal(enumerations, beforeView)
   assert.equal(await page.getByRole("button", { name: "Next entity", exact: true }).isEnabled(), false)
-  // A direct Model owns the same related-gallery return as a main Model.
-  const b = data.entries.find((entry) => entry.name === "B")!
-  await page.evaluate((id) => {
-    const [path, query] = location.hash.split("?")
-    const search = new URLSearchParams(query)
-    search.set("entityId", id)
-    location.hash = `${path}?${search}`
-  }, b.entityId)
-  await page.locator(`[data-slot="entity-inspection"][data-entity-id="${b.entityId}"]`).waitFor()
-  if (!(await page.getByRole("combobox", { name: "Default view", exact: true }).isVisible()))
-    await page.getByRole("button", { name: "Overview", exact: true }).click()
-  await chooseContentView(page, "Civitai")
-  await reading.getByRole("button", { name: "Inspect managed example", exact: true }).first().click()
-  await page.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
-  await page.keyboard.press("Escape")
-  await reading.waitFor()
-  await page.getByText("Direct Entity · temporary single-Entity view", { exact: true }).waitFor()
   await page.keyboard.press("Escape")
   await grid.waitFor()
   await page.locator('[data-entity-count="1"]').waitFor()
+  // A direct Model owns the same related-gallery return as a main Model.
+  const b = data.entries.find((entry) => entry.name === "B")!
+  const directModel = await browser.newPage()
+  await directModel.goto(`${preview.origin}/#/entity?entityId=${b.entityId}&mode=inspect&collectionId=direct&direct=true`)
+  await directModel.locator(`[data-slot="entity-inspection"][data-entity-id="${b.entityId}"]`).waitFor()
+  await directModel.getByRole("button", { name: "Overview", exact: true }).click()
+  await chooseContentView(directModel, "Civitai")
+  await directModel.getByRole("button", { name: "Inspect managed example", exact: true }).first().click()
+  await directModel.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
+  await directModel.keyboard.press("Escape")
+  await directModel.getByText("Direct Entity · temporary single-Entity view", { exact: true }).waitFor()
+  await directModel.keyboard.press("Escape")
+  await directModel.getByText("Open a workspace", { exact: true }).waitFor()
+  await directModel.close()
 
   // Index read/recovery feedback and modal minimum size/focus remain real UI.
   await page.route("**/api/v1/search/status", (route) =>
@@ -465,7 +460,7 @@ try {
   await page.unroute("**/api/v1/search/status")
   await dialog.getByText(/Index status unknown/).waitFor({ state: "hidden" })
   await dialog.getByRole("button", { name: "Close", exact: true }).click()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   await page.getByRole("button", { name: "Library", exact: true }).click()
   assert.equal(await page.getByText("Advanced maintenance", { exact: true }).count(), 0)
   const statistics = page.getByLabel("Published index statistics")
@@ -712,7 +707,8 @@ try {
   await grid.locator('[data-entity-count="1"]').waitFor()
   assert(await headerSearch.evaluate(element => element === document.activeElement), "search retains focus after application")
   const displayBounds = await page.locator('[data-slot="header-display"]').boundingBox()
-  assert(displayBounds && Math.abs(displayBounds.x + displayBounds.width / 2 - 600) < 1, "page status is centered in the global header")
+  const pageHeader = await page.locator('[data-slot="entity-page-header"]').boundingBox()
+  assert(displayBounds && pageHeader && displayBounds.y >= pageHeader.y && displayBounds.y + displayBounds.height <= pageHeader.y + pageHeader.height && displayBounds.x + displayBounds.width <= 1200, "page status remains within the owning page toolbar")
   assert.equal(await page.locator('[data-slot="entity-page-header"]').getByRole("heading").count(), 0)
   await open(); assert.equal(await source.inputValue(), "entity_id:*"); await page.keyboard.press("Escape")
   await page.getByRole("button", { name: "Clear search", exact: true }).click()

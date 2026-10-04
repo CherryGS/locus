@@ -1,4 +1,5 @@
 import { waitForContentViewSaved, chooseContentView } from "./content-view-choice.ts"
+import { openWorkspaceEntry } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { writeFile } from "node:fs/promises"
@@ -19,13 +20,14 @@ try {
   })
   const errors: string[] = []
   page.on("pageerror", (e) => errors.push(e.message))
-  await page.goto(`${preview.origin}/#/entity`)
+  await page.goto(preview.origin)
+  await openWorkspaceEntry(page, "Models")
   await page.getByRole("gridcell").first().waitFor()
   const open = async (name: string) => {
     const entry = data.entries.find((e) => e.name === name)!
     await page.locator(`[role="gridcell"][id$="-${entry.entityId}"]`).dblclick()
     await page.locator('[data-slot="entity-inspection"][data-view-id="model.read"]').waitFor()
-    if (!(await page.locator('#auxiliary-panel[aria-label="Overview"]').count()))
+    if (!(await page.locator('[role="complementary"][aria-label="Overview"]').count()))
       await page.getByRole("button", { name: "Overview", exact: true }).click()
     return entry
   }

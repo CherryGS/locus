@@ -22,7 +22,8 @@ type FilterApi = AssistanceApi & Pick<
   | "submission"
 >
 type DraftSwitch = { destination: string | null; source?: Wire<"FilterSource"> }
-type Established = {
+type UncertainFilterWrite = { request: string; draft: FilterDraft; change?: Wire<"FilterChange">; association?: number }
+export type EstablishedFilterResult = {
   sequence: IdentitySequence
   criteria?: Wire<"FilterSource">
   filterCriteria?: Wire<"FilterSource">
@@ -30,11 +31,12 @@ type Established = {
   observation?: SearchObservation
   expiresAt?: number
 }
+const resultHolders = new WeakMap<SearchObservation, { holders: Set<FilterCoordinator>; released: boolean }>()
 export class FilterCoordinator {
   readonly assistance: FilterAssistance
   draft = emptyDraft()
   saved?: Wire<"FilterPreset">
-  established?: Established
+  established?: EstablishedFilterResult
   submitted?: FilterDraft
   open = false
   pending?: "apply" | "refresh" | "search"
@@ -42,20 +44,21 @@ export class FilterCoordinator {
   searchError?: string
   private searchRequest?: string
   saving = false
+  private acceptedWrites = 0
+  private protectedPreset = false
+  private draftAssociation = 0
+  private confirmedPresetDraft?: { association: number; draft: FilterDraft }
   preparing = false
   loading = false
   guard?: DraftSwitch
-  private uncertainRecords = new Map<
-    string,
-    { request: string; draft: FilterDraft; change?: Wire<"FilterChange"> }
-  >()
+  private uncertainRecords = new Map<string, UncertainFilterWrite>()
   get uncertainWrites() {
     return [...this.uncertainRecords.values()]
   }
   get uncertain() {
     return this.uncertainWrites.at(-1)
   }
-  set uncertain(value: { request: string; draft: FilterDraft; change?: Wire<"FilterChange"> } | undefined) {
+  set uncertain(value: UncertainFilterWrite | undefined) {
     if (value) {
       this.uncertainRecords.set(value.request, value)
       this.changed()
@@ -109,6 +112,7 @@ export class FilterCoordinator {
   constructor(
     private readonly api: FilterApi,
     private readonly replaced: () => void = () => {},
+    readonly categoryScope?: string,
   ) {
     this.assistance = new FilterAssistance(api, () => this.draft.source,
       (text) => this.setDraft({ ...this.draft, source: { ...this.draft.source, text } }, true),
@@ -215,6 +219,7 @@ export class FilterCoordinator {
     this.changed()
   }
   host(close: boolean) {
+    if (this.hostClosing === close) return
     this.hostClosing = close
     if (close) {
       if (this.pending === "search") { this.intent++; this.pending = undefined; this.searchRequest = undefined }
@@ -332,7 +337,10 @@ export class FilterCoordinator {
     try {
       const value = destination ? await this.api.filterPreset(destination) : undefined
       if (visit !== this.visit || action !== this.action || this.disposed) return
+      this.draftAssociation++
       this.saved = value
+      this.protectedPreset = !!value
+      this.confirmedPresetDraft = undefined
       this.draft = source ? { name: "", source: structuredClone(source) } : value
         ? { name: value.name, source: structuredClone(value.source) }
         : {
@@ -357,12 +365,13 @@ export class FilterCoordinator {
     }
   }
   async save(asName?: string, switching?: DraftSwitch) {
-    if (this.busy || this.disposed || !this.open) return false
+    if (this.busy || this.disposed || this.hostClosing || !this.open) return false
     const visit = this.visit, action = ++this.action
     if (this.assistance.active && !await this.finishHelper(visit, action)) return false
     if (visit !== this.visit || action !== this.action || this.disposed || this.busy || !this.open) return false
     const draft = structuredClone(this.draft),
-      saved = this.saved
+      saved = this.saved,
+      association = this.draftAssociation
     const name = asName ?? draft.name
     if (!name.trim()) {
       this.error = "Enter a preset name before saving."
@@ -382,6 +391,8 @@ export class FilterCoordinator {
           }
     this.pending = undefined
     this.saving = true
+    this.protectedPreset = true
+    this.acceptedWrites++
     this.error = undefined
     this.notice = undefined
     this.submitted = draft
@@ -395,20 +406,21 @@ export class FilterCoordinator {
       })
       outcomeReceived = true
       if (outcome.status === "filter_failed") {
-        if (outcome.uncertain) this.uncertain = { request, draft, change }
+        if (outcome.uncertain) this.uncertain = { request, draft, change, association }
         throw new Error(`${outcome.uncertain ? "Save outcome uncertain: " : ""}${outcome.message}`)
       }
       if (outcome.status !== "filter_saved") throw new Error("Unexpected preset save outcome")
       this.notice = `Saved “${outcome.preset.name}”.`
-      if (this.disposed || visit !== this.visit || action !== this.action) {
+      const ownsAssociation = association === this.draftAssociation
+      if (!this.disposed && ownsAssociation) {
+        this.confirmedPresetDraft = { association, draft }
+        if (JSON.stringify(this.draft) === JSON.stringify(draft)) this.acceptSavedPreset(outcome.preset)
+      }
+      if (this.disposed || !ownsAssociation || visit !== this.visit || action !== this.action) {
         this.changed()
         return true
       }
-      this.saved = outcome.preset
-      this.draft = {
-        name: outcome.preset.name,
-        source: structuredClone(outcome.preset.source),
-      }
+      this.acceptSavedPreset(outcome.preset)
       void this.readPresets()
       if (visit !== this.visit || action !== this.action) return true
       if (intent === this.intent)
@@ -420,16 +432,27 @@ export class FilterCoordinator {
       }
       return true
     } catch (e) {
-      if (!outcomeReceived && !(e instanceof ApiFailure)) this.uncertain = { request, draft, change }
+      if (!outcomeReceived && !(e instanceof ApiFailure)) this.uncertain = { request, draft, change, association }
       if (visit === this.visit && action === this.action) this.error = errorText(e)
       return false
     } finally {
+      this.acceptedWrites--
+      this.changed()
       if (visit === this.visit && action === this.action) {
         this.saving = false
         this.submitted = undefined
         this.changed()
       }
     }
+  }
+  private acceptSavedPreset(preset: Wire<"FilterPreset">) {
+    // A successful Save as replaces the editor's preset association too. A
+    // panel close/reopen does not: its pending receipt still belongs here.
+    if (this.saved?.id !== preset.id) this.draftAssociation++
+    this.saved = preset
+    this.protectedPreset = true
+    this.draft = { name: preset.name, source: structuredClone(preset.source) }
+    this.confirmedPresetDraft = { association: this.draftAssociation, draft: structuredClone(this.draft) }
   }
   async reconcile(request?: string) {
     const uncertain = request ? this.uncertainRecords.get(request) : this.uncertain
@@ -442,6 +465,12 @@ export class FilterCoordinator {
         return
       }
       const outcome = result.outcome
+      // Confirmation satisfies the captured persistence guard independently of
+      // a successful Apply. Keep the legacy explicit-load reconciliation UI;
+      // confirmation must not replace a newer editor draft or start a query.
+      if (!this.disposed && uncertain.association === this.draftAssociation && outcome.status === "filter_saved" && uncertain.change &&
+        (uncertain.change.operation === "create" || uncertain.change.operation === "update"))
+        this.confirmedPresetDraft = { association: uncertain.association, draft: uncertain.draft }
       this.notice =
         outcome.status === "filter_saved"
           ? `Confirmed saved “${outcome.preset.name}”. Load it explicitly to reconcile the draft.`
@@ -474,12 +503,14 @@ export class FilterCoordinator {
     })
   }
   private async organize(change: Extract<Wire<"FilterChange">, { operation: "rename" | "delete" }>) {
+    if (this.disposed || this.hostClosing) return
     const visit = this.visit,
       action = ++this.action,
       original = this.saved,
       draft = structuredClone(this.draft),
       request = crypto.randomUUID()
     this.saving = true
+    this.acceptedWrites++
     this.changed()
     let outcomeReceived = false
     try {
@@ -499,7 +530,10 @@ export class FilterCoordinator {
       }
       if (visit === this.visit && action === this.action && change.id === original?.id && original?.id === this.saved?.id) {
         if (outcome.status === "filter_deleted") {
+          this.draftAssociation++
           this.saved = undefined
+          this.protectedPreset = false
+          this.confirmedPresetDraft = undefined
           this.notice = "Preset deleted; source remains an unsaved draft."
         } else if (outcome.status === "filter_saved") {
           this.saved = outcome.preset
@@ -517,6 +551,8 @@ export class FilterCoordinator {
         }
       if (visit === this.visit && action === this.action) this.error = errorText(e)
     } finally {
+      this.acceptedWrites--
+      this.changed()
       if (visit === this.visit && action === this.action) {
         this.saving = false
         this.changed()
@@ -593,7 +629,7 @@ export class FilterCoordinator {
     }
   }
   refresh() {
-    return this.replace(this.established?.criteria, "refresh", undefined, false, { filter: this.appliedFilter, search: this.appliedSearch })
+    return this.replace(combinedSearchSource(this.appliedSearch, this.appliedFilter, this.established?.criteria ?? this.draft.source), "refresh", undefined, false, { filter: this.appliedFilter, search: this.appliedSearch })
   }
   private async replace(
     criteria: Wire<"FilterSource"> | undefined,
@@ -609,6 +645,10 @@ export class FilterCoordinator {
     this.changed()
     let observation: SearchObservation | undefined
     try {
+      if (this.categoryScope) {
+        const profile = criteria ?? this.language ?? await this.api.filterLanguage()
+        criteria = { format: profile.format, version: profile.version, text: criteria?.text ? `(${this.categoryScope}) AND (${criteria.text})` : this.categoryScope }
+      }
       observation = criteria ? await this.api.search(criteria) : undefined
       const sequence = observation?.entities ?? (await this.api.identities())
       if (this.disposed || intent !== this.intent) {
@@ -620,6 +660,7 @@ export class FilterCoordinator {
       this.evidenceIntent++
       this.evidence = undefined
       this.evidenceExpired = false
+      this.retain(observation)
       this.established = {
         sequence,
         criteria,
@@ -775,8 +816,63 @@ export class FilterCoordinator {
     }
   }
   private release(observation?: SearchObservation) {
-    if (observation) void observation.release().catch(() => {})
+    if (!observation) return
+    const state = resultHolders.get(observation)
+    if (state) {
+      state.holders.delete(this)
+      if (state.holders.size || state.released) return
+      state.released = true
+    }
+    void observation.release().catch(() => {})
   }
+  private retain(observation?: SearchObservation) {
+    if (!observation) return
+    let state = resultHolders.get(observation)
+    if (!state) { state = { holders: new Set(), released: false }; resultHolders.set(observation, state) }
+    if (!state.released) state.holders.add(this)
+  }
+  /** Evidence keeps its original expiry; only applied criteria seed this editor. */
+  adopt(result: EstablishedFilterResult) {
+    this.release(this.established?.observation)
+    clearTimeout(this.timer)
+    this.draftAssociation++
+    this.confirmedPresetDraft = undefined
+    this.established = result
+    this.retain(result.observation)
+    this.draft = { name: "", source: structuredClone(result.filterCriteria ?? { ...this.draft.source, format: result.criteria?.format ?? this.draft.source.format, version: result.criteria?.version ?? this.draft.source.version }) }
+    this.searchDraft = result.searchText ?? ""
+    this.evidenceExpired = !!result.expiresAt && Date.now() >= result.expiresAt
+    if (result.expiresAt) this.timer = setTimeout(() => this.expireEvidence(), Math.max(0, result.expiresAt - Date.now()))
+    this.resultRevision++
+    this.changed()
+  }
+  preparation() {
+    const confirmed = this.confirmedPresetDraft?.association === this.draftAssociation &&
+      JSON.stringify(this.draft) === JSON.stringify(this.confirmedPresetDraft.draft)
+    return { revision: this.revision, draft: this.protectedPreset && this.dirty && !confirmed,
+      blocked: this.acceptedWrites || this.saving || this.preparing || this.uncertainWrites.length ? "A Filter preset save is not confirmed. Open Filter to resolve it." : undefined }
+  }
+  async prepare() {
+    while (this.acceptedWrites || this.saving || this.preparing) await new Promise<void>(resolve => { const stop = this.subscribe(() => { if (!this.acceptedWrites && !this.saving && !this.preparing) { stop(); resolve() } }) })
+    return this.preparation()
+  }
+  canSeal(revision: number, discard: boolean, restart: boolean) {
+    const state = this.preparation()
+    return revision === state.revision && (!restart || !state.blocked) && (!state.draft || discard)
+  }
+  seal(revision: number, discard: boolean, restart: boolean) { return this.canSeal(revision, discard, restart) }
+  lost(message: string) {
+    this.hostClosing = true
+    this.intent++
+    this.evidenceIntent++
+    this.pending = undefined
+    clearTimeout(this.timer)
+    clearInterval(this.statusTimer)
+    clearTimeout(this.analysisTimer)
+    this.resultError = message
+    this.changed()
+  }
+  returnToApplication() { this.host(false) }
   dispose() {
     if (this.disposed) return
     this.assistance.exit()

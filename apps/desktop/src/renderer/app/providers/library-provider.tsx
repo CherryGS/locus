@@ -7,8 +7,11 @@ import { Spinner } from "@/shared/ui/spinner"
 import { openLibrarySession, LibrarySession, type DesktopSession } from "./library-session"
 import { ClosePreparation } from "./close-preparation"
 
+import type { LibraryPageSession } from "./workspace-session"
 const Context = createContext<LibrarySession | undefined>(undefined)
-export const useLibrarySession = () => useContext(Context)
+export const PageSessionContext = createContext<LibraryPageSession | undefined>(undefined)
+export const useLibraryRun = () => useContext(Context)
+export const useLibrarySession = () => useContext(PageSessionContext)
 export const specimenMode =
   import.meta.env.DEV && new URLSearchParams(location.search).get("preview") === "specimens"
 export function LibraryProvider({ children }: { children: ReactNode }) {

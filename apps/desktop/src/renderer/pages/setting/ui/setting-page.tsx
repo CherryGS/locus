@@ -1,9 +1,9 @@
-import { useLibrarySession } from "@/app/providers/library-provider"
+import { useLibraryRun } from "@/app/providers/library-provider"
 import { useSyncExternalStore } from "react"
 import { SettingsPanel } from "@/features/settings"
 import { SearchIndexSettings } from "@/features/entity-filter"
 export function SettingPage() {
-  const session = useLibrarySession()
+  const session = useLibraryRun()
   useSyncExternalStore(
     session?.settingsNavigation.subscribe ?? noSubscribe,
     session?.settingsNavigation.snapshot ?? zero,
@@ -20,7 +20,7 @@ export function SettingPage() {
       category={session.settingsNavigation.category}
       library={session.initial.library}
       switchLibrary={session.bridge.switchLibrary}
-      libraryMaintenance={<SearchIndexSettings coordinator={session.filter} />}
+      libraryMaintenance={<SearchIndexSettings coordinator={session.searchIndex} />}
       settings={session.settings}
       externalSettings={session.externalSettings}
       externalToken={session.externalToken}

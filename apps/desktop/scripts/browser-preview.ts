@@ -130,7 +130,7 @@ if (
   console.log(
     JSON.stringify(
       {
-        preview: `${preview.origin}/#/entity`,
+        preview: preview.origin,
         library: data.library,
         fixture: data.setup,
         mode: "isolated live preview; no native close seam",

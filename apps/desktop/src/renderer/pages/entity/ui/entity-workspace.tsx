@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useId, useRef, useState, type ReactNode } from "react"
 import { motion, useReducedMotion } from "motion/react"
 import type { EntityItem, EntitySource } from "@/entities/entity"
 import { Button } from "@/shared/ui/button"
@@ -50,6 +50,7 @@ export function EntityWorkspace({
   tagSummary?: (onShowAll: () => void) => ReactNode
   civitaiReading?: boolean
 }) {
+  const panelId = useId()
   const [localBrowsing] = useState<EntityBrowsingState>({})
   const retained = browsing ?? localBrowsing
   const [, redraw] = useState(0)
@@ -107,7 +108,7 @@ export function EntityWorkspace({
           // scrollbar lets the same pointer-down start both resize and scrolling.
           resizeTargetMinimumSize={{ fine: 0, coarse: 0 }}
         >
-          <ResizablePanel id="entity-grid-panel" minSize={minimumEntityGridWidth}>
+          <ResizablePanel id={`${panelId}-grid`} minSize={minimumEntityGridWidth}>
             {viewing
               ? <div className="flex h-full min-h-0 min-w-0 flex-col">
                   {tagSummary?.(() => {
@@ -148,7 +149,7 @@ export function EntityWorkspace({
                 className="w-2.5 border-l bg-sidebar after:hidden [@media(pointer:coarse)]:w-5"
               />
               <ResizablePanel
-                id="auxiliary-content"
+                id={`${panelId}-content`}
                 defaultSize={panelDefaultWidth}
                 minSize="12rem"
                 groupResizeBehavior="preserve-pixel-size"
@@ -159,7 +160,7 @@ export function EntityWorkspace({
               >
                 <motion.aside
                   ref={panelContent}
-                  id="auxiliary-panel"
+                  id={panelId}
                   aria-label={activePanel.label}
                   className="flex h-full min-h-0 flex-col bg-sidebar"
                   initial={{ opacity: reduceMotion ? 1 : 0 }}
@@ -208,7 +209,7 @@ export function EntityWorkspace({
                   }}
                   aria-label={label}
                   aria-expanded={activePanel?.id === id}
-                  aria-controls={activePanel?.id === id ? "auxiliary-panel" : undefined}
+                  aria-controls={activePanel?.id === id ? panelId : undefined}
                   onClick={() => togglePanel(id)}
                 >
                   <Icon aria-hidden="true" />

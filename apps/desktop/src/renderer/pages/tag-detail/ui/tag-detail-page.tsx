@@ -1,3 +1,5 @@
+import { PageTools, HeaderDisplayPlacement } from "@/shared/page-tools"
+import { usePageActivity } from "@/shared/page-activity"
 import { useEffect, type ReactNode } from "react"
 import { ArrowLeftIcon, RefreshCwIcon } from "lucide-react"
 import {
@@ -29,7 +31,9 @@ export function TagDetailPage({
   onReturn: () => void
 }) {
   useSourceReturn(onReturn)
+  const { active } = usePageActivity()
   useEffect(() => {
+    if (!active) return
     const escape = (event: KeyboardEvent) => {
       if (
         event.key !== "Escape" ||
@@ -52,7 +56,7 @@ export function TagDetailPage({
     // once the editor's actual menus and the application's dialogs are closed.
     window.addEventListener("keydown", escape, true)
     return () => window.removeEventListener("keydown", escape, true)
-  }, [onReturn])
+  }, [onReturn, active])
   return (
     <section aria-label="Tag detail" className="flex h-full min-h-0 flex-col">
       <HeaderDisplay><span aria-label="Browsing status" className="truncate">{state.sequence ? `${state.sequence.length.toLocaleString()} tagged ${state.sequence.length === 1 ? "item" : "items"}${state.entityId ? " · 1 selected" : ""}` : "Tag"}</span></HeaderDisplay>
@@ -60,6 +64,7 @@ export function TagDetailPage({
         aria-label="Tag page tools"
         className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 px-3 py-1.5"
       >
+        <PageTools />
         <Button
           size="icon-sm"
           variant="ghost"
@@ -84,6 +89,7 @@ export function TagDetailPage({
         >
           {state.documentPending || state.queryPending ? <Spinner /> : <RefreshCwIcon />}
         </Button>
+        <HeaderDisplayPlacement />
       </header>
       <Separator data-boundary="page" />
       {entities}

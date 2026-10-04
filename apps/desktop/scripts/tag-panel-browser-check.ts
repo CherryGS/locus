@@ -1,3 +1,4 @@
+import { activeWorkspacePage, freshWorkspaceEntry } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
@@ -36,7 +37,7 @@ try {
   const entityId = data.images[0].entityId
   const secondId = data.images[1].entityId
   const open = async (id = entityId) => {
-    await page.goto(`${preview.origin}/#/entity?mode=inspect&entityId=${id}`)
+    await freshWorkspaceEntry(page, `${preview.origin}/#/entity?mode=inspect&entityId=${id}`)
     await page.locator(`[data-slot="entity-inspection"][data-entity-id="${id}"]`).waitFor()
     await page.getByRole("region", { name: "Personal tag summary", exact: true }).waitFor()
   }
@@ -116,7 +117,7 @@ try {
   await panel.getByRole("button", { name: "Add tags", exact: true }).click()
   await search.fill("Images")
   await page.keyboard.press("ArrowRight")
-  assert.match(page.url(), new RegExp(`entityId=${entityId}`), "Modal arrows must not change Entity")
+  assert.match((await activeWorkspacePage(page).locator("[data-page-location]").getAttribute("data-page-location"))!, new RegExp(`entityId=${entityId}`), "Modal arrows must not change Entity")
   await page.route("**/api/v1/tags", async (route) => {
     if (route.request().method() === "POST" && route.request().postDataJSON().change.tag_id === bad.id)
       await route.fulfill({ status: 400, json: { code: "invalid_request", message: "fixture failed assignment" } })

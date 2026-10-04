@@ -5,16 +5,15 @@ import {
 } from "@/features/settings"
 import { DraftPreparationCoordinator } from "./draft-preparation"
 import { SettingsNavigation } from "./settings-navigation"
-import { PlaybackCoordinator } from "@/features/video-playback"
-import { EntityNotesCoordinator } from "@/features/entity-notes"
-import { TagCoordinator, TagBrowsing, TagDetails } from "@/features/tags"
+import { WorkspaceSession } from "./workspace-session"
+import { EntityNotesWrites } from "@/features/entity-notes"
 import { FilterCoordinator } from "@/features/entity-filter"
+import { TagCoordinator, TagBrowsing, TagDetails } from "@/features/tags"
 import { BackendApi } from "@/shared/api"
-import { EntityReader, emptySequence, type EntitySource } from "@/entities/entity"
+import { EntityReader } from "@/entities/entity"
 import { ImportCoordinator } from "@/features/file-import"
 import { CivitaiCoordinator } from "@/features/civitai"
 import { CardCoverCoordinator } from "@/features/entity-card-cover"
-import type { RelatedCollection, CivitaiSelection } from "@/pages/entity"
 import { TaskObserver } from "@/entities/task"
 import { PreferenceCoordinator } from "@/features/entity-view-preferences"
 import type { DesktopBridge, DesktopState } from "../../../shared/desktop-bridge"
@@ -51,17 +50,14 @@ export class LibrarySession extends DesktopSession {
   private unobserveCovers: () => void
   private unobserveCivitaiCovers: () => void
   readonly settingsNavigation = new SettingsNavigation()
-  readonly browsing = new Map<string, import("@/pages/entity").EntityBrowsingState>()
-  readonly relatedCollections = new Map<string, RelatedCollection>()
-  readonly civitaiExcursions = new Map<string, CivitaiSelection>()
-  readonly playback = new PlaybackCoordinator()
+  readonly audio = { volume: 1, muted: false }
+  readonly workspace: WorkspaceSession
   readonly reader: EntityReader
   readonly tags: TagCoordinator
   readonly tagBrowsing: TagBrowsing
   readonly tagDetails: TagDetails
-  readonly notes: EntityNotesCoordinator
-  readonly filter: FilterCoordinator
-  mainDestination: import("@/pages/entity").EntityDestination = { mode: "grid", collectionId: "library" }
+  readonly notesWrites: EntityNotesWrites
+  readonly searchIndex: FilterCoordinator
   readonly imports: ImportCoordinator
   readonly civitai: CivitaiCoordinator
   readonly tasks: TaskObserver
@@ -69,9 +65,7 @@ export class LibrarySession extends DesktopSession {
   private readonly unobserveImports: () => void
   constructor(bridge: DesktopBridge, initial: DesktopState) {
     super(bridge, initial)
-    this.reader = new EntityReader(this.api, 256, (entityId, fileId) =>
-      this.playback.observe(entityId, fileId),
-    )
+    this.reader = new EntityReader(this.api, 256)
     this.civitai = new CivitaiCoordinator(this.api, (ids) => this.reader.knownEffects(ids))
     this.civitai.host(initial)
     this.covers = new CardCoverCoordinator(this.api, id => this.reader.get(id), id => this.civitai.blocked(id))
@@ -84,11 +78,9 @@ export class LibrarySession extends DesktopSession {
     this.tags.host(initial.close.phase !== "idle")
     this.tagBrowsing = new TagBrowsing(this.api, this.tags)
     this.tagDetails = new TagDetails(this.api, this.tags)
-    this.draftPreparation.add(this.tagDetails)
-    this.notes = new EntityNotesCoordinator(this.api)
-    this.notes.host(initial.close.phase !== "idle")
-    this.draftPreparation.add(this.notes)
-    this.filter = new FilterCoordinator(this.api, () => this.reader.resultReplaced())
+    this.notesWrites = new EntityNotesWrites(this.api)
+    this.searchIndex = new FilterCoordinator(this.api)
+    this.workspace = new WorkspaceSession(this)
     this.imports = new ImportCoordinator(this.api, bridge, (items) => {
       this.reader.importEffects(items)
       this.civitai.invalidate()
@@ -103,19 +95,16 @@ export class LibrarySession extends DesktopSession {
       void this.civitai.observe()
     })
     this.unobserve = bridge.observe((state) => {
-      this.filter.host(state.close.phase !== "idle")
+      this.workspace.host(state)
       this.tags.host(state.close.phase !== "idle")
-      this.notes.host(state.close.phase !== "idle")
-      if (state.close.phase !== "idle" || state.connection.status !== "ready") this.playback.pause()
       this.imports.host(state)
       this.civitai.host(state)
       this.covers.host(state.close.phase !== "idle", state.connection.status === "ready" && state.connection.runId === this.api.context.runId)
       if (state.connection.status !== "ready" || state.connection.runId !== this.api.context.runId) {
-        this.filter.dispose()
+        this.workspace.lost()
         this.tags.dispose()
         this.tagBrowsing.dispose()
         this.tagDetails.lost("The backend connection ended. Document text has not been confirmed saved.")
-        this.notes.lost()
         this.tasks.dispose()
       }
     })
@@ -124,20 +113,14 @@ export class LibrarySession extends DesktopSession {
     void this.imports.observe()
     void this.civitai.observe()
   }
-  readonly demand = (ids: string[]) => {
-    this.reader.demand(ids)
-    this.preferences.demand(ids)
-    this.covers.demand(ids)
-  }
   readonly dispose = () => {
-    this.playback.pause()
+    this.workspace.dispose()
+    this.searchIndex.dispose()
     this.unobserve()
     this.tasks.dispose()
-    this.filter.dispose()
     this.tags.dispose()
     this.tagBrowsing.dispose()
     this.tagDetails.dispose()
-    this.notes.dispose()
     this.imports.dispose()
     this.unobserveImports()
     this.civitai.dispose()
@@ -153,9 +136,7 @@ export class LibrarySession extends DesktopSession {
         ? { ...component, thumbnail: this.covers.get(id).preview } : component),
       problems: [...(entity.problems ?? []), ...this.preferences.problems(id)] }
   }
-  source(): EntitySource {
-    return { sequence: this.filter.sequence ?? emptySequence, get: this.get, demand: this.demand }
-  }
+
 }
 
 let active: Promise<DesktopSession> | undefined
@@ -170,7 +151,6 @@ export function openLibrarySession() {
     if (initial.connection.status === "ready" && initial.connection.availability?.status === "restricted")
       return new DesktopSession(bridge, initial)
     const session = new LibrarySession(bridge, initial)
-    session.filter.start()
     return session
   })())
 }

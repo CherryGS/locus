@@ -1,3 +1,4 @@
+import { openWorkspaceEntry, workspaceLocation } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { mkdtemp, writeFile } from "node:fs/promises"
@@ -45,10 +46,10 @@ try {
   await page.goto(`${preview.origin}/#/entity`)
   const initialCount = await page.locator("[data-entity-count]").getAttribute("data-entity-count")
   await page.getByRole("gridcell").first().dblclick()
-  await page.locator('[data-slot="entity-inspection"]').waitFor()
-  const destination = page.url(),
+  await page.locator('[data-workspace-page][data-active="true"] [data-slot="entity-inspection"]').waitFor()
+  const destination = (await workspaceLocation(page)),
     initialLists = lists
-  await page.getByRole("button", { name: "Import", exact: true }).click()
+  await openWorkspaceEntry(page, "Import")
   assert.equal(await page.getByRole("dialog", { name: "Tasks this run" }).isVisible(), false)
   assert.equal(submissions, 0)
   await page.evaluate(
@@ -72,7 +73,7 @@ try {
     redeliveredBody = route.request().postData()
     await route.continue()
   })
-  await page.getByRole("button", { name: "Import", exact: true }).click()
+  await openWorkspaceEntry(page, "Import")
   assert.equal(await page.getByRole("dialog", { name: "Tasks this run" }).isVisible(), false)
   await page.getByRole("button", { name: /^Tasks/ }).click()
   await page.locator("[data-task-record]").click()
@@ -101,7 +102,7 @@ try {
   const failureReason = failedItem.current.copy.reason ?? failedItem.current.base.reason
   assert(failureReason)
   await page.locator("article").filter({ hasText: missing }).getByRole("alert").getByText(failureReason, { exact: true }).waitFor()
-  assert.equal(page.url(), destination)
+  assert.equal((await workspaceLocation(page)), destination)
   assert.equal(lists, initialLists)
   assert.equal(submissions, 2)
   const plainRow = page.locator("article").filter({ hasText: plain })
@@ -110,7 +111,7 @@ try {
   )
   await plainRow.getByRole("button", { name: "View", exact: true }).click()
   await page.getByText(/Unable to observe imported Entity .*test refresh unavailable/).waitFor()
-  assert.equal(page.url(), destination)
+  assert.equal((await workspaceLocation(page)), destination)
   await page.unroute("**/api/v1/memberships/read")
   let releaseRefresh!: () => void
   let sawRefresh!: () => void
@@ -130,16 +131,16 @@ try {
   await page.keyboard.press("Escape")
   await page.getByRole("dialog", { name: "Tasks this run" }).waitFor({ state: "hidden" })
   await page.getByRole("button", { name: "Next entity", exact: true }).click()
-  const newerDestination = page.url()
+  const newerDestination = (await workspaceLocation(page))
   releaseRefresh()
   await page
     .locator('[data-slot="dialog-content"][hidden]')
-    .filter({ hasText: "Viewing was superseded by newer navigation." })
+    .filter({ hasText: "Viewing was superseded by dismissal or application close." })
     .waitFor({ state: "attached" })
   assert.equal(await page.getByRole("dialog", { name: "Tasks this run" }).isVisible(), false)
   await page.getByRole("button", { name: /^Tasks/ }).click()
-  await page.getByText("Viewing was superseded by newer navigation.", { exact: true }).waitFor()
-  assert.equal(page.url(), newerDestination)
+  await page.getByText("Viewing was superseded by dismissal or application close.", { exact: true }).waitFor()
+  assert.equal((await workspaceLocation(page)), newerDestination)
   await page.unroute("**/api/v1/memberships/read")
   await writeFile(missing, "now explicitly recopy")
   await page
@@ -172,21 +173,23 @@ try {
     .filter({ hasText: image })
     .getByRole("button", { name: "View", exact: true })
     .click()
-  await page.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
+  await page.locator('[data-workspace-page][data-active="true"] [data-slot="image-viewport"][data-state="ready"]').waitFor()
   const snapshot = await backend.client.GET("/api/v1/import-batches")
   assert(snapshot.data)
   const imported = snapshot.data.batches[0].items.find((i) => i.source_path === image)!
   await page
     .locator(`[data-slot="entity-inspection"][data-entity-id="${imported.current.entity_id}"]`)
     .waitFor()
-  await page.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
+  await page.locator('[data-workspace-page][data-active="true"] [data-slot="image-viewport"][data-state="ready"]').waitFor()
   assert.equal(
-    await page.locator('[data-slot="entity-inspection"]').getAttribute("data-entity-id"),
+    await page.locator('[data-workspace-page][data-active="true"] [data-slot="entity-inspection"]').getAttribute("data-entity-id"),
     imported.current.entity_id,
   )
   await page.getByRole("dialog", { name: "Tasks this run" }).waitFor({ state: "hidden" })
-  await page.locator('[data-slot="entity-inspection"]').click()
+  await page.locator('[data-workspace-page][data-active="true"] [data-slot="entity-inspection"]').click()
   await page.keyboard.press("Escape")
+  assert.equal(await workspaceLocation(page), newerDestination, "Closing the direct result restores the original page and visit")
+  await page.getByRole("button", { name: "Return to source", exact: true }).click()
   await page.getByRole("grid", { name: "Entities" }).waitFor()
   await page.getByRole("button", { name: /^Tasks.*1 records$/ }).waitFor()
   assert.equal(await page.getByRole("button", { name: /Tasks.*need attention/ }).count(), 0)

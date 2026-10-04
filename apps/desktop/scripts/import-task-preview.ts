@@ -39,7 +39,7 @@ try {
   page.setDefaultTimeout(15000)
   const errors: string[] = []
   page.on("pageerror", error => errors.push(error.message))
-  await page.getByRole("button", { name: "Import", exact: true }).waitFor()
+  await page.getByRole("button", { name: "Locus", exact: true }).waitFor()
   const submit = async (paths: string[]) => {
     const receipt = await page.evaluate(async body => {
       const response = await fetch("/api/v1/import-batches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })

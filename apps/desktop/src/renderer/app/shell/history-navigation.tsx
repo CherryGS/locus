@@ -3,13 +3,16 @@ import { useRouter } from "@tanstack/react-router"
 import { ArrowLeftIcon, ArrowRightIcon, CornerDownLeftIcon } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 
+import { usePageActivity } from "@/shared/page-activity"
 import { SourceReturnContext } from "@/shared/source-return"
 
 export function HistoryNavigation() {
   const { action } = useContext(SourceReturnContext)
   const router = useRouter()
+  const { active } = usePageActivity()
 
   useEffect(() => {
+    if (!active) return
     function navigate(event: KeyboardEvent) {
       if (event.defaultPrevented || document.querySelector('[data-slot="dialog-content"][data-open]')) return
       const backwards = (event.key === "ArrowLeft" && event.altKey) || (event.key === "[" && event.metaKey)
@@ -20,7 +23,7 @@ export function HistoryNavigation() {
     }
     window.addEventListener("keydown", navigate)
     return () => window.removeEventListener("keydown", navigate)
-  }, [router])
+  }, [router, active])
 
   return (
     <nav aria-label="History" className="flex items-center gap-0.5">

@@ -28,8 +28,8 @@ try {
     const entry = data.entries.find((e) => e.name === name)!
     await page.locator('[role="gridcell"][id$="-' + entry.entityId + '"]').dblclick()
     if (
-      !(await page.locator("#auxiliary-panel").count()) ||
-      (await page.locator("#auxiliary-panel").getAttribute("aria-label")) !== "Overview"
+      !(await page.locator('[data-slot="resizable-panel"] aside').count()) ||
+      (await page.locator('[data-slot="resizable-panel"] aside').getAttribute("aria-label")) !== "Overview"
     )
       await page.getByRole("button", { name: "Overview", exact: true }).click()
     if (await hasContentView(page, kind)) await chooseContentView(page, kind)

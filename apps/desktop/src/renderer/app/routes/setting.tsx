@@ -10,7 +10,6 @@ function SettingsEntry() {
   useEffect(() => {
     if (!session) return
     // Preserve old deep links without creating a second settings page.
-    session.playback.pause()
     void navigate({ to: "/entity", search: { mode: "grid", collectionId: "library" }, replace: true }).then(
       () => session.settingsNavigation.setOpen(true),
     )

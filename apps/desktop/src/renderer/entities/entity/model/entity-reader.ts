@@ -40,6 +40,7 @@ export class EntityReader {
   private previewUrls = new Map<string, { url: string; bytes: Blob; basis: string; revision: number }>()
   private entries = new Map<string, Entry>()
   private needed = new Set<string>()
+  private consumers = new Map<object, string[]>()
   private listeners = new Set<() => void>()
   private revision = 0
   private resourceGeneration = 0
@@ -143,7 +144,58 @@ export class EntityReader {
       this.changed()
     }
   }
-  demand(ids: string[]) {
+  /** Shared facts stay run-owned; decode/player failures and retry intent belong
+   * to the page that attempted the resource. The proxy binds all other methods
+   * to this reader so private cache and observation authority are never copied. */
+  scoped(): { reader: EntityReader; release: () => void } {
+    const owner = this, demand = this.acquireDemand()
+    let live = true
+    const failures = new Map<string, Map<string, ReadProblem>>()
+    const retries = new Map<string, number>()
+    const methods: Partial<Record<keyof EntityReader, unknown>> = {
+      get(id: string) {
+        const item = owner.get(id)
+        return { ...item, problems: [...(item.problems ?? []).filter(p => !p.key.startsWith("resource:")), ...[...(failures.get(id)?.entries() ?? [])].filter(([basis]) => item.components.some(c => (c.kind === "image" || c.kind === "video") && `${c.id}:${c.inputFileId}` === basis)).map(([, problem]) => problem)] }
+      },
+      demand: demand.update,
+      resourceRevision: (id: string) => owner.resourceRevision(id) + (retries.get(id) ?? 0),
+      playbackRevision: (id: string) => owner.playbackRevision(id) + (retries.get(id) ?? 0),
+      resourceResult(id: string, basis: string, generation: number, message?: string) {
+        if (!live) return
+        const component = owner.get(id).components.find(c => (c.kind === "image" || c.kind === "video") && `${c.id}:${c.inputFileId}` === basis)
+        if (!component) return
+        const actual = component.kind === "video" ? owner.playbackRevision(id) : owner.resourceRevision(id)
+        if (generation !== actual + (retries.get(id) ?? 0)) return
+        let entries = failures.get(id)
+        if (!entries) { entries = new Map(); failures.set(id, entries) }
+        if (message) entries.set(basis, { key: `resource:${basis}`, subject: `${component.kind} resource`, message, recovery: "resource" })
+        else entries.delete(basis)
+        owner.changed()
+      },
+      retryResource(id: string) {
+        if (!live) return
+        retries.set(id, (retries.get(id) ?? 0) + 1)
+        // Starting a retry does not confirm that these bytes can be decoded.
+        // Keep the attributable failure until a matching resource reports success.
+        void owner.reread(id)
+        owner.changed()
+      },
+      resultReplaced: (ids?: string[]) => owner.resultReplaced(ids ?? []),
+    }
+    const reader = new Proxy(this, { get(target, key) { const scoped = methods[key as keyof EntityReader]; if (scoped) return scoped; const value = Reflect.get(target, key, target); return typeof value === "function" ? value.bind(target) : value } })
+    return { reader, release: () => { live = false; demand.release(); failures.clear(); retries.clear() } }
+  }
+  acquireDemand() {
+    const consumer = {}
+    let released = false
+    return {
+      update: (ids: string[]) => { if (!released) this.demand(ids, consumer) },
+      release: () => { if (released) return; released = true; this.consumers.delete(consumer); this.demand([], consumer); this.consumers.delete(consumer) },
+    }
+  }
+  demand(ids: string[], consumer: object = this) {
+    this.consumers.set(consumer, ids)
+    ids = [...new Set([...this.consumers.values()].flat())]
     this.needed = new Set(ids)
     // Touch only the bounded visible range; an ID result is never expanded here.
     for (const id of ids) {
@@ -169,7 +221,8 @@ export class EntityReader {
   }
   /** A successful complete main-result replacement invalidates bounded content.
    * Related/direct demand is independent of membership in that result. */
-  resultReplaced() {
+  resultReplaced(ids?: string[]) {
+    if (ids) { void this.read(ids, true); return }
     this.contentEpoch++
     void this.read([...this.needed])
   }

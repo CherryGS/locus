@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { openWorkspaceEntry } from "./workspace-browser.ts"
 import { createRequire } from "node:module"
 import { join } from "node:path"
 import { mkdtemp, writeFile } from "node:fs/promises"
@@ -23,7 +24,7 @@ try {
     env: { ...env, LOCUS_DATA_DIR: data.library, LOCUS_SERVER_BINARY: binary, LOCUS_DESKTOP_HIDDEN: "1" },
   })
   const page = await application.firstWindow()
-  await page.getByRole("grid", { name: "Entities" }).waitFor()
+  await page.getByText("Open a workspace", { exact: true }).waitFor()
   assert.equal(
     await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()),
     false,
@@ -34,7 +35,8 @@ try {
   await application.evaluate((_electron, source) => {
     ;(globalThis as any).__desktopTest.fileSelections.push({ canceled: false, filePaths: [source] })
   }, source)
-  await page.getByRole("button", { name: "Import", exact: true }).click()
+  await openWorkspaceEntry(page, "Import", true)
+  await page.screenshot()
   assert.equal(await page.getByRole("dialog", { name: "Tasks this run" }).isVisible(), false)
   await page.getByRole("button", { name: /^Tasks/ }).click()
   await page.locator("[data-task-record]").filter({ hasText: "1 complete" }).waitFor()

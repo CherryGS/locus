@@ -12,6 +12,7 @@ export function suppliedSequence(ids: readonly string[]): IdentitySequence {
 export const emptySequence = suppliedSequence([])
 export type EntitySource = {
   sequence: IdentitySequence
+  openInNewTab?: (entityId: string) => void
   get(id: string): import("./entity-item").EntityItem
   demand(ids: string[]): void
 }

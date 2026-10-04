@@ -1,4 +1,3 @@
-import { createRootRoute } from "@tanstack/react-router"
-import { DesktopShell } from "../shell/desktop-shell"
-
-export const Route = createRootRoute({ component: DesktopShell })
+import { createRootRoute, Outlet } from "@tanstack/react-router"
+import { PageChrome } from "../shell/page-chrome"
+export const Route = createRootRoute({ component: () => <PageChrome><Outlet /></PageChrome> })

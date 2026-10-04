@@ -1,3 +1,4 @@
+import { usePageActivity } from "@/shared/page-activity"
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { DialogRootActions } from "@base-ui/react/dialog"
 import type { Wire } from "@/shared/api"
@@ -28,6 +29,7 @@ import { FieldReference } from "./field-reference"
 import { AssistancePanel } from "./assistance-panel"
 
 export function FilterModal({ coordinator: c, embedded = false }: { coordinator: FilterCoordinator; embedded?: boolean }) {
+  const { active } = usePageActivity()
   useSyncExternalStore(c.subscribe, c.snapshot)
   useEffect(() => () => c.close(), [c])
   const actions = useRef<DialogRootActions | null>(null),
@@ -58,7 +60,7 @@ export function FilterModal({ coordinator: c, embedded = false }: { coordinator:
     queueMicrotask(() => document.getElementById("filter-source")?.focus())
   }
   return (
-    <Dialog open={c.open} actionsRef={actions} onOpenChange={(open) => (open ? c.show() : c.close())}>
+    <Dialog open={c.open && active} actionsRef={actions} onOpenChange={(open) => (open ? c.show() : c.close())}>
       <DialogTrigger ref={entry}
         aria-label={c.filterApplied ? "Filter · applied" : "Filter"}
         title={c.filterApplied ? "Filter · applied" : "Filter"}
@@ -70,7 +72,7 @@ export function FilterModal({ coordinator: c, embedded = false }: { coordinator:
       </DialogTrigger>
       <DialogContent
         showCloseButton={false}
-        finalFocus={() => (c.hostClosing ? false : entry.current)}
+        finalFocus={() => (c.hostClosing || !active ? false : entry.current)}
         className={cn(
           "filter-dialog flex max-h-[calc(100dvh-2rem)] w-[min(42rem,calc(100dvw-2rem))] flex-col",
           reference

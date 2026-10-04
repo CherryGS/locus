@@ -19,6 +19,7 @@ export type TagDetailState = {
   scope: boolean
   requestedScope: boolean
   sequence?: IdentitySequence
+  appliedSource?: Wire<"FilterSource">
   entityId?: string
   grid?: GridPosition
   queryPending: boolean
@@ -214,15 +215,17 @@ export class TagDetails {
         value: { type: "identifier", value: state.id },
       })
       if (!this.live || ticket !== state.queryTicket) return
-      const observation = await this.api.search({
+      const source = {
         format: language.format,
         version: language.version,
         text: literal.condition,
-      })
+      }
+      const observation = await this.api.search(source)
       // Identity membership remains valid after releasing optional explanation context.
       void observation.release().catch(() => {})
       if (!this.live || ticket !== state.queryTicket) return
       state.sequence = observation.entities
+      state.appliedSource = source
       if (!state.entityId || state.sequence.indexOf(state.entityId) < 0)
         state.entityId = state.sequence.at(0)
       state.scope = inclusive

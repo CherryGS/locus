@@ -1,3 +1,4 @@
+import { workspaceLocation, freshWorkspaceEntry } from "./workspace-browser.ts"
 import { waitForContentViewSaved, chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
@@ -24,7 +25,7 @@ try {
       })
     else await route.continue()
   })
-  await page.goto(`${preview.origin}/#/entity`)
+  await freshWorkspaceEntry(page, `${preview.origin}/#/entity`)
   await page.getByRole("gridcell").first().waitFor()
   const locate = page.getByRole("button", { name: "Locate selected Entity", exact: true })
   assert(await locate.isDisabled(), "Locate stays visible without a selected Entity")
@@ -57,40 +58,23 @@ try {
     }))
   assert(footerTargets.length > 0)
   assert(footerTargets.every(target => target.width === 24 && target.height === 24 && target.iconWidth === 12 && target.iconHeight === 12), JSON.stringify(footerTargets))
-  const nav = page.getByRole("navigation", { name: "Main navigation", exact: true })
-  const home = nav.getByRole("link", { name: "Home", exact: true })
-  const navBox = await nav.boundingBox(), homeBox = await home.boundingBox()
-  assert(navBox && homeBox && navBox.width === 40 && homeBox.width === 32 && homeBox.height === 32 && homeBox.x - navBox.x === 4)
-  const iconX = await home.locator("svg").evaluate(element => element.getBoundingClientRect().x)
-  await home.hover()
-  await page.waitForFunction(() => document.querySelector('#primary-navigation')!.getBoundingClientRect().width === 224)
-  assert.equal(await home.locator("svg").evaluate(element => element.getBoundingClientRect().x), iconX, "Revealing navigation labels keeps the icon column fixed")
-  assert.equal((await page.locator('section[aria-label="Entity"]').boundingBox())!.x, 40, "Expanded navigation overlays the content")
-  await page.mouse.move(400, 20)
-  await page.waitForFunction(() => document.querySelector('#primary-navigation')!.getBoundingClientRect().width === 40)
-  const sourceReturn = page
-    .locator("header.title-bar")
-    .getByRole("button", { name: "Return to source", exact: true })
+  assert.equal(await page.getByRole("navigation", { name: "Main navigation", exact: true }).count(), 0)
+  const pageBounds = await page.locator('section[aria-label="Entity"]').boundingBox()
+  await page.getByRole("button", { name: "Locus", exact: true }).click()
+  await page.getByRole("menuitem", { name: "Media", exact: true }).waitFor()
+  assert.deepEqual(await page.locator('section[aria-label="Entity"]').boundingBox(), pageBounds, "The launcher overlays content without moving it")
+  await page.keyboard.press("Escape")
+  const sourceReturn = page.getByRole("navigation", { name: "History", exact: true }).getByRole("button", { name: "Return to source", exact: true })
   assert(await sourceReturn.isDisabled())
-  assert.deepEqual(
-    await page
-      .locator("header.title-bar button")
-      .evaluateAll((nodes) =>
-        nodes.slice(0, 4).map((n) => n.getAttribute("aria-label") ?? n.textContent?.trim()),
-      ),
-    ["Back", "Forward", "Return to source", "Import"],
-  )
-  const gridUrl = page.url()
+  assert(await page.getByRole("button", { name: "Back", exact: true }).isVisible())
+  assert(await page.getByRole("button", { name: "Forward", exact: true }).isVisible())
+  const gridUrl = (await workspaceLocation(page))
   await sourceReturn.evaluate((button: HTMLButtonElement) => button.click())
-  assert.equal(page.url(), gridUrl)
-  await page.getByRole("link", { name: "Home", exact: true }).click()
-  assert(await sourceReturn.isDisabled())
-  await page.getByRole("button", { name: "Back", exact: true }).click()
-  await page.getByRole("gridcell").first().waitFor()
+  assert.equal((await workspaceLocation(page)), gridUrl)
   await page.getByRole("gridcell").first().dblclick()
   assert(await sourceReturn.isEnabled())
   await page.locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
-  assert(await locate.isDisabled(), "Locate remains visible but unavailable without the grid")
+  assert.equal(await locate.count(), 0, "Locate belongs to the grid, not the detail filmstrip")
   await checkPageBoundary()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   await page.getByText("Isolated preference-read failure", { exact: true }).waitFor()
@@ -142,12 +126,12 @@ try {
   await waitForContentViewSaved(page)
   await page.screenshot({ path: join(output, "connected-image.png") })
   // Component inspection is separate from choosing (and saving) a main view.
-  const inspectionUrl = page.url()
+  const inspectionUrl = (await workspaceLocation(page))
   const mainView = await page.locator('[data-slot="entity-inspection"]').getAttribute("data-view-id")
   await page.getByRole("button", { name: "Open Image details", exact: true }).click()
-  const panel = page.locator("#auxiliary-panel")
+  const panel = page.locator('[data-slot="resizable-panel"] aside')
   assert.equal(await panel.getAttribute("aria-label"), "Image")
-  assert.equal(page.url(), inspectionUrl)
+  assert.equal((await workspaceLocation(page)), inspectionUrl)
   assert.equal(await page.locator('[data-slot="entity-inspection"]').getAttribute("data-view-id"), mainView)
   assert.equal(await panel.getByRole("button", { name: "Component ID", exact: true }).count(), 0)
   assert.equal(await panel.getByRole("button", { name: "Copy component id", exact: true }).count(), 0)
@@ -165,10 +149,9 @@ try {
   assert(railBox && railBox.width === 40 && railButtons.every(button => button.width === 32 && button.x - railBox.x === 4), "Both rails share 4px side insets")
   const footprints = await page.locator('[data-slot="entity-workspace"]').evaluate(workspace => {
     const group = workspace.querySelector('[data-slot="resizable-panel-group"]')!
-    const nav = document.getElementById("primary-navigation")!.parentElement!
-    return { left: nav.getBoundingClientRect().width, right: workspace.getBoundingClientRect().right - group.getBoundingClientRect().right }
+    return { right: workspace.getBoundingClientRect().right - group.getBoundingClientRect().right }
   })
-  assert.deepEqual(footprints, { left: 40, right: 40 }, "Rail boundaries are included in the same visual footprint")
+  assert.deepEqual(footprints, { right: 40 }, "The remaining inspector rail includes its boundary")
   assert.equal(await panel.getByText("Exact size", { exact: true }).count(), 0, "formatted and exact size share one property row")
   await page.getByRole("button", { name: "Image", exact: true }).click()
   await panel.getByText("Revision", { exact: true }).waitFor()
@@ -275,27 +258,27 @@ try {
     .getByText("The Entity is no longer in the current list. Selection was cleared.", { exact: true })
     .waitFor()
   assert.equal(await page.locator('[data-slot="entity-inspection"]').count(), 0)
-  await page.goto(`${preview.origin}/#/entity?entityId=${selected}&mode=inspect&collectionId=library`)
+  await freshWorkspaceEntry(page, `${preview.origin}/#/entity?entityId=${selected}&mode=inspect&collectionId=library`)
   await page.getByText("Entity unavailable in this list", { exact: true }).waitFor()
-  const historyUrl = page.url()
+  const historyUrl = (await workspaceLocation(page))
   await page.getByRole("button", { name: "Retry current list", exact: true }).click()
   await page.getByText("Entity unavailable in this list", { exact: true }).waitFor()
-  assert.equal(page.url(), historyUrl)
+  assert.equal((await workspaceLocation(page)), historyUrl)
   assert(await sourceReturn.isEnabled())
   await sourceReturn.click()
-  await page.locator('header.title-bar button[aria-label="Return to source"]:disabled').waitFor()
+  await page.locator('button[aria-label="Return to source"]:disabled').waitFor()
   assert(await sourceReturn.isDisabled())
   // A missing declared source still has a meaningful return action and fallback.
   const missingSource = encodeURIComponent(JSON.stringify({ mode: "grid", collectionId: "removed-gallery" }))
-  await page.goto(
+  await freshWorkspaceEntry(page,
     `${preview.origin}/#/entity?entityId=${selected}&mode=inspect&collectionId=library&source=${missingSource}`,
   )
   await page.getByText("Entity unavailable in this list", { exact: true }).waitFor()
   assert(await sourceReturn.isEnabled())
   await sourceReturn.click()
-  await page.locator('header.title-bar button[aria-label="Return to source"]:disabled').waitFor()
+  await page.locator('button[aria-label="Return to source"]:disabled').waitFor()
   assert(await sourceReturn.isDisabled())
-  assert(!page.url().includes("removed-gallery"))
+  assert(!(await workspaceLocation(page)).includes("removed-gallery"))
   const initial = await browser.newPage()
   let releaseInitial!: () => void
   const heldInitial = new Promise<void>((done) => {
@@ -312,8 +295,8 @@ try {
   await initial.locator('[data-slot="entity-workspace"]').getByText("Reading library…", { exact: true }).waitFor()
   await initial.getByText(`Requested Entity: ${selected} · Context: library`, { exact: true }).waitFor()
   await initial.keyboard.press("Escape")
-  assert(initial.url().includes(selected!))
-  assert(!initial.url().includes("mode=inspect"))
+  assert((await workspaceLocation(initial)).includes(selected!))
+  assert(!(await workspaceLocation(initial)).includes("mode=inspect"))
   releaseInitial()
   await initial.getByText("Unable to read the library", { exact: true }).waitFor()
   assert.equal(
@@ -347,7 +330,9 @@ try {
     headers: { "content-type": "application/octet-stream", "content-length": "0" } }))
   await recovery.getByRole("button", { name: "Refresh library", exact: true }).click()
   await recovery.getByText("No entities yet.", { exact: true }).waitFor()
-  assert(await recovery.getByRole("button", { name: "Import", exact: true }).isEnabled())
+  await recovery.getByRole("button", { name: "Locus", exact: true }).click()
+  assert(await recovery.getByRole("menuitem", { name: "Import", exact: true }).isEnabled())
+  await recovery.keyboard.press("Escape")
   await recovery.screenshot({ path: join(output, "library-empty.png") })
   await recovery.close()
   assert.deepEqual(errors, [])

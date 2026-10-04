@@ -1,3 +1,4 @@
+import { openWorkspaceEntry } from "./workspace-browser.ts"
 import { chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
@@ -44,11 +45,13 @@ async function launch(extra: Record<string, string> = {}) {
   await launchApplication(extra)
   const page = await application!.firstWindow()
   page.setDefaultTimeout(15000)
+  await page.locator("header.title-bar").waitFor()
+  await application!.evaluate(async ({ BrowserWindow }) => { await BrowserWindow.getAllWindows()[0].webContents.capturePage(undefined, { stayHidden: true, stayAwake: true }) })
   return page
 }
 async function settings(page: Page) {
-  await page.getByRole("grid", { name: "Entities" }).waitFor()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings", true)
+  await application!.evaluate(async ({ BrowserWindow }) => { await BrowserWindow.getAllWindows()[0].webContents.capturePage(undefined, { stayHidden: true, stayAwake: true }) })
   await page.getByRole("button", { name: "Media tools", exact: true }).click()
   await page.waitForFunction(() => !(document.querySelector("#media-ffprobe") as HTMLInputElement)?.disabled)
 }
@@ -132,7 +135,7 @@ try {
   if (launchError) throw launchError
   const duplicatePage = await application!.firstWindow()
   duplicatePage.setDefaultTimeout(15000)
-  await duplicatePage.getByRole("grid", { name: "Entities" }).waitFor()
+  await duplicatePage.getByText("Open a workspace", { exact: true }).waitFor()
   const afterRetry = await duplicatePage.evaluate(async () =>
     (await fetch("/api/v1/external-access/token")).json(),
   )
@@ -189,7 +192,8 @@ try {
   checks.push("draft return and stale canceled commit")
   await page.getByRole("button", { name: "Restart application", exact: true }).click()
   await page.getByRole("button", { name: "Discard draft and restart", exact: true }).waitFor()
-  await page.screenshot({ path: join(output, "discard-confirmation.png") })
+  const confirmation = await application!.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG().toString("base64"))
+  await writeFile(join(output, "discard-confirmation.png"), Buffer.from(confirmation, "base64"))
   await sql(
     "CREATE TRIGGER settings_fixture_work BEFORE INSERT ON locus_core_comm_entity BEGIN SELECT (WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<100000000) SELECT sum(x) FROM n); END",
   )
@@ -234,7 +238,7 @@ try {
   assert(ready[0].externalToken && ready[1].externalToken)
   assert.equal(ready[1].externalToken.context, ready[0].externalToken.context)
   assert.equal(ready[1].externalToken.digest, ready[0].externalToken.digest)
-  assert.equal(ready[1].page.hash, "#/entity")
+  assert.equal(ready[1].page.hash, "")
   assert.equal(ready[1].page.settingsFields, 0)
   checks.push(
     "one actual replacement after real accepted-work drain and old host/backend exit; fresh run/credential/session; same library adopted saved values",
@@ -259,7 +263,7 @@ try {
     }
   })
   await page.reload()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   await page.getByRole("button", { name: "External connection", exact: true }).click()
   await page.waitForFunction(
     () => !(document.querySelector("#external-address") as HTMLInputElement)?.disabled,
@@ -297,7 +301,7 @@ try {
     }
   })
   await page.reload()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   await page.getByRole("button", { name: "Media tools", exact: true }).click()
   await page.waitForFunction(() => !(document.querySelector("#media-ffprobe") as HTMLInputElement)?.disabled)
   await page.getByLabel("ffprobe", { exact: true }).fill("failed-draft")
@@ -312,7 +316,7 @@ try {
 
   // Preference preparation still observes failed current intent after leaving the Entity.
   page = await launch()
-  await page.getByRole("grid", { name: "Entities" }).waitFor()
+  await page.getByText("Open a workspace", { exact: true }).waitFor()
   await page.addInitScript(() => {
     const original = window.fetch
     window.fetch = async (...args) => {
@@ -326,10 +330,12 @@ try {
     }
   })
   await page.reload()
+  await openWorkspaceEntry(page, "All content", true)
+  await page.screenshot()
   await page.getByRole("gridcell").first().dblclick()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   await chooseContentView(page, "File")
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   await page.getByRole("button", { name: "Restart application", exact: true }).click()
   await page.getByRole("heading", { name: "Some choices are not confirmed saved" }).waitFor()
   assert.equal(await page.getByRole("button", { name: "Discard draft and restart", exact: true }).count(), 0)

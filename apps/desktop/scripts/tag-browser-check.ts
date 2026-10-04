@@ -1,3 +1,4 @@
+import { openWorkspaceEntry, activateTab, activeWorkspacePage } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
@@ -16,8 +17,21 @@ try {
   const errors: string[] = []
   page.on("pageerror", (e) => errors.push(e.message))
   await page.goto(`${preview.origin}/#/`)
+  const workspaceLocation = async () => (await activeWorkspacePage(page!).locator('[data-page-location]').getAttribute('data-page-location'))!
+  const pageHistoryLength = async () => Number(await activeWorkspacePage(page!).locator('[data-page-location]').getAttribute('data-history-length'))
+  const waitLocation = async (pattern: RegExp) => {
+    await page!.waitForFunction(({ source, flags }) => {
+      const path = document.querySelector('[data-workspace-page][data-active="true"] [data-page-location]')?.getAttribute('data-page-location') ?? ""
+      return new RegExp(source, flags).test(path)
+    }, { source: pattern.source, flags: pattern.flags })
+  }
+  let contentOpened = false
+  const openContent = async () => {
+    if (contentOpened) await activateTab(page!, "All content")
+    else { await openWorkspaceEntry(page!, "All content"); contentOpened = true }
+  }
   const open = async () => {
-    await page!.getByRole("link", { name: /^Tags/ }).first().click()
+    await openWorkspaceEntry(page!, "Tags")
     await page!.getByRole("heading", { name: "Tags", exact: true }).waitFor()
   }
   await open()
@@ -101,7 +115,7 @@ try {
   await page.getByLabel("Find tags", { exact: true }).fill("nomatch")
   await page.getByText("No matching tags", { exact: true }).waitFor()
   await page.getByRole("heading", { name: "Kitten", exact: true }).waitFor()
-  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await openContent()
   await open()
   assert.equal(await page.getByLabel("Find tags", { exact: true }).inputValue(), "nomatch")
   await page.getByRole("heading", { name: "Kitten", exact: true }).waitFor()
@@ -174,7 +188,7 @@ try {
   assert.equal(await columns.count(), 3)
   await childItem.press("Tab")
   assert(await page.evaluate(() => !document.activeElement?.closest('[role="tree"]')))
-  const historyLength = await page.evaluate(() => history.length),
+  const historyLength = await pageHistoryLength(),
     breadcrumbs = page.getByRole("navigation", { name: "Tag path", exact: true })
   await breadcrumbs.getByRole("button", { name: "Locate Animals", exact: true }).click()
   await page.getByRole("heading", { name: "Animals", exact: true }).waitFor()
@@ -192,23 +206,24 @@ try {
   await breadcrumbs.getByRole("button", { name: "Locate Kitten", exact: true }).click()
   await page.getByRole("heading", { name: "Kitten", exact: true }).waitFor()
   assert.equal(await columns.count(), 3)
-  assert.equal(await page.evaluate(() => history.length), historyLength)
-  // Back leaves the Tag workflow rather than stepping through local selections.
-  await page.goBack()
-  await page.waitForURL(/#\/entity/)
-  await page.goForward()
+  assert.equal(await pageHistoryLength(), historyLength)
+  // Root Back/Forward belong to the singleton page and cannot activate another tab.
+  await activeWorkspacePage(page).getByRole("button", { name: "Back", exact: true }).click()
+  await waitLocation(/\/tags/)
+  assert.equal(await page.locator('[role="tab"][aria-selected="true"]').textContent(), "Tags")
+  await activeWorkspacePage(page).getByRole("button", { name: "Forward", exact: true }).click()
   await page.getByRole("heading", { name: "Kitten", exact: true }).waitFor()
   assert.equal(await columns.count(), 3)
   await page.screenshot({ path: join(output, "forest.png"), animations: "disabled" })
   const enterSelected = async (row: ReturnType<Page["getByRole"]>, id: string) => {
     await row.press("Enter")
-    await page!.waitForURL(new RegExp(`#/tag/${id}$`))
+    await waitLocation(new RegExp(`/tag/${id}$`))
     await page!.keyboard.press("Escape")
-    await page!.waitForURL(/#\/tags/)
+    await waitLocation(/\/tags/)
     assert.equal(await row.getAttribute("aria-selected"), "true")
     assert(await row.evaluate((node) => node === document.activeElement))
   }
-  const listHistory = await page.evaluate(() => history.length)
+  const listHistory = await pageHistoryLength()
   // DOM focus from Up/Down is a candidate, not the selected/open Tag.
   await rootItem.focus()
   await rootItem.press("ArrowDown")
@@ -216,9 +231,9 @@ try {
   assert.equal(await offPath.getAttribute("aria-selected"), "false")
   await offPath.press("Enter")
   await page.getByRole("heading", { name: "Other", exact: true }).waitFor()
-  assert.match(page.url(), /#\/tags/)
+  assert.match(await workspaceLocation(), /\/tags/)
   assert.equal(await columns.count(), 1)
-  assert.equal(await page.evaluate(() => history.length), listHistory)
+  assert.equal(await pageHistoryLength(), listHistory)
   await enterSelected(offPath, other.id)
   await offPath.press("ArrowUp")
   assert.equal(await rootItem.getAttribute("aria-selected"), "false")
@@ -228,13 +243,13 @@ try {
   assert.equal(await columns.count(), 2)
   await page.keyboard.down("Enter") // A held key must not turn selection into activation.
   await page.keyboard.up("Enter")
-  assert.match(page.url(), /#\/tags/)
+  assert.match(await workspaceLocation(), /\/tags/)
   await enterSelected(rootItem, animal.id)
   const candidateChild = page.getByRole("treeitem", { name: "Select Cat", exact: true })
   await candidateChild.focus()
   await candidateChild.press("Enter")
   await page.getByRole("heading", { name: "Cat", exact: true }).waitFor()
-  assert.match(page.url(), /#\/tags/)
+  assert.match(await workspaceLocation(), /\/tags/)
   assert.equal(await candidateChild.getAttribute("aria-expanded"), "true")
   assert.equal(await columns.count(), 3)
   await enterSelected(candidateChild, cat.id)
@@ -242,7 +257,7 @@ try {
   await candidateLeaf.focus()
   await candidateLeaf.press("Enter")
   await page.getByRole("heading", { name: "Kitten", exact: true }).waitFor()
-  assert.match(page.url(), /#\/tags/)
+  assert.match(await workspaceLocation(), /\/tags/)
   assert.equal(await candidateLeaf.getAttribute("aria-expanded"), null)
   assert.equal(await columns.count(), 3)
   await enterSelected(candidateLeaf, kitten.id)
@@ -252,13 +267,13 @@ try {
   await lookupOther.focus()
   await lookupOther.press("Enter")
   await page.getByRole("heading", { name: "Other", exact: true }).waitFor()
-  assert.match(page.url(), /#\/tags/)
+  assert.match(await workspaceLocation(), /\/tags/)
   assert.equal(await page.getByLabel("Find tags", { exact: true }).inputValue(), "")
   await enterSelected(offPath, other.id)
   await page.getByLabel("Find tags", { exact: true }).fill("Other")
   await lookupOther.focus()
   await lookupOther.press("Enter")
-  await page.waitForURL(new RegExp(`#/tag/${other.id}$`))
+  await waitLocation(new RegExp(`/tag/${other.id}$`))
   await page.keyboard.press("Escape")
   await lookupOther.waitFor()
   assert.equal(await page.getByLabel("Find tags", { exact: true }).inputValue(), "Other")
@@ -269,18 +284,18 @@ try {
   await offPath.focus()
   await offPath.click()
   await page.getByRole("heading", { name: "Other", exact: true }).waitFor()
-  assert.match(page.url(), /#\/tags/)
+  assert.match(await workspaceLocation(), /\/tags/)
   await select("Kitten")
   await select("Animals")
   // Detail has a complete independent Entity context, without replacing main Filter.
-  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await openContent()
   await page.getByRole("button", { name: /^Filter/ }).click()
   const mainFilter = page.getByRole("dialog", { name: "Filter Entities", exact: true })
   const retainedMainSource = 'tag_names_exact:"Cat"'
   await mainFilter.getByLabel("Filter source", { exact: true }).fill(retainedMainSource)
   await mainFilter.getByRole("button", { name: "Apply", exact: true }).click()
   await mainFilter.waitFor({ state: "hidden" })
-  await page.getByTestId("entity-grid-panel").getByText("No matches", { exact: true }).waitFor()
+  await activeWorkspacePage(page).locator("[data-slot=entity-workspace]").getByText("No matches", { exact: true }).waitFor()
   await open()
   await select("Animals")
   const forestColumns = await columns.evaluateAll((nodes) => nodes.map((n) => n.getAttribute("data-tag-column")))
@@ -302,7 +317,7 @@ try {
   const enterDetail = async () => {
     await rootItem.focus()
     await rootItem.press("Enter")
-    await page!.waitForURL(new RegExp(`#/tag/${animal.id}`))
+    await waitLocation(new RegExp(`/tag/${animal.id}`))
     await documentActions.getByRole("button", { name: "Edit description", exact: true }).waitFor()
     await page!.waitForFunction(() => !document.querySelector<HTMLButtonElement>('[aria-label="Document actions"] button')?.disabled)
   }
@@ -327,12 +342,12 @@ try {
   }
   const returnForest = async () => {
     await page!.keyboard.press("Escape")
-    await page!.waitForURL(/#\/tags/)
+    await waitLocation(/\/tags/)
     await rootItem.waitFor()
     assert.deepEqual(await columns.evaluateAll((nodes) => nodes.map((n) => n.getAttribute("data-tag-column"))), forestColumns)
     assert(await rootItem.evaluate((node) => node === document.activeElement))
   }
-  assert.match(page.url(), /#\/tags/)
+  assert.match(await workspaceLocation(), /\/tags/)
   // First click locates; Enter on the focused row activates.
   await enterDetail()
   assert.equal(await detail.locator("header").count(), 1)
@@ -378,7 +393,7 @@ try {
   }
   await page.getByRole("button", { name: "Refresh tag page", exact: true }).click()
   await grid.locator('[data-entity-count="3"]').waitFor()
-  const detailUrl = page.url()
+  const detailUrl = await workspaceLocation()
   const selectedEntity = () => page!.getByRole("gridcell", { selected: true }).getAttribute("data-entity-id")
   const cell = (id: string) => grid.locator(`[role="gridcell"][data-entity-id="${id}"]`)
   await cell(extraIds[0]).click()
@@ -387,7 +402,7 @@ try {
   assert.equal(await selectedEntity(), extraIds[1])
   await grid.press("ArrowLeft")
   assert.equal(await selectedEntity(), extraIds[0])
-  assert.equal(page.url(), detailUrl)
+  assert.equal(await workspaceLocation(), detailUrl)
   await cell(extraIds[0]).dblclick()
   await page.locator(`[data-slot="entity-inspection"][data-entity-id="${extraIds[0]}"]`).waitFor()
   assert.equal(await description.count(), 0)
@@ -400,7 +415,7 @@ try {
   await grid.waitFor()
   assert(await grid.evaluate((element) => element === document.activeElement))
   assert.equal(await selectedEntity(), extraIds[0])
-  assert.equal(page.url(), detailUrl)
+  assert.equal(await workspaceLocation(), detailUrl)
   await page.locator('[aria-label="Description area"]').evaluate((element) => { element.scrollTop = 0 })
   await page.screenshot({ path: join(output, "tag-grid.png"), animations: "disabled" })
   await page.setViewportSize({ width: 360, height: 800 })
@@ -415,7 +430,7 @@ try {
   await cell(extraIds[1]).dblclick()
   const inspectionGuard = page.getByRole("dialog", { name: "Unsaved description", exact: true })
   await inspectionGuard.waitFor()
-  assert.equal(page.url(), detailUrl)
+  assert.equal(await workspaceLocation(), detailUrl)
   await inspectionGuard.getByRole("button", { name: "Cancel", exact: true }).click()
   await inspectionGuard.waitFor({ state: "hidden" })
   await editor.getByText(/cursor-test/).waitFor()
@@ -466,7 +481,7 @@ try {
   await page.locator('.milkdown-slash-menu[data-show="true"]').waitFor()
   await page.keyboard.press("Escape")
   await page.locator('.milkdown-slash-menu[data-show="true"]').waitFor({ state: "hidden" })
-  assert.match(page.url(), /#\/tag\//)
+  assert.match(await workspaceLocation(), /\/tag\//)
   await append(" cancel-this")
   await page.screenshot({ path: join(output, "tag-detail-edit.png"), animations: "disabled" })
   await documentActions.getByRole("button", { name: "Cancel", exact: true }).click()
@@ -480,18 +495,18 @@ try {
   await leaveGuard.waitFor()
   await page.keyboard.press("Escape")
   await leaveGuard.waitFor({ state: "hidden" })
-  assert.match(page.url(), /#\/tag\//)
+  assert.match(await workspaceLocation(), /\/tag\//)
   await editor.getByText(/discard-this/).waitFor()
   await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
   await leaveGuard.getByRole("button", { name: "Discard", exact: true }).click()
-  await page.waitForURL(/#\/tags/)
+  await waitLocation(/\/tags/)
   assert.equal((await readDocument()).markdown, confirmedMarkdown)
   await enterDetail()
   await beginEdit()
   await append(" save-on-leave")
   await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
   await leaveGuard.getByRole("button", { name: "Save", exact: true }).click()
-  await page.waitForURL(/#\/tags/)
+  await waitLocation(/\/tags/)
   assert((await readDocument()).markdown.includes("save-on-leave"))
   await enterDetail()
   await beginEdit()
@@ -538,7 +553,7 @@ try {
   // A repeated click opens a focused row; repeatedly mount/unmount the imperative editor.
   for (let i = 0; i < 3; i++) {
     await rootItem.click()
-    await page.waitForURL(new RegExp(`#/tag/${animal.id}`))
+    await waitLocation(new RegExp(`/tag/${animal.id}`))
     await savedView()
     await returnForest()
   }
@@ -546,22 +561,22 @@ try {
   const searchMatch = page.getByRole("button", { name: "Reveal Animals", exact: true })
   await searchMatch.focus()
   await searchMatch.press("Enter")
-  await page.waitForURL(new RegExp(`#/tag/${animal.id}`))
+  await waitLocation(new RegExp(`/tag/${animal.id}`))
   await savedView()
   await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
-  await page.waitForURL(/#\/tags/)
+  await waitLocation(/\/tags/)
   assert.equal(await page.getByLabel("Find tags", { exact: true }).inputValue(), "Animals")
   assert(await searchMatch.evaluate((node) => node === document.activeElement))
   await searchMatch.click()
-  await page.waitForURL(new RegExp(`#/tag/${animal.id}`))
+  await waitLocation(new RegExp(`/tag/${animal.id}`))
   await savedView()
   await detail.getByRole("button", { name: "Return to tags", exact: true }).click()
-  await page.waitForURL(/#\/tags/)
+  await waitLocation(/\/tags/)
   assert.equal(await page.getByLabel("Find tags", { exact: true }).inputValue(), "Animals")
   assert(await searchMatch.evaluate((node) => node === document.activeElement))
   await page.getByLabel("Find tags", { exact: true }).fill("")
-  await page.getByRole("link", { name: "Entity", exact: true }).click()
-  await page.getByTestId("entity-grid-panel").getByText("No matches", { exact: true }).waitFor()
+  await openContent()
+  await activeWorkspacePage(page).locator("[data-slot=entity-workspace]").getByText("No matches", { exact: true }).waitFor()
   await page.getByRole("button", { name: /^Filter/ }).click()
   assert.equal(await mainFilter.getByLabel("Filter source", { exact: true }).inputValue(), retainedMainSource)
   // Clear the unsaved authoring draft before the following generated-Filter checks.
@@ -620,26 +635,20 @@ try {
   await select("Kitten")
   await page.getByRole("button", { name: "Find content", exact: true }).click()
   await page.getByRole("button", { name: "Exactly this tag", exact: true }).click()
-  const guard = page.getByRole("dialog", {
-    name: "Unsaved Filter edits",
-    exact: true,
-  })
-  await guard.waitFor()
-  await guard.getByRole("button", { name: "Cancel", exact: true }).click()
-  assert.equal(
-    await filter.getByLabel("Filter source", { exact: true }).inputValue(),
-    'tag_names_exact:"retained draft"',
-  )
+  await filter.waitFor()
+  assert.equal(await filter.getByLabel("Filter source", { exact: true }).inputValue(), `tag_ids:"${kitten.id}"`)
+  assert.equal(await page.getByRole("dialog", { name: "Unsaved Filter edits", exact: true }).count(), 0,
+    "A Tag condition opens a fresh unnamed page instead of replacing another page's private draft")
+  const exactReceiver = (await page.locator('[role="tab"][aria-selected="true"]').textContent())!.trim()
   await filter.getByRole("button", { name: "Close", exact: true }).click()
-  await open()
-  await page.getByRole("button", { name: "Find content", exact: true }).click()
-  await page.getByRole("button", { name: "Exactly this tag", exact: true }).click()
-  await guard.getByRole("button", { name: "Discard", exact: true }).click()
-  assert.equal(
-    await filter.getByLabel("Filter source", { exact: true }).inputValue(),
-    `tag_ids:"${kitten.id}"`,
-  )
+  await activateTab(page, "All content 2")
+  await page.getByRole("button", { name: /^Filter/ }).click()
+  assert.equal(await filter.getByLabel("Filter source", { exact: true }).inputValue(), 'tag_names_exact:"retained draft"')
   await filter.getByRole("button", { name: "Close", exact: true }).click()
+  await activateTab(page, exactReceiver)
+  await activeWorkspacePage(page).locator(`[data-entity-count="${allIds.length}"]`).waitFor()
+  assert.equal(Number(await activeWorkspacePage(page).locator('[data-entity-count]').getAttribute('data-entity-count')), allIds.length,
+    "Generated Tag criteria stay unapplied until the receiving page explicitly applies them")
   await open()
   await select("Cat")
   await menuAction("Move branch")
@@ -757,7 +766,7 @@ try {
       300,
   )
   assert((await treeViewport.evaluate((element) => element.scrollTop)) > 400)
-  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await openContent()
   let releaseRead!: () => void
   const heldRead = new Promise<void>((resolve) => {
     releaseRead = resolve
@@ -838,7 +847,7 @@ try {
   await page.getByRole("heading", { name: "Deep 7", exact: true }).waitFor()
   assert.equal(await columns.count(), 9)
   await page.screenshot({ path: join(output, "forest-deep.png"), animations: "disabled" })
-  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await openContent()
   await open()
   await horizontal.waitFor()
   assert.equal(await horizontal.evaluate((e) => e.scrollLeft), horizontalPosition)
@@ -883,6 +892,37 @@ try {
   assert.equal(await breadcrumbs.evaluate((node) => getComputedStyle(node).overflowX), "hidden")
   await page.screenshot({ path: join(output, "path-long-names.png"), animations: "disabled" })
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
+  // The associated-content entry transfers its established Tag result and
+  // applied stable-identity condition into an independent browsing page.
+  await page.setViewportSize({ width: 1200, height: 800 })
+  await page.getByLabel("Find tags", { exact: true }).fill("Kitten")
+  await page.getByRole("button", { name: "Reveal Kitten", exact: true }).click()
+  const kittenRow = page.getByRole("treeitem", { name: "Select Kitten", exact: true })
+  await kittenRow.focus(); await kittenRow.press("Enter")
+  await waitLocation(new RegExp(`/tag/${kitten.id}`))
+  const tagRoot = activeWorkspacePage(page)
+  await tagRoot.locator('[data-entity-count="1"]').waitFor()
+  let handoffQueries = 0
+  const countHandoffQuery = (request: import("playwright").Request) => {
+    if (["/api/v1/search/query", "/api/v1/entities"].includes(new URL(request.url()).pathname)) handoffQueries++
+  }
+  page.on("request", countHandoffQuery)
+  await tagRoot.getByRole("gridcell").click({ button: "right" })
+  await page.getByRole("menuitem", { name: "Open in new tab", exact: true }).click()
+  await activeWorkspacePage(page).locator(`[data-slot="entity-inspection"][data-entity-id="${entity}"]`).waitFor()
+  assert.equal(handoffQueries, 0, "Opening the Tag receiver reuses R0 without a query")
+  await activeWorkspacePage(page).getByRole("button", { name: "Return to source", exact: true }).click()
+  await activeWorkspacePage(page).locator('[data-entity-count="1"]').waitFor()
+  const receiver = (await page.locator('[role="tab"][aria-selected="true"]').textContent())!.trim()
+  await openWorkspaceEntry(page, "Tags")
+  await activeWorkspacePage(page).getByRole("button", { name: "Return to tags", exact: true }).click()
+  await activateTab(page, receiver)
+  await activeWorkspacePage(page).getByRole("button", { name: "Refresh tag content", exact: true }).click()
+  await page.waitForFunction(() => document.querySelector('[data-workspace-page][data-active="true"] button[aria-label="Refresh tag content"]')?.getAttribute("aria-busy") === "false")
+  await activeWorkspacePage(page).locator('[data-entity-count="1"]').waitFor()
+  assert.equal(handoffQueries, 1, "Receiver refresh preserves captured Tag scope")
+  page.off("request", countHandoffQuery)
+  await page.getByRole("button", { name: `Close ${receiver}`, exact: true }).click()
   assert.deepEqual(errors, [])
   await writeFile(
     join(output, "result.json"),
@@ -895,7 +935,7 @@ try {
           "search path reveal",
           "single-path columns, counts, keyboard and navigation reentry",
           "candidate Enter selects/expands before detail; parent, leaf, lookup, held key and pointer parity",
-          "guarded generated Filter draft waits Apply",
+          "fresh unnamed generated Filter draft waits Apply and preserves another page’s private draft",
           "move and rename",
           "one-record delete promotion and direct annotations",
           "retained read failure",

@@ -76,7 +76,15 @@ function TagRoute() {
     },
   })
   if (!session || !c || !s) return null
-  const source = { sequence: s.sequence ?? emptySequence, get, demand }
+  const translate = (destination: EntityDestination): EntityDestination => ({ ...destination,
+    collectionId: destination.collectionId === contextId ? "library" : destination.collectionId,
+    source: destination.source ? translate(destination.source) : undefined })
+  const openInNewTab = (destination: EntityDestination) => session.run.workspace.handoff(session,
+    translate(destination), s.sequence ?? emptySequence, s.document?.tag.name,
+    { sequence: s.sequence ?? emptySequence, criteria: s.appliedSource, filterCriteria: s.appliedSource })
+  const source = { sequence: s.sequence ?? emptySequence, get, demand,
+    openInNewTab: (entityId: string) => openInNewTab({ mode: "inspect", collectionId: contextId, entityId,
+      source: { mode: "grid", collectionId: contextId } }) }
   const move = (next: EntityDestination, replace?: boolean) => {
     if (next.collectionId === "library") {
       void navigate({ to: "/entity", search: next, replace })
@@ -105,6 +113,7 @@ function TagRoute() {
       {destination.mode === "inspect" ? (
         <EntityPage
           source={source}
+          openInNewTab={openInNewTab}
           collections={[]}
           destination={destination}
           visitKey={visitKey}

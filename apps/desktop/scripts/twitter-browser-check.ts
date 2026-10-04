@@ -1,3 +1,4 @@
+import { workspaceLocation, openWorkspaceEntry } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { chooseContentView, hasContentView } from "./content-view-choice.ts"
 import { join } from "node:path"
@@ -35,7 +36,7 @@ try {
     const entry = data.entries.find(e => e.name === name)!
     // Existing card identity, not card title, determines the subject.
     await page.locator(`[role="gridcell"][id$="-${entry.entityId}"]`).dblclick()
-    if (!await page.locator("#auxiliary-panel").count() || await page.locator("#auxiliary-panel").getAttribute("aria-label") !== "Overview")
+    if (!await page.locator('[data-slot="resizable-panel"] aside').count() || await page.locator('[data-slot="resizable-panel"] aside').getAttribute("aria-label") !== "Overview")
       await page.getByRole("button", { name: "Overview", exact: true }).click()
     if (await hasContentView(page, "Twitter")) await chooseContentView(page, "Twitter")
     await page.locator('[data-slot="entity-inspection"][data-view-id="twitter.read"]').waitFor()
@@ -53,18 +54,18 @@ try {
     await video.play()
   })
   await page.waitForFunction(() => !document.querySelector("video")!.paused)
-  const beforeSettings = page.url()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  const beforeSettings = (await workspaceLocation(page))
+  await openWorkspaceEntry(page, "Settings")
   await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor()
-  const pausedAt = await page.locator("video").evaluate((video: HTMLVideoElement) => {
-    if (!video.paused) throw new Error("Settings must pause playback")
+  const settingsTime = await page.locator("video").evaluate((video: HTMLVideoElement) => {
+    if (video.paused) throw new Error("Settings must preserve playing state")
     return video.currentTime
   })
   await page.keyboard.press("Escape")
   await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor({ state: "hidden" })
-  assert.equal(page.url(), beforeSettings)
+  assert.equal((await workspaceLocation(page)), beforeSettings)
   assert(await page.evaluate(() => document.querySelector("video") === (window as any).__twitterEmbeddedVideo))
-  assert.equal(await page.locator("video").evaluate((video: HTMLVideoElement) => video.currentTime), pausedAt)
+  assert(await page.locator("video").evaluate((video: HTMLVideoElement) => video.currentTime) >= settingsTime)
   await chooseContentView(page, "Video")
   await page.locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
   assert(await page.evaluate(() => {
@@ -81,16 +82,16 @@ try {
   const duration = page.getByLabel("Selected representation", { exact: true }).locator('[title="9007199254740993 ms"]')
   await duration.waitFor()
   assert.equal(await duration.innerText(), "2501999792:59:00.993", "the duration stays readable without rounding its exact millisecond claim")
-  const author = page.locator('#auxiliary-panel').getByRole("region", { name: "Author", exact: true })
+  const author = page.locator('[data-slot="resizable-panel"] aside').getByRole("region", { name: "Author", exact: true })
   assert(await author.getByText("9007199254740993", { exact: true }).isVisible(), "source identifiers remain selectable in their corresponding groups")
   await page.screenshot({ path: join(output, "details.png") })
   await page.getByRole("button", { name: "Overview", exact: true }).click()
-  const before = page.url()
+  const before = (await workspaceLocation(page))
   await page.route(`**/twitter/${complete.componentId}/view`, r => r.fulfill({ status:500, contentType:"application/json", body:JSON.stringify({code:"operation_failed",message:"Isolated Twitter read failure"}) }))
   await page.getByRole("button", { name: "Reread Entity", exact: true }).first().click()
   await page.getByText("Isolated Twitter read failure", { exact: true }).waitFor()
   assert(await page.getByRole("article").getByText(/Saved complete observation/).isVisible())
-  assert.equal(page.url(),before)
+  assert.equal((await workspaceLocation(page)),before)
   await page.screenshot({ path: join(output,"retained-reread.png") })
   await page.unroute(`**/twitter/${complete.componentId}/view`)
   await page.getByRole("button", { name: "Reread Entity", exact: true }).first().click()

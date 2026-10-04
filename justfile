@@ -209,6 +209,15 @@ desktop-ui-specimens:
 desktop-ui-test: server-build server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:browser
 
+desktop-workspace: server-build server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:workspace
+
+desktop-workspace-scale: server-build server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:workspace-scale
+
+desktop-workspace-stability: server-build server-fixture-build desktop-build
+    {{ npm }} --prefix apps/desktop run verify:workspace-stability
+
 desktop-filter-browser: server-fixture-build desktop-build
     {{ npm }} --prefix apps/desktop run verify:filter-browser
 

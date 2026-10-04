@@ -1,4 +1,5 @@
 import { waitForContentViewSaved, chooseContentView } from "./content-view-choice.ts"
+import { openWorkspaceEntry, workspaceLocation, activeWorkspacePage, activeTab, openWorkspaceNotes } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { execFile, spawn } from "node:child_process"
 import { once } from "node:events"
@@ -26,10 +27,13 @@ async function launch(overrides: Record<string, string> = {}) {
   })
   const page = await application.firstWindow()
   page.setDefaultTimeout(15_000)
+  if (!overrides.LOCUS_RENDERER_ROOT) await openWorkspaceEntry(page, "All content", true)
   return page
 }
 async function openImage(page: Page) {
+  if (!await page.locator('[role="tab"]').count()) await openWorkspaceEntry(page, "All content", true)
   await page.getByRole("grid", { name: "Entities" }).waitFor()
+  await page.screenshot()
   await page.getByRole("gridcell").first().dblclick()
   await page.locator('[data-slot="entity-inspection"]').waitFor()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
@@ -101,10 +105,45 @@ async function acceptWork(page: Page) {
 }
 
 try {
+  // Host preparation gathers pending editors from every page, including a
+  // background page. Returning keeps those drafts and their accepted writes.
+  let page = await launch()
+  await openImage(page)
+  let releaseNotes!: () => void, enteredBoth!: () => void, notesEntered = 0
+  const notesGate = new Promise<void>(resolve => { releaseNotes = resolve })
+  const bothEntered = new Promise<void>(resolve => { enteredBoth = resolve })
+  await page.route("**/api/v1/entities/*/notes", async route => {
+    if (route.request().method() !== "PUT") { await route.continue(); return }
+    const response = await route.fetch()
+    if (++notesEntered === 2) enteredBoth()
+    await notesGate
+    await route.fulfill({ response })
+  })
+  let notes = await openWorkspaceNotes(page)
+  await notes.fill("Host preparation page A")
+  await notes.press("Control+Enter")
+  await openWorkspaceEntry(page, "All content", true)
+  await activeWorkspacePage(page).getByRole("gridcell").nth(1).dblclick()
+  notes = await openWorkspaceNotes(page)
+  await notes.fill("Host preparation page B")
+  await notes.press("Control+Enter")
+  await Promise.race([bothEntered, new Promise((_, reject) => setTimeout(() => reject(new Error("Both native Notes writes were not reached")), 15000).unref())])
+  const activeBeforeClose = await activeTab(page)
+  await nativeClose()
+  await page.getByRole("dialog", { name: "Preparing to close", exact: true }).waitFor()
+  assert.equal((await page.evaluate(() => window.locusDesktop!.state())).close.phase, "preparing")
+  await page.getByRole("button", { name: "Return to Locus", exact: true }).click()
+  assert.equal((await activeTab(page)).id, activeBeforeClose.id)
+  assert.equal(await page.locator('[role="tab"]').count(), 2)
+  releaseNotes()
+  await page.unrouteAll({ behavior: "wait" })
+  await finishByClose()
+  checks.push("Host close gathers two page Notes writes; cancel preserves page sessions and accepted saves")
+
   // A real committed save with its renderer response held. Returning does not cancel it, a duplicate
   // native close does not start another attempt, and a stale prepared reply has
   // no authority after the user returned.
-  let page = await launch()
+  page = await launch()
   await page.getByRole("grid", { name: "Entities" }).waitFor()
   await page.addInitScript(() => {
     const original = window.fetch
@@ -134,7 +173,7 @@ try {
   await page.getByRole("dialog", { name: "Tasks this run" }).evaluate((element) => {
     ;(window as any).__retainedTasks = element
   })
-  const heldDestination = page.url()
+  const heldDestination = (await workspaceLocation(page))
   await page.evaluate(() => {
     const trace = { events: [] as unknown[], samples: [] as unknown[], frame: null as number | null }
     requestAnimationFrame(() => {
@@ -209,7 +248,7 @@ try {
   assert.deepEqual(await page.evaluate(async () => (await window.locusDesktop!.state()).close), attempt)
   await page.getByRole("button", { name: "Return to Locus", exact: true }).click()
   await page.getByRole("dialog").waitFor({ state: "detached" })
-  assert.equal(page.url(), heldDestination)
+  assert.equal((await workspaceLocation(page)), heldDestination)
   await page.getByRole("button", { name: /^Tasks/ }).click()
   await page.getByRole("dialog", { name: "Tasks this run" }).waitFor()
   assert(await page.getByRole("dialog", { name: "Tasks this run" }).evaluate((element) => element === (window as any).__retainedTasks))
@@ -234,7 +273,7 @@ try {
   )
   await preparation.getByRole("button", { name: "Return to Locus", exact: true }).click()
   await preparation.waitFor({ state: "hidden" })
-  assert.equal(page.url(), heldDestination)
+  assert.equal((await workspaceLocation(page)), heldDestination)
   // Host priority must also finish an ordinary Tasks closing animation when
   // open is already false, rather than depending only on a new open transition.
   await page.getByRole("button", { name: /^Tasks/ }).click()
@@ -257,7 +296,7 @@ try {
   )
   await preparation.getByRole("button", { name: "Return to Locus", exact: true }).click()
   await preparation.waitFor({ state: "hidden" })
-  assert.equal(page.url(), heldDestination)
+  assert.equal((await workspaceLocation(page)), heldDestination)
   assert.equal((await status(page)).admission, "open")
   await page.evaluate(
     async (attemptId) => window.locusDesktop!.prepared({ attemptId, revision: 0, items: [] }),
@@ -287,7 +326,7 @@ try {
   await page.getByText("Choice not saved", { exact: true }).waitFor()
   await nativeClose()
   await page.getByText("Some choices are not confirmed saved", { exact: true }).waitFor()
-  const url = page.url()
+  const url = (await workspaceLocation(page))
   let events = 0
   await page.exposeFunction("closeObserved", () => {
     events++
@@ -298,7 +337,7 @@ try {
   assert(events < 5, "no unchanged preparation IPC loop")
   await page.keyboard.press("Escape")
   await page.getByRole("dialog").waitFor({ state: "detached" })
-  assert.equal(page.url(), url)
+  assert.equal((await workspaceLocation(page)), url)
   assert.equal((await status(page)).admission, "open")
   reject = false
   await page.getByRole("button", { name: "Retry saving", exact: true }).click()
@@ -524,6 +563,7 @@ try {
   console.log(`PASS ${checks.length} hidden Electron lifecycle scenarios. Evidence: ${output}`)
 } catch (error) {
   if (application) {
+    await writeFile(join(output, "host-state.json"), JSON.stringify(await application.evaluate(() => (globalThis as any).__desktopTest.states.slice(-30)).catch(() => []), null, 2))
     const pages = application.windows()
     if (pages[0] && !pages[0].isClosed()) {
       await pages[0].screenshot({ path: join(output, "failure.png") }).catch(() => {})

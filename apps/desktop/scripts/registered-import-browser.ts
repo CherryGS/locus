@@ -1,3 +1,4 @@
+import { openWorkspaceEntry } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
@@ -15,7 +16,7 @@ export async function registeredImportBrowser(page: Page, backend: Awaited<Retur
   await writeFile(source,"same registered bytes")
   await sql("CREATE TRIGGER fail_import_entity BEFORE INSERT ON locus_core_comm_entity BEGIN SELECT RAISE(ABORT, 'fixture entry failure'); END;")
   await page.evaluate((path) => { (globalThis as any).__importSelections.push({ status:"selected", paths:[path] }) }, source)
-  await page.getByRole("button",{name:"Import",exact:true}).click()
+  await openWorkspaceEntry(page, "Import")
   await page.getByRole("button",{name:/^Tasks/}).click()
   const until = async (test:(value:components["schemas"]["ImportSnapshot"])=>boolean) => {
     const deadline=Date.now()+30000

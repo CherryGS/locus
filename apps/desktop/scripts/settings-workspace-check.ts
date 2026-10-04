@@ -1,3 +1,4 @@
+import { openWorkspaceEntry, workspaceLocation, workspaceVisit, freshWorkspaceEntry, closeTab } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
@@ -16,8 +17,8 @@ page.setDefaultTimeout(15_000)
 const errors: string[] = []
 page.on("pageerror", (error) => errors.push(error.message))
 const category = (name: string) => page.getByRole("button", { name, exact: true }).click()
-const visit = () => page.evaluate(() => ({ key: history.state.__TSR_key, index: history.state.__TSR_index }))
-const enter = () => page.getByRole("button", { name: "Setting", exact: true }).click()
+const visit = () => workspaceVisit(page)
+const enter = () => openWorkspaceEntry(page, "Settings")
 const close = async () => {
   await page
     .getByRole("dialog", { name: "Settings", exact: true })
@@ -27,7 +28,7 @@ const close = async () => {
 }
 let releaseSave = () => {}
 try {
-  await page.goto(`${preview.origin}/#/entity`)
+  await freshWorkspaceEntry(page, `${preview.origin}/#/entity`)
   const grid = page.getByRole("grid", { name: "Entities" })
   await grid.waitFor()
   await grid.evaluate((element) => {
@@ -38,7 +39,7 @@ try {
   await cell.click()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
   const selected = await grid.locator('[aria-selected="true"]').getAttribute("id")
-  const selectedUrl = page.url()
+  const selectedUrl = (await workspaceLocation(page))
   const originVisit = await visit()
   const gridNode = await grid.elementHandle()
   const position = await grid.evaluate((element) => element.scrollTop)
@@ -61,7 +62,7 @@ try {
   await page.getByText(data.library, { exact: true }).waitFor()
   await category("External connection")
   const settingsVisit = await visit()
-  assert.equal(page.url(), selectedUrl, "opening Settings cannot navigate away")
+  assert.equal((await workspaceLocation(page)), selectedUrl, "opening Settings cannot navigate away")
   assert.deepEqual(settingsVisit, originVisit)
   assert.equal(await page.getByRole("button", { name: "Return", exact: true }).count(), 0)
   await page.waitForFunction(() => {
@@ -70,10 +71,10 @@ try {
   })
   await page.mouse.click(4, 4)
   await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor({ state: "hidden" })
-  assert.equal(page.url(), selectedUrl, "backdrop dismissal preserves the current page")
+  assert.equal((await workspaceLocation(page)), selectedUrl, "backdrop dismissal preserves the current page")
   await enter()
   await page.keyboard.press("Alt+ArrowLeft")
-  assert.equal(page.url(), selectedUrl, "background navigation shortcuts cannot run inside Settings")
+  assert.equal((await workspaceLocation(page)), selectedUrl, "background navigation shortcuts cannot run inside Settings")
   await page.getByLabel("Bind address", { exact: true }).fill("127.0.0.1:46323")
   let implicitAddressWrites = 0
   const observeAddressWrite = (request: import("playwright").Request) => {
@@ -94,7 +95,7 @@ try {
   await page.mouse.click(4, 4)
   await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor({ state: "hidden" })
   await grid.waitFor()
-  assert.equal(page.url(), selectedUrl)
+  assert.equal((await workspaceLocation(page)), selectedUrl)
   assert(await gridNode!.evaluate((node) => node.isConnected), "grid must remain mounted")
   assert.deepEqual(await visit(), originVisit)
   await page.getByRole("complementary", { name: "Overview", exact: true }).waitFor()
@@ -106,10 +107,9 @@ try {
     (await grid.locator('[aria-selected="true"]').getAttribute("id"))?.split("-").slice(-5).join("-"),
     selected?.split("-").slice(-5).join("-"),
   )
-  assert.match(
-    (await page.getByRole("button", { name: "Setting", exact: true }).getAttribute("title")) ?? "",
-    /Unsaved edits/,
-  )
+  await page.getByRole("button", { name: "Locus", exact: true }).click()
+  assert.match((await page.getByRole("menuitem", { name: "Settings", exact: true }).getAttribute("title")) ?? "", /Unsaved edits/)
+  await page.keyboard.press("Escape")
   await enter()
   await page.getByRole("heading", { name: "External connection", exact: true }).waitFor()
   assert.deepEqual(await visit(), settingsVisit)
@@ -125,7 +125,7 @@ try {
       viewport = grid.getBoundingClientRect()
     return rect.bottom > viewport.top && rect.top < viewport.bottom
   }, anchorIdentity)
-  assert.equal(page.url(), selectedUrl, "resized restoration cannot replace selection")
+  assert.equal((await workspaceLocation(page)), selectedUrl, "resized restoration cannot replace selection")
   await enter()
   await page.getByRole("heading", { name: "External connection", exact: true }).waitFor()
   await page.setViewportSize({ width: 1200, height: 800 })
@@ -193,21 +193,21 @@ try {
   await close()
   await grid.locator('[aria-selected="true"]').dblclick()
   await page.locator('[data-slot="entity-inspection"]').waitFor()
-  const inspectionUrl = page.url()
+  const inspectionUrl = (await workspaceLocation(page))
   const inspectionVisit = await visit()
   const inspectionNode = await page.locator('[data-slot="entity-inspection"]').elementHandle()
   await enter()
   await category("External connection")
   await close()
   await page.locator('[data-slot="entity-inspection"]').waitFor()
-  assert.equal(page.url(), inspectionUrl)
+  assert.equal((await workspaceLocation(page)), inspectionUrl)
   assert.deepEqual(await visit(), inspectionVisit)
   assert(await inspectionNode!.evaluate((node) => node.isConnected), "reader must remain mounted")
   await enter()
   await page.keyboard.press("Escape")
   await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor({ state: "hidden" })
-  assert.equal(page.url(), inspectionUrl, "Escape closes only Settings, not the underlying reader")
-  assert.equal(await page.locator(":focus").getAttribute("id"), "settings-trigger")
+  assert.equal((await workspaceLocation(page)), inspectionUrl, "Escape closes only Settings, not the underlying reader")
+  assert.equal(await page.locator(":focus").getAttribute("id"), "locus-launcher")
   await category("Return to source")
   await grid.waitFor()
   assert.notEqual(
@@ -217,30 +217,29 @@ try {
   )
 
   // Unknown recorded targets stay unknown after the Settings excursion.
-  await page.goto(
+  await freshWorkspaceEntry(page,
     `${preview.origin}/#/entity?mode=inspect&collectionId=library&entityId=00000000-0000-4000-8000-000000000000`,
   )
   await page.getByText("Entity unavailable in this list", { exact: true }).waitFor()
-  const unavailableUrl = page.url()
+  const unavailableUrl = (await workspaceLocation(page))
   await enter()
   await close()
   await page.getByText("Entity unavailable in this list", { exact: true }).waitFor()
-  assert.equal(page.url(), unavailableUrl)
+  assert.equal((await workspaceLocation(page)), unavailableUrl)
 
-  await page.getByRole("link", { name: "Home", exact: true }).click()
-  await page.getByRole("heading", { name: "Home", exact: true }).waitFor()
-  const homeVisit = await visit()
+  await closeTab(page, "All content")
+  await page.getByText("Open a workspace", { exact: true }).waitFor()
   await enter()
   await close()
-  assert.deepEqual(await visit(), homeVisit)
-  await page.getByRole("heading", { name: "Home", exact: true }).waitFor()
+  await page.getByText("Open a workspace", { exact: true }).waitFor()
 
-  await page.goto(`${preview.origin}/#/setting`)
+  await freshWorkspaceEntry(page, preview.origin)
+  await enter()
   await page.getByRole("heading", { name: "External connection", exact: true }).waitFor()
   await page.keyboard.press("Tab")
   assert(await page.locator(":focus").evaluate((element) => !!element.closest('[role="dialog"]')))
   await close()
-  await grid.waitFor()
+  await page.getByText("Open a workspace", { exact: true }).waitFor()
   assert.deepEqual(errors, [])
   await writeFile(
     join(output, "result.json"),

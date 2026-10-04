@@ -58,6 +58,7 @@ function EntityRoute() {
   return (
     <EntityPage
       source={session?.source() ?? previewSource}
+      openInNewTab={session ? (destination, sequence) => session.run.workspace.handoff(session, destination, sequence) : undefined}
       live={
         session
           ? {
@@ -77,6 +78,7 @@ function EntityRoute() {
           : undefined
       }
       collections={data.previewCollections}
+      context={session?.contextTitle ? { id: "library", title: session.contextTitle, sequence: session.filter.sequence, pending: !!session.filter.pending, error: session.filter.resultError, refresh: () => session.filter.refresh() } : undefined}
       destination={destination}
       visitKey={key}
       browsing={browsing}

@@ -44,14 +44,12 @@ function TagsRoute() {
     <TagsPage
       tags={session.tags}
       browsing={session.tagBrowsing}
-      filter={session.filter}
+      generatedDraftReceiver={session.run.workspace.generatedDraftReceiver}
       onSelect={(tag) => {
         session.tagBrowsing.locate(tag)
         void navigate({ search: { tag }, replace: true })
       }}
-      onContent={() =>
-        void navigate({ to: "/entity", search: { mode: "grid", collectionId: "library" } })
-      }
+      onContent={() => { /* The receiving workspace entry already owns activation. */ }}
       onActivate={(tagId) => void navigate({ to: "/tag/$tagId", params: { tagId },
         search: {} })}
     />

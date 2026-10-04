@@ -1,3 +1,4 @@
+import { workspaceLocation, openWorkspaceEntry } from "./workspace-browser.ts"
 import { waitForContentViewSaved, chooseContentView, hasContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
@@ -72,11 +73,11 @@ try {
   await page.getByRole("button", { name: "Return to source", exact: true }).first().click()
   await data.phase("A")
   await page.locator(`[role="gridcell"][id$="-${a.entityId}"]`).dblclick()
-  if (!(await page.locator('#auxiliary-panel[aria-label="Overview"]').count()))
+  if (!(await page.locator('[data-slot="resizable-panel"] aside[aria-label="Overview"]').count()))
     await page.getByRole("button", { name: "Overview", exact: true }).click()
   await chooseContentView(page, "Civitai")
   const reading = page.locator('[data-slot="civitai-page"]')
-  const civitaiPanel = page.locator('#auxiliary-panel[aria-label="Civitai"]')
+  const civitaiPanel = page.locator('[data-slot="resizable-panel"] aside[aria-label="Civitai"]')
   async function versionDescription(text: string) {
     await reading
       .getByRole("region", { name: "Version notes", exact: true })
@@ -141,12 +142,12 @@ try {
   })
   const readerScroll = await readerViewport.evaluate((element) => element.scrollTop)
   const galleryImage = await stage.locator("img").getAttribute("src")
-  const readerUrl = page.url()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  const readerUrl = (await workspaceLocation(page))
+  await openWorkspaceEntry(page, "Settings")
   await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor()
   await page.keyboard.press("Escape")
   await page.getByRole("dialog", { name: "Settings", exact: true }).waitFor({ state: "hidden" })
-  assert.equal(page.url(), readerUrl)
+  assert.equal((await workspaceLocation(page)), readerUrl)
   assert(await galleryNode!.evaluate((element) => element.isConnected))
   assert.equal(await readerViewport.evaluate((element) => element.scrollTop), readerScroll)
   assert.equal(await stage.locator("img").getAttribute("src"), galleryImage)
@@ -249,7 +250,7 @@ try {
   await page.screenshot({ path: join(output, "origin-with-peer-version.png") })
   await reading.getByRole("button", { name: "Inspect managed example", exact: true }).first().click()
   await page.locator('[data-slot="entity-inspection"][data-view-id="image.inspect"]').waitFor()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   await page.getByRole("button", { name: "Close", exact: true }).click()
   await page.locator('[data-slot="entity-inspection"][data-view-id="image.inspect"]').waitFor()
   await page.getByRole("button", { name: "Return to source", exact: true }).first().click()

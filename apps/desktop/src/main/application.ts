@@ -522,7 +522,7 @@ export function startDesktop() {
             void unavailable(connection.message)
         })
         await window!.loadURL(
-          `${backend.origin}/#/${backend.availability.status === "restricted" ? "setting" : "entity"}`
+          backend.availability.status === "restricted" ? `${backend.origin}/#/setting` : `${backend.origin}/`
         )
       } catch (error) {
         if (exiting || !window || window.isDestroyed()) return

@@ -1,11 +1,10 @@
-import { createHashHistory, createRouter } from "@tanstack/react-router"
+import { createMemoryHistory, createRouter } from "@tanstack/react-router"
 import { routeTree } from "./route-tree.gen"
 
-// Hash history also resolves routes when this standalone shell loads local assets.
-export const router = createRouter({ routeTree, history: createHashHistory() })
-
+export function createPageRouter(entry = "/entity?mode=grid&collectionId=library") {
+  return createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [entry] }) })
+}
+export type PageRouter = ReturnType<typeof createPageRouter>
 declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router
-  }
+  interface Register { router: PageRouter }
 }

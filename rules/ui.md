@@ -43,8 +43,8 @@
   divider; show its applied state without adding an inset miniature button.
   Keep their inputs independent and
   combine only applied criteria with AND. Buttons must fit inside the frame.
-- Keep the Entity locate action mounted in the toolbar; disable it when there
-  is no selected item in the current grid, or when the grid is not displayed.
+- Keep the Entity locate action in the list toolbar and disable it when there
+  is no selected item in the current grid. Omit it from the detail filmstrip.
 - When changing a shared visual rule, migrate the affected consumers and check
   computed geometry in the real renderer. Update this rule at the same time
   instead of adding another page-specific workaround.

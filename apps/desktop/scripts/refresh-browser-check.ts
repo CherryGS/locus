@@ -1,3 +1,4 @@
+import { openWorkspaceEntry, activeWorkspacePage } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { writeFile } from "node:fs/promises"
@@ -23,8 +24,8 @@ const samples: unknown[] = []
 // Source strings avoid tsx's function-name helper in browser callbacks.
 async function begin(page: Page, label: string, mode: "entity" | "tags" | "empty") {
   await page.evaluate(`(() => {
-    const button=document.querySelector(${JSON.stringify(`button[aria-label="${label}"]`)});
-    const root=document.querySelector(${JSON.stringify(mode === "entity" ? '[role="grid"]' : 'section[aria-label="Tags"]')});
+    const button=document.querySelector('[data-workspace-page][data-active="true"]')?.querySelector(${JSON.stringify(`button[aria-label="${label}"]`)});
+    const root=document.querySelector('[data-workspace-page][data-active="true"]')?.querySelector(${JSON.stringify(mode === "entity" ? '[role="grid"]' : 'section[aria-label="Tags"]')});
     const nodes=[...root.querySelectorAll(${JSON.stringify(mode === "entity" ? '[role="gridcell"]' : '[role="treeitem"]')})];
     const images=[...root.querySelectorAll('img')].map(node=>({node,src:node.src}));
     const svg=button.querySelector('svg');
@@ -152,12 +153,12 @@ try {
   retryGate.resolve(); await failure.waitFor({ state: "hidden" })
   await page.unrouteAll({ behavior: "wait" })
 
-  await page.getByRole("link", { name: "Entity", exact: true }).click()
+  await openWorkspaceEntry(page, "All content")
   await page.waitForFunction(() => {
-    const images = [...document.querySelectorAll('[role="grid"] img')] as HTMLImageElement[]
+    const images = [...document.querySelectorAll('[data-workspace-page][data-active="true"] [role="grid"] img')] as HTMLImageElement[]
     return images.length === 3 && images.every(image => image.complete && image.naturalWidth > 0)
   })
-  await page.locator(`[role="gridcell"][data-entity-id="${data.images[0].entityId}"]`).click()
+  await activeWorkspacePage(page).locator(`[role="gridcell"][data-entity-id="${data.images[0].entityId}"]`).click()
   const entityRefresh = page.getByRole("button", { name: "Refresh library", exact: true })
   const idsGate = held(), idsEntered = held(), bytesGate = held(), bytesEntered = held()
   let idsReads = 0
@@ -174,19 +175,19 @@ try {
   idsGate.resolve(); await bytesEntered.promise; await page.waitForTimeout(180)
   await page.screenshot({ path: join(output, "entity-refresh-pending.png") })
   bytesGate.resolve()
-  await page.waitForFunction(() => [...document.querySelectorAll('[role="gridcell"]')].every(e => e.getAttribute("aria-busy") === "false"))
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-workspace-page][data-active="true"] [role="gridcell"]')].every(e => e.getAttribute("aria-busy") === "false"))
   await finish("entity-delayed")
   await page.unrouteAll({ behavior: "wait" })
   await entityRefresh.focus(); await begin(page, "Refresh library", "entity")
   await entityRefresh.click()
   await page.waitForFunction(() => document.querySelector('[aria-label="Refresh library"]')?.getAttribute("aria-busy") === "false" &&
-    [...document.querySelectorAll('[role="gridcell"]')].every(e => e.getAttribute("aria-busy") === "false"))
+    [...document.querySelectorAll('[data-workspace-page][data-active="true"] [role="gridcell"]')].every(e => e.getAttribute("aria-busy") === "false"))
   await page.waitForTimeout(80); await finish("entity-fast")
   await page.route("**/api/v1/previews/*/bytes", route => route.fulfill({ status: 500,
     json: { code: "operation_failed", message: "isolated preview read failed" } }))
   await entityRefresh.click()
   await page.getByRole("img", { name: "Entity has problems" }).first().waitFor()
-  assert.equal(await page.locator('[role="grid"] img').count(), 3, "Failed reread retains the last qualified previews")
+  assert.equal(await activeWorkspacePage(page).locator('[role="grid"] img').count(), 3, "Failed reread retains the last qualified previews")
   await page.unrouteAll({ behavior: "wait" })
   const previewRetry = held(), previewRetryEntered = held()
   await page.route("**/api/v1/previews/*/bytes", async route => {
@@ -197,7 +198,7 @@ try {
     "Preview failures remain qualified while their resource retry is pending")
   previewRetry.resolve()
   await page.getByRole("img", { name: "Entity has problems" }).first().waitFor({ state: "hidden" })
-  assert.equal(await page.locator('[role="grid"] img').count(), 3)
+  assert.equal(await activeWorkspacePage(page).locator('[role="grid"] img').count(), 3)
   assert.deepEqual(errors, [])
   await writeFile(join(output, "samples.json"), JSON.stringify(samples, null, 2))
   console.log(`PASS Stable refresh: fast/delayed Entity and Tags, empty forest, duplicate prevention, retained previews/focus/scroll and failure/retry. ${output}`)

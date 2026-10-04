@@ -1,3 +1,4 @@
+import { workspaceLocation, openWorkspaceEntry } from "./workspace-browser.ts"
 import { waitForContentViewSaved, chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
@@ -15,14 +16,16 @@ try {
   application = await electron.launch({executablePath: require("electron"), args:[join(desktop,"scripts/electron-test-entry.cjs")], env:{...env,LOCUS_DATA_DIR:data.library,LOCUS_SERVER_BINARY:binary,LOCUS_DESKTOP_HIDDEN:"1",LOCUS_TEST_EXTERNAL_LINKS:"1"}})
   const page = await application.firstWindow(); page.setDefaultTimeout(15000)
   const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message))
+  await openWorkspaceEntry(page, "All content", true)
   await page.getByRole("grid",{name:"Entities"}).waitFor()
+  await page.screenshot()
   assert.equal(await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),false)
   const complete=data.entries.find(e=>e.name==="complete")!
   await page.locator(`[role="gridcell"][id$="-${complete.entityId}"]`).dblclick()
   await page.getByRole("button",{name:"Overview",exact:true}).click()
   await chooseContentView(page, "Twitter")
   await page.getByRole("article").waitFor()
-  const url=page.url()
+  const url=(await workspaceLocation(page))
   const link=page.getByRole("article").getByRole("link",{name:"View original post",exact:true})
   const articleBefore = await page.getByRole("article").boundingBox()
   await link.click()
@@ -32,14 +35,14 @@ try {
   assert.deepEqual(await page.getByRole("article").boundingBox(), articleBefore, "link feedback must not reflow source content")
   const calls=()=>application!.evaluate(()=>(globalThis as any).__desktopTest.externalLinks)
   assert.equal((await calls()).length,1,"anchor default must not duplicate native invocation")
-  assert.equal(page.url(),url)
+  assert.equal((await workspaceLocation(page)),url)
   const capture = await application.evaluate(async ({BrowserWindow}) => (await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG().toString("base64"))
   await writeFile(join(output,"handoff-failed.png"), Buffer.from(capture,"base64"))
   await application.evaluate(()=>{(globalThis as any).__desktopTest.rejectExternal=false})
   await page.getByRole("button",{name:"Retry opening link",exact:true}).click()
   await page.getByRole("button",{name:"Retry opening link",exact:true}).waitFor({state:"detached"})
   assert.equal((await calls()).length,2)
-  assert.equal(page.url(),url)
+  assert.equal((await workspaceLocation(page)),url)
   for(const target of ["file:///private","https://user:password@x.com/post","javascript:alert(1)","invalid"]){
     const result=await page.evaluate(target=>window.locusDesktop!.openExternalLink(target),target)
     assert.equal(result.status,"failed");assert.equal(result.url,target)
@@ -77,7 +80,7 @@ try {
   assert.equal(await page.locator('[data-slot="toast"]:not([data-ending-style])').count(), 0)
   await page.getByRole("button",{name:"Retry opening link",exact:true}).waitFor({state:"detached", timeout:1500})
   assert.equal(await page.getByRole("button",{name:"Retry opening link",exact:true}).count(),0)
-  assert.equal(page.url(),url)
+  assert.equal((await workspaceLocation(page)),url)
   assert.equal(await page.locator('[data-slot="entity-inspection"]').getAttribute("data-entity-id"),complete.entityId)
   await waitForContentViewSaved(page)
   assert.deepEqual(errors,[])

@@ -1,3 +1,4 @@
+import { workspaceLocation, openWorkspaceEntry } from "./workspace-browser.ts"
 import { chooseContentView, hasContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
@@ -26,6 +27,9 @@ try {
   page.setDefaultTimeout(15000)
   const errors: string[] = []
   page.on("pageerror", (error) => errors.push(error.message))
+  await openWorkspaceEntry(page, "All content", true)
+  await page.getByRole("grid", { name: "Entities" }).waitFor()
+  await page.screenshot()
   const entry = data.entries.find((entry) => entry.name === "complete")!
   await page.locator('[role="gridcell"][id$="-' + entry.entityId + '"]').dblclick()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
@@ -47,14 +51,14 @@ try {
     ;(window as any).__bilibiliNativePlayer = v
   })
   await page.waitForFunction(() => !document.querySelector("video")!.seeking)
-  const destination = page.url()
+  const destination = (await workspaceLocation(page))
   await page.getByRole("button", { name: "Enter fullscreen", exact: true }).click()
   await page.waitForFunction(() => !!document.fullscreenElement)
   await page.keyboard.press("Escape")
   await page.waitForFunction(() => !document.fullscreenElement)
-  assert.equal(page.url(), destination)
+  assert.equal((await workspaceLocation(page)), destination)
   assert.equal(await video.evaluate((v: HTMLVideoElement) => v.paused), true)
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   await page.getByRole("navigation", { name: "Settings categories" }).waitFor()
   assert(await page.evaluate(() => {
     const previous = (window as any).__bilibiliNativePlayer as HTMLVideoElement
@@ -63,7 +67,7 @@ try {
   await page.getByRole("button", { name: "Close", exact: true }).click()
   await page.locator('[data-view-id="bilibili.read"]').waitFor()
   await ready()
-  assert.equal(page.url(), destination)
+  assert.equal((await workspaceLocation(page)), destination)
   const restored = await video.evaluate((v: HTMLVideoElement) => ({ time: v.currentTime, paused: v.paused, volume: v.volume, muted: v.muted }))
   assert(Math.abs(restored.time - 1) < 0.15)
   assert.deepEqual({ paused: restored.paused, volume: restored.volume, muted: restored.muted }, { paused: true, volume: 0.35, muted: true })
@@ -76,7 +80,7 @@ try {
   await ready()
   await page.screenshot({ path: join(output, "bilibili-playback.png") })
   assert.deepEqual(errors, [])
-  await writeFile(join(output, "result.json"), JSON.stringify({ passed: true, restored, checks: ["native local playback", "manual start", "fullscreen Escape", "Settings departure releases decoder", "paused position/audio return", "one player across Bilibili and Video views"] }, null, 2))
+  await writeFile(join(output, "result.json"), JSON.stringify({ passed: true, restored, checks: ["native local playback", "manual start", "fullscreen Escape", "Settings retains the paused player", "paused position/audio return", "one player across Bilibili and Video views"] }, null, 2))
   console.log(JSON.stringify({ passed: true, output }))
 } finally {
   if (application) await application.evaluate(({ app }) => {

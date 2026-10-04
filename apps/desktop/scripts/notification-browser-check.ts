@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { closeTab } from "./workspace-browser.ts"
 import { join } from "node:path"
 import { chromium } from "playwright"
 import { twitterFixture } from "./twitter-fixture.ts"
@@ -46,7 +47,8 @@ try {
   assert.equal(await trigger.getAttribute("aria-label"), "Notifications")
   await page.screenshot({ path: join(output, "inbox.png"), animations: "disabled" })
   await page.keyboard.press("Escape")
-  await page.getByRole("link", { name: "Home", exact: true }).click()
+  await closeTab(page, "All content")
+  await page.getByText("Open a workspace", { exact: true }).waitFor()
   await trigger.click()
   await inbox.getByText("Couldn't open link", { exact: true }).waitFor()
   await page.setViewportSize({ width: 720, height: 480 })

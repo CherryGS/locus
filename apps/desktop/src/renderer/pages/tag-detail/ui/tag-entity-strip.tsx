@@ -1,3 +1,4 @@
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuGroup, ContextMenuItem } from "@/shared/ui/context-menu"
 import { useEffect, useLayoutEffect, useRef } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
@@ -62,11 +63,15 @@ function AssociatedStrip({ source, selectedId, position, onPosition, onSelect, o
             const id = source.sequence.at(row.index)!, entity = source.get(id)
             const name = entity.components.find(component => component.kind === "file")?.originalName ?? entityLabel(entity)
             return <PreviewStripFrame key={id} className="absolute top-4" style={{ left: row.start, width: 96 }}>
-              <Button id={`tag-preview-${id}`} role="gridcell" data-entity-id={id} data-gallery-thumbnail aria-colindex={row.index + 1} aria-selected={id === selectedId} data-pressed={id === selectedId || undefined}
+              <ContextMenu><ContextMenuTrigger render={<Button id={`tag-preview-${id}`} role="gridcell" data-entity-id={id} data-gallery-thumbnail aria-colindex={row.index + 1} aria-selected={id === selectedId} data-pressed={id === selectedId || undefined}
                 tabIndex={-1} variant={id === selectedId ? "secondary" : "ghost"} className="h-16 w-24 overflow-hidden rounded-md p-1" aria-label={name} title={name}
-                onClick={() => select(row.index)} onDoubleClick={() => onOpen(entity)}>
+                onClick={() => select(row.index)} onDoubleClick={() => onOpen(entity)} />}>
+
                 <EntityThumbnail src={entityCardDisplay(entity).preview?.src} hasFile={entity.components.some(component => component.kind === "file")} hasVideo={entity.components.some(component => component.kind === "video")} />
-              </Button>
+              </ContextMenuTrigger><ContextMenuContent><ContextMenuGroup>
+                <ContextMenuItem onClick={() => onOpen(entity)}>Open</ContextMenuItem>
+                {source.openInNewTab && <ContextMenuItem onClick={() => source.openInNewTab?.(id)}>Open in new tab</ContextMenuItem>}
+              </ContextMenuGroup></ContextMenuContent></ContextMenu>
             </PreviewStripFrame>
           })}
         </div>

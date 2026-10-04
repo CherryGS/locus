@@ -1,3 +1,4 @@
+import { openWorkspaceEntry, workspaceLocation, workspaceVisit, activeWorkspacePage, activeTab, activateTab, closeTab } from "./workspace-browser.ts"
 import { waitForContentViewSaved, chooseContentView } from "./content-view-choice.ts"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
@@ -16,14 +17,14 @@ let application: Awaited<ReturnType<typeof electron.launch>> | undefined
 const ranges: { range?: string; status: number; length?: string; contentRange?: string }[] = []
 const errors: string[] = []
 async function ready(page: Page) {
-  await page.locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
+  await activeWorkspacePage(page).locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
   await page.waitForFunction(() => {
-    const v = document.querySelector("video")
+    const v = document.querySelector<HTMLVideoElement>('[data-workspace-page][data-active="true"] video')
     return v && !v.seeking && v.readyState >= 2
   })
 }
 const state = (page: Page) =>
-  page.locator("video").evaluate((v: HTMLVideoElement) => ({
+  activeWorkspacePage(page).locator("video").evaluate((v: HTMLVideoElement) => ({
     time: v.currentTime,
     paused: v.paused,
     volume: v.volume,
@@ -59,7 +60,9 @@ try {
           contentRange: response.headers()["content-range"],
         })
     })
+    await openWorkspaceEntry(page, "All content", true)
     await page.getByRole("grid", { name: "Entities" }).waitFor()
+    await page.screenshot()
     assert.equal(
       await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()),
       false,
@@ -67,19 +70,10 @@ try {
     return page
   }
   let page = await launch()
-  const shellReturn = page
-    .locator("header.title-bar")
-    .getByRole("button", { name: "Return to source", exact: true })
+  const shellReturn = page.getByRole("button", { name: "Return to source", exact: true })
   assert(await shellReturn.isDisabled())
-  assert.deepEqual((await page.locator("header.title-bar button").all()).length >= 4, true)
-  assert.deepEqual(
-    await page
-      .locator("header.title-bar button")
-      .evaluateAll((nodes) =>
-        nodes.slice(0, 4).map((n) => n.getAttribute("aria-label") ?? n.textContent?.trim()),
-      ),
-    ["Back", "Forward", "Return to source", "Import"],
-  )
+  assert(await page.getByRole("button", { name: "Back", exact: true }).isVisible())
+  assert(await page.getByRole("button", { name: "Forward", exact: true }).isVisible())
   console.log("Video: manual entry and native controls")
   await page.getByRole("gridcell").first().dblclick()
   await ready(page)
@@ -97,11 +91,11 @@ try {
   })
   await page.waitForFunction(() => !document.querySelector("video")!.seeking)
   // Control keyboard seeking is not neighboring-Entity navigation.
-  const destination = page.url()
+  const destination = (await workspaceLocation(page))
   await page.locator("video").focus()
   await page.keyboard.press("ArrowRight")
   await page.waitForFunction(() => document.querySelector("video")!.currentTime > 8.5)
-  assert.equal(page.url(), destination)
+  assert.equal((await workspaceLocation(page)), destination)
   await page.locator("video").evaluate((v: HTMLVideoElement) => {
     v.currentTime = 1
   })
@@ -119,31 +113,57 @@ try {
   await page.waitForFunction((t) => document.querySelector("video")!.currentTime > t + 0.15, duringModal)
   await page.keyboard.press("Escape")
   await page.getByRole("dialog", { name: "Tasks this run" }).waitFor({ state: "hidden" })
-  assert.equal(page.url(), destination)
-  console.log("Video: Settings excursion pauses and restores the original visit")
+  assert.equal((await workspaceLocation(page)), destination)
+  console.log("Video: Settings modal preserves playing state and the original visit")
   const settingsDeparture = await state(page)
-  const videoVisit = await page.evaluate(() => history.state.__TSR_key)
+  const videoVisit = (await workspaceVisit(page)).key
   await page.locator("video").evaluate((v: HTMLVideoElement) => {
     ;(window as any).__settingsVideo = v
   })
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings")
   await page.getByRole("heading", { name: "External connection", exact: true }).waitFor()
   assert.equal(await page.locator("video").count(), 1)
   assert(
     await page.evaluate(
-      () => (window as any).__settingsVideo.paused && (window as any).__settingsVideo === document.querySelector("video"),
+      () => !(window as any).__settingsVideo.paused && (window as any).__settingsVideo === document.querySelector("video"),
     ),
   )
   await page.getByRole("button", { name: "Media tools", exact: true }).click()
   await page.getByRole("button", { name: "Close", exact: true }).click()
   await ready(page)
   const settingsReturn = await state(page)
-  assert.equal(page.url(), destination)
-  assert.equal(await page.evaluate(() => history.state.__TSR_key), videoVisit)
+  assert.equal((await workspaceLocation(page)), destination)
+  assert.equal((await workspaceVisit(page)).key, videoVisit)
   assert.equal(settingsReturn.src, settingsDeparture.src)
-  assert(settingsReturn.paused && settingsReturn.time >= settingsDeparture.time - 0.2)
+  assert(!settingsReturn.paused && settingsReturn.time >= settingsDeparture.time - 0.2)
   assert.equal(settingsReturn.volume, settingsDeparture.volume)
   assert.equal(settingsReturn.muted, settingsDeparture.muted)
+  console.log("Video: independent tabs retain positions and share audio")
+  const originalTab = await activeTab(page)
+  await page.locator("video").evaluate((video: HTMLVideoElement) => { video.pause(); video.currentTime = 5 })
+  await page.waitForFunction(() => !document.querySelector("video")!.seeking)
+  await openWorkspaceEntry(page, "All content", true)
+  const otherTab = await activeTab(page)
+  await activeWorkspacePage(page).getByRole("gridcell").first().dblclick()
+  const otherVideo = activeWorkspacePage(page).locator("video")
+  await activeWorkspacePage(page).locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
+  assert.equal(await otherVideo.evaluate((video: HTMLVideoElement) => video.currentTime), 0)
+  await otherVideo.evaluate((video: HTMLVideoElement) => { video.currentTime = 12; video.volume = 0.6 })
+  await page.waitForFunction(() => !document.querySelector<HTMLVideoElement>('[data-workspace-page][data-active="true"] video')!.seeking)
+  await activateTab(page, originalTab)
+  await ready(page)
+  assert(Math.abs((await state(page)).time - 5) < 0.2)
+  assert.equal((await state(page)).paused, true)
+  assert.equal((await state(page)).volume, 0.6)
+  await activateTab(page, otherTab)
+  await activeWorkspacePage(page).locator('[data-slot="video-viewport"][data-state="ready"]').waitFor()
+  assert(Math.abs(await otherVideo.evaluate((video: HTMLVideoElement) => video.currentTime) - 12) < 0.2)
+  assert.equal(await otherVideo.evaluate((video: HTMLVideoElement) => video.paused), true)
+  await activateTab(page, originalTab)
+  await ready(page)
+  await closeTab(page, otherTab)
+  await page.locator(`[role="tab"][id="${otherTab.domId}"]`).waitFor({ state: "detached" })
+  await page.locator("video").evaluate((video: HTMLVideoElement) => { video.volume = 0.35 })
   await play(page)
   // Retain the old node only inside this test to observe release, not production.
   await page.locator("video").evaluate((v: HTMLVideoElement) => {
@@ -179,7 +199,7 @@ try {
   )
   await page.keyboard.press("Escape")
   await page.waitForFunction(() => !document.fullscreenElement)
-  assert.equal(page.url(), destination)
+  assert.equal((await workspaceLocation(page)), destination)
   console.log("fullscreen exited", await state(page))
   assert.equal((await state(page)).paused, false)
   await page.keyboard.press("Escape")
@@ -194,7 +214,7 @@ try {
   })
   await play(page)
   await page.getByRole("button", { name: "Replay", exact: true }).waitFor()
-  assert.equal(page.url(), destination)
+  assert.equal((await workspaceLocation(page)), destination)
   assert.equal((await state(page)).ended, true)
   await page.getByRole("button", { name: "Replay", exact: true }).click()
   await page.waitForFunction(

@@ -1,3 +1,4 @@
+import { workspaceLocation } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { chromium } from "playwright"
@@ -76,7 +77,7 @@ try {
   assert.equal(await read(), text)
   await page.screenshot({ path: join(output, "overview.png"), animations: "disabled" })
   await notes.press("ArrowRight")
-  assert(page.url().includes(entity), "Typing shortcuts must not navigate")
+  assert((await workspaceLocation(page)).includes(entity), "Typing shortcuts must not navigate")
   await page.reload()
   if (!await overview.isVisible()) await page.getByRole("button", { name: "Overview", exact: true }).click()
   await page.waitForFunction((text) => document.querySelector<HTMLTextAreaElement>("textarea")?.value === text, text)

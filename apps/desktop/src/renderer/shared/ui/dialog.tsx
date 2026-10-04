@@ -1,3 +1,4 @@
+import { usePageActivity } from "@/shared/page-activity"
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
@@ -5,8 +6,13 @@ import { cn } from "cn"
 import { Button } from "@/shared/ui/button"
 import { XIcon } from "lucide-react"
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+function Dialog({ open, defaultOpen, onOpenChange, ...props }: DialogPrimitive.Root.Props) {
+  const { active } = usePageActivity()
+  const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
+  return <DialogPrimitive.Root open={active && (open ?? localOpen)} onOpenChange={(next, details) => {
+    onOpenChange?.(next, details)
+    if (!details.isCanceled) setLocalOpen(next)
+  }} data-slot="dialog" {...props} />
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
@@ -44,6 +50,8 @@ function DialogContent({
   showCloseButton?: boolean
   keepMounted?: boolean
 }) {
+  const { active } = usePageActivity()
+  if (!active) return null
   return (
     <DialogPortal keepMounted={keepMounted}>
       <DialogOverlay />

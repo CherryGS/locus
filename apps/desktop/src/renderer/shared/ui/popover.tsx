@@ -1,9 +1,15 @@
+import { usePageActivity } from "@/shared/page-activity"
 import * as React from "react"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import { cn } from "cn"
 
-function Popover({ ...props }: PopoverPrimitive.Root.Props) {
-  return <PopoverPrimitive.Root data-slot="popover" {...props} />
+function Popover({ open, defaultOpen, onOpenChange, ...props }: PopoverPrimitive.Root.Props) {
+  const { active } = usePageActivity()
+  const [localOpen, setLocalOpen] = React.useState(defaultOpen ?? false)
+  return <PopoverPrimitive.Root open={active && (open ?? localOpen)} onOpenChange={(next, details) => {
+    onOpenChange?.(next, details)
+    if (!details.isCanceled) setLocalOpen(next)
+  }} data-slot="popover" {...props} />
 }
 
 function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props) {
@@ -23,6 +29,8 @@ function PopoverContent({
     PopoverPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"
   > & { positionerProps?: PopoverPrimitive.Positioner.Props }) {
+  const { active } = usePageActivity()
+  if (!active) return null
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner

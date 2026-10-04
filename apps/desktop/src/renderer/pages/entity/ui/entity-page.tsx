@@ -1,3 +1,5 @@
+import { PageTools, HeaderDisplayPlacement } from "@/shared/page-tools"
+import { usePageActivity } from "@/shared/page-activity"
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "@tanstack/react-router"
 import { LocateFixedIcon, TriangleAlertIcon } from "lucide-react"
@@ -14,7 +16,6 @@ import {
 import {
   EntitySearch,
   FilterResultStatus,
-  FilterEvidence,
   type FilterCoordinator,
 } from "@/features/entity-filter"
 import { EntityTagsEditor, EntityTagsStrip, type TagCoordinator } from "@/features/tags"
@@ -68,8 +69,10 @@ export function EntityPage({
   navigate,
   live,
   context,
+  openInNewTab,
 }: {
   source: EntitySource
+  openInNewTab?: (destination: EntityDestination, sequence: IdentitySequence) => void
   collections: readonly RelatedCollection[]
   destination: EntityDestination
   visitKey: string
@@ -99,6 +102,7 @@ export function EntityPage({
   }
 }) {
   const router = useRouter()
+  const { active, requestClose } = usePageActivity()
   const [revealEntity, setRevealEntity] = useState(0)
   const [managedCollections, setManagedCollections] = useState<RelatedCollection[]>(() => [
     ...(live?.relatedCollections.values() ?? []),
@@ -124,7 +128,8 @@ export function EntityPage({
     () => contextSequence(destination, library.sequence, collections, suppliedSequence, context),
     [destination.collectionId, destination.direct, destination.entityId, library.sequence, collections, context?.id, context?.sequence],
   )
-  const source = { ...library, sequence: sequence ?? suppliedSequence([]) }
+  const source = { ...library, sequence: sequence ?? suppliedSequence([]),
+    openInNewTab: openInNewTab ? (entityId: string) => openInNewTab(inspectionDestination(destination, entityId), sequence ?? suppliedSequence([])) : undefined }
   const selectedIndex = useMemo(
     () => (destination.entityId && sequence ? sequence.indexOf(destination.entityId) : -1),
     [destination.entityId, sequence],
@@ -279,6 +284,10 @@ export function EntityPage({
   const structureWaiting =
     !!selected?.live && (selected.membershipsStatus === "unread" || selected.membershipsStatus === "loading")
   const contentWaiting = preferenceWaiting || structureWaiting
+  useEffect(() => {
+    if (selected && viewId && !contentWaiting && override?.entityId !== selected.id)
+      setOverride({ entityId: selected.id, viewId })
+  }, [selected?.id, viewId, contentWaiting, override])
   const failedAvailability =
     !!selected?.live && selected.membershipsStatus === "failed" && !selected.components.length
 
@@ -299,7 +308,7 @@ export function EntityPage({
   }
   function chooseView(id: string) {
     if (!selected) return
-    setOverride(null)
+    setOverride({ entityId: selected.id, viewId: id })
     excursions.current.delete(visitKey)
     if (destination.civitai) navigate({ ...destination, civitai: undefined }, true)
     if (live) live.preferences.choose(selected.id, id)
@@ -314,6 +323,7 @@ export function EntityPage({
     if (id) open(library.get(id))
   }
   const exit = useCallback(() => {
+    if (destination.direct && destination.collectionId === "direct" && !destination.source) { requestClose(); return }
     const result = resolveReturn(
       destination,
       library.sequence,
@@ -327,13 +337,14 @@ export function EntityPage({
     setOverride(next.entityId && sourceView ? { entityId: next.entityId, viewId: sourceView } : null)
     setExplanation(result.explanation)
     navigate(next)
-  }, [destination, navigate, library.sequence, collections, live?.filter.sequence, context?.id, context?.sequence])
+  }, [destination, navigate, library.sequence, collections, live?.filter.sequence, context?.id, context?.sequence, requestClose])
   useSourceReturn(viewing ? exit : undefined)
   useEffect(() => {
-    if (!viewing) return
+    if (!viewing || !active) return
     function exitOnEscape(event: globalThis.KeyboardEvent) {
       if (
         event.defaultPrevented ||
+        event.isComposing ||
         document.fullscreenElement ||
         event.key !== "Escape" ||
         event.altKey ||
@@ -349,7 +360,7 @@ export function EntityPage({
     }
     window.addEventListener("keydown", exitOnEscape)
     return () => window.removeEventListener("keydown", exitOnEscape)
-  }, [exit, viewing])
+  }, [exit, viewing, active])
   function keys(event: KeyboardEvent<HTMLElement>) {
     if (event.defaultPrevented || !viewing || event.altKey || event.ctrlKey || event.metaKey) return
     if (
@@ -653,7 +664,8 @@ export function EntityPage({
             : live?.filter.pending ? "Reading library…" : "Library unavailable"}
         </span>
       </HeaderDisplay>
-      <header data-slot="entity-page-header" className="flex shrink-0 items-center gap-2 px-4">
+      <header data-slot="entity-page-header" className="flex shrink-0 items-center gap-2 px-3">
+        <PageTools />
         {viewing && selected ? (
           <EntityFilmstrip
             source={source}
@@ -668,9 +680,9 @@ export function EntityPage({
             {destination.collectionId === "library" && live ? <EntitySearch coordinator={live.filter} /> : <span className="sr-only">{activeContext?.title ?? "Entity"}</span>}
           </div>
         )}
-        <Button variant="ghost" size="icon-sm" aria-label="Locate selected Entity" title="Locate selected Entity"
-          disabled={viewing || !selected || source.sequence.indexOf(selected.id) < 0}
-          onClick={() => setRevealEntity(value => value + 1)}><LocateFixedIcon /></Button>
+        {!viewing && <Button variant="ghost" size="icon-sm" aria-label="Locate selected Entity" title="Locate selected Entity"
+          disabled={!selected || source.sequence.indexOf(selected.id) < 0}
+          onClick={() => setRevealEntity(value => value + 1)}><LocateFixedIcon /></Button>}
         {live && (
           <RefreshButton
             aria-label={refreshLabel}
@@ -679,6 +691,7 @@ export function EntityPage({
             onClick={() => void refresh()}
           />
         )}
+        <HeaderDisplayPlacement />
       </header>
       {destination.direct && (
         <p className="px-4 pb-2 text-xs text-muted-foreground">
@@ -744,9 +757,6 @@ export function EntityPage({
           <>
             {!!selected?.problems?.length && (
               <EntityProblems problems={selected.problems} recover={recover} />
-            )}
-            {selected && live && destination.collectionId === "library" && (
-              <FilterEvidence coordinator={live.filter} entity={selected.id} />
             )}
           </>
         }

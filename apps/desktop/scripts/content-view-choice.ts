@@ -1,7 +1,7 @@
 import type { Page } from "playwright"
 
 export async function waitForContentViewSaved(page: Page) {
-  await page.locator('[data-slot="entity-view-choice"][data-save-state="saved"]').waitFor()
+  await page.locator('[data-slot="entity-view-choice"][data-save-state="saved"]:visible').waitFor()
 }
 
 export async function chooseContentView(page: Page, label: string) {

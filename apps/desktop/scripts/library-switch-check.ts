@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { openWorkspaceEntry } from "./workspace-browser.ts"
 import { createRequire } from "node:module"
 import { access, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
@@ -43,12 +44,13 @@ async function launch() {
   })
   const page = await application.firstWindow()
   page.setDefaultTimeout(15_000)
-  await page.getByRole("grid", { name: "Entities" }).waitFor()
+  await page.getByText("Open a workspace", { exact: true }).waitFor()
   return page
 }
 try {
   let page = await launch()
-  await page.getByRole("button", { name: "Setting", exact: true }).click()
+  await openWorkspaceEntry(page, "Settings", true)
+  await page.screenshot()
   await page.getByRole("button", { name: "Library", exact: true }).click()
   await page.getByText(a.library, { exact: true }).waitFor()
   await page.getByText("ENV · LOCUS_DATA_DIR", { exact: true }).waitFor()

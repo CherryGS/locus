@@ -1,4 +1,5 @@
 import { waitForContentViewSaved, chooseContentView } from "./content-view-choice.ts"
+import { openWorkspaceEntry } from "./workspace-browser.ts"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
 import { join } from "node:path"
@@ -23,7 +24,9 @@ try {
   const page = await application.firstWindow()
   const errors: string[] = []
   page.on("pageerror", (error) => errors.push(error.message))
+  await openWorkspaceEntry(page, "All content", true)
   await page.getByRole("grid", { name: "Entities" }).waitFor()
+  await application.evaluate(async ({ BrowserWindow }) => { await BrowserWindow.getAllWindows()[0].webContents.capturePage(undefined, { stayHidden: true, stayAwake: true }) })
   assert.equal(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()), false)
   assert.equal(await page.evaluate(() => typeof window.locusDesktop?.ready), "function")
   await page.getByRole("gridcell").first().dblclick()
@@ -32,7 +35,8 @@ try {
   await chooseContentView(page, "File")
   await waitForContentViewSaved(page)
   const entity = await page.locator('[data-slot="entity-inspection"]').getAttribute("data-entity-id")
-  await page.screenshot({ path: join(output, "connected-file.png") })
+  const capture = await application.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG().toString("base64"))
+  await writeFile(join(output, "connected-file.png"), Buffer.from(capture, "base64"))
   assert.deepEqual(errors, [])
   const closed = application.waitForEvent("close")
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close())
