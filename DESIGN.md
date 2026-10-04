@@ -24,6 +24,10 @@ typography:
   supporting:
     fontSize: "12px"
     lineHeight: "16px"
+  tab:
+    fontSize: "16px"
+    lineHeight: "22px"
+    fontWeight: 400
 rounded:
   control: "6px"
   tab: "8px"
@@ -36,9 +40,9 @@ components:
   workspace-tab-active:
     backgroundColor: "{colors.tab-active}"
     textColor: "{colors.foreground}"
-    height: "32px"
+    height: "30px"
     rounded: "{rounded.tab}"
-    typography: "{typography.body}"
+    typography: "{typography.tab}"
   button-primary:
     backgroundColor: "{colors.primary}"
     textColor: "{colors.on-primary}"
@@ -187,14 +191,17 @@ surface adaptations of that system.
 **Working guidance:**
 
 - **Integrated workspace tabs:** the application menu, history actions and tabs
-  share the 40px titlebar. A tab is one continuous 32px-high, 8px-radius surface,
-  including its type icon, 14px label and close target. Only the active tab has
+  share the 40px titlebar. A tab is one continuous 30px-high, 8px-radius surface,
+  including its type icon, 16px label and close target. Only the active tab has
   a persistent fill; inactive tabs remain quiet. Width is content-led between
-  136px and 216px, with truncation and the full title on hover. The 24px close
+  128px and 216px, with truncation and the full title on hover. The 24px close
   target always keeps its space and appears on active, hovered or keyboard-focused
   tabs (always visible for non-hover input). Attention stays visible independently.
   New page follows the tab list; spare space remains available for native dragging.
   Overflow scrolls within the header without squeezing the close targets.
+  The navigation placement retains its 88px width while a new page router mounts.
+  Hidden retained pages keep their measured geometry but disappear as a whole;
+  child visibility transitions must never leave markers over another page.
   Primary reference: the user-provided Savor screenshot and
   [Savor's tab styling](https://github.com/royc01/notion-theme/blob/main/style/module/tab-bar.css).
   [Obsidian](https://obsidian.md/help/tabs) provides the adjacent new-tab convention;

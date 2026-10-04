@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-04T23:15:08Z",
+  "generatedAt": "2026-10-04T23:35:51Z",
   "title": "Design System: Locus",
   "extensions": {
     "motion": [
@@ -16,6 +16,10 @@
       }
     ],
     "typographyMeta": {
+      "tab": {
+        "displayName": "Workspace tab label",
+        "purpose": "Larger labels within compact titlebar tabs, responding to the user's text-to-surface proportion feedback."
+      },
       "body": {
         "displayName": "Desktop text",
         "purpose": "Ordinary interface text, controls and tab labels."
@@ -41,7 +45,7 @@
       },
       {
         "name": "Preserve content while navigating",
-        "body": "Tab appearance changes must preserve retained page geometry, focus, history and close preparation.",
+        "body": "Tab appearance changes preserve retained geometry, focus, history and close preparation. Hide inactive page contents atomically; never animate inherited visibility. Keep the navigation footprint stable while another page mounts.",
         "section": "components"
       },
       {

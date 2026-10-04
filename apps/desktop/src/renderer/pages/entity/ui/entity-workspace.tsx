@@ -191,10 +191,9 @@ export function EntityWorkspace({
         </ResizablePanelGroup>
         <aside
           aria-label="Auxiliary panels"
-          className="relative min-h-0 shrink-0 bg-sidebar"
+          className="relative min-h-0 shrink-0 border-l bg-sidebar"
           style={{ width: actionRailWidth }}
         >
-          <Separator orientation="vertical" className="absolute inset-y-0 left-0 pointer-events-none" />
           <ScrollArea className="h-full" scrollbarProps={{ className: "data-vertical:w-1" }}
             viewportProps={{ className: "overscroll-contain" }}>
             <div className="flex flex-col items-center gap-1 py-2">

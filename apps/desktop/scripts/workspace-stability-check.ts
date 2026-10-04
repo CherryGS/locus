@@ -29,6 +29,31 @@ async function checkNavigationLayout() {
   assert.equal(layout.headerNavigations, 1)
   assert.equal(layout.pageNavigations, 0)
   samples.push({ layout })
+  const alignment = await activeWorkspacePage(page).getByRole("complementary", { name: "Auxiliary panels", exact: true }).evaluate(rail => {
+    const bounds = rail.getBoundingClientRect(), style = getComputedStyle(rail)
+    const scale = bounds.width / parseFloat(style.width)
+    const left = bounds.left + parseFloat(style.borderLeftWidth) * scale, right = bounds.right - parseFloat(style.borderRightWidth) * scale
+    return [...rail.querySelectorAll('button')].map(button => {
+      const box = button.getBoundingClientRect(), icon = button.querySelector('svg')!.getBoundingClientRect()
+      return { label: button.getAttribute('aria-label'), leftGap: box.left - left, rightGap: right - box.right,
+        iconOffset: icon.left + icon.width / 2 - (box.left + box.width / 2) }
+    })
+  })
+  for (const item of alignment) {
+    assert(Math.abs(item.leftGap - item.rightGap) < .1, `${item.label}: center the hover surface within the rail border`)
+    assert(Math.abs(item.iconOffset) < .1, `${item.label}: center its icon inside the button`)
+  }
+  samples.push({ alignment })
+  const iconButtons = await page.locator('.title-bar button, [data-workspace-page][data-active="true"] [data-slot="entity-filmstrip"] button').evaluateAll(buttons => buttons.flatMap(button => {
+    if (button.textContent?.trim()) return []
+    const icon = button.querySelector(':scope > svg')
+    if (!icon) return []
+    const box = button.getBoundingClientRect(), glyph = icon.getBoundingClientRect()
+    return [{ label: button.getAttribute('aria-label'), x: glyph.left + glyph.width / 2 - box.left - box.width / 2,
+      y: glyph.top + glyph.height / 2 - box.top - box.height / 2 }]
+  }))
+  for (const button of iconButtons) assert(Math.abs(button.x) < .1 && Math.abs(button.y) < .1, `${button.label}: center the icon hit target`)
+  samples.push({ iconButtons })
 }
 async function trace(label: string, action: () => Promise<unknown>) {
   await page.evaluate("window.__name = (fn) => fn")
@@ -39,7 +64,15 @@ async function trace(label: string, action: () => Promise<unknown>) {
       const root = document.querySelector('[data-workspace-page][data-active="true"]')
       const viewport = root?.querySelector('[data-slot="image-viewport"]')
       const image = viewport?.querySelector<HTMLImageElement>('img:not([data-slot="image-loading-preview"])')
+      const leaked = [...document.querySelectorAll('[data-workspace-page][data-active="false"]')]
+        .filter(node => getComputedStyle(node).opacity !== "0")
+        .flatMap(node => [...node.querySelectorAll('[class~="group/badge"]')])
+        .filter(node => getComputedStyle(node).visibility === "visible")
+        .map(node => node.textContent)
       const state = { page: root?.getAttribute('data-page-id'),
+        leaked,
+        firstTabX: document.querySelector('[role="tab"]')?.getBoundingClientRect().left,
+        navigationWidth: document.querySelector('[data-slot="workspace-navigation"]')?.getBoundingClientRect().width,
         entity: root?.querySelector('[data-slot="entity-inspection"]')?.getAttribute('data-entity-id'),
         dialog: !!document.querySelector('[data-slot="dialog-content"][data-open]'),
         viewport: viewport?.getAttribute('data-state'), width: viewport?.clientWidth,
@@ -65,6 +98,11 @@ async function trace(label: string, action: () => Promise<unknown>) {
   const trace = await page.evaluate(() => (window as any).stopStabilityTrace())
   samples.push({ label, trace })
   for (const sample of trace) {
+    assert.deepEqual(sample.leaked, [], `${label}: inactive page components must disappear in the same frame`)
+    if (label === "plus from retained grid") {
+      assert.equal(sample.firstTabX, trace[0].firstTabX, "Opening a tab must not collapse navigation and shift the tab strip")
+      assert.equal(sample.navigationWidth, trace[0].navigationWidth)
+    }
     assert(!sample.dialog && !sample.dialogAnimation, `${label}: clean navigation must never flash a confirmation`)
     if (sample.entity && sample.entity === trace[0].entity) {
       assert.equal(sample.viewport, "ready", `${label}: the departing image must remain mounted until the next subject commits`)
@@ -86,6 +124,13 @@ try {
   }
   await page.goto(preview.origin)
   await openWorkspaceEntry(page, "All content")
+  await activeWorkspacePage(page).locator('[role="gridcell"] [data-slot="entity-card-component"]').first().waitFor()
+  const gridPage = await activeTab(page)
+  await trace("plus from retained grid", () => page.getByRole("button", { name: "Open page", exact: true }).click())
+  const addedPage = await activeTab(page)
+  await activeWorkspacePage(page).getByRole("grid").waitFor()
+  await trace("switch retained grids", () => activateTab(page, gridPage))
+  await closeTab(page, addedPage)
   const a = await activeTab(page)
   await activeWorkspacePage(page).getByRole("gridcell").first().dblclick()
   await activeWorkspacePage(page).locator('[data-slot="image-viewport"][data-state="ready"]').waitFor()
@@ -156,11 +201,16 @@ try {
   assert.equal(await page.getByRole("button", { name: "Why this matched", exact: true }).count(), 0)
   await page.waitForFunction(() => document.querySelector('[data-workspace-page][data-active="true"] [data-slot="entity-inspection"]')?.getAttribute('aria-busy') === "false")
   await checkNavigationLayout()
+  await activeWorkspacePage(page).getByRole("button", { name: "Image", exact: true }).hover()
   await page.screenshot({ path: join(output, "detail-toolbar.png"), animations: "disabled" })
   await page.setViewportSize({ width: 720, height: 480 })
   await checkNavigationLayout()
   await page.screenshot({ path: join(output, "detail-toolbar-minimum.png"), animations: "disabled" })
   await page.setViewportSize({ width: 1280, height: 800 })
+  // Check the same inner-border geometry at a common fractional desktop zoom.
+  await page.evaluate(() => { document.documentElement.style.zoom = "1.25" })
+  await checkNavigationLayout()
+  await page.evaluate(() => { document.documentElement.style.zoom = "" })
   await page.getByRole("navigation", { name: "History", exact: true }).getByRole("button", { name: "Return to source", exact: true }).click()
   const grid = aRoot.locator('[role="grid"]'), firstCell = grid.getByRole("gridcell").first()
   await grid.waitFor()

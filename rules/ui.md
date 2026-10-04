@@ -44,6 +44,9 @@
   width; draw the boundary inside that footprint instead of allocating another
   pixel beside the rail. Expanded navigation overlays content without moving the
   icon column. Panel buttons may grow vertically to retain their text labels.
+- Center right-rail hover surfaces within the space inside the rail's divider.
+  The divider participates in its border box; do not overlay it on top of an
+  otherwise centered full-width layout. Check equal inner gaps at fractional zoom.
 - Entity Search and its Filter trigger share one InputGroup. Place the labeled
   Filter action in a full-height trailing segment, sharing the outer frame and
   corner radius with the input. Use the shared segment button size and a full-height
@@ -82,6 +85,10 @@
 
 ## Stable updates
 
+- Preserve the header navigation footprint while a new page mounts. Hide each
+  inactive page as a whole without collapsing its measurable layout. Use explicit
+  transition properties on shared components; visibility is never an incidental
+  member of an `all` transition during tab changes.
 - Distinguish an initial load from refreshing already observed data. Keep existing
   content mounted during a refresh. Do not replace a populated panel with a
   skeleton, empty state, loading paragraph or entrance animation after each edit.

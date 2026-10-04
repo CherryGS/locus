@@ -14,6 +14,7 @@ import { PageSessionContext, useLibraryRun } from "../providers/library-provider
 import type { PageCategory } from "../providers/workspace-session"
 import { HistoryPlacementContext } from "./history-navigation"
 import { WorkspaceTabs } from "./workspace-tabs"
+import { cn } from "@/shared/lib/utils"
 
 export function DesktopShell() {
   const run = useLibraryRun()
@@ -51,7 +52,10 @@ export function DesktopShell() {
               </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-        <div ref={setNavigation} data-slot="workspace-navigation" className="flex shrink-0 items-center empty:hidden" />
+        {/* The next router may mount its navigation a frame later. Reserve its
+            footprint so opening a page never shifts the existing tabs. */}
+        <div ref={setNavigation} data-slot="workspace-navigation"
+          className={cn("flex w-22 shrink-0 items-center", !workspace?.pages.length && "hidden")} />
         <WorkspaceTabs workspace={workspace} />
         <div className="min-w-8 flex-1 self-stretch" aria-hidden="true" />
       </div>
@@ -59,11 +63,12 @@ export function DesktopShell() {
     <TaskWorkspace>
       <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
         {!workspace?.pages.length && <Empty className="h-full"><EmptyHeader><EmptyTitle>Open a workspace</EmptyTitle></EmptyHeader><Button variant="outline" onClick={() => workspace?.open("Media")}>Open Media</Button></Empty>}
-        {/* Keep retained viewports measurable while hidden. Activity gates own
-            loading/input/playback; zero-sized layouts would flash on reentry. */}
+        {/* Keep retained viewports measurable. Group opacity also hides children
+            whose own visibility transitions would otherwise linger on departure.
+            Activity gates own loading/input/playback. */}
         {workspace?.pages.map(page => <div key={page.id} id={`workspace-panel-${page.id}`} role="tabpanel" aria-labelledby={`workspace-tab-${page.id}`} tabIndex={-1} data-workspace-page data-page-id={page.id} data-active={String(page.active)}
           aria-hidden={!page.active} inert={!page.active}
-          className={`absolute inset-0 h-full min-h-0 min-w-0${page.active ? "" : " invisible"}`}>
+          className={cn("absolute inset-0 h-full min-h-0 min-w-0", !page.active && "invisible opacity-0")}>
           <PageSessionContext value={page}><PageActivityContext value={{ active: page.active, requestClose: () => void workspace.requestClose(page) }}>
             <RouterProvider router={page.router} />
           </PageActivityContext></PageSessionContext>
