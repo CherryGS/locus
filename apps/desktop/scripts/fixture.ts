@@ -101,7 +101,7 @@ export async function startServer(
     stop,
   }
 }
-async function complete(client: LocusClient, taskId: string): Promise<TaskOutcome> {
+export async function complete(client: LocusClient, taskId: string): Promise<TaskOutcome> {
   const deadline = AbortSignal.timeout(30_000)
   for (;;) {
     const result = await client.GET("/api/v1/tasks/{task_id}/outcome", {

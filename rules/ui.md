@@ -45,6 +45,8 @@
   combine only applied criteria with AND. Buttons must fit inside the frame.
 - Keep the Entity locate action in the list toolbar and disable it when there
   is no selected item in the current grid. Omit it from the detail filmstrip.
+- Detail filmstrips contain neighboring previews and browsing navigation.
+  Keep list refresh, search/filter, result counts and locate controls in lists.
 - When changing a shared visual rule, migrate the affected consumers and check
   computed geometry in the real renderer. Update this rule at the same time
   instead of adding another page-specific workaround.

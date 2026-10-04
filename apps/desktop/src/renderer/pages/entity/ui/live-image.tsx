@@ -8,6 +8,7 @@ import { Spinner } from "@/shared/ui/spinner"
 import { ExpandIcon } from "lucide-react"
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/dialog"
 import { ImageInspection } from "./image-inspection"
+import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
 
 export function LiveImage({
   api,
@@ -18,6 +19,7 @@ export function LiveImage({
   name,
   loading,
   embedded = false,
+  preview,
 }: {
   api: BackendApi
   reader: EntityReader
@@ -27,6 +29,7 @@ export function LiveImage({
   name: string
   loading: boolean
   embedded?: boolean
+  preview?: { src: string; width: number; height: number }
 }) {
   const generation = reader.resourceRevision(entityId)
   const basis = `${componentId}:${fileId}`
@@ -61,6 +64,7 @@ export function LiveImage({
     }
   }, [api, reader, entityId, basis, generation])
   const current = resource?.basis === basis && resource.generation === generation ? resource : undefined
+  const showPending = useDelayedPending(!!fileId && !current)
   if (!fileId || current?.error)
     return (
       <Empty className="h-full">
@@ -80,16 +84,16 @@ export function LiveImage({
         )}
       </Empty>
     )
-  if (!current?.src)
+  if (embedded && !current?.src)
     return (
       <Empty className="h-full">
-        <EmptyHeader>
+        {showPending && <EmptyHeader>
           <Spinner />
           <EmptyDescription>Reading current File bytes…</EmptyDescription>
-        </EmptyHeader>
+        </EmptyHeader>}
       </Empty>
     )
-  if (embedded)
+  if (embedded && current?.src)
     return (
       <Dialog>
         <DialogTrigger
@@ -127,7 +131,9 @@ export function LiveImage({
       <p className="px-4 py-2 text-xs text-muted-foreground">Current File bytes · {fileId}</p>
       <ImageInspection
         key={`${basis}:${generation}`}
-        src={current.src}
+        src={current?.src}
+        pending={!current?.src}
+        preview={preview}
         name={name}
         onDecoded={() => reader.resourceResult(entityId, basis, generation)}
         onFailed={() =>

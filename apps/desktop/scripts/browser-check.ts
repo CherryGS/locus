@@ -253,6 +253,7 @@ try {
       })
     else await route.continue()
   })
+  await page.getByRole("button", { name: "Return to source", exact: true }).click()
   await page.getByRole("button", { name: "Refresh library", exact: true }).click()
   await page
     .getByText("The Entity is no longer in the current list. Selection was cleared.", { exact: true })

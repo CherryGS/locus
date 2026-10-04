@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react"
 import { ImageOffIcon, MinusIcon, PlusIcon } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
+import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 import {
@@ -17,12 +18,16 @@ export function ImageInspection({
   onDecoded,
   onFailed,
   onRetry,
+  pending = false,
+  preview,
 }: {
   src: string | undefined
   name: string
   onDecoded?: () => void
   onFailed?: () => void
   onRetry?: () => void
+  pending?: boolean
+  preview?: { src: string; width: number; height: number }
 }) {
   const viewport = useRef<HTMLDivElement>(null)
   const drag = useRef<{ id: number; x: number; y: number } | null>(null)
@@ -32,8 +37,9 @@ export function ImageInspection({
   const [failed, setFailed] = useState(false)
   const [manualView, setManualView] = useState<ImageTransform | null>(null)
   const [showZoom, setShowZoom] = useState(false)
-  const unavailable = !src || failed
-  const ready = !unavailable && imageSize !== null
+  const unavailable = (!src && !pending) || failed
+  const ready = !!src && !unavailable && imageSize !== null
+  const showPending = useDelayedPending(!unavailable && !ready)
   const fit = imageSize ? fitImageScale(imageSize, viewportSize) : 1
   const view = manualView ?? { scale: fit, x: 0, y: 0 }
 
@@ -144,6 +150,12 @@ export function ImageInspection({
         drag.current = null
       }}
     >
+      {!unavailable && !ready && preview && (
+        <img data-slot="image-loading-preview" src={preview.src} alt="" aria-hidden="true" draggable={false}
+          className="pointer-events-none absolute top-1/2 left-1/2 max-w-none select-none"
+          style={{ width: preview.width, height: preview.height,
+            transform: `translate(-50%, -50%) scale(${fitImageScale(preview, viewportSize)})` }} />
+      )}
       {src && !failed && (
         <img
           src={src}
@@ -188,9 +200,9 @@ export function ImageInspection({
           )}
         </Empty>
       ) : (
-        !ready && (
+        showPending && (
           <p role="status" className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Loading image…
+            <span className="relative rounded-md bg-background/80 px-3 py-2">Loading image…</span>
           </p>
         )
       )}

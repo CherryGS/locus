@@ -1,4 +1,4 @@
-import { createFileRoute, useBlocker, useRouterState } from "@tanstack/react-router"
+import { createFileRoute, useBlocker } from "@tanstack/react-router"
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react"
 import { emptySequence } from "@/entities/entity"
 import { TagDetailPage, TagEntityStrip } from "@/pages/tag-detail"
@@ -23,6 +23,7 @@ export const Route = createFileRoute("/tag/$tagId")({
       collectionId: typeof search.collectionId === "string" ? search.collectionId : "tag",
     })
   },
+  beforeLoad: ({ location }) => ({ visit: location.state }),
   component: TagRoute,
 })
 const noSubscribe = () => () => {},
@@ -38,7 +39,7 @@ function TagRoute() {
     mode: search.mode ?? "grid",
     collectionId: !search.collectionId || search.collectionId === "tag" ? contextId : search.collectionId,
   }
-  const visitKey = useRouterState({ select: (state) => state.location.state.__TSR_key ?? "initial" })
+  const visitKey = Route.useRouteContext().visit.__TSR_key ?? "initial"
   const browsing = useMemo(() => {
     const state: EntityBrowsingState = session?.browsing.get(visitKey) ?? {}
     session?.browsing.set(visitKey, state)

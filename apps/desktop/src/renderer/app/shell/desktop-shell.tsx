@@ -8,6 +8,7 @@ import { Empty, EmptyHeader, EmptyTitle } from "@/shared/ui/empty"
 import { Separator } from "@/shared/ui/separator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/shared/ui/dialog"
 import { PageActivityContext } from "@/shared/page-activity"
+import { useDelayedPending } from "@/shared/lib/use-delayed-pending"
 import { SettingsDialog } from "./settings-dialog"
 import { useSettingsWorkspace } from "./settings-navigation"
 import { TaskWorkspace } from "./task-workspace"
@@ -21,6 +22,7 @@ export function DesktopShell() {
   const workspace = run?.workspace
   useSyncExternalStore(workspace?.subscribe ?? noSubscribe, workspace?.snapshot ?? zero)
   useSyncExternalStore(run?.imports.subscribe ?? noSubscribe, run?.imports.snapshot ?? zero)
+  const closeWaiting = useDelayedPending(!!workspace?.close)
   useEffect(() => {
     if (!workspace || workspace.initialEntryHandled) return
     workspace.initialEntryHandled = true
@@ -76,7 +78,7 @@ export function DesktopShell() {
       </main>
     </TaskWorkspace>
     <SettingsDialog />
-    <Dialog open={!!workspace?.close} onOpenChange={open => { if (!open) workspace?.cancelClose() }}>
+    <Dialog open={!!workspace?.close && (!workspace.close.pending || closeWaiting)} onOpenChange={open => { if (!open) workspace?.cancelClose() }}>
       <DialogContent showCloseButton={false} finalFocus={() => document.getElementById(workspace?.activeId ? `workspace-tab-${workspace.activeId}` : "locus-launcher")} onKeyDown={event => event.stopPropagation()}>
         <DialogHeader><DialogTitle>Close {workspace?.close?.page.label}</DialogTitle>
           <DialogDescription>{workspace?.close?.pending ? "Preparing page edits…" : workspace?.close?.state?.blocked ?? "Save your changes before closing this page?"}</DialogDescription></DialogHeader>

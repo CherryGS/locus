@@ -1,4 +1,4 @@
-import { createFileRoute, useRouterState } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import { EntityPage, entitySearch, type EntityBrowsingState } from "@/pages/entity"
 import { useMemo, useRef, useSyncExternalStore } from "react"
 import { suppliedSequence, type EntityItem } from "@/entities/entity"
@@ -6,6 +6,9 @@ import { useLibrarySession, specimenMode } from "../providers/library-provider"
 
 export const Route = createFileRoute("/entity")({
   validateSearch: entitySearch,
+  // The rendered match owns both its search and its visit. The router's latest
+  // location can already point at the next visit while this match is retained.
+  beforeLoad: ({ location }) => ({ visit: location.state }),
   loader: async () =>
     import.meta.env.DEV && specimenMode
       ? await import("../preview/entities")
@@ -35,7 +38,8 @@ function EntityRoute() {
   )
   const navigate = Route.useNavigate()
   const destination = Route.useSearch()
-  const historyIndex = useRouterState({ select: (state) => state.location.state.__TSR_index })
+  const { visit } = Route.useRouteContext()
+  const historyIndex = visit.__TSR_index
   const previousBrowsing = useRef<EntityBrowsingState | undefined>(undefined)
   const browsing = useMemo(() => {
     const key = String(historyIndex)
@@ -54,7 +58,7 @@ function EntityRoute() {
   if (session && destination.collectionId === "library" && destination.mode === "grid") {
     session.mainDestination = { ...destination, returnVisit: String(historyIndex) }
   }
-  const key = useRouterState({ select: (state) => state.location.state.__TSR_key ?? "initial" })
+  const key = visit.__TSR_key ?? "initial"
   return (
     <EntityPage
       source={session?.source() ?? previewSource}

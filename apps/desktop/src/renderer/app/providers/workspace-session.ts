@@ -207,6 +207,14 @@ export class WorkspaceSession {
   async requestClose(page: LibraryPageSession) {
     if (!this.pages.includes(page)) return
     const ticket = ++this.closeTicket
+    const current = page.preparation.preparation()
+    if (!current.blocked && !current.draft) {
+      // A clean page still seals the current revision, but never enters a
+      // visible confirmation state just to complete on the next microtask.
+      this.close = { page, ticket, pending: false, state: current }
+      this.finishClose(false)
+      return
+    }
     this.close = { page, ticket, pending: true }
     this.changed()
     const state = await page.preparation.prepare()
@@ -237,8 +245,11 @@ export class WorkspaceSession {
       if (this.mru[0]) this.activate(this.mru[0])
     }
     this.changed()
+    const navigation = this.navigationRevision
     if (wasActive) requestAnimationFrame(() => {
-      if (document.activeElement === document.body)
+      // Closing no longer relies on a transient dialog's final-focus handler.
+      // Do not override a newer tab/navigation action while React commits.
+      if (navigation === this.navigationRevision)
         document.getElementById(this.activeId ? `workspace-tab-${this.activeId}` : "locus-launcher")?.focus()
     })
     return true

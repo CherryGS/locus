@@ -97,6 +97,8 @@ export function EntityContent({
             fileId={image.inputFileId}
             name={entityLabel(entity)}
             loading={image.readStatus === "loading"}
+            preview={image.applicability?.status === "matching" && image.thumbnail && image.width && image.height
+              ? { src: image.thumbnail, width: image.width, height: image.height } : undefined}
           />
         ) : (
           <ImageInspection

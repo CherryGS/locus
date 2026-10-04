@@ -657,13 +657,13 @@ export function EntityPage({
       data-preference-cache={live?.preferences.cacheSize}
       data-pending-metadata={live?.reader.pendingCount}
     >
-      <HeaderDisplay>
+      {!viewing && <HeaderDisplay>
         <span className="truncate" aria-label="Browsing status" title={`${activeContext?.title ?? "Library"} · ${source.sequence.length.toLocaleString()} ${source.sequence.length === 1 ? "item" : "items"}${selected ? " · 1 selected" : ""}`}>
           {sequence && (destination.collectionId !== "library" || !live || live.filter.sequence)
             ? <>{activeContext && <>{activeContext.title} · </>}{source.sequence.length.toLocaleString()} {source.sequence.length === 1 ? "item" : "items"}{selected ? " · 1 selected" : ""}</>
             : live?.filter.pending ? "Reading library…" : "Library unavailable"}
         </span>
-      </HeaderDisplay>
+      </HeaderDisplay>}
       <header data-slot="entity-page-header" className="flex shrink-0 items-center gap-2 px-3">
         <PageTools />
         {viewing && selected ? (
@@ -683,7 +683,7 @@ export function EntityPage({
         {!viewing && <Button variant="ghost" size="icon-sm" aria-label="Locate selected Entity" title="Locate selected Entity"
           disabled={!selected || source.sequence.indexOf(selected.id) < 0}
           onClick={() => setRevealEntity(value => value + 1)}><LocateFixedIcon /></Button>}
-        {live && (
+        {!viewing && live && (
           <RefreshButton
             aria-label={refreshLabel}
             title={refreshLabel}
@@ -691,7 +691,7 @@ export function EntityPage({
             onClick={() => void refresh()}
           />
         )}
-        <HeaderDisplayPlacement />
+        {!viewing && <HeaderDisplayPlacement />}
       </header>
       {destination.direct && (
         <p className="px-4 pb-2 text-xs text-muted-foreground">

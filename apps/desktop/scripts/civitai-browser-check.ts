@@ -54,8 +54,8 @@ try {
     assert(Date.now() < deadline, "Fixture enrichment did not complete")
     await delay(30)
   }
-  await page.getByRole("button", { name: "Refresh library", exact: true }).click()
   await page.getByRole("button", { name: "Overview", exact: true }).click()
+  await page.getByRole("button", { name: "Reread Entity", exact: true }).click()
   await page.getByRole("combobox", { name: "Default view", exact: true }).click()
   await page.getByRole("option", { name: "Use Civitai view", exact: true }).waitFor()
   await page.keyboard.press("Escape")
